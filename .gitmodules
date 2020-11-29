@@ -1,0 +1,9 @@
+[submodule "3rd_party/SPIRV-Reflect"]
+	path = 3rd_party/SPIRV-Reflect
+	url = https://github.com/KhronosGroup/SPIRV-Reflect.git
+[submodule "3rd_party/imgui"]
+	path = 3rd_party/imgui
+	url = https://github.com/ocornut/imgui.git
+[submodule "3rd_party/glslang"]
+	path = 3rd_party/glslang
+	url = https://github.com/KhronosGroup/glslang.git
