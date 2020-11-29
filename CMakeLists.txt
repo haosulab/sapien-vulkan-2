@@ -24,6 +24,7 @@ set_source_files_properties("3rd_party/SPIRV-Reflect/spirv_reflect.c" PROPERTIES
 set(ON_SCREEN TRUE CACHE BOOL "Vulkan renderer with on screen rendering and GUI support") 
 include_directories("include")
 include_directories("3rd_party/glslang")
+include_directories("3rd_party/SPIRV-Reflect")
 include_directories("$ENV{VULKAN_SDK}/include")
 include_directories("3rd_party/SPIRV-Reflect")
 
