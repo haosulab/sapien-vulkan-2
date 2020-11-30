@@ -8,10 +8,10 @@
 
 namespace svulkan2 {
 struct DataLayoutElement {
-  std::string name;
-  std::string typeName;
-  uint32_t size;
-  uint32_t location;
+  std::string name{};
+  std::string typeName{};
+  uint32_t size{0};
+  uint32_t location{0};
 };
 
 struct DataLayout {
@@ -32,9 +32,10 @@ struct DataLayout {
   inline std::string summarize() const {
     auto elements = getElementsSorted();
     std::stringstream ss;
+    ss << "total size: " << size << "; ";
     for (auto &e : elements) {
       ss << e.name << "[" << e.typeName << "]"
-         << "at: " << e.location << ", size: " << e.size << "\n";
+         << "at: " << e.location << ", size: " << e.size << "; ";
     }
     return ss.str();
   }
