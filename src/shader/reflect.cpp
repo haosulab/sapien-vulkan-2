@@ -3,68 +3,153 @@
 
 namespace svulkan2 {
 
-uint32_t GetSizeFromReflectFormat(SpvReflectFormat format) {
-  switch (format) {
-  case SPV_REFLECT_FORMAT_R32_UINT:
-    return 4;
-  case SPV_REFLECT_FORMAT_R32_SINT:
-    return 4;
-  case SPV_REFLECT_FORMAT_R32_SFLOAT:
-    return 4;
-  case SPV_REFLECT_FORMAT_R32G32_UINT:
-    return 8;
-  case SPV_REFLECT_FORMAT_R32G32_SINT:
-    return 8;
-  case SPV_REFLECT_FORMAT_R32G32_SFLOAT:
-    return 8;
-  case SPV_REFLECT_FORMAT_R32G32B32_UINT:
-    return 12;
-  case SPV_REFLECT_FORMAT_R32G32B32_SINT:
-    return 12;
-  case SPV_REFLECT_FORMAT_R32G32B32_SFLOAT:
-    return 12;
-  case SPV_REFLECT_FORMAT_R32G32B32A32_UINT:
-    return 16;
-  case SPV_REFLECT_FORMAT_R32G32B32A32_SINT:
-    return 16;
-  case SPV_REFLECT_FORMAT_R32G32B32A32_SFLOAT:
-    return 16;
-  case SPV_REFLECT_FORMAT_UNDEFINED:
-    return 0;
-  }
-  throw std::runtime_error("undefined SPV Reflect Format");
+bool type_is_int(spirv_cross::SPIRType const &type) {
+  return type.basetype == spirv_cross::SPIRType::Int && type.vecsize == 1;
+}
+bool type_is_uint(spirv_cross::SPIRType const &type) {
+  return type.basetype == spirv_cross::SPIRType::UInt && type.vecsize == 1;
+}
+bool type_is_float(spirv_cross::SPIRType const &type) {
+  return type.basetype == spirv_cross::SPIRType::Float && type.vecsize == 1;
 }
 
-std::string GetTypeNameFromReflectFormat(SpvReflectFormat format) {
-  switch (format) {
-  case SPV_REFLECT_FORMAT_R32_UINT:
-    return "uint";
-  case SPV_REFLECT_FORMAT_R32_SINT:
-    return "int";
-  case SPV_REFLECT_FORMAT_R32_SFLOAT:
-    return "float";
-  case SPV_REFLECT_FORMAT_R32G32_UINT:
-    return "uint2";
-  case SPV_REFLECT_FORMAT_R32G32_SINT:
-    return "int2";
-  case SPV_REFLECT_FORMAT_R32G32_SFLOAT:
-    return "float2";
-  case SPV_REFLECT_FORMAT_R32G32B32_UINT:
-    return "uint3";
-  case SPV_REFLECT_FORMAT_R32G32B32_SINT:
-    return "int3";
-  case SPV_REFLECT_FORMAT_R32G32B32_SFLOAT:
-    return "float3";
-  case SPV_REFLECT_FORMAT_R32G32B32A32_UINT:
-    return "uint4";
-  case SPV_REFLECT_FORMAT_R32G32B32A32_SINT:
-    return "int4";
-  case SPV_REFLECT_FORMAT_R32G32B32A32_SFLOAT:
-    return "float4";
-  case SPV_REFLECT_FORMAT_UNDEFINED:
-    return "undefined";
+bool type_is_int2(spirv_cross::SPIRType const &type) {
+  return type.basetype == spirv_cross::SPIRType::Int && type.vecsize == 2;
+}
+bool type_is_uint2(spirv_cross::SPIRType const &type) {
+  return type.basetype == spirv_cross::SPIRType::UInt && type.vecsize == 2;
+}
+bool type_is_float2(spirv_cross::SPIRType const &type) {
+  return type.basetype == spirv_cross::SPIRType::Float && type.vecsize == 2;
+}
+
+bool type_is_int3(spirv_cross::SPIRType const &type) {
+  return type.basetype == spirv_cross::SPIRType::Int && type.vecsize == 3;
+}
+bool type_is_uint3(spirv_cross::SPIRType const &type) {
+  return type.basetype == spirv_cross::SPIRType::UInt && type.vecsize == 3;
+}
+bool type_is_float3(spirv_cross::SPIRType const &type) {
+  return type.basetype == spirv_cross::SPIRType::Float && type.vecsize == 3;
+}
+
+bool type_is_int4(spirv_cross::SPIRType const &type) {
+  return type.basetype == spirv_cross::SPIRType::Int && type.vecsize == 4;
+}
+bool type_is_uint4(spirv_cross::SPIRType const &type) {
+  return type.basetype == spirv_cross::SPIRType::UInt && type.vecsize == 4;
+}
+bool type_is_float4(spirv_cross::SPIRType const &type) {
+  return type.basetype == spirv_cross::SPIRType::Float && type.vecsize == 4;
+}
+
+bool type_is_int44(spirv_cross::SPIRType const &type) {
+  return type.basetype == spirv_cross::SPIRType::Int && type.columns == 4;
+}
+bool type_is_uint44(spirv_cross::SPIRType const &type) {
+  return type.basetype == spirv_cross::SPIRType::UInt && type.columns == 4;
+}
+bool type_is_float44(spirv_cross::SPIRType const &type) {
+  return type.basetype == spirv_cross::SPIRType::Float && type.columns == 4;
+}
+
+DataType get_data_type(spirv_cross::SPIRType const &type) {
+  if (type_is_int(type)) {
+    return DataType::eINT;
   }
-  throw std::runtime_error("undefined SPV Reflect Format");
+  if (type_is_int2(type)) {
+    return DataType::eINT2;
+  }
+  if (type_is_int3(type)) {
+    return DataType::eINT3;
+  }
+  if (type_is_int4(type)) {
+    return DataType::eINT4;
+  }
+  if (type_is_int44(type)) {
+    return DataType::eINT44;
+  }
+
+  if (type_is_float(type)) {
+    return DataType::eFLOAT;
+  }
+  if (type_is_float2(type)) {
+    return DataType::eFLOAT2;
+  }
+  if (type_is_float3(type)) {
+    return DataType::eFLOAT3;
+  }
+  if (type_is_float4(type)) {
+    return DataType::eFLOAT4;
+  }
+  if (type_is_float44(type)) {
+    return DataType::eFLOAT44;
+  }
+
+  if (type_is_uint(type)) {
+    return DataType::eUINT;
+  }
+  if (type_is_uint2(type)) {
+    return DataType::eUINT2;
+  }
+  if (type_is_uint3(type)) {
+    return DataType::eUINT3;
+  }
+  if (type_is_uint4(type)) {
+    return DataType::eUINT4;
+  }
+  if (type_is_uint44(type)) {
+    return DataType::eUINT44;
+  }
+
+  return DataType::eUNKNOWN;
+}
+
+spirv_cross::Resource *
+find_uniform_by_decoration(spirv_cross::Compiler &compiler,
+                           spirv_cross::ShaderResources &resource,
+                           uint32_t binding_number, uint32_t set_number) {
+
+  for (auto &r : resource.uniform_buffers) {
+    if (compiler.get_decoration(r.id, spv::Decoration::DecorationBinding) ==
+            binding_number &&
+        compiler.get_decoration(
+            r.id, spv::Decoration::DecorationDescriptorSet) == set_number) {
+      return &r;
+    }
+  }
+  return nullptr;
+}
+
+spirv_cross::Resource *
+find_sampler_by_decoration(spirv_cross::Compiler &compiler,
+                           spirv_cross::ShaderResources &resource,
+                           uint32_t binding_number, uint32_t set_number) {
+
+  for (auto &r : resource.sampled_images) {
+    if (compiler.get_decoration(r.id, spv::Decoration::DecorationBinding) ==
+        binding_number &&
+        compiler.get_decoration(
+            r.id, spv::Decoration::DecorationDescriptorSet) == set_number) {
+      return &r;
+    }
+  }
+  return nullptr;
+
+  // auto it =
+  //     std::find(resource.sampled_images.begin(), resource.sampled_images.end(),
+  //               [&](auto &r) {
+  //                 return compiler.get_decoration(
+  //                            r.id, spv::Decoration::DecorationBinding) ==
+  //                            binding_number &&
+  //                        compiler.get_decoration(
+  //                            r.id, spv::Decoration::DecorationDescriptorSet) ==
+  //                            set_number;
+  //               });
+  // if (it == resource.sampled_images.end()) {
+  //   return nullptr;
+  // }
+  // return it;
 }
 
 } // namespace svulkan2

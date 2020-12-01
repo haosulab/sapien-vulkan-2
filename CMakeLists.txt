@@ -18,17 +18,17 @@ endif ()
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 find_package(assimp REQUIRED)
 find_package(Vulkan REQUIRED)
-file(GLOB_RECURSE RENDER_SRC "src/*.cpp" "3rd_party/SPIRV-Reflect/spirv_reflect.c")
-set_source_files_properties("3rd_party/SPIRV-Reflect/spirv_reflect.c" PROPERTIES LANGUAGE CXX)
+file(GLOB_RECURSE RENDER_SRC "src/*.cpp")
 
 set(ON_SCREEN TRUE CACHE BOOL "Vulkan renderer with on screen rendering and GUI support") 
 include_directories("include")
 include_directories("3rd_party/glslang")
-include_directories("3rd_party/SPIRV-Reflect")
+include_directories("3rd_party/SPIRV-Cross")
 include_directories("$ENV{VULKAN_SDK}/include")
-include_directories("3rd_party/SPIRV-Reflect")
 
+link_directories("$ENV{VULKAN_SDK}/lib")
 add_subdirectory("3rd_party/glslang")
+add_subdirectory("3rd_party/SPIRV-Cross")
 
 if (${ON_SCREEN}) 
   find_package(glfw3 REQUIRED)
@@ -40,7 +40,9 @@ if (${ON_SCREEN})
 endif()
 
 add_library(svulkan2 STATIC ${RENDER_SRC} ${GUI_SRC})
-target_link_libraries(svulkan2 ${ASSIMP_LIBRARIES} glfw3 dl pthread Vulkan::Vulkan spdlog glslang SPIRV)
+target_link_libraries(svulkan2 ${ASSIMP_LIBRARIES} glfw3 dl pthread Vulkan::Vulkan spdlog
+  glslang SPIRV spirv-cross-cpp
+  )
 
 add_executable(main app/main.cpp)
 target_link_libraries(main svulkan2 stdc++fs)

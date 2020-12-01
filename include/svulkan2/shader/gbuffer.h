@@ -1,32 +1,25 @@
-#include "glsl_compiler.h"
-#include "reflect.h"
-#include "svulkan2/common/fs.h"
-#include "svulkan2/common/layout.h"
+#pragma once
+#include "base_parser.h"
 
 namespace svulkan2 {
 
-class GbufferShaderConfig {
-  std::vector<uint32_t> mVertSpv;
-  std::vector<uint32_t> mFragSpv;
+class GbufferPassParser : public BaseParser {
 
-  DataLayout mVertexLayout{};
-  DataLayout mCameraLayout{};
-  DataLayout mObjectLayout{};
-  DataLayout mOutputLayout{};
+  InOutDataLayout mVertexLayout{};
+  StructDataLayout mCameraLayout{};
+  StructDataLayout mObjectLayout{};
+  InOutDataLayout mOutputLayout{};
 
   enum { eSPECULAR, eMETALLIC } mMaterialType;
 
-public:
-  void parseGLSL(std::string const &vertFile, std::string const &fragFile);
-
 private:
-  void reflectSPV();
+  void reflectSPV() override;
 
-  void processVertexInput(spv_reflect::ShaderModule &module);
-  void processCamera(spv_reflect::ShaderModule &vertModule);
-  void processObject(spv_reflect::ShaderModule &vertModule);
-  void processMaterial(spv_reflect::ShaderModule &fragModule);
-  void processOutput(spv_reflect::ShaderModule &fragModule);
+  void processVertexInput(spirv_cross::Compiler &module);
+  void processCamera(spirv_cross::Compiler &vertModule);
+  void processObject(spirv_cross::Compiler &vertModule);
+  void processMaterial(spirv_cross::Compiler &fragModule);
+  void processOutput(spirv_cross::Compiler &fragModule);
 };
 
 } // namespace svulkan2

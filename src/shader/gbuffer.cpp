@@ -3,285 +3,267 @@
 
 namespace svulkan2 {
 
-void GbufferShaderConfig::parseGLSL(std::string const &vertFile,
-                                    std::string const &fragFile) {
-  GLSLCompiler compiler;
-  mVertSpv = compiler.compileToSpirv(vk::ShaderStageFlagBits::eVertex,
-                                     readFile(vertFile));
-  log::info("shader compiled: " + vertFile);
-
-  mFragSpv = compiler.compileToSpirv(vk::ShaderStageFlagBits::eFragment,
-                                     readFile(fragFile));
-  log::info("shader compiled: " + fragFile);
-
-  reflectSPV();
+void GbufferPassParser::reflectSPV() {
+    std::vector<uint32_t> spirv = mVertSPVCode;
+    spirv_cross::Compiler vertComp(std::move(spirv));
+    processVertexInput(vertComp);
+    processCamera(vertComp);
+    processObject(vertComp);
+    spirv_cross::Compiler fragComp(mFragSPVCode);
+    processMaterial(fragComp);
+    processOutput(fragComp);
 }
 
-void GbufferShaderConfig::reflectSPV() {
-  spv_reflect::ShaderModule vertModule(mVertSpv);
-  processVertexInput(vertModule);
-  processCamera(vertModule);
-  processObject(vertModule);
+void GbufferPassParser::processVertexInput(spirv_cross::Compiler &compiler) {
+  spirv_cross::ShaderResources resources = compiler.get_shader_resources();
+  auto vertInput = resources.stage_inputs;
 
-  spv_reflect::ShaderModule fragModule(mFragSpv);
-  processMaterial(fragModule);
-  processOutput(fragModule);
-}
+  bool usePosition = false;
+  bool useNormal = false;
+  bool useTangent = false;
+  bool useBitangent = false;
+  bool useColor = false;
+  bool useUV = false;
 
-void GbufferShaderConfig::processVertexInput(
-    spv_reflect::ShaderModule &module) {
-  uint32_t count;
-  module.EnumerateInputVariables(&count, nullptr);
-  std::vector<SpvReflectInterfaceVariable *> inputVariables(count);
-  module.EnumerateInputVariables(&count, inputVariables.data());
-
-  DataLayout vertexLayout;
-  for (auto *var : inputVariables) {
-    vertexLayout.elements[var->name] =
-        DataLayoutElement{.name = var->name,
-                          .typeName = GetTypeNameFromReflectFormat(var->format),
-                          .size = GetSizeFromReflectFormat(var->format),
-                          .location = var->location};
-  }
-
-  // check valid vertex format
-  auto elements = vertexLayout.getElementsSorted();
-  if (elements.size() == 0 || elements[0].name != "position" ||
-      elements[0].typeName != "float3" || elements[0].location != 0) {
-    throw std::runtime_error(
-        "a float3 input variable named position bound at location "
-        "0 is required for the gbuffer vertex shader");
-  }
-  std::vector<std::string> float3vars = {"normal", "tangent", "bitangent"};
-  for (std::string key : float3vars) {
-    if (vertexLayout.elements.find(key) != vertexLayout.elements.end()) {
-      if (vertexLayout.elements[key].typeName != "float3") {
-        throw std::runtime_error("input variable \"" + key +
-                                 "\" should have type \"float3\"");
+  for (auto &var : vertInput) {
+    if (var.name == "position") {
+      usePosition = true;
+      if (!type_is_float3(compiler.get_type(var.type_id)) ||
+          compiler.get_decoration(var.id,
+                                  spv::Decoration::DecorationLocation) != 0) {
+        throw std::runtime_error(
+            "gbuffer.vert: a float3 input variable named position bound at "
+            "location 0 is required for the gbuffer vertex shader");
       }
+      mVertexLayout.elements["position"] = {
+          .name = "position",
+          .type = DataType::eFLOAT3,
+          .size = GetDataTypeSize(DataType::eFLOAT3),
+          .location = 0};
+
+    } else if (var.name == "normal") {
+      useNormal = true;
+      if (!type_is_float3(compiler.get_type(var.type_id))) {
+        throw std::runtime_error("gbuffer.vert: normal input must be float3");
+      }
+      mVertexLayout.elements["normal"] = {
+          .name = "normal",
+          .type = DataType::eFLOAT3,
+          .size = GetDataTypeSize(DataType::eFLOAT3),
+          .location = compiler.get_decoration(
+              var.id, spv::Decoration::DecorationLocation)};
+    } else if (var.name == "tangent") {
+      useTangent = true;
+      if (!type_is_float3(compiler.get_type(var.type_id))) {
+        throw std::runtime_error("gbuffer.vert: tangent input must be float3");
+      }
+      mVertexLayout.elements["tangent"] = {
+          .name = "tangent",
+          .type = DataType::eFLOAT3,
+          .size = GetDataTypeSize(DataType::eFLOAT3),
+          .location = compiler.get_decoration(
+              var.id, spv::Decoration::DecorationLocation)};
+    } else if (var.name == "bitangent") {
+      useBitangent = true;
+      if (!type_is_float3(compiler.get_type(var.type_id))) {
+        throw std::runtime_error(
+            "gbuffer.vert: bitangent input must be float3");
+      }
+      mVertexLayout.elements["bitangent"] = {
+          .name = "bitangent",
+          .type = DataType::eFLOAT3,
+          .size = GetDataTypeSize(DataType::eFLOAT3),
+          .location = compiler.get_decoration(
+              var.id, spv::Decoration::DecorationLocation)};
+    } else if (var.name == "uv") {
+      useUV = true;
+      if (!type_is_float2(compiler.get_type(var.type_id))) {
+        throw std::runtime_error("gbuffer.vert: uv input must be float2");
+      }
+      mVertexLayout.elements["uv"] = {
+          .name = "uv",
+          .type = DataType::eFLOAT2,
+          .size = GetDataTypeSize(DataType::eFLOAT2),
+          .location = compiler.get_decoration(
+              var.id, spv::Decoration::DecorationLocation)};
+    } else if (var.name == "color") {
+      useColor = true;
+      if (!type_is_float4(compiler.get_type(var.type_id))) {
+        throw std::runtime_error("gbuffer.vert: color input must be float4");
+      }
+      mVertexLayout.elements["color"] = {
+          .name = "color",
+          .type = DataType::eFLOAT4,
+          .size = GetDataTypeSize(DataType::eFLOAT4),
+          .location = compiler.get_decoration(
+              var.id, spv::Decoration::DecorationLocation)};
     }
   }
-  if (vertexLayout.elements.find("uv") != vertexLayout.elements.end()) {
-    if (vertexLayout.elements["uv"].typeName != "float2") {
-      throw std::runtime_error(
-          "input variable \"uv\" should have type \"float2\"");
-    }
+  if (!usePosition) {
+    throw std::runtime_error("gbuffer.vert: vertex position is required.");
   }
-  if (vertexLayout.elements.find("color") != vertexLayout.elements.end()) {
-    if (vertexLayout.elements["color"].typeName != "float4") {
-      throw std::runtime_error(
-          "input variable \"color\" should have type \"float4\"");
-    }
+  if (useTangent && !useNormal) {
+    throw std::runtime_error(
+        "gbuffer.vert: vertex normal is required for vertex tangent.");
   }
-  mVertexLayout = vertexLayout;
+  if (useBitangent && (!useNormal || !useTangent)) {
+    throw std::runtime_error("gbuffer.vert: vertex normal and tangent are "
+                             "required for vertex bitangent.");
+  }
+  log::info(mVertexLayout.summarize());
 }
 
-void GbufferShaderConfig::processCamera(spv_reflect::ShaderModule &vertModule) {
-  static const char *ERROR =
-      "gbuffer.vert: Camera must be specified by (the types are enforced but "
-      "variable names "
-      "are not): layout(set=1, binding=0) uniform CameraBuffer { mat4 "
-      "viewMatrix; mat4 projectionMatrix; mat4 viewMatrixInverse; mat4 "
-      "projectionMatrixInverse; } cameraBuffer;";
-
-  static const char *WARN =
-      "gbuffer.vert: GBuffer Camera is recommended to be specified by: "
-      "layout(set=1, "
-      "binding=0) uniform "
-      "CameraBuffer { mat4 viewMatrix; mat4 projectionMatrix; mat4 "
-      "viewMatrixInverse; mat4 projectionMatrixInverse; } cameraBuffer;";
-
-  SpvReflectDescriptorBinding const *binding =
-      vertModule.GetDescriptorBinding(0, 1);
-
-  // validate camera
-  if (!binding) {
-    throw std::runtime_error(ERROR);
-  }
-  if (std::string(binding->name) != "cameraBuffer") {
-    log::warn(WARN);
-  }
-  if (binding->block.member_count != 4 ||
-      binding->block.members[0].size != 64 ||
-      binding->block.members[1].size != 64 ||
-      binding->block.members[2].size != 64 ||
-      binding->block.members[3].size != 64) {
-    throw std::runtime_error(ERROR);
-  }
-
-  if (std::string(binding->block.members[0].name) != "viewMatrix" ||
-      std::string(binding->block.members[1].name) != "projectionMatrix" ||
-      std::string(binding->block.members[2].name) != "viewMatrixInverse" ||
-      std::string(binding->block.members[3].name) !=
-          "projectionMatrixInverse") {
-    throw std::runtime_error(ERROR);
-  }
-
-  mCameraLayout.size = binding->block.size;
-  mCameraLayout.elements["viewMatrix"] =
-      DataLayoutElement{.name = "viewMatrix",
-                        .typeName = "float44",
-                        .size = binding->block.members[0].size,
-                        .location = binding->block.members[0].offset};
-  mCameraLayout.elements["projectionMatrix"] =
-      DataLayoutElement{.name = "projectionMatrix",
-                        .typeName = "float44",
-                        .size = binding->block.members[1].size,
-                        .location = binding->block.members[1].offset};
-  mCameraLayout.elements["viewMatrixInverse"] =
-      DataLayoutElement{.name = "viewMatrixInverse",
-                        .typeName = "float44",
-                        .size = binding->block.members[2].size,
-                        .location = binding->block.members[2].offset};
-  mCameraLayout.elements["projectionMatrixInverse"] =
-      DataLayoutElement{.name = "projectionMatrixInverse",
-                        .typeName = "float44",
-                        .size = binding->block.members[3].size,
-                        .location = binding->block.members[3].offset};
-  log::info(mCameraLayout.summarize());
+void GbufferPassParser::processCamera(spirv_cross::Compiler &compiler) {
+  mCameraLayout = parseCamera(compiler, 0, 1, "gbuffer.vert: ");
 }
 
-void GbufferShaderConfig::processObject(spv_reflect::ShaderModule &vertModule) {
+void GbufferPassParser::processObject(spirv_cross::Compiler &compiler) {
   static const char *ERROR =
       "gbuffer.vert: Object must be specified by: layout(set=2, binding=0) "
       "uniform "
       "ObjectBuffer { mat4 modelMatrix; uvec4 segmentation; [optional]mat4 "
       "userData; } objectBuffer;";
-  SpvReflectDescriptorBinding const *binding =
-      vertModule.GetDescriptorBinding(0, 2);
+
+  spirv_cross::ShaderResources resources = compiler.get_shader_resources();
+  auto *binding = find_uniform_by_decoration(compiler, resources, 0, 2);
+
   if (!binding) {
     throw std::runtime_error(ERROR);
   }
-  if (binding->block.member_count < 2 || binding->block.member_count > 3) {
+  auto &type = compiler.get_type(binding->type_id);
+  if (type.member_types.size() < 2 || type.member_types.size() > 3) {
     throw std::runtime_error(ERROR);
   }
-  if (binding->block.members[0].size != 64 ||
-      binding->block.members[1].size != 16) {
+  if (!type_is_float44(compiler.get_type(type.member_types[0])) ||
+      !type_is_uint4(compiler.get_type(type.member_types[1]))) {
     throw std::runtime_error(ERROR);
-  }
-  if (std::string(binding->block.members[0].name) != "modelMatrix" ||
-      std::string(binding->block.members[1].name) != "segmentation") {
+  };
+  if (compiler.get_member_name(type.self, 0) != "modelMatrix" ||
+      compiler.get_member_name(type.self, 1) != "segmentation") {
     throw std::runtime_error(ERROR);
-  }
-  mObjectLayout.size = binding->block.size;
-  mObjectLayout.elements["modelMatrix"] =
-      DataLayoutElement{.name = "modelMatrix",
-                        .typeName = "float44",
-                        .size = binding->block.members[0].size,
-                        .location = binding->block.members[0].offset};
-  mObjectLayout.elements["segmentation"] =
-      DataLayoutElement{.name = "segmentation",
-                        .typeName = "uint4",
-                        .size = binding->block.members[1].size,
-                        .location = binding->block.members[1].offset};
+  };
+  mObjectLayout.size = compiler.get_declared_struct_size(type);
+  mObjectLayout.elements["modelMatrix"] = StructDataLayoutElement{
+      .name = "modelMatrix",
+      .type = DataType::eFLOAT44,
+      .size = static_cast<uint32_t>(
+          compiler.get_declared_struct_member_size(type, 0)),
+      .offset = compiler.type_struct_member_offset(type, 0)};
+  mObjectLayout.elements["segmentation"] = StructDataLayoutElement{
+      .name = "segmentation",
+      .type = DataType::eUINT4,
+      .size = static_cast<uint32_t>(
+          compiler.get_declared_struct_member_size(type, 1)),
+      .offset = compiler.type_struct_member_offset(type, 1)};
 
-  if (binding->block.member_count == 3) {
-    if (binding->block.members[2].size != 64) {
+  if (type.member_types.size() == 3) {
+    if (!type_is_float44(compiler.get_type(type.member_types[2]))) {
       throw std::runtime_error(ERROR);
     }
-    if (std::string(binding->block.members[2].name) != "userData") {
+    if (compiler.get_member_name(type.self, 2) != "userData") {
       throw std::runtime_error(ERROR);
     }
-    mObjectLayout.elements["userData"] =
-        DataLayoutElement{.name = "userData",
-                          .typeName = "float44",
-                          .size = binding->block.members[2].size,
-                          .location = binding->block.members[2].offset};
+    mObjectLayout.elements["userData"] = StructDataLayoutElement{
+        .name = "userData",
+        .type = DataType::eFLOAT44,
+        .size = static_cast<uint32_t>(
+            compiler.get_declared_struct_member_size(type, 2)),
+        .offset = compiler.type_struct_member_offset(type, 2)};
   }
   log::info(mObjectLayout.summarize());
 }
 
-void GbufferShaderConfig::processMaterial(
-    spv_reflect::ShaderModule &fragModule) {
+void GbufferPassParser::processMaterial(spirv_cross::Compiler &compiler) {
   static const char *ERROR =
       "gbuffer.frag: Material must be specified at layout(set=2, binding=0) "
       "with specular or metallic pipeline.";
 
-  auto binding = fragModule.GetDescriptorBinding(0, 3);
+  auto resources = compiler.get_shader_resources();
+  auto binding = find_uniform_by_decoration(compiler, resources, 0, 3);
+  auto &type = compiler.get_type(binding->type_id);
+
   if (!binding) {
     throw std::runtime_error(ERROR);
   }
-  if (binding->block.member_count == 6) {
+  if (type.member_types.size() == 6) {
     mMaterialType = eMETALLIC;
-  } else if (binding->block.member_count == 4) {
+  } else if (type.member_types.size() == 6) {
     mMaterialType = eSPECULAR;
   } else {
     throw std::runtime_error(ERROR);
   }
   if (mMaterialType == eMETALLIC) {
-    if (binding->block.members[0].size != 16 ||
-        binding->block.members[1].size != 4 ||
-        binding->block.members[2].size != 4 ||
-        binding->block.members[3].size != 4 ||
-        binding->block.members[4].size != 4 ||
-        binding->block.members[5].size != 4) {
+    if (!type_is_float4(compiler.get_type(type.member_types[0])) ||
+        !type_is_float(compiler.get_type(type.member_types[1])) ||
+        !type_is_float(compiler.get_type(type.member_types[2])) ||
+        !type_is_float(compiler.get_type(type.member_types[3])) ||
+        !type_is_float(compiler.get_type(type.member_types[4])) ||
+        !type_is_int(compiler.get_type(type.member_types[5]))) {
       throw std::runtime_error(ERROR);
     }
-    if (std::string(binding->block.members[0].name) != "baseColor" ||
-        std::string(binding->block.members[1].name) != "fresnel" ||
-        std::string(binding->block.members[2].name) != "roughness" ||
-        std::string(binding->block.members[3].name) != "metallic" ||
-        std::string(binding->block.members[4].name) != "transparency" ||
-        std::string(binding->block.members[5].name) != "textureMask") {
+    if (compiler.get_member_name(type.self, 0) != "baseColor" ||
+        compiler.get_member_name(type.self, 1) != "fresnel" ||
+        compiler.get_member_name(type.self, 2) != "roughness" ||
+        compiler.get_member_name(type.self, 3) != "metallic" ||
+        compiler.get_member_name(type.self, 4) != "transparency" ||
+        compiler.get_member_name(type.self, 5) != "textureMask") {
       throw std::runtime_error(ERROR);
     }
 
     // validate texture bindings
     std::vector textureBindings = {
-        fragModule.GetDescriptorBinding(1, 3),
-        fragModule.GetDescriptorBinding(2, 3),
-        fragModule.GetDescriptorBinding(3, 3),
-        fragModule.GetDescriptorBinding(4, 3),
-    };
-    for (auto binding : textureBindings) {
-      if (!binding || binding->descriptor_type !=
-                          SPV_REFLECT_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) {
+        find_sampler_by_decoration(compiler, resources, 1, 3),
+        find_sampler_by_decoration(compiler, resources, 2, 3),
+        find_sampler_by_decoration(compiler, resources, 3, 3),
+        find_sampler_by_decoration(compiler, resources, 4, 3)};
+    for (auto texture : textureBindings) {
+      if (!texture) {
         throw std::runtime_error(
             "gbuffer.frag: metallic material requires 4 textures, "
             "colorTexture, "
             "roughnessTexture, normalTexture, metallicTexture");
       }
     }
-    if (std::string(textureBindings[0]->name) != "colorTexture" ||
-        std::string(textureBindings[1]->name) != "roughnessTexture" ||
-        std::string(textureBindings[2]->name) != "normalTexture" ||
-        std::string(textureBindings[3]->name) != "metallicTexture") {
+    if (textureBindings[0]->name != "colorTexture" ||
+        textureBindings[1]->name != "roughnessTexture" ||
+        textureBindings[2]->name != "normalTexture" ||
+        textureBindings[3]->name != "metallicTexture") {
       throw std::runtime_error(
-          "gbuffer.frag: metallic material requires 4 textures, colorTexture, "
+          "gbuffer.frag: metallic material requires 4 textures, "
+          "colorTexture, "
           "roughnessTexture, normalTexture, metallicTexture");
     }
 
-  } else if (mMaterialType == eMETALLIC) {
-    if (binding->block.members[0].size != 16 ||
-        binding->block.members[1].size != 16 ||
-        binding->block.members[2].size != 4 ||
-        binding->block.members[3].size != 4) {
+  } else if (mMaterialType == eSPECULAR) {
+    if (!type_is_float4(compiler.get_type(type.member_types[0])) ||
+        !type_is_float(compiler.get_type(type.member_types[1])) ||
+        !type_is_float(compiler.get_type(type.member_types[2])) ||
+        !type_is_int(compiler.get_type(type.member_types[3]))) {
       throw std::runtime_error(ERROR);
     }
-    if (std::string(binding->block.members[0].name) != "diffuse" ||
-        std::string(binding->block.members[1].name) != "specular" ||
-        std::string(binding->block.members[2].name) != "transparency" ||
-        std::string(binding->block.members[3].name) != "textureMask") {
+    if (compiler.get_member_name(type.self, 0) != "diffuse" ||
+        compiler.get_member_name(type.self, 1) != "specular" ||
+        compiler.get_member_name(type.self, 2) != "transparency" ||
+        compiler.get_member_name(type.self, 3) != "textureMask") {
       throw std::runtime_error(ERROR);
     }
 
     // validate texture bindings
     std::vector textureBindings = {
-        fragModule.GetDescriptorBinding(1, 3),
-        fragModule.GetDescriptorBinding(2, 3),
-        fragModule.GetDescriptorBinding(3, 3),
+        find_sampler_by_decoration(compiler, resources, 1, 3),
+        find_sampler_by_decoration(compiler, resources, 2, 3),
+        find_sampler_by_decoration(compiler, resources, 3, 3),
     };
-    for (auto binding : textureBindings) {
-      if (!binding || binding->descriptor_type !=
-                          SPV_REFLECT_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) {
+    for (auto texture : textureBindings) {
+      if (!texture) {
         throw std::runtime_error(
             "gbuffer.frag: specular material requires 3 textures, "
             "colorTexture, specularTexture, normalTexture");
       }
     }
-    if (std::string(textureBindings[0]->name) != "colorTexture" ||
-        std::string(textureBindings[1]->name) != "specularTexture" ||
-        std::string(textureBindings[2]->name) != "normalTexture") {
+    if (textureBindings[0]->name != "colorTexture" ||
+        textureBindings[1]->name != "specularTexture" ||
+        textureBindings[2]->name != "normalTexture") {
       throw std::runtime_error(
           "gbuffer.frag: specular material requires 3 textures, "
           "colorTexture, specularTexture, normalTexture");
@@ -289,29 +271,30 @@ void GbufferShaderConfig::processMaterial(
   }
 }
 
-void GbufferShaderConfig::processOutput(spv_reflect::ShaderModule &fragModule) {
-  uint32_t count;
-  fragModule.EnumerateOutputVariables(&count, nullptr);
+void GbufferPassParser::processOutput(spirv_cross::Compiler &compiler) {
+  auto resource = compiler.get_shader_resources();
+  auto outputs = resource.stage_outputs;
 
-  std::vector<SpvReflectInterfaceVariable *> outputVariables(count);
-  fragModule.EnumerateOutputVariables(&count, outputVariables.data());
-
-  for (auto var : outputVariables) {
-    std::string name = std::string(var->name);
-    if (name.size() <= 3 || name.substr(0, 3) != "out") {
+  for (auto &var : outputs) {
+    if (var.name.size() <= 3 || var.name.substr(0, 3) != "out") {
       throw std::runtime_error(
           "gbuffer.frag: all output variable should start with \"out\" and "
           "be followed by a meaningful name");
     }
-    name = name.substr(3);
+    std::string name = var.name.substr(3);
     if (mOutputLayout.elements.find(name) != mOutputLayout.elements.end()) {
-      throw std::runtime_error("gbuffer.frag: duplicated output variable " + name);
+      throw std::runtime_error("gbuffer.frag: duplicated output variable " +
+                               name);
     }
+    auto &type = compiler.get_type(var.type_id);
+    auto dataType = get_data_type(type);
+
     mOutputLayout.elements[name] = {
-      .name = name,
-      .typeName = GetTypeNameFromReflectFormat(var->format),
-      .size = GetSizeFromReflectFormat(var->format),
-      .location = var->location,
+        .name = name,
+        .type = dataType,
+        .size = GetDataTypeSize(dataType),
+        .location = compiler.get_decoration(
+            var.id, spv::Decoration::DecorationLocation),
     };
   }
   spdlog::info(mOutputLayout.summarize());
