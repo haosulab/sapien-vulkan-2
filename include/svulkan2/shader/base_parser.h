@@ -22,6 +22,9 @@ protected:
   StructDataLayout parseCamera(spirv_cross::Compiler &compiler,
                                uint32_t binding, uint32_t set,
                                std::string errorPrefix);
+
+  InOutDataLayout parseOutput(spirv_cross::Compiler &compiler,
+                              std::string errorPrefix);
 };
 
 } // namespace svulkan2

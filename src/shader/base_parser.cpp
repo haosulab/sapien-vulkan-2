@@ -86,8 +86,7 @@ StructDataLayout BaseParser::parseCamera(spirv_cross::Compiler &compiler,
   if (compiler.get_member_name(type.self, 0) != "viewMatrix" ||
       compiler.get_member_name(type.self, 1) != "projectionMatrix" ||
       compiler.get_member_name(type.self, 2) != "viewMatrixInverse" ||
-      compiler.get_member_name(type.self, 3) !=
-          "projectionMatrixInverse") {
+      compiler.get_member_name(type.self, 3) != "projectionMatrixInverse") {
     throw std::runtime_error(ERROR);
   }
 
@@ -117,6 +116,38 @@ StructDataLayout BaseParser::parseCamera(spirv_cross::Compiler &compiler,
           compiler.get_declared_struct_member_size(type, 3)),
       .offset = compiler.type_struct_member_offset(type, 2)};
   log::info(layout.summarize());
+  return layout;
+}
+
+InOutDataLayout BaseParser::parseOutput(spirv_cross::Compiler &compiler,
+                                        std::string errorPrefix) {
+  InOutDataLayout layout;
+  auto resource = compiler.get_shader_resources();
+  auto outputs = resource.stage_outputs;
+
+  for (auto &var : outputs) {
+    if (var.name.size() <= 3 || var.name.substr(0, 3) != "out") {
+      throw std::runtime_error(
+          errorPrefix + "all output variable should start with \"out\" and "
+                        "be followed by a meaningful name");
+    }
+    std::string name = var.name.substr(3);
+    if (layout.elements.find(name) != layout.elements.end()) {
+      throw std::runtime_error(errorPrefix + "duplicated output variable " +
+                               name);
+    }
+    auto &type = compiler.get_type(var.type_id);
+    auto dataType = get_data_type(type);
+
+    layout.elements[name] = {
+        .name = name,
+        .type = dataType,
+        .size = GetDataTypeSize(dataType),
+        .location = compiler.get_decoration(
+            var.id, spv::Decoration::DecorationLocation),
+    };
+  }
+  spdlog::info(layout.summarize());
   return layout;
 }
 

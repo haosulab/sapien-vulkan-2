@@ -272,32 +272,7 @@ void GbufferPassParser::processMaterial(spirv_cross::Compiler &compiler) {
 }
 
 void GbufferPassParser::processOutput(spirv_cross::Compiler &compiler) {
-  auto resource = compiler.get_shader_resources();
-  auto outputs = resource.stage_outputs;
-
-  for (auto &var : outputs) {
-    if (var.name.size() <= 3 || var.name.substr(0, 3) != "out") {
-      throw std::runtime_error(
-          "gbuffer.frag: all output variable should start with \"out\" and "
-          "be followed by a meaningful name");
-    }
-    std::string name = var.name.substr(3);
-    if (mOutputLayout.elements.find(name) != mOutputLayout.elements.end()) {
-      throw std::runtime_error("gbuffer.frag: duplicated output variable " +
-                               name);
-    }
-    auto &type = compiler.get_type(var.type_id);
-    auto dataType = get_data_type(type);
-
-    mOutputLayout.elements[name] = {
-        .name = name,
-        .type = dataType,
-        .size = GetDataTypeSize(dataType),
-        .location = compiler.get_decoration(
-            var.id, spv::Decoration::DecorationLocation),
-    };
-  }
-  spdlog::info(mOutputLayout.summarize());
+  mOutputLayout = parseOutput(compiler, "gbuffer.frag: ");
 }
 
 } // namespace svulkan2

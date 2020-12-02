@@ -2,8 +2,34 @@
 #include "svulkan2/common/log.h"
 
 namespace svulkan2 {
-void DeferredPassParser::processInput(spirv_cross::Compiler &compiler) {}
-void DeferredPassParser::processOutput(spirv_cross::Compiler &compiler) {}
+void DeferredPassParser::processSamplers(spirv_cross::Compiler &compiler) {
+  auto resources = compiler.get_shader_resources();
+  auto samplers = resources.sampled_images;
+  for (auto &sampler : samplers) {
+    if (sampler.name.length() <= 7 ||
+        sampler.name.substr(sampler.name.length() - 7) != "Sampler") {
+      std::runtime_error("deferred.frag: the name for all samplers should end "
+                         "with \"Sampler\"");
+    }
+    if (compiler.get_decoration(
+            sampler.id, spv::Decoration::DecorationDescriptorSet) != 2) {
+      std::runtime_error(
+          "deferred.frag: all samplers should be bound at set = 2");
+    }
+    std::string name = sampler.name.substr(0, sampler.name.length() - 7);
+    mSamplerLayout.elements[name] = {
+        .name = name,
+        .type = DataType::eUNKNOWN,
+        .size = 0,
+        .location = compiler.get_decoration(
+            sampler.id, spv::Decoration::DecorationBinding)};
+  }
+  log::info(mSamplerLayout.summarize());
+}
+
+void DeferredPassParser::processOutput(spirv_cross::Compiler &compiler) {
+  mOutputLayout = parseOutput(compiler, "deferred.frag: ");
+}
 
 void DeferredPassParser::processCamera(spirv_cross::Compiler &compiler) {
   mCameraLayout = parseCamera(compiler, 0, 1, "deferred.frag: ");
@@ -78,26 +104,23 @@ void DeferredPassParser::processScene(spirv_cross::Compiler &compiler) {
 
   mSceneLayout.size = compiler.get_declared_struct_size(type);
   mSceneLayout.elements["ambientLight"] = {
-    .name = "ambientLight",
-    .type = DataType::eFLOAT4,
-    .size = static_cast<uint32_t>(
-        compiler.get_declared_struct_member_size(type, 0)),
-    .offset = compiler.type_struct_member_offset(type, 0)
-  };
+      .name = "ambientLight",
+      .type = DataType::eFLOAT4,
+      .size = static_cast<uint32_t>(
+          compiler.get_declared_struct_member_size(type, 0)),
+      .offset = compiler.type_struct_member_offset(type, 0)};
   mSceneLayout.elements["directionalLights"] = {
-    .name = "directionalLights",
-    .type = DataType::eUNKNOWN,
-    .size = static_cast<uint32_t>(
-        compiler.get_declared_struct_member_size(type, 1)),
-    .offset = compiler.type_struct_member_offset(type, 1)
-  };
+      .name = "directionalLights",
+      .type = DataType::eUNKNOWN,
+      .size = static_cast<uint32_t>(
+          compiler.get_declared_struct_member_size(type, 1)),
+      .offset = compiler.type_struct_member_offset(type, 1)};
   mSceneLayout.elements["pointLight"] = {
-    .name = "pointLight",
-    .type = DataType::eUNKNOWN,
-    .size = static_cast<uint32_t>(
-        compiler.get_declared_struct_member_size(type, 2)),
-    .offset = compiler.type_struct_member_offset(type, 2)
-  };
+      .name = "pointLight",
+      .type = DataType::eUNKNOWN,
+      .size = static_cast<uint32_t>(
+          compiler.get_declared_struct_member_size(type, 2)),
+      .offset = compiler.type_struct_member_offset(type, 2)};
   log::info(mSceneLayout.summarize());
 }
 
@@ -106,5 +129,7 @@ void DeferredPassParser::reflectSPV() {
   spirv_cross::Compiler fragComp(mFragSPVCode);
   processCamera(fragComp);
   processScene(fragComp);
+  processSamplers(fragComp);
+  processOutput(fragComp);
 }
 } // namespace svulkan2
