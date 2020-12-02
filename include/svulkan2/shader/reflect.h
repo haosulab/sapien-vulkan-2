@@ -36,4 +36,5 @@ spirv_cross::Resource *
 find_sampler_by_decoration(spirv_cross::Compiler &compiler,
                            spirv_cross::ShaderResources &resource,
                            uint32_t binding_number, uint32_t set_number);
+
 } // namespace svulkan2

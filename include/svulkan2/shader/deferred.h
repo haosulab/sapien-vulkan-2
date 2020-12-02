@@ -5,8 +5,11 @@ namespace svulkan2 {
 class DeferredPassParser : public BaseParser {
   InOutDataLayout mInputLayout{};
   InOutDataLayout mOutputLayout{};
+  StructDataLayout mCameraLayout{};
+  StructDataLayout mSceneLayout{};
 
-  StructDataLayout mCameraLayout;
+  uint32_t mNumDirectionalLights = 0;
+  uint32_t mNumPointLights = 0;
 
 private:
   void processScene(spirv_cross::Compiler &compiler);
