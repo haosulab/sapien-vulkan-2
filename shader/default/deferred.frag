@@ -86,6 +86,7 @@ void main() {
     color += emission * ggx(lightDir, camDir, normal, albedo, F0, roughness, metallic);
   }
 
+  // point lights
   for (int i = 0; i < NUM_POINT_LIGHTS; i++) {
     vec3 pos = world2camera(vec4(sceneBuffer.pointLights[i].position.xyz, 1.f)).xyz;
     vec3 l = pos - csPosition.xyz;

@@ -6,6 +6,11 @@
 
 namespace svulkan2 {
 
+std::unique_ptr<InputDataLayout>
+parseInputData(spirv_cross::Compiler &compiler);
+std::unique_ptr<OutputDataLayout>
+parseOutputData(spirv_cross::Compiler &compiler);
+
 class BaseParser {
 protected:
   std::vector<uint32_t> mVertSPVCode;
@@ -19,12 +24,16 @@ public:
 
 protected:
   virtual void reflectSPV() = 0;
-  StructDataLayout parseCamera(spirv_cross::Compiler &compiler,
-                               uint32_t binding, uint32_t set,
-                               std::string errorPrefix);
+  // StructDataLayout parseCamera(spirv_cross::Compiler &compiler,
+  //                              uint32_t binding, uint32_t set,
+  //                              std::string errorPrefix);
 
-  InOutDataLayout parseOutput(spirv_cross::Compiler &compiler,
-                              std::string errorPrefix);
+  // std::unique_ptr<InputDataLayout> parseInput(spirv_cross::Compiler
+  // &compiler);
+
+  // std::unique_ptr<OutputDataLayout> parseOutput(spirv_cross::Compiler
+  // &compiler,
+  //                                               std::string errorPrefix);
 };
 
 } // namespace svulkan2

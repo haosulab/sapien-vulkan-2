@@ -53,6 +53,10 @@ bool type_is_float44(spirv_cross::SPIRType const &type) {
   return type.basetype == spirv_cross::SPIRType::Float && type.columns == 4;
 }
 
+bool type_is_struct(spirv_cross::SPIRType const &type) {
+  return type.basetype == spirv_cross::SPIRType::Struct;
+}
+
 DataType get_data_type(spirv_cross::SPIRType const &type) {
   if (type_is_int(type)) {
     return DataType::eINT;
@@ -102,6 +106,10 @@ DataType get_data_type(spirv_cross::SPIRType const &type) {
     return DataType::eUINT44;
   }
 
+  if (type_is_struct(type)) {
+    return DataType::eSTRUCT;
+  }
+
   return DataType::eUNKNOWN;
 }
 
@@ -128,7 +136,7 @@ find_sampler_by_decoration(spirv_cross::Compiler &compiler,
 
   for (auto &r : resource.sampled_images) {
     if (compiler.get_decoration(r.id, spv::Decoration::DecorationBinding) ==
-        binding_number &&
+            binding_number &&
         compiler.get_decoration(
             r.id, spv::Decoration::DecorationDescriptorSet) == set_number) {
       return &r;
@@ -137,14 +145,15 @@ find_sampler_by_decoration(spirv_cross::Compiler &compiler,
   return nullptr;
 
   // auto it =
-  //     std::find(resource.sampled_images.begin(), resource.sampled_images.end(),
+  //     std::find(resource.sampled_images.begin(),
+  //     resource.sampled_images.end(),
   //               [&](auto &r) {
   //                 return compiler.get_decoration(
   //                            r.id, spv::Decoration::DecorationBinding) ==
   //                            binding_number &&
   //                        compiler.get_decoration(
-  //                            r.id, spv::Decoration::DecorationDescriptorSet) ==
-  //                            set_number;
+  //                            r.id, spv::Decoration::DecorationDescriptorSet)
+  //                            == set_number;
   //               });
   // if (it == resource.sampled_images.end()) {
   //   return nullptr;

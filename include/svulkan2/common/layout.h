@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -9,7 +10,7 @@
 namespace svulkan2 {
 
 enum DataType {
-  eUNKNOWN,
+  eSTRUCT,
   eINT,
   eINT2,
   eINT3,
@@ -25,12 +26,13 @@ enum DataType {
   eFLOAT3,
   eFLOAT4,
   eFLOAT44,
+  eUNKNOWN
 };
 
 inline std::string DataTypeToString(DataType type) {
   switch (type) {
-  case eUNKNOWN:
-    return "unknown";
+  case eSTRUCT:
+    return "struct";
   case eINT:
     return "int";
   case eINT2:
@@ -61,13 +63,15 @@ inline std::string DataTypeToString(DataType type) {
     return "float4";
   case eFLOAT44:
     return "float44";
+  case eUNKNOWN:
+    return "unknown";
   }
   throw std::runtime_error("invalid data type");
 }
 
 inline uint32_t GetDataTypeSize(DataType type) {
   switch (type) {
-  case eUNKNOWN:
+  case eSTRUCT:
     return 0;
   case eINT:
     return 4;
@@ -99,74 +103,130 @@ inline uint32_t GetDataTypeSize(DataType type) {
     return 16;
   case eFLOAT44:
     return 64;
+  case eUNKNOWN:
+    return 0;
   }
   throw std::runtime_error("invalid data type");
 }
 
-struct StructDataLayoutElement {
-  std::string name{};
-  DataType type{};
-  uint32_t size{0};
-  uint32_t offset{0};
+struct CombinedSamplerLayout {
+  struct Element {
+    std::string name{};
+    uint32_t binding{0};
+    uint32_t set{0};
+  };
+  std::unordered_map<std::string, CombinedSamplerLayout::Element> elements;
+  std::vector<CombinedSamplerLayout::Element> getElementsSorted() const;
+};
+
+struct InputDataLayout {
+  struct Element {
+    std::string name{};
+    uint32_t location{0};
+    DataType dtype{eFLOAT};
+    inline uint32_t getSize() const { return GetDataTypeSize(dtype); }
+  };
+
+  std::unordered_map<std::string, InputDataLayout::Element> elements;
+
+  std::vector<InputDataLayout::Element> getElementsSorted() const;
+  uint32_t getSize() const;
+};
+
+struct OutputDataLayout {
+  struct Element {
+    std::string name{};
+    uint32_t location{0};
+    DataType dtype{eFLOAT};
+  };
+
+  std::unordered_map<std::string, OutputDataLayout::Element> elements;
+
+  std::vector<OutputDataLayout::Element> getElementsSorted() const;
 };
 
 struct StructDataLayout {
-  std::unordered_map<std::string, StructDataLayoutElement> elements;
+  struct Element {
+    std::string name{};
+    uint32_t size{0};
+    uint32_t offset{0};
+    uint32_t arrayDim{0};
+    DataType dtype{eFLOAT};
+    std::unique_ptr<StructDataLayout> member;
+  };
+
   uint32_t size;
+  std::unordered_map<std::string, StructDataLayout::Element> elements;
 
-  inline std::vector<StructDataLayoutElement> getElementsSorted() const {
-    std::vector<StructDataLayoutElement> result;
-    std::transform(elements.begin(), elements.end(), std::back_inserter(result),
-                   [](auto const &kv) { return kv.second; });
-    std::sort(result.begin(), result.end(),
-              [](auto const &elem1, auto const &elem2) {
-                return elem1.offset < elem2.offset;
-              });
-    return result;
-  }
-
-  inline std::string summarize() const {
-    auto elements = getElementsSorted();
-    std::stringstream ss;
-    ss << "total size: " << size << "; ";
-    for (auto &e : elements) {
-      ss << e.name << "[" << DataTypeToString(e.type) << "]"
-         << "at: " << e.offset << ", size: " << e.size << "; ";
-    }
-    return ss.str();
-  }
+  std::vector<StructDataLayout::Element> getElementsSorted() const;
 };
 
-struct InOutDataLayoutElement {
-  std::string name{};
-  DataType type{};
-  uint32_t size{0};
-  uint32_t location{0};
-};
+// struct StructDataLayoutElement {
+//   std::string name{};
+//   DataType type{};
+//   uint32_t size{0};
+//   uint32_t offset{0};
+// };
 
-struct InOutDataLayout {
-  std::unordered_map<std::string, InOutDataLayoutElement> elements;
+// struct StructDataLayout {
+//   std::unordered_map<std::string, StructDataLayoutElement> elements;
+//   uint32_t size;
 
-  inline std::vector<InOutDataLayoutElement> getElementsSorted() const {
-    std::vector<InOutDataLayoutElement> result;
-    std::transform(elements.begin(), elements.end(), std::back_inserter(result),
-                   [](auto const &kv) { return kv.second; });
-    std::sort(result.begin(), result.end(),
-              [](auto const &elem1, auto const &elem2) {
-                return elem1.location < elem2.location;
-              });
-    return result;
-  }
+//   inline std::vector<StructDataLayoutElement> getElementsSorted() const {
+//     std::vector<StructDataLayoutElement> result;
+//     std::transform(elements.begin(), elements.end(),
+//     std::back_inserter(result),
+//                    [](auto const &kv) { return kv.second; });
+//     std::sort(result.begin(), result.end(),
+//               [](auto const &elem1, auto const &elem2) {
+//                 return elem1.offset < elem2.offset;
+//               });
+//     return result;
+//   }
 
-  inline std::string summarize() const {
-    auto elements = getElementsSorted();
-    std::stringstream ss;
-    for (auto &e : elements) {
-      ss << e.name << "[" << DataTypeToString(e.type) << "]"
-         << "at: " << e.location << ", size: " << e.size << "; ";
-    }
-    return ss.str();
-  }
-};
+//   inline std::string summarize() const {
+//     auto elements = getElementsSorted();
+//     std::stringstream ss;
+//     ss << "total size: " << size << "; ";
+//     for (auto &e : elements) {
+//       ss << e.name << "[" << DataTypeToString(e.type) << "]"
+//          << "at: " << e.offset << ", size: " << e.size << "; ";
+//     }
+//     return ss.str();
+//   }
+// };
+
+// struct InOutDataLayoutElement {
+//   std::string name{};
+//   DataType type{};
+//   uint32_t size{0};
+//   uint32_t location{0};
+// };
+
+// struct InOutDataLayout {
+//   std::unordered_map<std::string, InOutDataLayoutElement> elements;
+
+//   inline std::vector<InOutDataLayoutElement> getElementsSorted() const {
+//     std::vector<InOutDataLayoutElement> result;
+//     std::transform(elements.begin(), elements.end(),
+//     std::back_inserter(result),
+//                    [](auto const &kv) { return kv.second; });
+//     std::sort(result.begin(), result.end(),
+//               [](auto const &elem1, auto const &elem2) {
+//                 return elem1.location < elem2.location;
+//               });
+//     return result;
+//   }
+
+//   inline std::string summarize() const {
+//     auto elements = getElementsSorted();
+//     std::stringstream ss;
+//     for (auto &e : elements) {
+//       ss << e.name << "[" << DataTypeToString(e.type) << "]"
+//          << "at: " << e.location << ", size: " << e.size << "; ";
+//     }
+//     return ss.str();
+//   }
+// };
 
 }; // namespace svulkan2

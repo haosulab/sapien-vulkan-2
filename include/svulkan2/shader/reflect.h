@@ -25,6 +25,8 @@ bool type_is_int44(spirv_cross::SPIRType const &type);
 bool type_is_uint44(spirv_cross::SPIRType const &type);
 bool type_is_float44(spirv_cross::SPIRType const &type);
 
+bool type_is_struct(spirv_cross::SPIRType const &type);
+
 DataType get_data_type(spirv_cross::SPIRType const &type);
 
 spirv_cross::Resource *
