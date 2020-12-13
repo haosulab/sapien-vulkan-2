@@ -2,6 +2,17 @@
 
 namespace svulkan2 {
 
+std::vector<SpecializationConstantLayout::Element>
+SpecializationConstantLayout::getElementsSorted() const {
+  std::vector<SpecializationConstantLayout::Element> result;
+  std::transform(elements.begin(), elements.end(), std::back_inserter(result),
+                 [](auto const &kv) { return kv.second; });
+  std::sort(
+      result.begin(), result.end(),
+      [](auto const &elem1, auto const &elem2) { return elem1.id < elem2.id; });
+  return result;
+}
+
 std::vector<CombinedSamplerLayout::Element>
 CombinedSamplerLayout::getElementsSorted() const {
   std::vector<CombinedSamplerLayout::Element> result;
@@ -9,7 +20,7 @@ CombinedSamplerLayout::getElementsSorted() const {
                  [](auto const &kv) { return kv.second; });
   std::sort(result.begin(), result.end(),
             [](auto const &elem1, auto const &elem2) {
-              return elem1.location < elem2.location;
+              return elem1.binding < elem2.binding;
             });
   return result;
 }
@@ -46,14 +57,14 @@ OutputDataLayout::getElementsSorted() const {
   return result;
 }
 
-inline std::vector<StructDataLayout::Element>
+std::vector<StructDataLayout::Element const *>
 StructDataLayout::getElementsSorted() const {
-  std::vector<StructDataLayout::Element> result;
+  std::vector<StructDataLayout::Element const *> result;
   std::transform(elements.begin(), elements.end(), std::back_inserter(result),
-                 [](auto const &kv) { return kv.second; });
+                 [](auto const &kv) { return &kv.second; });
   std::sort(result.begin(), result.end(),
             [](auto const &elem1, auto const &elem2) {
-              return elem1.offset < elem2.offset;
+              return elem1->offset < elem2->offset;
             });
   return result;
 }

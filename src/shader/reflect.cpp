@@ -4,53 +4,68 @@
 namespace svulkan2 {
 
 bool type_is_int(spirv_cross::SPIRType const &type) {
-  return type.basetype == spirv_cross::SPIRType::Int && type.vecsize == 1;
+  return type.basetype == spirv_cross::SPIRType::Int && type.vecsize == 1 &&
+         type.columns == 1;
 }
 bool type_is_uint(spirv_cross::SPIRType const &type) {
-  return type.basetype == spirv_cross::SPIRType::UInt && type.vecsize == 1;
+  return type.basetype == spirv_cross::SPIRType::UInt && type.vecsize == 1 &&
+         type.columns == 1;
 }
 bool type_is_float(spirv_cross::SPIRType const &type) {
-  return type.basetype == spirv_cross::SPIRType::Float && type.vecsize == 1;
+  return type.basetype == spirv_cross::SPIRType::Float && type.vecsize == 1 &&
+         type.columns == 1;
 }
 
 bool type_is_int2(spirv_cross::SPIRType const &type) {
-  return type.basetype == spirv_cross::SPIRType::Int && type.vecsize == 2;
+  return type.basetype == spirv_cross::SPIRType::Int && type.vecsize == 2 &&
+         type.columns == 1;
 }
 bool type_is_uint2(spirv_cross::SPIRType const &type) {
-  return type.basetype == spirv_cross::SPIRType::UInt && type.vecsize == 2;
+  return type.basetype == spirv_cross::SPIRType::UInt && type.vecsize == 2 &&
+         type.columns == 1;
 }
 bool type_is_float2(spirv_cross::SPIRType const &type) {
-  return type.basetype == spirv_cross::SPIRType::Float && type.vecsize == 2;
+  return type.basetype == spirv_cross::SPIRType::Float && type.vecsize == 2 &&
+         type.columns == 1;
 }
 
 bool type_is_int3(spirv_cross::SPIRType const &type) {
-  return type.basetype == spirv_cross::SPIRType::Int && type.vecsize == 3;
+  return type.basetype == spirv_cross::SPIRType::Int && type.vecsize == 3 &&
+         type.columns == 1;
 }
 bool type_is_uint3(spirv_cross::SPIRType const &type) {
-  return type.basetype == spirv_cross::SPIRType::UInt && type.vecsize == 3;
+  return type.basetype == spirv_cross::SPIRType::UInt && type.vecsize == 3 &&
+         type.columns == 1;
 }
 bool type_is_float3(spirv_cross::SPIRType const &type) {
-  return type.basetype == spirv_cross::SPIRType::Float && type.vecsize == 3;
+  return type.basetype == spirv_cross::SPIRType::Float && type.vecsize == 3 &&
+         type.columns == 1;
 }
 
 bool type_is_int4(spirv_cross::SPIRType const &type) {
-  return type.basetype == spirv_cross::SPIRType::Int && type.vecsize == 4;
+  return type.basetype == spirv_cross::SPIRType::Int && type.vecsize == 4 &&
+         type.columns == 1;
 }
 bool type_is_uint4(spirv_cross::SPIRType const &type) {
-  return type.basetype == spirv_cross::SPIRType::UInt && type.vecsize == 4;
+  return type.basetype == spirv_cross::SPIRType::UInt && type.vecsize == 4 &&
+         type.columns == 1;
 }
 bool type_is_float4(spirv_cross::SPIRType const &type) {
-  return type.basetype == spirv_cross::SPIRType::Float && type.vecsize == 4;
+  return type.basetype == spirv_cross::SPIRType::Float && type.vecsize == 4 &&
+         type.columns == 1;
 }
 
 bool type_is_int44(spirv_cross::SPIRType const &type) {
-  return type.basetype == spirv_cross::SPIRType::Int && type.columns == 4;
+  return type.basetype == spirv_cross::SPIRType::Int && type.vecsize == 4 &&
+         type.columns == 4;
 }
 bool type_is_uint44(spirv_cross::SPIRType const &type) {
-  return type.basetype == spirv_cross::SPIRType::UInt && type.columns == 4;
+  return type.basetype == spirv_cross::SPIRType::UInt && type.vecsize == 4 &&
+         type.columns == 4;
 }
 bool type_is_float44(spirv_cross::SPIRType const &type) {
-  return type.basetype == spirv_cross::SPIRType::Float && type.columns == 4;
+  return type.basetype == spirv_cross::SPIRType::Float && type.vecsize == 4 &&
+         type.columns == 4;
 }
 
 bool type_is_struct(spirv_cross::SPIRType const &type) {

@@ -109,6 +109,21 @@ inline uint32_t GetDataTypeSize(DataType type) {
   throw std::runtime_error("invalid data type");
 }
 
+struct SpecializationConstantLayout {
+  struct Element {
+    std::string name{};
+    uint32_t id{0};
+    DataType dtype{};
+    union {
+      int intValue;
+      float floatValue;
+    };
+  };
+  std::unordered_map<std::string, SpecializationConstantLayout::Element>
+      elements;
+  std::vector<SpecializationConstantLayout::Element> getElementsSorted() const;
+};
+
 struct CombinedSamplerLayout {
   struct Element {
     std::string name{};
@@ -158,7 +173,7 @@ struct StructDataLayout {
   uint32_t size;
   std::unordered_map<std::string, StructDataLayout::Element> elements;
 
-  std::vector<StructDataLayout::Element> getElementsSorted() const;
+  std::vector<StructDataLayout::Element const *> getElementsSorted() const;
 };
 
 // struct StructDataLayoutElement {

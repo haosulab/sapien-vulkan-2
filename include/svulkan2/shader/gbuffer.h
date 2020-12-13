@@ -2,24 +2,26 @@
 #include "base_parser.h"
 
 namespace svulkan2 {
+namespace shader {
 
 class GbufferPassParser : public BaseParser {
+  std::unique_ptr<InputDataLayout> mVertexInputLayout;
+  std::unique_ptr<StructDataLayout> mCameraBufferLayout;
+  std::unique_ptr<StructDataLayout> mObjectBufferLayout;
 
-  InOutDataLayout mVertexLayout{};
-  StructDataLayout mCameraLayout{};
-  StructDataLayout mObjectLayout{};
-  InOutDataLayout mOutputLayout{};
+  std::unique_ptr<StructDataLayout> mMaterialBufferLayout;
+  std::unique_ptr<CombinedSamplerLayout> mCombinedSamplerLayout;
+  std::unique_ptr<OutputDataLayout> mTextureOutputLayout;
 
+public:
   enum { eSPECULAR, eMETALLIC } mMaterialType;
+
+  std::vector<std::string> getOutputTextureNames() const;
 
 private:
   void reflectSPV() override;
-
-  void processVertexInput(spirv_cross::Compiler &module);
-  void processCamera(spirv_cross::Compiler &vertModule);
-  void processObject(spirv_cross::Compiler &vertModule);
-  void processMaterial(spirv_cross::Compiler &fragModule);
-  void processOutput(spirv_cross::Compiler &fragModule);
+  void validate() const;
 };
 
+} // namespace shader
 } // namespace svulkan2

@@ -2,17 +2,7 @@
 #include "svulkan2/common/log.h"
 
 namespace svulkan2 {
-
-static void ASSERT(bool condition, std::string const &error) {
-  if (!condition) {
-    throw std::runtime_error(error);
-  }
-}
-
-template <typename Container, typename T>
-static bool CONTAINS(Container &container, T const &element) {
-  return container.find(element) != container.end();
-}
+namespace shader {
 
 std::unique_ptr<InputDataLayout>
 parseInputData(spirv_cross::Compiler &compiler) {
@@ -130,7 +120,7 @@ parseBuffer(spirv_cross::Compiler &compiler,
     std::string memberName = compiler.get_member_name(type.self, i);
     uint32_t memberOffset = compiler.type_struct_member_offset(type, i);
     auto &memberType = compiler.get_type(type.member_types[i]);
-    uint32_t memberSize = compiler.get_declared_struct_size(memberType);
+    uint32_t memberSize = compiler.get_declared_struct_member_size(type, i);
     DataType dataType = get_data_type(memberType);
 
     if (dataType == eSTRUCT) {
@@ -310,7 +300,7 @@ std::unique_ptr<StructDataLayout>
 parseSceneBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
                  uint32_t setNumber) {
   auto layout = parseBuffer(compiler, bindingNumber, setNumber);
-  ASSERT(CONTAINS(layout->elements, "ambiengLight"),
+  ASSERT(CONTAINS(layout->elements, "ambientLight"),
          "scene buffer requires variable ambientLight");
   ASSERT(CONTAINS(layout->elements, "directionalLights"),
          "scene buffer requires variable directionalLights");
@@ -378,8 +368,34 @@ parseCombinedSampler(spirv_cross::Compiler &compiler) {
   return layout;
 };
 
-void BaseParser::parseGLSLFiles(std::string const &vertFile,
-                                std::string const &fragFile) {
+std::unique_ptr<SpecializationConstantLayout>
+parseSpecializationConstant(spirv_cross::Compiler &compiler) {
+  auto layout = std::make_unique<SpecializationConstantLayout>();
+  auto constants = compiler.get_specialization_constants();
+  for (auto &var : constants) {
+    auto name = compiler.get_name(var.id);
+    auto &constant = compiler.get_constant(var.id);
+    auto type = compiler.get_type(constant.constant_type);
+    auto dataType = get_data_type(type);
+    layout->elements[name] = {
+        .name = name,
+        .id = var.constant_id,
+        .dtype = dataType,
+    };
+    if (dataType == eINT) {
+      layout->elements[name].intValue = constant.scalar_i32();
+    } else if (dataType == eFLOAT) {
+      layout->elements[name].intValue = constant.scalar_f32();
+    } else {
+      throw std::runtime_error(
+          "only int and float are supported specialization constant types");
+    }
+  }
+  return layout;
+}
+
+void BaseParser::loadGLSLFiles(std::string const &vertFile,
+                               std::string const &fragFile) {
   GLSLCompiler compiler;
   mVertSPVCode = compiler.compileToSpirv(vk::ShaderStageFlagBits::eVertex,
                                          readFile(vertFile));
@@ -389,11 +405,16 @@ void BaseParser::parseGLSLFiles(std::string const &vertFile,
                                          readFile(fragFile));
   log::info("shader compiled: " + fragFile);
 
-  reflectSPV();
+  try {
+    reflectSPV();
+  } catch (std::runtime_error const &err) {
+    throw std::runtime_error(vertFile + "|" + fragFile +
+                             std::string(err.what()));
+  }
 }
 
-void BaseParser::parseSPVFiles(std::string const &vertFile,
-                               std::string const &fragFile) {
+void BaseParser::loadSPVFiles(std::string const &vertFile,
+                              std::string const &fragFile) {
   std::vector<char> vertCodeRaw = readFile(vertFile);
   std::vector<char> fragCodeRaw = readFile(fragFile);
   if (vertCodeRaw.size() / 4 * 4 != vertCodeRaw.size()) {
@@ -406,126 +427,21 @@ void BaseParser::parseSPVFiles(std::string const &vertFile,
   std::vector<uint32_t> fragCode(fragCodeRaw.size() / 4);
   std::memcpy(vertCode.data(), vertCodeRaw.data(), vertCodeRaw.size());
   std::memcpy(fragCode.data(), fragCodeRaw.data(), fragCodeRaw.size());
-  parseSPVCode(vertCode, fragCode);
+
+  try {
+    loadSPVCode(vertCode, fragCode);
+  } catch (std::runtime_error const &err) {
+    throw std::runtime_error(vertFile + "|" + fragFile +
+                             std::string(err.what()));
+  }
 }
 
-void BaseParser::parseSPVCode(std::vector<uint32_t> const &vertCode,
-                              std::vector<uint32_t> const &fragCode) {
+void BaseParser::loadSPVCode(std::vector<uint32_t> const &vertCode,
+                             std::vector<uint32_t> const &fragCode) {
   mVertSPVCode = vertCode;
   mFragSPVCode = fragCode;
   reflectSPV();
 }
 
-// StructDataLayout BaseParser::parseCamera(spirv_cross::Compiler &compiler,
-//                                          uint32_t binding_number,
-//                                          uint32_t set_number,
-//                                          std::string errorPrefix) {
-//   const std::string ERROR =
-//       errorPrefix +
-//       "Camera must be specified by (the types are enforced but "
-//       "variable names "
-//       "are not): layout(set=1, binding=0) uniform CameraBuffer { mat4 "
-//       "viewMatrix; mat4 projectionMatrix; mat4 viewMatrixInverse; mat4 "
-//       "projectionMatrixInverse; } cameraBuffer;";
-
-//   const std::string WARN =
-//       errorPrefix +
-//       "GBuffer Camera is recommended to be specified by: "
-//       "layout(set=1, "
-//       "binding=0) uniform "
-//       "CameraBuffer { mat4 viewMatrix; mat4 projectionMatrix; mat4 "
-//       "viewMatrixInverse; mat4 projectionMatrixInverse; } cameraBuffer;";
-
-//   auto resources = compiler.get_shader_resources();
-
-//   auto binding = find_uniform_by_decoration(compiler, resources,
-//   binding_number,
-//                                             set_number);
-
-//   StructDataLayout layout;
-//   // validate camera
-//   if (!binding) {
-//     throw std::runtime_error(ERROR);
-//   }
-//   if (std::string(binding->name) != "cameraBuffer") {
-//     log::warn(WARN);
-//   }
-//   auto type = compiler.get_type(binding->type_id);
-
-//   if (type.member_types.size() != 4 ||
-//       !type_is_float44(compiler.get_type(type.member_types[0])) ||
-//       !type_is_float44(compiler.get_type(type.member_types[1])) ||
-//       !type_is_float44(compiler.get_type(type.member_types[2])) ||
-//       !type_is_float44(compiler.get_type(type.member_types[3]))) {
-//     throw std::runtime_error(ERROR);
-//   }
-
-//   if (compiler.get_member_name(type.self, 0) != "viewMatrix" ||
-//       compiler.get_member_name(type.self, 1) != "projectionMatrix" ||
-//       compiler.get_member_name(type.self, 2) != "viewMatrixInverse" ||
-//       compiler.get_member_name(type.self, 3) != "projectionMatrixInverse") {
-//     throw std::runtime_error(ERROR);
-//   }
-
-//   layout.size = compiler.get_declared_struct_size(type);
-//   layout.elements["viewMatrix"] = StructDataLayoutElement{
-//       .name = "viewMatrix",
-//       .type = DataType::eFLOAT44,
-//       .size = static_cast<uint32_t>(
-//           compiler.get_declared_struct_member_size(type, 0)),
-//       .offset = compiler.type_struct_member_offset(type, 0)};
-//   layout.elements["projectionMatrix"] = StructDataLayoutElement{
-//       .name = "projectionMatrix",
-//       .type = DataType::eFLOAT44,
-//       .size = static_cast<uint32_t>(
-//           compiler.get_declared_struct_member_size(type, 1)),
-//       .offset = compiler.type_struct_member_offset(type, 1)};
-//   layout.elements["viewMatrixInverse"] = StructDataLayoutElement{
-//       .name = "viewMatrixInverse",
-//       .type = DataType::eFLOAT44,
-//       .size = static_cast<uint32_t>(
-//           compiler.get_declared_struct_member_size(type, 2)),
-//       .offset = compiler.type_struct_member_offset(type, 2)};
-//   layout.elements["projectionMatrixInverse"] = StructDataLayoutElement{
-//       .name = "projectionMatrixInverse",
-//       .type = DataType::eFLOAT44,
-//       .size = static_cast<uint32_t>(
-//           compiler.get_declared_struct_member_size(type, 3)),
-//       .offset = compiler.type_struct_member_offset(type, 2)};
-//   log::info(layout.summarize());
-//   return layout;
-// }
-
-// InOutDataLayout BaseParser::parseOutput(spirv_cross::Compiler &compiler,
-//                                         std::string errorPrefix) {
-//   InOutDataLayout layout;
-//   auto resource = compiler.get_shader_resources();
-//   auto outputs = resource.stage_outputs;
-
-//   for (auto &var : outputs) {
-//     if (var.name.size() <= 3 || var.name.substr(0, 3) != "out") {
-//       throw std::runtime_error(
-//           errorPrefix + "all output variable should start with \"out\" and "
-//                         "be followed by a meaningful name");
-//     }
-//     std::string name = var.name.substr(3);
-//     if (layout.elements.find(name) != layout.elements.end()) {
-//       throw std::runtime_error(errorPrefix + "duplicated output variable " +
-//                                name);
-//     }
-//     auto &type = compiler.get_type(var.type_id);
-//     auto dataType = get_data_type(type);
-
-//     layout.elements[name] = {
-//         .name = name,
-//         .type = dataType,
-//         .size = GetDataTypeSize(dataType),
-//         .location = compiler.get_decoration(
-//             var.id, spv::Decoration::DecorationLocation),
-//     };
-//   }
-//   spdlog::info(layout.summarize());
-//   return layout;
-// }
-
+} // namespace shader
 } // namespace svulkan2

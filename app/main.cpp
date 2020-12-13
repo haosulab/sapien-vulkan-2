@@ -1,15 +1,19 @@
-#include "svulkan2/shader/gbuffer.h"
-#include "svulkan2/shader/deferred.h"
 #include "svulkan2/common/fs.h"
 #include "svulkan2/common/log.h"
-
+#include "svulkan2/shader/shader.h"
 
 using namespace svulkan2;
+using namespace svulkan2::shader;
 
 int main() {
   GbufferPassParser gbuffer;
-  gbuffer.parseGLSLFiles("../shader/default/gbuffer.vert", "../shader/default/gbuffer.frag");
+  gbuffer.loadGLSLFiles("../shader/default/gbuffer.vert",
+                        "../shader/default/gbuffer.frag");
   DeferredPassParser deferred;
-  deferred.parseGLSLFiles("../shader/default/deferred.vert", "../shader/default/deferred.frag");
+  deferred.loadGLSLFiles("../shader/default/deferred.vert",
+                         "../shader/default/deferred.frag");
+  CompositePassParser composite;
+  composite.loadGLSLFiles("../shader/default/composite.vert",
+                         "../shader/default/composite.frag");
   return 0;
 }
