@@ -167,7 +167,7 @@ struct StructDataLayout {
     uint32_t offset{0};
     uint32_t arrayDim{0};
     DataType dtype{eFLOAT};
-    std::unique_ptr<StructDataLayout> member;
+    std::shared_ptr<StructDataLayout> member;
   };
 
   uint32_t size;
@@ -175,73 +175,5 @@ struct StructDataLayout {
 
   std::vector<StructDataLayout::Element const *> getElementsSorted() const;
 };
-
-// struct StructDataLayoutElement {
-//   std::string name{};
-//   DataType type{};
-//   uint32_t size{0};
-//   uint32_t offset{0};
-// };
-
-// struct StructDataLayout {
-//   std::unordered_map<std::string, StructDataLayoutElement> elements;
-//   uint32_t size;
-
-//   inline std::vector<StructDataLayoutElement> getElementsSorted() const {
-//     std::vector<StructDataLayoutElement> result;
-//     std::transform(elements.begin(), elements.end(),
-//     std::back_inserter(result),
-//                    [](auto const &kv) { return kv.second; });
-//     std::sort(result.begin(), result.end(),
-//               [](auto const &elem1, auto const &elem2) {
-//                 return elem1.offset < elem2.offset;
-//               });
-//     return result;
-//   }
-
-//   inline std::string summarize() const {
-//     auto elements = getElementsSorted();
-//     std::stringstream ss;
-//     ss << "total size: " << size << "; ";
-//     for (auto &e : elements) {
-//       ss << e.name << "[" << DataTypeToString(e.type) << "]"
-//          << "at: " << e.offset << ", size: " << e.size << "; ";
-//     }
-//     return ss.str();
-//   }
-// };
-
-// struct InOutDataLayoutElement {
-//   std::string name{};
-//   DataType type{};
-//   uint32_t size{0};
-//   uint32_t location{0};
-// };
-
-// struct InOutDataLayout {
-//   std::unordered_map<std::string, InOutDataLayoutElement> elements;
-
-//   inline std::vector<InOutDataLayoutElement> getElementsSorted() const {
-//     std::vector<InOutDataLayoutElement> result;
-//     std::transform(elements.begin(), elements.end(),
-//     std::back_inserter(result),
-//                    [](auto const &kv) { return kv.second; });
-//     std::sort(result.begin(), result.end(),
-//               [](auto const &elem1, auto const &elem2) {
-//                 return elem1.location < elem2.location;
-//               });
-//     return result;
-//   }
-
-//   inline std::string summarize() const {
-//     auto elements = getElementsSorted();
-//     std::stringstream ss;
-//     for (auto &e : elements) {
-//       ss << e.name << "[" << DataTypeToString(e.type) << "]"
-//          << "at: " << e.location << ", size: " << e.size << "; ";
-//     }
-//     return ss.str();
-//   }
-// };
 
 }; // namespace svulkan2

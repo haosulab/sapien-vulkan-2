@@ -5,13 +5,13 @@ namespace svulkan2 {
 namespace shader {
 
 class GbufferPassParser : public BaseParser {
-  std::unique_ptr<InputDataLayout> mVertexInputLayout;
-  std::unique_ptr<StructDataLayout> mCameraBufferLayout;
-  std::unique_ptr<StructDataLayout> mObjectBufferLayout;
+  std::shared_ptr<InputDataLayout> mVertexInputLayout;
+  std::shared_ptr<StructDataLayout> mCameraBufferLayout;
+  std::shared_ptr<StructDataLayout> mObjectBufferLayout;
 
-  std::unique_ptr<StructDataLayout> mMaterialBufferLayout;
-  std::unique_ptr<CombinedSamplerLayout> mCombinedSamplerLayout;
-  std::unique_ptr<OutputDataLayout> mTextureOutputLayout;
+  std::shared_ptr<StructDataLayout> mMaterialBufferLayout;
+  std::shared_ptr<CombinedSamplerLayout> mCombinedSamplerLayout;
+  std::shared_ptr<OutputDataLayout> mTextureOutputLayout;
 
 public:
   enum { eSPECULAR, eMETALLIC } mMaterialType;

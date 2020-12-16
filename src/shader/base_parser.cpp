@@ -4,9 +4,9 @@
 namespace svulkan2 {
 namespace shader {
 
-std::unique_ptr<InputDataLayout>
+std::shared_ptr<InputDataLayout>
 parseInputData(spirv_cross::Compiler &compiler) {
-  auto layout = std::make_unique<InputDataLayout>();
+  auto layout = std::make_shared<InputDataLayout>();
   auto resource = compiler.get_shader_resources();
   auto inputs = resource.stage_inputs;
 
@@ -26,9 +26,9 @@ parseInputData(spirv_cross::Compiler &compiler) {
   return layout;
 }
 
-std::unique_ptr<OutputDataLayout>
+std::shared_ptr<OutputDataLayout>
 parseOutputData(spirv_cross::Compiler &compiler) {
-  auto layout = std::make_unique<OutputDataLayout>();
+  auto layout = std::make_shared<OutputDataLayout>();
   auto resource = compiler.get_shader_resources();
   auto outputs = resource.stage_outputs;
 
@@ -48,7 +48,7 @@ parseOutputData(spirv_cross::Compiler &compiler) {
   return layout;
 }
 
-std::unique_ptr<InputDataLayout>
+std::shared_ptr<InputDataLayout>
 parseVertexInput(spirv_cross::Compiler &compiler) {
   auto vertexData = parseInputData(compiler);
   // required attribute
@@ -86,7 +86,7 @@ parseVertexInput(spirv_cross::Compiler &compiler) {
   return vertexData;
 }
 
-std::unique_ptr<OutputDataLayout>
+std::shared_ptr<OutputDataLayout>
 parseTextureOutput(spirv_cross::Compiler &compiler) {
   auto textureOutput = parseOutputData(compiler);
   for (auto &elem : textureOutput->elements) {
@@ -110,10 +110,10 @@ parseTextureOutput(spirv_cross::Compiler &compiler) {
   return textureOutput;
 }
 
-std::unique_ptr<StructDataLayout>
+std::shared_ptr<StructDataLayout>
 parseBuffer(spirv_cross::Compiler &compiler,
             spirv_cross::SPIRType const &type) {
-  auto layout = std::make_unique<StructDataLayout>();
+  auto layout = std::make_shared<StructDataLayout>();
   layout->size = compiler.get_declared_struct_size(type);
 
   for (uint32_t i = 0; i < type.member_types.size(); ++i) {
@@ -144,7 +144,7 @@ parseBuffer(spirv_cross::Compiler &compiler,
   return layout;
 }
 
-std::unique_ptr<StructDataLayout> parseBuffer(spirv_cross::Compiler &compiler,
+std::shared_ptr<StructDataLayout> parseBuffer(spirv_cross::Compiler &compiler,
                                               uint32_t bindingNumber,
                                               uint32_t setNumber) {
   auto resources = compiler.get_shader_resources();
@@ -160,7 +160,7 @@ std::unique_ptr<StructDataLayout> parseBuffer(spirv_cross::Compiler &compiler,
   return parseBuffer(compiler, type);
 }
 
-std::unique_ptr<StructDataLayout>
+std::shared_ptr<StructDataLayout>
 parseCameraBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
                   uint32_t setNumber) {
   auto layout = parseBuffer(compiler, bindingNumber, setNumber);
@@ -205,7 +205,7 @@ parseCameraBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
   return layout;
 }
 
-std::unique_ptr<StructDataLayout>
+std::shared_ptr<StructDataLayout>
 parseMaterialBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
                     uint32_t setNumber) {
   auto layout = parseBuffer(compiler, bindingNumber, setNumber);
@@ -269,7 +269,7 @@ parseMaterialBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
   return layout;
 }
 
-std::unique_ptr<StructDataLayout>
+std::shared_ptr<StructDataLayout>
 parseObjectBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
                   uint32_t setNumber) {
   auto layout = parseBuffer(compiler, bindingNumber, setNumber);
@@ -296,7 +296,7 @@ parseObjectBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
   return layout;
 }
 
-std::unique_ptr<StructDataLayout>
+std::shared_ptr<StructDataLayout>
 parseSceneBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
                  uint32_t setNumber) {
   auto layout = parseBuffer(compiler, bindingNumber, setNumber);
@@ -351,11 +351,11 @@ parseSceneBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
   return layout;
 }
 
-std::unique_ptr<CombinedSamplerLayout>
+std::shared_ptr<CombinedSamplerLayout>
 parseCombinedSampler(spirv_cross::Compiler &compiler) {
   auto resources = compiler.get_shader_resources();
   auto samplers = resources.sampled_images;
-  auto layout = std::make_unique<CombinedSamplerLayout>();
+  auto layout = std::make_shared<CombinedSamplerLayout>();
 
   for (auto &sampler : samplers) {
     uint32_t binding =
@@ -368,9 +368,9 @@ parseCombinedSampler(spirv_cross::Compiler &compiler) {
   return layout;
 };
 
-std::unique_ptr<SpecializationConstantLayout>
+std::shared_ptr<SpecializationConstantLayout>
 parseSpecializationConstant(spirv_cross::Compiler &compiler) {
-  auto layout = std::make_unique<SpecializationConstantLayout>();
+  auto layout = std::make_shared<SpecializationConstantLayout>();
   auto constants = compiler.get_specialization_constants();
   for (auto &var : constants) {
     auto name = compiler.get_name(var.id);

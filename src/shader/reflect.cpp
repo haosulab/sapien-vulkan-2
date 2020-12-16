@@ -158,22 +158,6 @@ find_sampler_by_decoration(spirv_cross::Compiler &compiler,
     }
   }
   return nullptr;
-
-  // auto it =
-  //     std::find(resource.sampled_images.begin(),
-  //     resource.sampled_images.end(),
-  //               [&](auto &r) {
-  //                 return compiler.get_decoration(
-  //                            r.id, spv::Decoration::DecorationBinding) ==
-  //                            binding_number &&
-  //                        compiler.get_decoration(
-  //                            r.id, spv::Decoration::DecorationDescriptorSet)
-  //                            == set_number;
-  //               });
-  // if (it == resource.sampled_images.end()) {
-  //   return nullptr;
-  // }
-  // return it;
 }
 
 } // namespace svulkan2

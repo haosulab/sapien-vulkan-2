@@ -24,6 +24,7 @@ set(ON_SCREEN TRUE CACHE BOOL "Vulkan renderer with on screen rendering and GUI 
 include_directories("include")
 include_directories("3rd_party/glslang")
 include_directories("3rd_party/SPIRV-Cross")
+include_directories("3rd_party/VulkanMemoryAllocator")
 include_directories("$ENV{VULKAN_SDK}/include")
 
 link_directories("$ENV{VULKAN_SDK}/lib")

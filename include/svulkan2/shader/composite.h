@@ -5,8 +5,8 @@ namespace svulkan2 {
 namespace shader {
 
 class CompositePassParser : public BaseParser {
-  std::unique_ptr<CombinedSamplerLayout> mCombinedSamplerLayout;
-  std::unique_ptr<OutputDataLayout> mTextureOutputLayout;
+  std::shared_ptr<CombinedSamplerLayout> mCombinedSamplerLayout;
+  std::shared_ptr<OutputDataLayout> mTextureOutputLayout;
 
 public:
   inline CombinedSamplerLayout const &getCombinedSamplerLayout() const {

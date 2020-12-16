@@ -5,11 +5,11 @@ namespace svulkan2 {
 namespace shader {
 class DeferredPassParser : public BaseParser {
 
-  std::unique_ptr<SpecializationConstantLayout> mSpecializationConstantLayout;
-  std::unique_ptr<StructDataLayout> mCameraBufferLayout;
-  std::unique_ptr<StructDataLayout> mSceneBufferLayout;
-  std::unique_ptr<CombinedSamplerLayout> mCombinedSamplerLayout;
-  std::unique_ptr<OutputDataLayout> mTextureOutputLayout;
+  std::shared_ptr<SpecializationConstantLayout> mSpecializationConstantLayout;
+  std::shared_ptr<StructDataLayout> mCameraBufferLayout;
+  std::shared_ptr<StructDataLayout> mSceneBufferLayout;
+  std::shared_ptr<CombinedSamplerLayout> mCombinedSamplerLayout;
+  std::shared_ptr<OutputDataLayout> mTextureOutputLayout;
 
 private:
   void reflectSPV() override;

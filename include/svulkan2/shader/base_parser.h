@@ -18,36 +18,36 @@ inline bool CONTAINS(Container &container, T const &element) {
   return container.find(element) != container.end();
 }
 
-std::unique_ptr<InputDataLayout>
+std::shared_ptr<InputDataLayout>
 parseInputData(spirv_cross::Compiler &compiler);
-std::unique_ptr<InputDataLayout>
+std::shared_ptr<InputDataLayout>
 parseVertexInput(spirv_cross::Compiler &compiler);
 
-std::unique_ptr<OutputDataLayout>
+std::shared_ptr<OutputDataLayout>
 parseOutputData(spirv_cross::Compiler &compiler);
-std::unique_ptr<OutputDataLayout>
+std::shared_ptr<OutputDataLayout>
 parseTextureOutput(spirv_cross::Compiler &compiler);
 
-std::unique_ptr<StructDataLayout> parseBuffer(spirv_cross::Compiler &compiler,
+std::shared_ptr<StructDataLayout> parseBuffer(spirv_cross::Compiler &compiler,
                                               uint32_t bindingNumber,
                                               uint32_t setNumber);
-std::unique_ptr<StructDataLayout>
+std::shared_ptr<StructDataLayout>
 parseCameraBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
                   uint32_t setNumber);
-std::unique_ptr<StructDataLayout>
+std::shared_ptr<StructDataLayout>
 parseMaterialBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
                     uint32_t setNumber);
-std::unique_ptr<StructDataLayout>
+std::shared_ptr<StructDataLayout>
 parseObjectBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
                   uint32_t setNumber);
-std::unique_ptr<StructDataLayout>
+std::shared_ptr<StructDataLayout>
 parseSceneBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
                  uint32_t setNumber);
 
-std::unique_ptr<CombinedSamplerLayout>
+std::shared_ptr<CombinedSamplerLayout>
 parseCombinedSampler(spirv_cross::Compiler &compiler);
 
-std::unique_ptr<SpecializationConstantLayout>
+std::shared_ptr<SpecializationConstantLayout>
 parseSpecializationConstant(spirv_cross::Compiler &compiler);
 
 class BaseParser {
