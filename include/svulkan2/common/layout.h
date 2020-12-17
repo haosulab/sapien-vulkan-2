@@ -1,4 +1,5 @@
 #pragma once
+#include "svulkan2/common/vk.h"
 
 #include <algorithm>
 #include <memory>
@@ -146,6 +147,11 @@ struct InputDataLayout {
 
   std::vector<InputDataLayout::Element> getElementsSorted() const;
   uint32_t getSize() const;
+
+  vk::VertexInputBindingDescription
+  computeVertexInputBindingDescription() const;
+  std::vector<vk::VertexInputAttributeDescription>
+  computeVertexInputAttributesDescriptions() const;
 };
 
 struct OutputDataLayout {

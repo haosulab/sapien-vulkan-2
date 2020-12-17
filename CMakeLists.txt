@@ -21,6 +21,7 @@ find_package(Vulkan REQUIRED)
 file(GLOB_RECURSE RENDER_SRC "src/*.cpp")
 
 set(ON_SCREEN TRUE CACHE BOOL "Vulkan renderer with on screen rendering and GUI support") 
+set(BUILD_TEST TRUE CACHE BOOL "Build sapien-vulkan-2 unit test") 
 include_directories("include")
 include_directories("3rd_party/glslang")
 include_directories("3rd_party/SPIRV-Cross")
@@ -30,6 +31,10 @@ include_directories("$ENV{VULKAN_SDK}/include")
 link_directories("$ENV{VULKAN_SDK}/lib")
 add_subdirectory("3rd_party/glslang")
 add_subdirectory("3rd_party/SPIRV-Cross")
+
+if (${BUILD_TEST})
+  add_subdirectory("3rd_party/googletest")
+endif()
 
 if (${ON_SCREEN}) 
   find_package(glfw3 REQUIRED)
@@ -47,3 +52,6 @@ target_link_libraries(svulkan2 ${ASSIMP_LIBRARIES} glfw3 dl pthread Vulkan::Vulk
 
 add_executable(main app/main.cpp)
 target_link_libraries(main svulkan2 stdc++fs)
+
+add_executable(test test/gbuffer.cpp)
+target_link_libraries(test svulkan2 stdc++fs gtest_main)

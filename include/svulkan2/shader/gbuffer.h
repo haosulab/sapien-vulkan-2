@@ -18,6 +18,27 @@ public:
 
   std::vector<std::string> getOutputTextureNames() const;
 
+  inline std::shared_ptr<InputDataLayout> getVertexInputLayout() const {
+    return mVertexInputLayout;
+  }
+  inline std::shared_ptr<StructDataLayout> getCameraBufferLayout() const {
+    return mCameraBufferLayout;
+  }
+  inline std::shared_ptr<StructDataLayout> getObjectBufferLayout() const {
+    return mObjectBufferLayout;
+  }
+
+  inline std::shared_ptr<StructDataLayout> getMaterialBufferLayout() const {
+    return mMaterialBufferLayout;
+  }
+  inline std::shared_ptr<CombinedSamplerLayout>
+  getCombinedSamplerLayout() const {
+    return mCombinedSamplerLayout;
+  }
+  inline std::shared_ptr<OutputDataLayout> getTextureOutputLayout() const {
+    return mTextureOutputLayout;
+  }
+
 private:
   void reflectSPV() override;
   void validate() const;

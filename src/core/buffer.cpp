@@ -16,11 +16,10 @@ Buffer::Buffer(Context &context, vk::DeviceSize size,
   memoryInfo.flags = allocationFlags;
 
   VmaAllocationInfo allocInfo;
-
   if (vmaCreateBuffer(mContext->getAllocator().getVmaAllocator(),
                       reinterpret_cast<VkBufferCreateInfo *>(&bufferInfo),
                       &memoryInfo, reinterpret_cast<VkBuffer *>(&mBuffer),
-                      &mAllocation, nullptr) != VK_SUCCESS) {
+                      &mAllocation, &allocInfo) != VK_SUCCESS) {
     throw std::runtime_error("cannot create image");
   }
 
