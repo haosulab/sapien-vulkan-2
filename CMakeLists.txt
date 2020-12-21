@@ -20,7 +20,6 @@ find_package(assimp REQUIRED)
 find_package(Vulkan REQUIRED)
 file(GLOB_RECURSE RENDER_SRC "src/*.cpp")
 
-set(ON_SCREEN TRUE CACHE BOOL "Vulkan renderer with on screen rendering and GUI support") 
 set(BUILD_TEST TRUE CACHE BOOL "Build sapien-vulkan-2 unit test") 
 include_directories("include")
 include_directories("3rd_party/glslang")
@@ -36,22 +35,21 @@ if (${BUILD_TEST})
   add_subdirectory("3rd_party/googletest")
 endif()
 
-if (${ON_SCREEN}) 
-  find_package(glfw3 REQUIRED)
-  add_definitions(-DON_SCREEN)
-  include_directories("3rd_party/imgui" "3rd_party/imgui/examples")
-  file(GLOB GUI_SRC "3rd_party/imgui/*.cpp"
-    "3rd_party/imgui/examples/imgui_impl_glfw.cpp"
-    "3rd_party/imgui/examples/imgui_impl_vulkan.cpp" )
-endif()
+find_package(glfw3 REQUIRED)
+include_directories("3rd_party/imgui" "3rd_party/imgui/examples")
+file(GLOB GUI_SRC "3rd_party/imgui/*.cpp"
+  "3rd_party/imgui/examples/imgui_impl_glfw.cpp"
+  "3rd_party/imgui/examples/imgui_impl_vulkan.cpp" )
 
 add_library(svulkan2 STATIC ${RENDER_SRC} ${GUI_SRC})
 target_link_libraries(svulkan2 ${ASSIMP_LIBRARIES} glfw3 dl pthread Vulkan::Vulkan spdlog
   glslang SPIRV spirv-cross-cpp
   )
 
+file (GLOB_RECURSE TEST_SRC "test/*.cpp")
+
 add_executable(main app/main.cpp)
 target_link_libraries(main svulkan2 stdc++fs)
 
-add_executable(test test/gbuffer.cpp)
+add_executable(test ${TEST_SRC})
 target_link_libraries(test svulkan2 stdc++fs gtest_main)

@@ -1,0 +1,17 @@
+* Composite passes
+  The composite passes are full-screen passes for processing results produced in
+  previous passes. We use texture names to identify textures to read from and
+  write to. The following line will read from the lighting texture in deferred
+  pass and transparency pass.
+  #+begin_src glsl
+  layout(set = 0, binding = 0) uniform sampler2D inLighting;
+  #+end_src
+  And the following line will write to this texture bound at location 0.
+  #+begin_src glsl
+  layout(location=0) out vec4 outLighting;
+  #+end_src
+
+  Multiple composite passes can be created with name =composite1.frag=,
+  =composite2.frag=, etc. The texture named =Lighting= be the final lighting
+  texture. The Composite pass is responsible for creating effects such as motion
+  blur, bloom, and SSR.

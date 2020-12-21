@@ -13,6 +13,9 @@ class GbufferPassParser : public BaseParser {
   std::shared_ptr<CombinedSamplerLayout> mCombinedSamplerLayout;
   std::shared_ptr<OutputDataLayout> mTextureOutputLayout;
 
+  vk::UniqueRenderPass mRenderPass;
+  vk::UniquePipeline mPipeline;
+
 public:
   enum { eSPECULAR, eMETALLIC } mMaterialType;
 
@@ -39,10 +42,22 @@ public:
     return mTextureOutputLayout;
   }
 
+  vk::RenderPass createRenderPass(vk::Device device, vk::Format colorFormat,
+                                  vk::Format depthFormat);
+
+  vk::Pipeline
+  createGraphicsPipeline(vk::Device device, vk::PipelineLayout pipelineLayout,
+                         vk::Format colorFormat, vk::Format depthFormat,
+                         vk::CullModeFlags cullMode, vk::FrontFace frontFace);
+
+  vk::RenderPass getRenderPass() const { return mRenderPass.get(); }
+  vk::Pipeline getPipeline() const { return mPipeline.get(); }
+
 private:
   void reflectSPV() override;
   void validate() const;
 };
+
 
 } // namespace shader
 } // namespace svulkan2

@@ -45,9 +45,9 @@ uint32_t InputDataLayout::getSize() const {
   return sum;
 }
 
-vk::VertexInputBindingDescription
-InputDataLayout::computeVertexInputBindingDescription() const {
-  return vk::VertexInputBindingDescription(0, getSize());
+std::vector<vk::VertexInputBindingDescription>
+InputDataLayout::computeVertexInputBindingDescriptions() const {
+  return {vk::VertexInputBindingDescription(0, getSize())};
 }
 
 std::vector<vk::VertexInputAttributeDescription>

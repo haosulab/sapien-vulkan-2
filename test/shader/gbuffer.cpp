@@ -6,8 +6,8 @@ using namespace svulkan2::shader;
 
 TEST(Gbuffer, Minimal) {
   GbufferPassParser gbuffer;
-  gbuffer.loadGLSLFiles("../test/shader/gbuffer_minimal.vert",
-                        "../test/shader/gbuffer_minimal.frag");
+  gbuffer.loadGLSLFiles("../test/assets/shader/gbuffer_minimal.vert",
+                        "../test/assets/shader/gbuffer_minimal.frag");
 
   // vertex
   auto vertexLayout = gbuffer.getVertexInputLayout();
@@ -61,12 +61,6 @@ TEST(Gbuffer, Minimal) {
   ASSERT_TRUE(CONTAINS(materialLayout->elements, "metallic"));
   ASSERT_TRUE(CONTAINS(materialLayout->elements, "transparency"));
   ASSERT_TRUE(CONTAINS(materialLayout->elements, "textureMask"));
-  StructDataLayout::Element{.name = "baseColor",
-                            .size = 16,
-                            .offset = 0,
-                            .arrayDim = 0,
-                            .dtype = eFLOAT4,
-                            .member = nullptr};
 
   ASSERT_EQ(materialLayout->elements["baseColor"].dtype, eFLOAT4);
   ASSERT_EQ(materialLayout->elements["baseColor"].size, 16);
@@ -105,4 +99,41 @@ TEST(Gbuffer, Minimal) {
   ASSERT_EQ(materialLayout->elements["textureMask"].offset, 32);
 
   ASSERT_EQ(materialLayout->size, 36);
+
+  // texture
+  auto samplerLayout = gbuffer.getCombinedSamplerLayout();
+  ASSERT_TRUE(CONTAINS(samplerLayout->elements, "colorTexture"));
+  ASSERT_TRUE(CONTAINS(samplerLayout->elements, "roughnessTexture"));
+  ASSERT_TRUE(CONTAINS(samplerLayout->elements, "normalTexture"));
+  ASSERT_TRUE(CONTAINS(samplerLayout->elements, "metallicTexture"));
+
+  ASSERT_EQ(samplerLayout->elements["colorTexture"].binding, 1);
+  ASSERT_EQ(samplerLayout->elements["roughnessTexture"].binding, 2);
+  ASSERT_EQ(samplerLayout->elements["normalTexture"].binding, 3);
+  ASSERT_EQ(samplerLayout->elements["metallicTexture"].binding, 4);
+
+  ASSERT_EQ(samplerLayout->elements["colorTexture"].set, 3);
+  ASSERT_EQ(samplerLayout->elements["roughnessTexture"].set, 3);
+  ASSERT_EQ(samplerLayout->elements["normalTexture"].set, 3);
+  ASSERT_EQ(samplerLayout->elements["metallicTexture"].set, 3);
+
+  // output
+  auto outputLayout = gbuffer.getTextureOutputLayout();
+  ASSERT_TRUE(CONTAINS(outputLayout->elements, "outAlbedo"));
+  ASSERT_TRUE(CONTAINS(outputLayout->elements, "outPosition"));
+  ASSERT_TRUE(CONTAINS(outputLayout->elements, "outSpecular"));
+  ASSERT_TRUE(CONTAINS(outputLayout->elements, "outNormal"));
+  ASSERT_TRUE(CONTAINS(outputLayout->elements, "outSegmentation"));
+
+  ASSERT_EQ(outputLayout->elements["outAlbedo"].location, 0);
+  ASSERT_EQ(outputLayout->elements["outPosition"].location, 1);
+  ASSERT_EQ(outputLayout->elements["outSpecular"].location, 2);
+  ASSERT_EQ(outputLayout->elements["outNormal"].location, 3);
+  ASSERT_EQ(outputLayout->elements["outSegmentation"].location, 4);
+
+  ASSERT_EQ(outputLayout->elements["outAlbedo"].dtype, eFLOAT4);
+  ASSERT_EQ(outputLayout->elements["outPosition"].dtype, eFLOAT4);
+  ASSERT_EQ(outputLayout->elements["outSpecular"].dtype, eFLOAT4);
+  ASSERT_EQ(outputLayout->elements["outNormal"].dtype, eFLOAT4);
+  ASSERT_EQ(outputLayout->elements["outSegmentation"].dtype, eUINT4);
 }

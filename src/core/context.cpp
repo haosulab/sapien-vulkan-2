@@ -141,11 +141,9 @@ void Context::createDevice() {
   vk::PhysicalDeviceFeatures features;
   features.independentBlend = true;
 
-#ifdef ON_SCREEN
   if (mPresent) {
     deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
   }
-#endif
   mDevice = mPhysicalDevice.createDeviceUnique(vk::DeviceCreateInfo(
       {}, 1, &deviceQueueCreateInfo, 0, nullptr, deviceExtensions.size(),
       deviceExtensions.data(), &features));

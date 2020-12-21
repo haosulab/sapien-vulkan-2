@@ -1,0 +1,69 @@
+* Deferred pass
+  Files: =deferred.vert=, =deferred.frag=
+
+  Deferred pass runs after gbuffer pass to compute lighting in the pixel space.
+  
+** Vertex shader
+  The vertex shader should almost always be the following. It draws a triangle and clip it to a quad.
+#+begin_src glsl
+#version 450 
+layout (location = 0) out vec2 outUV;
+void main() 
+{
+  outUV = vec2((gl_VertexIndex << 1) & 2, gl_VertexIndex & 2);
+  gl_Position = vec4(outUV * 2.0f + -1.0f, 0.0f, 1.0f);
+}
+#+end_src
+
+** Constants
+   These constants are determined when the scene is rendered. The shader
+   pipeline is recreated if number of lights change. However, the buffers are
+   pre-allocated according to the pre-specified values. So users should fill in
+   the maximum number of directional lights and point lights.
+#+begin_src glsl
+layout (constant_id = 0) const uint NUM_DIRECTIONAL_LIGHTS=...;
+layout (constant_id = 1) const uint NUM_POINT_LIGHTS=...;
+#+end_src
+
+** Scene buffer
+#+begin_src glsl
+  struct PointLight {
+    vec4 position;
+    vec4 emission;
+  };
+  struct DirectionalLight {
+    vec4 direction;
+    vec4 emission;
+  };
+  layout(set = 0, binding = 0) uniform SceneBuffer {
+    vec4 ambientLight;
+    DirectionalLight directionalLights[NUM_DIRECTIONAL_LIGHTS];
+    PointLight pointLights[NUM_POINT_LIGHTS];
+    mat4 shadowMatrix;  // optional
+  } sceneBuffer;
+#+end_src
+
+   Other "simple" variables are also allowed, but it is not allowed to use
+   structs.
+   
+** Camera buffer
+#+begin_src glsl
+layout(set = 1, binding = 0) uniform CameraBuffer { ... } cameraBuffer;
+#+end_src
+It should have the same format as [[sec:camera]].
+
+** Textures
+   The input textures will be the output textures in the gbuffer pass, bound at
+   description set 2. The following refers to the outAlbedo.
+   
+#+begin_src glsl
+layout(set = 2, binding = 0) uniform sampler2D samplerAlbedo;
+#+end_src
+
+ 2 Special names are reserved for depth buffers. =samplerDepth= refers to the
+ depth output of the gbuffer pass, and =samplerShadow= refers to the depth
+ output of the shadow pass (if there is one).
+
+** Output
+   Any output texture should start with =out=. Texture with the same name are
+   the same texture.

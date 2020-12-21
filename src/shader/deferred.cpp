@@ -30,10 +30,9 @@ void DeferredPassParser::validate() const {
 
   // validate samplers
   for (auto &sampler : mCombinedSamplerLayout->elements) {
-    ASSERT(
-        sampler.second.name.length() > 7 &&
-            sampler.second.name.substr(0, 7) == "sampler",
-        "[frag]texture sampler variable must start with \"sampler\"");
+    ASSERT(sampler.second.name.length() > 7 &&
+               sampler.second.name.substr(0, 7) == "sampler",
+           "[frag]texture sampler variable must start with \"sampler\"");
     ASSERT(sampler.second.set == 2, "all deferred.frag: all texture sampler "
                                     "should be bound at descriptor set 2");
   }

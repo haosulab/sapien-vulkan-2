@@ -1,0 +1,2 @@
+* Ambient Occlusion pass (optional)
+  Discuss about it after other parts are finished.
