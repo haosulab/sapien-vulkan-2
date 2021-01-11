@@ -54,7 +54,7 @@ vk::RenderPass GbufferPassParser::createRenderPass(vk::Device device,
     if (elems[i].dtype == eFLOAT4) {
       format = colorFormat;
     }
-    if (elems[i].dtype == eUINT4) {
+    else if (elems[i].dtype == eUINT4) {
       format = vk::Format::eR32G32B32A32Sfloat;
     } else {
       throw std::runtime_error(

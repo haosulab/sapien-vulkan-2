@@ -11,6 +11,9 @@ class DeferredPassParser : public BaseParser {
   std::shared_ptr<CombinedSamplerLayout> mCombinedSamplerLayout;
   std::shared_ptr<OutputDataLayout> mTextureOutputLayout;
 
+  vk::UniqueRenderPass mRenderPass;
+  vk::UniquePipeline mPipeline;
+
 public:
   inline std::shared_ptr<SpecializationConstantLayout>
   getSpecializationConstantLayout() const {
@@ -29,6 +32,17 @@ public:
   inline std::shared_ptr<OutputDataLayout> getTextureOutputLayout() const {
     return mTextureOutputLayout;
   }
+
+  vk::RenderPass getRenderPass() const { return mRenderPass.get(); }
+  vk::Pipeline getPipeline() const { return mPipeline.get(); }
+
+  vk::RenderPass createRenderPass(vk::Device device, vk::Format colorFormat,
+      vk::Format depthFormat);
+
+  vk::Pipeline
+      createGraphicsPipeline(vk::Device device, vk::PipelineLayout pipelineLayout,
+          vk::Format colorFormat, vk::Format depthFormat,
+          int numDirectionalLights = -1, int numPointLights = -1);
 
 private:
   void reflectSPV() override;
