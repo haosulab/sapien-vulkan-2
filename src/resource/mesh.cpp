@@ -1,8 +1,8 @@
-#include "svulkan2/core/mesh.h"
+#include "svulkan2/resource/mesh.h"
 #include <memory>
 
 namespace svulkan2 {
-namespace core {
+namespace resource {
 
 static void strided_memcpy(void *target, void *source, size_t chunk_size,
                            size_t chunks, size_t stride) {
@@ -16,22 +16,36 @@ static void strided_memcpy(void *target, void *source, size_t chunk_size,
   }
 }
 
-Mesh::Mesh(class Context &context, std::shared_ptr<InputDataLayout> layout)
-    : mContext(&context), mVertexLayout(layout) {}
+SVMesh::SVMesh(std::shared_ptr<InputDataLayout> layout)
+    : mVertexLayout(layout) {}
 
-void Mesh::setIndices(std::vector<uint32_t> const &indices) {
+void SVMesh::setIndices(std::vector<uint32_t> const &indices) {
   mIndices = indices;
 }
 
-void Mesh::setVertexAttribute(std::string const &name,
-                              std::vector<float> const &attrib) {
+std::vector<uint32_t> const &SVMesh::getIndices(std::vector<uint32_t>) const {
+  return mIndices;
+}
+
+void SVMesh::setVertexAttribute(std::string const &name,
+                                std::vector<float> const &attrib) {
   if (mVertexLayout->elements.find("name") == mVertexLayout->elements.end()) {
-    throw std::runtime_error("unknown vertex attribute " + name);
+    // TODO: give a warning
+    return;
+    // throw std::runtime_error("unknown vertex attribute " + name);
   }
   mAttributes[name] = attrib;
 }
 
-void Mesh::upload() {
+std::vector<float> const &
+SVMesh::getVertexAttribute(std::string const &name) const {
+  if (mVertexLayout->elements.find("name") == mVertexLayout->elements.end()) {
+    throw std::runtime_error("unknown vertex attribute " + name);
+  }
+  return mAttributes.at(name);
+}
+
+void SVMesh::uploadToDevice(core::Context &context) {
 
   if (mAttributes.find("position") == mAttributes.end() ||
       mAttributes["position"].size() == 0) {
@@ -72,21 +86,29 @@ void Mesh::upload() {
     }
     offset += elem.getSize();
   }
+
   mVertexBuffer =
-      std::make_unique<Buffer>(*mContext, bufferSize,
-                               vk::BufferUsageFlagBits::eVertexBuffer |
-                                   vk::BufferUsageFlagBits::eTransferDst |
-                                   vk::BufferUsageFlagBits::eTransferSrc,
-                               VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY);
+      std::make_unique<core::Buffer>(context, bufferSize,
+                                     vk::BufferUsageFlagBits::eVertexBuffer |
+                                         vk::BufferUsageFlagBits::eTransferDst |
+                                         vk::BufferUsageFlagBits::eTransferSrc,
+                                     VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY);
   mIndexBuffer =
-      std::make_unique<Buffer>(*mContext, indexBufferSize,
-                               vk::BufferUsageFlagBits::eIndexBuffer |
-                                   vk::BufferUsageFlagBits::eTransferDst |
-                                   vk::BufferUsageFlagBits::eTransferSrc,
-                               VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY);
+      std::make_unique<core::Buffer>(context, indexBufferSize,
+                                     vk::BufferUsageFlagBits::eIndexBuffer |
+                                         vk::BufferUsageFlagBits::eTransferDst |
+                                         vk::BufferUsageFlagBits::eTransferSrc,
+                                     VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY);
   mVertexBuffer->upload(buffer.data(), bufferSize);
   mIndexBuffer->upload<uint32_t>(mIndices);
+  mOnDevice = true;
 }
 
-} // namespace core
+void SVMesh::removeFromDevice() {
+  mOnDevice = false;
+  mVertexBuffer.reset();
+  mIndexBuffer.reset();
+}
+
+} // namespace resource
 } // namespace svulkan2

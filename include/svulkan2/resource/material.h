@@ -1,11 +1,64 @@
 #pragma once
+#include "svulkan2/common/glm.h"
 #include "texture.h"
-#include <memory>
-#include <vector>
 
 namespace svulkan2 {
+namespace resource {
 
-class Material {
+void setBit(int &number, int bit) { number |= 1 << bit; }
+void unsetBit(int &number, int bit) { number &= ~(1 << bit); }
+
+class SVMaterial {};
+
+class SVMetallicMaterial : public SVMaterial {
+  struct Buffer {
+    glm::vec4 baseColor;
+    float fresnel;
+    float roughness;
+    float metallic;
+    float transparency;
+    int textureMask;
+  } mBuffer;
+  std::shared_ptr<SVTexture> mBaseColorTexture;
+  std::shared_ptr<SVTexture> mRoughnessTexture;
+  std::shared_ptr<SVTexture> mNormalTexture;
+  std::shared_ptr<SVTexture> mMetallicTexture;
+
+public:
+  inline SVMetallicMaterial(glm::vec4 baseColor = {0, 0, 0, 1},
+                            float fresnel = 0, float roughness = 1,
+                            float metallic = 0, float transparency = 0) {
+    mBuffer = {baseColor, fresnel, roughness, metallic, transparency, 0};
+  }
+
+  void setTextures(std::shared_ptr<SVTexture> baseColorTexture,
+                   std::shared_ptr<SVTexture> roughnessTexture,
+                   std::shared_ptr<SVTexture> normalTexture,
+                   std::shared_ptr<SVTexture> metallicTexture);
 };
 
+class SVSpecularMaterial : public SVMaterial {
+  struct Buffer {
+    glm::vec4 diffuse;
+    glm::vec4 specular;
+    float transparency;
+    int textureMask;
+  } mBuffer;
+  std::shared_ptr<SVTexture> mDiffuseTexture;
+  std::shared_ptr<SVTexture> mSpecularTexture;
+  std::shared_ptr<SVTexture> mNormalTexture;
+
+public:
+  inline SVSpecularMaterial(glm::vec4 diffuse = {0, 0, 0, 1},
+                            glm::vec4 specular = {0, 0, 0, 0},
+                            float transparency = 0) {
+    mBuffer = {diffuse, specular, transparency, 0};
+  }
+
+  void setTextures(std::shared_ptr<SVTexture> diffuseTexture,
+                   std::shared_ptr<SVTexture> specularTexture,
+                   std::shared_ptr<SVTexture> normalTexture);
+};
+
+} // namespace resource
 } // namespace svulkan2

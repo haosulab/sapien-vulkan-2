@@ -26,6 +26,7 @@ include_directories("3rd_party/glslang")
 include_directories("3rd_party/SPIRV-Cross")
 include_directories("3rd_party/VulkanMemoryAllocator")
 include_directories("$ENV{VULKAN_SDK}/include")
+include_directories("3rd_party/stb")
 
 link_directories("$ENV{VULKAN_SDK}/lib")
 add_subdirectory("3rd_party/glslang")

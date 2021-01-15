@@ -1,3 +1,10 @@
+/**
+ * @file image.h
+ * @brief GPU resources for a Vulkan image
+ * @author Fanbo Xiang
+ * Contact: fxiang@eng.ucsd.edu
+ */
+
 #pragma once
 #include "svulkan2/common/log.h"
 #include "svulkan2/common/vk.h"
@@ -6,6 +13,9 @@ namespace svulkan2 {
 namespace core {
 
 size_t findSizeFromFormat(vk::Format format) {
+  if (format == vk::Format::eR8Unorm) {
+    return 1;
+  }
   if (format == vk::Format::eR8G8B8A8Unorm) {
     return 4;
   }

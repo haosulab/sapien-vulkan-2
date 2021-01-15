@@ -14,6 +14,9 @@ static vk::ImageType findImageTypeFromExtent(vk::Extent3D extent) {
 }
 
 static vk::ImageAspectFlags findAspectBitsFromFormat(vk::Format format) {
+  if (format == vk::Format::eR8Unorm) {
+    return vk::ImageAspectFlagBits::eColor;
+  }
   if (format == vk::Format::eR8G8B8A8Unorm) {
     return vk::ImageAspectFlagBits::eColor;
   }

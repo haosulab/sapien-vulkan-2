@@ -1,15 +1,16 @@
 #pragma once
 #include "material.h"
 #include "mesh.h"
-#include "texture.h"
 #include <memory>
 #include <vector>
 
 namespace svulkan2 {
+namespace resource {
 
-class Shape {
-  std::shared_ptr<Mesh> mMesh;
-  std::shared_ptr<Material> mMaterial;
+struct SVShape {
+  std::shared_ptr<SVMesh> mesh;
+  std::shared_ptr<SVMaterial> material;
 };
 
+} // namespace resource
 } // namespace svulkan2
