@@ -2,6 +2,7 @@
 #include "svulkan2/common/glm.h"
 
 namespace svulkan2 {
+namespace scene {
 
 struct Transform {
   glm::vec3 position = {0, 0, 0};
@@ -11,4 +12,5 @@ struct Transform {
   glm::mat4 worldModelMatrix;
 };
 
+} // namespace scene
 } // namespace svulkan2

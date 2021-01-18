@@ -36,6 +36,7 @@ public:
   void flush();
 
   void upload(void const *data, size_t size, size_t offset = 0);
+  void download(void *data, size_t size, size_t offset = 0);
 
   template <typename T> void upload(T const &data) {
     upload(&data, sizeof(T), 0);
@@ -43,6 +44,15 @@ public:
 
   template <typename T> void upload(std::vector<T> const &data) {
     upload(data.data(), sizeof(T) * data.size(), 0);
+  }
+
+  template <typename T> std::vector<T> download() {
+    if ((mSize / sizeof(T)) * sizeof(T) != mSize) {
+      throw std::runtime_error("failed to download buffer: incompatible data type");
+    }
+    std::vector<T> data(mSize / sizeof(T));
+    download(data.data(), mSize, 0);
+    return data;
   }
 
   inline vk::DeviceSize getSize() const { return mSize; }

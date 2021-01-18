@@ -4,6 +4,7 @@
 #include <vector>
 
 namespace svulkan2 {
+namespace scene {
 
 class Scene {
   std::vector<std::unique_ptr<Node>> mNodes{};
@@ -20,7 +21,7 @@ public:
   void forceRemove();
 
   Scene();
-
 };
 
+} // namespace scene
 } // namespace svulkan2

@@ -1,3 +1,4 @@
+#pragma once
 #include "layout.h"
 #include <memory>
 
@@ -10,6 +11,7 @@ struct RendererConfig {};
 struct ShaderConfig {
   enum MaterialPipeline { eMETALLIC, eSPECULAR } materialPipeline;
   std::shared_ptr<InputDataLayout> vertexLayout;
+  std::shared_ptr<StructDataLayout> objectBufferLayout;
 };
 
 } // namespace svulkan2

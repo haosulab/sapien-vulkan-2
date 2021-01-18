@@ -45,6 +45,8 @@ Context::Context(uint32_t apiVersion, bool present)
   createCommandPool();
 }
 
+Context::~Context() {}
+
 void Context::createInstance() {
   if (mPresent) {
     log::info("Initializing GLFW");
@@ -130,7 +132,12 @@ void Context::pickSuitableGpuAndQueueFamilyIndex() {
     throw std::runtime_error(
         "pickSuitableGpuAndQueue: no compatible GPU found");
   }
+  if (mPresent) {
+    vkDestroySurfaceKHR(mInstance.get(), tmpSurface, nullptr);
+    glfwDestroyWindow(window);
+  }
   mPhysicalDevice = pickedDevice;
+  mQueueFamilyIndex = pickedIndex;
 }
 
 void Context::createDevice() {
@@ -170,7 +177,8 @@ Context::createCommandBuffer(vk::CommandBufferLevel level) const {
           .front());
 }
 
-void Context::submitCommandBuffer(vk::CommandBuffer commandBuffer) const {
+void Context::submitCommandBufferAndWait(
+    vk::CommandBuffer commandBuffer) const {
   auto fence = mDevice->createFenceUnique({});
   getQueue().submit(vk::SubmitInfo(0, nullptr, nullptr, 1, &commandBuffer),
                     fence.get());
@@ -178,11 +186,21 @@ void Context::submitCommandBuffer(vk::CommandBuffer commandBuffer) const {
 }
 
 vk::UniqueFence
-Context::submitCommandBufferNoWait(vk::CommandBuffer commandBuffer) const {
+Context::submitCommandBufferForFence(vk::CommandBuffer commandBuffer) const {
   auto fence = mDevice->createFenceUnique({});
   getQueue().submit(vk::SubmitInfo(0, nullptr, nullptr, 1, &commandBuffer),
                     fence.get());
   return fence;
+}
+
+std::future<void>
+Context::submitCommandBuffer(vk::CommandBuffer commandBuffer) const {
+  auto fence = mDevice->createFenceUnique({});
+  getQueue().submit(vk::SubmitInfo(0, nullptr, nullptr, 1, &commandBuffer),
+                    fence.get());
+  return std::async(std::launch::async, [fence = std::move(fence), this]() {
+    mDevice->waitForFences(fence.get(), VK_TRUE, UINT64_MAX);
+  });
 }
 
 vk::Queue Context::getQueue() const {

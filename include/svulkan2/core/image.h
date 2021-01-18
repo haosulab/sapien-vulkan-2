@@ -12,7 +12,7 @@
 namespace svulkan2 {
 namespace core {
 
-size_t findSizeFromFormat(vk::Format format) {
+inline size_t findSizeFromFormat(vk::Format format) {
   if (format == vk::Format::eR8Unorm) {
     return 1;
   }
@@ -73,7 +73,7 @@ public:
   void *map();
   void unmap();
 
-  void upload(void *data, size_t size);
+  void upload(void const *data, size_t size);
   template <typename DataType> void upload(std::vector<DataType> const &data) {
     upload(data.data(), data.size() * sizeof(DataType));
   }

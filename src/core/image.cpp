@@ -86,7 +86,7 @@ void Image::unmap() {
   }
 }
 
-void Image::upload(void *data, size_t size) {
+void Image::upload(void const *data, size_t size) {
   // TODO: handle the host visible case
   size_t imageSize = mExtent.width * mExtent.height * mExtent.depth *
                      findSizeFromFormat(mFormat);
@@ -113,12 +113,13 @@ void Image::upload(void *data, size_t size) {
   cb->copyBufferToImage(stagingBuffer->getVulkanBuffer(), mImage,
                         vk::ImageLayout::eTransferDstOptimal, copyRegion);
   transitionLayout(cb.get(), vk::ImageLayout::eTransferDstOptimal,
-                   vk::ImageLayout::eShaderReadOnlyOptimal, {},
+                   vk::ImageLayout::eShaderReadOnlyOptimal,
                    vk::AccessFlagBits::eTransferWrite,
-                   vk::PipelineStageFlagBits::eTopOfPipe,
-                   vk::PipelineStageFlagBits::eTransfer);
+                   vk::AccessFlagBits::eShaderRead,
+                   vk::PipelineStageFlagBits::eTransfer,
+                   vk::PipelineStageFlagBits::eFragmentShader);
   cb->end();
-  mContext->submitCommandBuffer(cb.get());
+  mContext->submitCommandBufferAndWait(cb.get());
 }
 
 void Image::download(void *data, size_t size, vk::Offset3D offset,
@@ -180,6 +181,8 @@ void Image::download(void *data, size_t size, vk::Offset3D offset,
                      sourceAccessFlag2, vk::PipelineStageFlagBits::eTransfer,
                      sourceStage);
     cb->end();
+    mContext->submitCommandBufferAndWait(cb.get());
+
     std::memcpy(data, stagingBuffer->map(), size);
     stagingBuffer->unmap();
   } else {

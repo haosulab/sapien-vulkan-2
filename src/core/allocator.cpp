@@ -17,8 +17,9 @@ Allocator::~Allocator() { vmaDestroyAllocator(mMemoryAllocator); }
 
 std::unique_ptr<Buffer> Allocator::allocateStagingBuffer(vk::DeviceSize size) {
   return std::make_unique<Buffer>(*mContext, size,
-                                  vk::BufferUsageFlagBits::eTransferSrc,
-                                  VMA_MEMORY_USAGE_CPU_COPY);
+                                  vk::BufferUsageFlagBits::eTransferSrc |
+                                      vk::BufferUsageFlagBits::eTransferDst,
+                                  VMA_MEMORY_USAGE_CPU_ONLY);
 }
 
 std::unique_ptr<class Buffer>

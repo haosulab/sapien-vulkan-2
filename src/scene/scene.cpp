@@ -2,6 +2,8 @@
 #include <algorithm>
 
 namespace svulkan2 {
+namespace scene {
+
 Scene::Scene() {
   mNodes.push_back(std::make_unique<Node>());
   mRootNode = mNodes.back().get();
@@ -44,4 +46,5 @@ void Scene::forceRemove() {
                mNodes.end());
 }
 
+} // namespace scene
 } // namespace svulkan2

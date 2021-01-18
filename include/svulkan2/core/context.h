@@ -1,5 +1,7 @@
 #pragma once
 #include "svulkan2/common/vk.h"
+#include "allocator.h"
+#include <future>
 
 namespace svulkan2 {
 namespace core {
@@ -27,8 +29,11 @@ public:
 
   vk::UniqueCommandBuffer createCommandBuffer(
       vk::CommandBufferLevel level = vk::CommandBufferLevel::ePrimary) const;
-  void submitCommandBuffer(vk::CommandBuffer commandBuffer) const;
-  vk::UniqueFence submitCommandBufferNoWait(vk::CommandBuffer commandBuffer) const;
+  void submitCommandBufferAndWait(vk::CommandBuffer commandBuffer) const;
+  vk::UniqueFence
+  submitCommandBufferForFence(vk::CommandBuffer commandBuffer) const;
+  std::future<void> submitCommandBuffer(vk::CommandBuffer commandBuffer) const;
+
   vk::Device getDevice() const { return mDevice.get(); }
 
 private:

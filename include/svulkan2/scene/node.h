@@ -1,13 +1,16 @@
 #pragma once
 
+#include "svulkan2/resource/camera.h"
+#include "svulkan2/resource/model.h"
+#include "svulkan2/resource/object.h"
 #include "transform.h"
 #include <memory>
 #include <string>
 #include <vector>
 
 namespace svulkan2 {
+namespace scene {
 
-class Model;
 class Scene;
 
 class Node {
@@ -15,17 +18,26 @@ class Node {
   Transform mTransform{};
   Node *mParent;
   std::vector<Node *> mChildren{};
-  std::shared_ptr<Model> mModel{nullptr};
+  std::shared_ptr<resource::SVObject> mObject{nullptr};
+  std::shared_ptr<resource::SVCamera> mCamera{nullptr};
 
   Scene *mScene{nullptr};
-
   bool mRemoved{false};
 
 public:
   Node(std::string const &name = "");
 
-  inline void setModel(std::shared_ptr<Model> model) { mModel = model; }
-  inline std::shared_ptr<Model> getModel() const { return mModel; }
+  void setObject(std::shared_ptr<resource::SVObject> object);
+  std::shared_ptr<resource::SVObject> removeObject();
+  inline std::shared_ptr<resource::SVObject> const getObject() const {
+    return mObject;
+  }
+
+  void setCamera(std::shared_ptr<resource::SVCamera> camera);
+  std::shared_ptr<resource::SVCamera> removeCamera();
+  inline std::shared_ptr<resource::SVCamera> const getCamrea() const {
+    return mCamera;
+  }
 
   inline void setName(std::string const &name) { mName = name; }
   inline std::string getName() const { return mName; }
@@ -45,5 +57,5 @@ public:
   inline void markRemoved() { mRemoved = true; }
   inline bool isMarkedRemoved() { return mRemoved; };
 };
-
+} // namespace scene
 } // namespace svulkan2
