@@ -21,6 +21,7 @@ find_package(Vulkan REQUIRED)
 file(GLOB_RECURSE RENDER_SRC "src/*.cpp")
 
 set(BUILD_TEST TRUE CACHE BOOL "Build sapien-vulkan-2 unit test") 
+set(CUDA_INTEROP TRUE CACHE BOOL "Allow CUDA to use Vulkan buffer") 
 include_directories("include")
 include_directories("3rd_party/glslang")
 include_directories("3rd_party/SPIRV-Cross")
@@ -35,6 +36,10 @@ add_subdirectory("3rd_party/SPIRV-Cross")
 if (${BUILD_TEST})
   add_subdirectory("3rd_party/googletest")
 endif()
+if (${CUDA_INTEROP})
+  add_definitions(-DCUDA_INTEROP)
+  find_package(CUDA REQUIRED)
+endif()
 
 find_package(glfw3 REQUIRED)
 include_directories("3rd_party/imgui" "3rd_party/imgui/examples")
@@ -44,7 +49,7 @@ file(GLOB GUI_SRC "3rd_party/imgui/*.cpp"
 
 add_library(svulkan2 STATIC ${RENDER_SRC} ${GUI_SRC})
 target_link_libraries(svulkan2 ${ASSIMP_LIBRARIES} glfw3 dl pthread Vulkan::Vulkan spdlog
-  glslang SPIRV spirv-cross-cpp
+  glslang SPIRV spirv-cross-cpp ${CUDA_LIBRARIES}
   )
 
 file (GLOB_RECURSE TEST_SRC "test/*.cpp")

@@ -53,6 +53,7 @@ private:
   bool mMapped;
   void *mMappedData;
 
+  void generateMipmaps(vk::CommandBuffer cb);
 public:
   Image(Context &context, vk::Extent3D extent, vk::Format format,
         vk::ImageUsageFlags usageFlags, VmaMemoryUsage memoryUsage,

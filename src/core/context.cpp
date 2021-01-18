@@ -68,6 +68,11 @@ void Context::createInstance() {
                               mApiVersion);
 
   std::vector<const char *> instanceExtensions;
+  instanceExtensions.push_back(
+      VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME);
+  instanceExtensions.push_back(
+      VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME);
+
   if (mPresent) {
     if (!glfwVulkanSupported()) {
       throw std::runtime_error("createInstance: GLFW does not support Vulkan");
@@ -147,6 +152,11 @@ void Context::createDevice() {
   std::vector<const char *> deviceExtensions{};
   vk::PhysicalDeviceFeatures features;
   features.independentBlend = true;
+
+  deviceExtensions.push_back(VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME);
+  deviceExtensions.push_back(VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME);
+  deviceExtensions.push_back(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
+  deviceExtensions.push_back(VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME);
 
   if (mPresent) {
     deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);

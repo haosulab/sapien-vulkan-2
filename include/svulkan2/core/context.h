@@ -35,6 +35,7 @@ public:
   std::future<void> submitCommandBuffer(vk::CommandBuffer commandBuffer) const;
 
   vk::Device getDevice() const { return mDevice.get(); }
+  vk::PhysicalDevice getPhysicalDevice() const { return mPhysicalDevice; }
 
 private:
   void createInstance();

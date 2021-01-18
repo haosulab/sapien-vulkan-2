@@ -1,5 +1,6 @@
 #include "svulkan2/core/buffer.h"
 #include "svulkan2/core/context.h"
+#include "svulkan2/core/cuda_buffer.h"
 #include <gtest/gtest.h>
 
 using namespace svulkan2;

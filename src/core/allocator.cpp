@@ -1,7 +1,10 @@
 #include "svulkan2/core/allocator.h"
 #include "svulkan2/core/buffer.h"
+#include "svulkan2/core/context.h"
 #define VMA_IMPLEMENTATION
 #include <vk_mem_alloc.h>
+
+#include <cuda_runtime.h>
 
 namespace svulkan2 {
 namespace core {

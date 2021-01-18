@@ -48,7 +48,8 @@ public:
 
   template <typename T> std::vector<T> download() {
     if ((mSize / sizeof(T)) * sizeof(T) != mSize) {
-      throw std::runtime_error("failed to download buffer: incompatible data type");
+      throw std::runtime_error(
+          "failed to download buffer: incompatible data type");
     }
     std::vector<T> data(mSize / sizeof(T));
     download(data.data(), mSize, 0);
