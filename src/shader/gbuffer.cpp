@@ -30,6 +30,10 @@ void GbufferPassParser::validate() const {
     ASSERT(elem.second.binding >= 1 && elem.second.set == 3,
            "[frag]all textures should be bound to set 3, binding >= 1");
   }
+  for (auto& elem : mTextureOutputLayout->elements) {
+      ASSERT(elem.second.name.substr(0, 3) == "out",
+          "[frag]all out texture variables must start with \"out\"");
+  }
 };
 
 std::vector<std::string> GbufferPassParser::getOutputTextureNames() const {

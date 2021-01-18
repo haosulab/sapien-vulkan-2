@@ -16,6 +16,9 @@ void DeferredPassParser::reflectSPV() {
   } catch (std::runtime_error const &err) {
     throw std::runtime_error("[frag]" + std::string(err.what()));
   }
+
+  validate();
+
 }
 
 void DeferredPassParser::validate() const {
@@ -35,6 +38,12 @@ void DeferredPassParser::validate() const {
            "[frag]texture sampler variable must start with \"sampler\"");
     ASSERT(sampler.second.set == 2, "all deferred.frag: all texture sampler "
                                     "should be bound at descriptor set 2");
+  }
+
+  // validate out textures
+  for (auto& elem : mTextureOutputLayout->elements) {
+      ASSERT(elem.second.name.substr(0, 3) == "out",
+          "[frag]all out texture variables must start with \"out\"");
   }
 }
 
