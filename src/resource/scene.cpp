@@ -17,7 +17,7 @@ SVScene::SVScene(std::shared_ptr<StructDataLayout> bufferLayout)
 
 void SVScene::addPointLight(PointLight const &pointLight) {
   mDirty = true;
-  mRequiresRebuld = true;
+  mRequiresRebuild = true;
   if (mPointLights.size() == mPointLightCapacity) {
     log::error(
         "failed to add point light: exceeding shader-specified capacity");
@@ -27,7 +27,7 @@ void SVScene::addPointLight(PointLight const &pointLight) {
 
 void SVScene::addDirectionalLight(DirectionalLight const &directionalLight) {
   mDirty = true;
-  mRequiresRebuld = true;
+  mRequiresRebuild = true;
   if (mDirectionalLights.size() == mDirectionalLightCapacity) {
     log::error(
         "failed to add directional light: exceeding shader-specified capacity");
@@ -51,7 +51,7 @@ void SVScene::setDirectionalLightAt(uint32_t index,
 
 void SVScene::removePointLightAt(uint32_t index) {
   mDirty = true;
-  mRequiresRebuld = true;
+  mRequiresRebuild = true;
   if (index < mPointLights.size()) {
     mPointLights.erase(mPointLights.begin() + index);
   }
@@ -59,7 +59,7 @@ void SVScene::removePointLightAt(uint32_t index) {
 
 void SVScene::removeDirectionalLightAt(uint32_t index) {
   mDirty = true;
-  mRequiresRebuld = true;
+  mRequiresRebuild = true;
   if (index < mDirectionalLights.size()) {
     mDirectionalLights.erase(mDirectionalLights.begin() + index);
   }

@@ -18,7 +18,7 @@ class SVScene {
   std::vector<DirectionalLight> mDirectionalLights;
   glm::vec4 mAmbientLight;
 
-  bool mRequiresRebuld{true};
+  bool mRequiresRebuild{true};
   bool mDirty{true};
 
 public:

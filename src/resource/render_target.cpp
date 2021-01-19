@@ -15,8 +15,7 @@ void SVRenderTarget::createDeviceResources(core::Context &context) {
     usage = vk::ImageUsageFlagBits::eSampled |
             vk::ImageUsageFlagBits::eColorAttachment |
             vk::ImageUsageFlagBits::eTransferSrc;
-  } else if (mFormat == vk::Format::eD32Sfloat ||
-             mFormat == vk::Format::eD24UnormS8Uint) {
+  } else if (mFormat == vk::Format::eD32Sfloat) {
     usage = vk::ImageUsageFlagBits::eSampled |
             vk::ImageUsageFlagBits::eDepthStencilAttachment |
             vk::ImageUsageFlagBits::eTransferSrc;
