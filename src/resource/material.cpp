@@ -1,4 +1,6 @@
 #include "svulkan2/resource/material.h"
+#include "svulkan2/core/buffer.h"
+#include "svulkan2/core/context.h"
 
 namespace svulkan2 {
 namespace resource {
@@ -62,6 +64,32 @@ void SVSpecularMaterial::setTextures(std::shared_ptr<SVTexture> diffuseTexture,
   } else {
     unsetBit(mBuffer.textureMask, 2);
   }
+}
+
+void SVMetallicMaterial::createDeviceResources(core::Context &context) {
+  mDeviceBuffer = context.getAllocator().allocateUniformBuffer(
+      sizeof(SVMetallicMaterial::Buffer));
+}
+
+void SVMetallicMaterial::uploadToDevice() {
+  if (!mDeviceBuffer) {
+    throw std::runtime_error(
+        "failed to upload material buffer: buffer not created");
+  }
+  mDeviceBuffer->upload(mBuffer);
+}
+
+void SVSpecularMaterial::createDeviceResources(core::Context &context) {
+  mDeviceBuffer = context.getAllocator().allocateUniformBuffer(
+      sizeof(SVSpecularMaterial::Buffer));
+}
+
+void SVSpecularMaterial::uploadToDevice() {
+  if (!mDeviceBuffer) {
+    throw std::runtime_error(
+        "failed to upload material buffer: buffer not created");
+  }
+  mDeviceBuffer->upload(mBuffer);
 }
 
 } // namespace resource

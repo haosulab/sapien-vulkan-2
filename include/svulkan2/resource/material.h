@@ -1,5 +1,6 @@
 #pragma once
 #include "svulkan2/common/glm.h"
+#include "svulkan2/core/allocator.h"
 #include "texture.h"
 
 namespace svulkan2 {
@@ -24,6 +25,8 @@ class SVMetallicMaterial : public SVMaterial {
   std::shared_ptr<SVTexture> mNormalTexture;
   std::shared_ptr<SVTexture> mMetallicTexture;
 
+  std::unique_ptr<core::Buffer> mDeviceBuffer;
+
 public:
   inline SVMetallicMaterial(glm::vec4 baseColor = {0, 0, 0, 1},
                             float fresnel = 0, float roughness = 1,
@@ -35,6 +38,9 @@ public:
                    std::shared_ptr<SVTexture> roughnessTexture,
                    std::shared_ptr<SVTexture> normalTexture,
                    std::shared_ptr<SVTexture> metallicTexture);
+
+  void createDeviceResources(core::Context &context);
+  void uploadToDevice();
 };
 
 class SVSpecularMaterial : public SVMaterial {
@@ -48,6 +54,8 @@ class SVSpecularMaterial : public SVMaterial {
   std::shared_ptr<SVTexture> mSpecularTexture;
   std::shared_ptr<SVTexture> mNormalTexture;
 
+  std::unique_ptr<core::Buffer> mDeviceBuffer;
+
 public:
   inline SVSpecularMaterial(glm::vec4 diffuse = {0, 0, 0, 1},
                             glm::vec4 specular = {0, 0, 0, 0},
@@ -58,6 +66,9 @@ public:
   void setTextures(std::shared_ptr<SVTexture> diffuseTexture,
                    std::shared_ptr<SVTexture> specularTexture,
                    std::shared_ptr<SVTexture> normalTexture);
+
+  void createDeviceResources(core::Context &context);
+  void uploadToDevice();
 };
 
 } // namespace resource
