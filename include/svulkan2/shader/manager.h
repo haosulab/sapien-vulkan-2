@@ -1,8 +1,8 @@
 
 namespace svulkan2 {
+namespace shader {
 
-class ShaderManager {
-  
-};
+class ShaderManager {};
+} // namespace shader
 
 } // namespace svulkan2

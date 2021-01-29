@@ -29,6 +29,9 @@ public:
 
   void createDeviceResources(core::Context &context);
   template <typename T> std::vector<T> download();
+
+  inline uint32_t getWidth() const { return mWidth; }
+  inline uint32_t getHeight() const { return mHeight; }
 };
 
 } // namespace resource
