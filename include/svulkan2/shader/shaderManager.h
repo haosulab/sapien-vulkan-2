@@ -1,24 +1,53 @@
 #pragma once
 #include <memory>
 #include <string>
+#include <map>
 #include "svulkan2/shader/gbuffer.h"
 #include "svulkan2/shader/deferred.h"
 #include "svulkan2/shader/composite.h"
-class Config;// forward declaration
 
 namespace svulkan2 {
+
+	// TODO : use config.h for definition of RendererConfig and ShaderConfig.
+	/** Renderer options configured by API */
+	struct RendererConfig {
+		std::string shaderDir;
+		vk::Format renderTargetFormat; // R8G8B8A8Unorm, R32G32B32A32Sfloat
+		vk::Format depthFormat;        // D32Sfloat
+	};
+
+	/** Options configured by the shaders  */
+	struct ShaderConfig {
+		enum MaterialPipeline { eMETALLIC, eSPECULAR } materialPipeline;
+		std::shared_ptr<InputDataLayout> vertexLayout;
+		std::shared_ptr<StructDataLayout> objectBufferLayout;
+		std::shared_ptr<StructDataLayout> sceneBufferLayout;
+		std::shared_ptr<StructDataLayout> cameraBufferLayout;
+	};
+
 namespace shader {
+	enum class TextureOperation
+	{
+		eTextureNoOp,
+		eTextureRead,
+		eTextureWrite
+	};
+
 	class ShaderManager {
-		std::shared_ptr<Config> mConfig;
+		unsigned int numPasses;
+		std::shared_ptr<RendererConfig> mRenderConfig;
+
 		std::shared_ptr<GbufferPassParser> mGbufferPass;
 		std::shared_ptr<DeferredPassParser> mDeferredPass;
 		std::vector<std::shared_ptr<CompositePassParser>> mCompositePasses;
+		std::map<std::weak_ptr<BaseParser>, unsigned int, std::owner_less<>> mPassIndex;
+		std::unordered_map<std::string, std::vector<TextureOperation>> mTextureOperationTable;
 	public:
-		ShaderManager(std::shared_ptr<Config> config=nullptr);
+		ShaderManager(std::shared_ptr<RendererConfig> config=nullptr);
 		void processShadersInFolder(std::string folder);
 		
-		std::shared_ptr<Config> getConfig() const {
-			return mConfig;
+		std::shared_ptr<RendererConfig> getConfig() const {
+			return mRenderConfig;
 		}
 		std::shared_ptr<GbufferPassParser> getGbufferPass() const {
 			return mGbufferPass;
@@ -30,7 +59,9 @@ namespace shader {
 			return mCompositePasses;
 		}
 	private:
-		void validate() const;
+		void prepareTextureOperationTable();
+		TextureOperation getNextOperation(std::string texName, std::shared_ptr<BaseParser> pass);
+		std::unordered_map<std::string, vk::ImageLayout> getTextureFinalLayoutPass(std::shared_ptr<BaseParser> pass, std::shared_ptr<OutputDataLayout> outputLayout);
 	};
 
 } // namespace shader

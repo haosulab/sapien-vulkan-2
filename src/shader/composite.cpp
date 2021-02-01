@@ -4,6 +4,10 @@
 namespace svulkan2 {
 namespace shader {
 
+    inline std::string getOutTextureName(std::string variableName) {// remove "out" prefix
+    return variableName.substr(3, std::string::npos);
+}
+
 void CompositePassParser::reflectSPV() {
   spirv_cross::Compiler vertComp(mVertSPVCode);
   spirv_cross::Compiler fragComp(mFragSPVCode);
@@ -29,9 +33,8 @@ void CompositePassParser::validate() const {
     }
 }
 
-vk::RenderPass CompositePassParser::createRenderPass(vk::Device device,
-    vk::Format colorFormat,
-    vk::Format depthFormat) {
+vk::RenderPass CompositePassParser::createRenderPass(vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
+    std::unordered_map<std::string, vk::ImageLayout> renderTargetFinalLayouts) {
     std::vector<vk::AttachmentDescription> attachmentDescriptions;
     std::vector<vk::AttachmentReference> colorAttachments;
 
@@ -53,8 +56,8 @@ vk::RenderPass CompositePassParser::createRenderPass(vk::Device device,
             {}, format, vk::SampleCountFlagBits::e1,
             vk::AttachmentLoadOp::eDontCare, vk::AttachmentStoreOp::eStore,// color attachment load and store op
             vk::AttachmentLoadOp::eDontCare, vk::AttachmentStoreOp::eDontCare,// stencil load and store op
-            vk::ImageLayout::eUndefined,
-            vk::ImageLayout::eColorAttachmentOptimal)); // final layout color
+            vk::ImageLayout::eUndefined, // TODO : Compute initial layout
+            renderTargetFinalLayouts[getOutTextureName(elems[i].name)]));
     }
     attachmentDescriptions.push_back(vk::AttachmentDescription(
         vk::AttachmentDescriptionFlags(), depthFormat,
@@ -81,9 +84,10 @@ vk::RenderPass CompositePassParser::createRenderPass(vk::Device device,
 
 vk::Pipeline CompositePassParser::createGraphicsPipeline(
     vk::Device device, vk::PipelineLayout pipelineLayout,
-    vk::Format colorFormat, vk::Format depthFormat) {
+    vk::Format colorFormat, vk::Format depthFormat,
+    std::unordered_map<std::string, vk::ImageLayout> renderTargetFinalLayouts) {
     // render pass
-    auto renderPass = createRenderPass(device, colorFormat, depthFormat);
+    auto renderPass = createRenderPass(device, colorFormat, depthFormat, renderTargetFinalLayouts);
 
     // shaders
     vk::UniquePipelineCache pipelineCache =

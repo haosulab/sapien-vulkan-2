@@ -3,6 +3,11 @@
 
 namespace svulkan2 {
 namespace shader {
+
+inline std::string getOutTextureName(std::string variableName) {// remove "out" prefix
+    return variableName.substr(3, std::string::npos);
+}
+
 void GbufferPassParser::reflectSPV() {
   spirv_cross::Compiler vertComp(mVertSPVCode);
   try {
@@ -45,9 +50,9 @@ std::vector<std::string> GbufferPassParser::getOutputTextureNames() const {
   return result;
 }
 
-vk::RenderPass GbufferPassParser::createRenderPass(vk::Device device,
-                                                   vk::Format colorFormat,
-                                                   vk::Format depthFormat) {
+vk::RenderPass GbufferPassParser::createRenderPass(
+    vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
+    std::unordered_map<std::string, vk::ImageLayout> finalLayouts) {
   std::vector<vk::AttachmentDescription> attachmentDescriptions;
   std::vector<vk::AttachmentReference> colorAttachments;
 
@@ -69,8 +74,7 @@ vk::RenderPass GbufferPassParser::createRenderPass(vk::Device device,
         vk::AttachmentLoadOp::eDontCare, vk::AttachmentStoreOp::eStore,
         vk::AttachmentLoadOp::eDontCare, vk::AttachmentStoreOp::eDontCare,
         vk::ImageLayout::eUndefined,
-        vk::ImageLayout::eShaderReadOnlyOptimal)); // TODO: final layout should
-                                                   // be computed
+        finalLayouts[getOutTextureName(elems[i].name)]));
   }
   attachmentDescriptions.push_back(vk::AttachmentDescription(
       vk::AttachmentDescriptionFlags(), depthFormat,
@@ -95,10 +99,10 @@ vk::RenderPass GbufferPassParser::createRenderPass(vk::Device device,
 
 vk::Pipeline GbufferPassParser::createGraphicsPipeline(
     vk::Device device, vk::PipelineLayout pipelineLayout,
-    vk::Format colorFormat, vk::Format depthFormat, vk::CullModeFlags cullMode,
-    vk::FrontFace frontFace) {
+    vk::Format colorFormat, vk::Format depthFormat, vk::CullModeFlags cullMode, vk::FrontFace frontFace,
+    std::unordered_map<std::string, vk::ImageLayout> renderTargetFinalLayouts) {
   // render pass
-  auto renderPass = createRenderPass(device, colorFormat, depthFormat);
+  auto renderPass = createRenderPass(device, colorFormat, depthFormat, renderTargetFinalLayouts);
 
   // shaders
   vk::UniquePipelineCache pipelineCache =

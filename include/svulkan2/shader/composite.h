@@ -23,11 +23,11 @@ public:
   vk::Pipeline getPipeline() const { return mPipeline.get(); }
 
   vk::RenderPass createRenderPass(vk::Device device, vk::Format colorFormat,
-      vk::Format depthFormat);
+      vk::Format depthFormat, std::unordered_map<std::string, vk::ImageLayout> renderTargetFinalLayouts);
 
   vk::Pipeline
       createGraphicsPipeline(vk::Device device, vk::PipelineLayout pipelineLayout,
-          vk::Format colorFormat, vk::Format depthFormat);
+          vk::Format colorFormat, vk::Format depthFormat, std::unordered_map<std::string, vk::ImageLayout> renderTargetFinalLayouts);
 
 private:
   void reflectSPV() override;
