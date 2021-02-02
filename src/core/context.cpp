@@ -153,10 +153,12 @@ void Context::createDevice() {
   vk::PhysicalDeviceFeatures features;
   features.independentBlend = true;
 
+#ifdef CUDA_INTEROP
   deviceExtensions.push_back(VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME);
   deviceExtensions.push_back(VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME);
   deviceExtensions.push_back(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
   deviceExtensions.push_back(VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME);
+#endif
 
   if (mPresent) {
     deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);

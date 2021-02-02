@@ -14,7 +14,7 @@ class Buffer {
   vk::Buffer mBuffer;
   VmaAllocation mAllocation;
 
-  bool mMapped;
+  bool mMapped{};
   void *mMappedData;
 
 public:

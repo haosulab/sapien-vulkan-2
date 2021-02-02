@@ -50,7 +50,7 @@ private:
   vk::Image mImage;
   VmaAllocation mAllocation;
 
-  bool mMapped;
+  bool mMapped{};
   void *mMappedData;
 
   void generateMipmaps(vk::CommandBuffer cb);
