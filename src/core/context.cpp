@@ -36,13 +36,16 @@ static bool checkValidationLayerSupport() {
 }
 #endif
 
-Context::Context(uint32_t apiVersion, bool present)
-    : mApiVersion(apiVersion), mPresent(present) {
+Context::Context(uint32_t apiVersion, bool present, uint32_t maxNumObjects,
+                 uint32_t maxNumTextures)
+    : mApiVersion(apiVersion), mPresent(present), mMaxNumObjects(maxNumObjects),
+      mMaxNumTextures(maxNumTextures) {
   createInstance();
   pickSuitableGpuAndQueueFamilyIndex();
   createDevice();
   createMemoryAllocator();
   createCommandPool();
+  createDescriptorPool();
 }
 
 Context::~Context() {}
@@ -180,6 +183,16 @@ void Context::createMemoryAllocator() {
 void Context::createCommandPool() {
   mCommandPool = mDevice->createCommandPoolUnique(vk::CommandPoolCreateInfo(
       vk::CommandPoolCreateFlagBits::eResetCommandBuffer, mQueueFamilyIndex));
+}
+
+void Context::createDescriptorPool() {
+  vk::DescriptorPoolSize pool_sizes[] = {
+      {vk::DescriptorType::eCombinedImageSampler, mMaxNumTextures},
+      {vk::DescriptorType::eUniformBuffer, mMaxNumObjects}};
+  auto info = vk::DescriptorPoolCreateInfo(
+      vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
+      mMaxNumTextures + mMaxNumObjects, 2, pool_sizes);
+  mDescriptorPool = getDevice().createDescriptorPoolUnique(info);
 }
 
 vk::UniqueCommandBuffer

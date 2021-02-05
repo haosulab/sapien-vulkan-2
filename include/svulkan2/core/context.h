@@ -1,6 +1,6 @@
 #pragma once
-#include "svulkan2/common/vk.h"
 #include "allocator.h"
+#include "svulkan2/common/vk.h"
 #include <future>
 
 namespace svulkan2 {
@@ -19,9 +19,14 @@ class Context {
   std::unique_ptr<class Allocator> mAllocator;
 
   vk::UniqueCommandPool mCommandPool;
+  vk::UniqueDescriptorPool mDescriptorPool;
+
+  uint32_t mMaxNumObjects;
+  uint32_t mMaxNumTextures;
 
 public:
-  Context(uint32_t apiVersion = VK_API_VERSION_1_1, bool present = true);
+  Context(uint32_t apiVersion = VK_API_VERSION_1_1, bool present = true,
+          uint32_t maxNumObjects = 5000, uint32_t maxNumTextures = 1000);
   ~Context();
 
   vk::Queue getQueue() const;
@@ -34,8 +39,17 @@ public:
   submitCommandBufferForFence(vk::CommandBuffer commandBuffer) const;
   std::future<void> submitCommandBuffer(vk::CommandBuffer commandBuffer) const;
 
-  vk::Device getDevice() const { return mDevice.get(); }
-  vk::PhysicalDevice getPhysicalDevice() const { return mPhysicalDevice; }
+  inline uint32_t getGraphicsQueueFamilyIndex() const {
+    return mQueueFamilyIndex;
+  }
+  inline vk::Instance getInstance() const { return mInstance.get(); }
+  inline vk::Device getDevice() const { return mDevice.get(); }
+  inline vk::PhysicalDevice getPhysicalDevice() const {
+    return mPhysicalDevice;
+  }
+  inline vk::DescriptorPool getDescriptorPool() const {
+    return mDescriptorPool.get();
+  }
 
 private:
   void createInstance();
@@ -44,6 +58,7 @@ private:
   void createMemoryAllocator();
 
   void createCommandPool();
+  void createDescriptorPool();
 };
 
 } // namespace core

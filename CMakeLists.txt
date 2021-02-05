@@ -42,10 +42,10 @@ if (${CUDA_INTEROP})
 endif()
 
 find_package(glfw3 REQUIRED)
-include_directories("3rd_party/imgui" "3rd_party/imgui/examples")
+include_directories("3rd_party/imgui" "3rd_party/imgui/backends")
 file(GLOB GUI_SRC "3rd_party/imgui/*.cpp"
-  "3rd_party/imgui/examples/imgui_impl_glfw.cpp"
-  "3rd_party/imgui/examples/imgui_impl_vulkan.cpp" )
+  "3rd_party/imgui/backends/imgui_impl_glfw.cpp"
+  "3rd_party/imgui/backends/imgui_impl_vulkan.cpp" )
 
 add_library(svulkan2 STATIC ${RENDER_SRC} ${GUI_SRC})
 target_link_libraries(svulkan2 ${ASSIMP_LIBRARIES} glfw3 dl pthread Vulkan::Vulkan spdlog
