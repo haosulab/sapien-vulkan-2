@@ -4,8 +4,6 @@
 #define VMA_IMPLEMENTATION
 #include <vk_mem_alloc.h>
 
-#include <cuda_runtime.h>
-
 namespace svulkan2 {
 namespace core {
 
