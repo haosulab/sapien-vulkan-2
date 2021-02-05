@@ -71,10 +71,13 @@ void Context::createInstance() {
                               mApiVersion);
 
   std::vector<const char *> instanceExtensions;
+
+#ifdef CUDA_INTEROP
   instanceExtensions.push_back(
       VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME);
   instanceExtensions.push_back(
       VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME);
+#endif
 
   if (mPresent) {
     if (!glfwVulkanSupported()) {
