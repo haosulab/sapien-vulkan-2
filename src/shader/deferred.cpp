@@ -51,8 +51,52 @@ void DeferredPassParser::validate() const {
   }
 }
 
+vk::PipelineLayout DeferredPassParser::createPipelineLayout(vk::Device device) {
+    //process gbuffer uniforms and samplers:
+    int numGbufferSamplers = mCombinedSamplerLayout->elements.size();
+    std::vector<vk::DescriptorSetLayoutBinding> gBufferBindings(2 + numGbufferSamplers);// Magic number 2 for Camera, scene bufers.
+    //scene buffer(set 0, binding 1), camera buffer(set 1, binding 0)
+    for (int i = 0; i < 2; i++) {
+        gBufferBindings[i].binding = 0;
+        gBufferBindings[i].descriptorType = vk::DescriptorType::eUniformBuffer;
+        gBufferBindings[i].descriptorCount = 1;
+        gBufferBindings[i].stageFlags = vk::ShaderStageFlagBits::eFragment;
+        gBufferBindings[i].pImmutableSamplers = nullptr;
+    }
+    //samplers(set 2):
+    int i = 0;
+    for (const auto elem : mCombinedSamplerLayout->elements) {
+        //material buffer:
+        gBufferBindings[2 + i].binding = elem.second.binding;
+        gBufferBindings[2 + i].descriptorType = vk::DescriptorType::eCombinedImageSampler;
+        gBufferBindings[2 + i].descriptorCount = 1;
+        gBufferBindings[2 + i].stageFlags = vk::ShaderStageFlagBits::eFragment;
+        gBufferBindings[2 + i].pImmutableSamplers = nullptr;
+        i++;
+    }
+    std::vector<vk::DescriptorSetLayoutCreateInfo> createInfo(3);
+    createInfo[0].bindingCount = 1;
+    createInfo[0].pBindings = gBufferBindings.data();
+    createInfo[1].bindingCount = 1;
+    createInfo[1].pBindings = gBufferBindings.data() + 1;
+    createInfo[2].bindingCount = gBufferBindings.size() - 2;
+    createInfo[2].pBindings = gBufferBindings.data() + 2;
+    std::vector<vk::DescriptorSetLayout> dsLayout(3);// 3 descriptor set layouts for set = 0,1,2
+    dsLayout[0] = device.createDescriptorSetLayout(createInfo[0]);
+    dsLayout[1] = device.createDescriptorSetLayout(createInfo[1]);
+    dsLayout[2] = device.createDescriptorSetLayout(createInfo[2]);
+
+    vk::PipelineLayoutCreateInfo pipelineLayoutInfo;
+    pipelineLayoutInfo.setLayoutCount = dsLayout.size();
+    pipelineLayoutInfo.pSetLayouts = dsLayout.data();
+    mPipelineLayout = device.createPipelineLayoutUnique(pipelineLayoutInfo);
+
+    return mPipelineLayout.get();
+}
+
+
 vk::RenderPass DeferredPassParser::createRenderPass(vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
-    std::unordered_map<std::string, vk::ImageLayout> finalLayouts) {
+    std::unordered_map<std::string, std::pair<vk::ImageLayout, vk::ImageLayout>> layouts) {
     std::vector<vk::AttachmentDescription> attachmentDescriptions;
     std::vector<vk::AttachmentReference> colorAttachments;
 
@@ -74,17 +118,17 @@ vk::RenderPass DeferredPassParser::createRenderPass(vk::Device device, vk::Forma
             {}, format, vk::SampleCountFlagBits::e1,
             vk::AttachmentLoadOp::eDontCare, vk::AttachmentStoreOp::eStore,// color attachment load and store op
             vk::AttachmentLoadOp::eDontCare, vk::AttachmentStoreOp::eDontCare,// stencil load and store op
-            vk::ImageLayout::eUndefined, // TODO : compute initial layout
-            finalLayouts[getOutTextureName(elems[i].name)]));
+            layouts[getOutTextureName(elems[i].name)].first,
+            layouts[getOutTextureName(elems[i].name)].second));
     }
     attachmentDescriptions.push_back(vk::AttachmentDescription(
         vk::AttachmentDescriptionFlags(), depthFormat,
         vk::SampleCountFlagBits::e1,
         vk::AttachmentLoadOp::eLoad, vk::AttachmentStoreOp::eStore,// depth attachment
         vk::AttachmentLoadOp::eDontCare, vk::AttachmentStoreOp::eDontCare,// stencil
-        vk::ImageLayout::eUndefined,
-        vk::ImageLayout::eShaderReadOnlyOptimal)); // TODO: final layout should be
-                                                   // computed
+        vk::ImageLayout::eDepthStencilReadOnlyOptimal,
+        vk::ImageLayout::eDepthStencilReadOnlyOptimal));
+
     vk::AttachmentReference depthAttachment(
         elems.size(), vk::ImageLayout::eDepthStencilAttachmentOptimal);
 
@@ -101,12 +145,12 @@ vk::RenderPass DeferredPassParser::createRenderPass(vk::Device device, vk::Forma
 
 
 vk::Pipeline DeferredPassParser::createGraphicsPipeline(
-    vk::Device device, vk::PipelineLayout pipelineLayout,
+    vk::Device device,
     vk::Format colorFormat, vk::Format depthFormat,
-    std::unordered_map<std::string, vk::ImageLayout> renderTargetFinalLayouts,
+    std::unordered_map<std::string, std::pair<vk::ImageLayout, vk::ImageLayout>> renderTargetLayouts,
     int numDirectionalLights, int numPointLights) {
     // render pass
-    auto renderPass = createRenderPass(device, colorFormat, depthFormat, renderTargetFinalLayouts);
+    auto renderPass = createRenderPass(device, colorFormat, depthFormat, renderTargetLayouts);
 
     // shaders
     vk::UniquePipelineCache pipelineCache =
@@ -212,7 +256,7 @@ vk::Pipeline DeferredPassParser::createGraphicsPipeline(
         &pipelineViewportStateCreateInfo, &pipelineRasterizationStateCreateInfo,
         &pipelineMultisampleStateCreateInfo, &pipelineDepthStencilStateCreateInfo,
         &pipelineColorBlendStateCreateInfo, &pipelineDynamicStateCreateInfo,
-        pipelineLayout, renderPass);
+        createPipelineLayout(device), renderPass);
     mPipeline = device.createGraphicsPipelineUnique(pipelineCache.get(),
         graphicsPipelineCreateInfo);
     return mPipeline.get();

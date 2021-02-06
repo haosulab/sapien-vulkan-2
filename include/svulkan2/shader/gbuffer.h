@@ -42,13 +42,15 @@ public:
     return mTextureOutputLayout;
   }
 
+  vk::PipelineLayout createPipelineLayout(vk::Device device) override;
+
   vk::RenderPass createRenderPass(vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
-      std::unordered_map<std::string, vk::ImageLayout> finalLayouts);
+      std::unordered_map<std::string, std::pair<vk::ImageLayout, vk::ImageLayout>> layouts);
 
   vk::Pipeline
-  createGraphicsPipeline(vk::Device device, vk::PipelineLayout pipelineLayout,
+  createGraphicsPipeline(vk::Device device,
                          vk::Format colorFormat, vk::Format depthFormat,
-                         vk::CullModeFlags cullMode, vk::FrontFace frontFace, std::unordered_map<std::string, vk::ImageLayout> renderTargetFinalLayouts);
+                         vk::CullModeFlags cullMode, vk::FrontFace frontFace, std::unordered_map<std::string, std::pair<vk::ImageLayout, vk::ImageLayout>> renderTargetLayouts);
 
   vk::RenderPass getRenderPass() const { return mRenderPass.get(); }
   vk::Pipeline getPipeline() const { return mPipeline.get(); }

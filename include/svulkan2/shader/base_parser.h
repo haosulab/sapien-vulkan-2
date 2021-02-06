@@ -54,12 +54,15 @@ class BaseParser {
 protected:
   std::vector<uint32_t> mVertSPVCode;
   std::vector<uint32_t> mFragSPVCode;
+  vk::UniquePipelineLayout mPipelineLayout;
 
 public:
   void loadGLSLFiles(std::string const &vertFile, std::string const &fragFile);
   void loadSPVFiles(std::string const &vertFile, std::string const &fragFile);
   void loadSPVCode(std::vector<uint32_t> const &vertCode,
                    std::vector<uint32_t> const &fragCode);
+  virtual vk::PipelineLayout createPipelineLayout(vk::Device device) = 0;
+  vk::PipelineLayout getPipelineLayout() const { return mPipelineLayout.get(); }
 
 protected:
   virtual void reflectSPV() = 0;

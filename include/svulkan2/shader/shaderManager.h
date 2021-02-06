@@ -34,14 +34,16 @@ namespace shader {
 	};
 
 	class ShaderManager {
-		unsigned int numPasses;
+		unsigned int mNumPasses;
 		std::shared_ptr<RendererConfig> mRenderConfig;
+		std::shared_ptr<ShaderConfig> mShaderConfig;
 
 		std::shared_ptr<GbufferPassParser> mGbufferPass;
 		std::shared_ptr<DeferredPassParser> mDeferredPass;
 		std::vector<std::shared_ptr<CompositePassParser>> mCompositePasses;
 		std::map<std::weak_ptr<BaseParser>, unsigned int, std::owner_less<>> mPassIndex;
 		std::unordered_map<std::string, std::vector<TextureOperation>> mTextureOperationTable;
+		std::vector<vk::Pipeline> mPipelines;
 	public:
 		ShaderManager(std::shared_ptr<RendererConfig> config=nullptr);
 		void processShadersInFolder(std::string folder);
@@ -58,10 +60,21 @@ namespace shader {
 		std::vector<std::shared_ptr<CompositePassParser>> getCompositePasses() const {
 			return mCompositePasses;
 		}
+		std::vector<vk::Pipeline> getPipelines() const {
+			return mPipelines;
+		}
+		std::vector<vk::PipelineLayout> getPipelinesLayouts();// call only after createPipelines.
+
+		std::vector<vk::Pipeline> createPipelines(vk::Device device, vk::CullModeFlags cullMode, vk::FrontFace frontFace,
+													int numDirectionalLights = -1, int numPointLights = -1);
 	private:
+		void populateShaderConfig();
 		void prepareTextureOperationTable();
+		void preparePipelineLayout(vk::Device device);
 		TextureOperation getNextOperation(std::string texName, std::shared_ptr<BaseParser> pass);
-		std::unordered_map<std::string, vk::ImageLayout> getTextureFinalLayoutPass(std::shared_ptr<BaseParser> pass, std::shared_ptr<OutputDataLayout> outputLayout);
+		TextureOperation getPrevOperation(std::string texName, std::shared_ptr<BaseParser> pass);
+		std::unordered_map<std::string, std::pair<vk::ImageLayout, vk::ImageLayout>> getTextureLayouts(std::shared_ptr<BaseParser> pass,
+			std::shared_ptr<OutputDataLayout> outputLayout);
 	};
 
 } // namespace shader

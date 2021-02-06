@@ -33,8 +33,37 @@ void CompositePassParser::validate() const {
     }
 }
 
+vk::PipelineLayout CompositePassParser::createPipelineLayout(vk::Device device) {
+    //process gbuffer uniforms and samplers:
+    int numGbufferSamplers = mCombinedSamplerLayout->elements.size();
+    std::vector<vk::DescriptorSetLayoutBinding> gBufferBindings(numGbufferSamplers);
+    //samplers(set 0):
+    int i = 0;
+    for (const auto elem : mCombinedSamplerLayout->elements) {
+        //material buffer:
+        gBufferBindings[i].binding = elem.second.binding;
+        gBufferBindings[i].descriptorType = vk::DescriptorType::eCombinedImageSampler;
+        gBufferBindings[i].descriptorCount = 1;
+        gBufferBindings[i].stageFlags = vk::ShaderStageFlagBits::eFragment;
+        gBufferBindings[i].pImmutableSamplers = nullptr;
+        i++;
+    }
+    vk::DescriptorSetLayoutCreateInfo createInfo;
+    createInfo.bindingCount = gBufferBindings.size();
+    createInfo.pBindings = gBufferBindings.data();
+    vk::DescriptorSetLayout dsLayout;
+    dsLayout = device.createDescriptorSetLayout(createInfo);
+    
+    vk::PipelineLayoutCreateInfo pipelineLayoutInfo;
+    pipelineLayoutInfo.setLayoutCount = 1;
+    pipelineLayoutInfo.pSetLayouts = &dsLayout;
+    mPipelineLayout = device.createPipelineLayoutUnique(pipelineLayoutInfo);
+
+    return mPipelineLayout.get();
+}
+
 vk::RenderPass CompositePassParser::createRenderPass(vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
-    std::unordered_map<std::string, vk::ImageLayout> renderTargetFinalLayouts) {
+    std::unordered_map<std::string, std::pair<vk::ImageLayout, vk::ImageLayout>> layouts) {
     std::vector<vk::AttachmentDescription> attachmentDescriptions;
     std::vector<vk::AttachmentReference> colorAttachments;
 
@@ -56,17 +85,17 @@ vk::RenderPass CompositePassParser::createRenderPass(vk::Device device, vk::Form
             {}, format, vk::SampleCountFlagBits::e1,
             vk::AttachmentLoadOp::eDontCare, vk::AttachmentStoreOp::eStore,// color attachment load and store op
             vk::AttachmentLoadOp::eDontCare, vk::AttachmentStoreOp::eDontCare,// stencil load and store op
-            vk::ImageLayout::eUndefined, // TODO : Compute initial layout
-            renderTargetFinalLayouts[getOutTextureName(elems[i].name)]));
+            layouts[getOutTextureName(elems[i].name)].first,
+            layouts[getOutTextureName(elems[i].name)].second));
     }
     attachmentDescriptions.push_back(vk::AttachmentDescription(
         vk::AttachmentDescriptionFlags(), depthFormat,
         vk::SampleCountFlagBits::e1,
         vk::AttachmentLoadOp::eLoad, vk::AttachmentStoreOp::eStore,// depth attachment
         vk::AttachmentLoadOp::eDontCare, vk::AttachmentStoreOp::eDontCare,// stencil
-        vk::ImageLayout::eUndefined,
-        vk::ImageLayout::eShaderReadOnlyOptimal)); // TODO: final layout should be
-                                                   // computed
+        vk::ImageLayout::eDepthStencilReadOnlyOptimal,
+        vk::ImageLayout::eDepthStencilReadOnlyOptimal));
+
     vk::AttachmentReference depthAttachment(
         elems.size(), vk::ImageLayout::eDepthStencilAttachmentOptimal);
 
@@ -83,11 +112,11 @@ vk::RenderPass CompositePassParser::createRenderPass(vk::Device device, vk::Form
 
 
 vk::Pipeline CompositePassParser::createGraphicsPipeline(
-    vk::Device device, vk::PipelineLayout pipelineLayout,
+    vk::Device device,
     vk::Format colorFormat, vk::Format depthFormat,
-    std::unordered_map<std::string, vk::ImageLayout> renderTargetFinalLayouts) {
+    std::unordered_map<std::string, std::pair<vk::ImageLayout, vk::ImageLayout>> renderTargetLayouts) {
     // render pass
-    auto renderPass = createRenderPass(device, colorFormat, depthFormat, renderTargetFinalLayouts);
+    auto renderPass = createRenderPass(device, colorFormat, depthFormat, renderTargetLayouts);
 
     // shaders
     vk::UniquePipelineCache pipelineCache =
@@ -172,7 +201,7 @@ vk::Pipeline CompositePassParser::createGraphicsPipeline(
         &pipelineViewportStateCreateInfo, &pipelineRasterizationStateCreateInfo,
         &pipelineMultisampleStateCreateInfo, &pipelineDepthStencilStateCreateInfo,
         &pipelineColorBlendStateCreateInfo, &pipelineDynamicStateCreateInfo,
-        pipelineLayout, renderPass);
+        createPipelineLayout(device), renderPass);
     mPipeline = device.createGraphicsPipelineUnique(pipelineCache.get(),
         graphicsPipelineCreateInfo);
     return mPipeline.get();
