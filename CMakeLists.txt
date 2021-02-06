@@ -39,6 +39,7 @@ endif()
 if (${CUDA_INTEROP})
   add_definitions(-DCUDA_INTEROP)
   find_package(CUDA REQUIRED)
+  include_directories(${CUDA_TOOLKIT_INCLUDE})
 endif()
 
 find_package(glfw3 REQUIRED)

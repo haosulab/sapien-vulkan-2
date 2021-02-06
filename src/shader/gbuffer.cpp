@@ -53,8 +53,7 @@ vk::RenderPass GbufferPassParser::createRenderPass(vk::Device device,
     vk::Format format;
     if (elems[i].dtype == eFLOAT4) {
       format = colorFormat;
-    }
-    else if (elems[i].dtype == eUINT4) {
+    } else if (elems[i].dtype == eUINT4) {
       format = vk::Format::eR32G32B32A32Sfloat;
     } else {
       throw std::runtime_error(
@@ -186,8 +185,10 @@ vk::Pipeline GbufferPassParser::createGraphicsPipeline(
       &pipelineMultisampleStateCreateInfo, &pipelineDepthStencilStateCreateInfo,
       &pipelineColorBlendStateCreateInfo, &pipelineDynamicStateCreateInfo,
       pipelineLayout, renderPass);
-  mPipeline = device.createGraphicsPipelineUnique(pipelineCache.get(),
-                                                  graphicsPipelineCreateInfo);
+  mPipeline = device
+                  .createGraphicsPipelineUnique(pipelineCache.get(),
+                                                graphicsPipelineCreateInfo)
+                  .value;
   return mPipeline.get();
 }
 
