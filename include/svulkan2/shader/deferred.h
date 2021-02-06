@@ -36,12 +36,15 @@ public:
   vk::RenderPass getRenderPass() const { return mRenderPass.get(); }
   vk::Pipeline getPipeline() const { return mPipeline.get(); }
 
-  vk::RenderPass createRenderPass(vk::Device device, vk::Format colorFormat,
-      vk::Format depthFormat);
+  vk::PipelineLayout createPipelineLayout(vk::Device device) override;
+
+  vk::RenderPass createRenderPass(vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
+      std::unordered_map<std::string, std::pair<vk::ImageLayout, vk::ImageLayout>> layouts);
 
   vk::Pipeline
-      createGraphicsPipeline(vk::Device device, vk::PipelineLayout pipelineLayout,
+      createGraphicsPipeline(vk::Device device,
           vk::Format colorFormat, vk::Format depthFormat,
+          std::unordered_map<std::string, std::pair<vk::ImageLayout, vk::ImageLayout>> renderTargetLayouts,
           int numDirectionalLights = -1, int numPointLights = -1);
 
 private:
