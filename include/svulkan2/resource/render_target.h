@@ -32,6 +32,9 @@ public:
 
   inline uint32_t getWidth() const { return mWidth; }
   inline uint32_t getHeight() const { return mHeight; }
+
+  inline vk::ImageView getImageView() const { return mImageView.get(); };
+  inline vk::Sampler getSampler() const { return mSampler.get(); };
 };
 
 } // namespace resource

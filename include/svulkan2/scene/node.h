@@ -56,6 +56,18 @@ public:
 
   inline void markRemoved() { mRemoved = true; }
   inline bool isMarkedRemoved() { return mRemoved; };
+
+  void setTransform(Transform const &transform);
+  inline Transform const &getTransform() const { return mTransform; }
+
+  /** called before rendering to update the cached model matrix */
+  void updateGlobalModelMatrixRecursive();
+  /** called right after updateGlobalModelMatrixRecursive to update object/camera model matrices */
+  void updateObjectCameraModelMatrixRecursive();
+
+  std::vector<std::shared_ptr<resource::SVObject>> getObjectsRecursive() const;
+
 };
+
 } // namespace scene
 } // namespace svulkan2

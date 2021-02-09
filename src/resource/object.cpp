@@ -4,51 +4,34 @@
 namespace svulkan2 {
 namespace resource {
 
-SVObject::SVObject(std::shared_ptr<StructDataLayout> bufferLayout,
-                   std::shared_ptr<SVModel> model)
-    : mBufferLayout(bufferLayout), mModel(model), mBuffer(bufferLayout->size) {
-  auto it = mBufferLayout->elements.find("prevModelMatrix");
-  if (it != mBufferLayout->elements.end()) {
-    mPrevModelMatrixOffset = it->second.offset;
-  }
-  mModelMatrixOffset = mBufferLayout->elements.at("modelMatrix").offset;
-  mSegmentationOffset = mBufferLayout->elements.at("segmentation").offset;
-}
+SVObject::SVObject(std::shared_ptr<SVModel> model) : mModel(model) {}
 
-void SVObject::createDeviceResources(core::Context &context) {
-  mDirty = true;
-  mDeviceBuffer =
-      context.getAllocator().allocateUniformBuffer(mBufferLayout->size);
-}
-
-void SVObject::uploadToDevice() {
-  if (!mDeviceBuffer) {
-    std::runtime_error("device resources have not been created");
+void SVObject::uploadToDevice(core::Buffer &objectBuffer,
+                              StructDataLayout const &objectLayout) {
+  std::vector<char> buffer(objectLayout.size);
+  std::memcpy(buffer.data() + objectLayout.elements.at("modelMatrix").offset,
+              &mModelMatrix[0][0], 64);
+  std::memcpy(buffer.data() + objectLayout.elements.at("segmentation").offset,
+              &mSegmentation[0], 16);
+  auto it = objectLayout.elements.find("prevModelMatrix");
+  if (it != objectLayout.elements.end()) {
+    std::memcpy(buffer.data() +
+                    objectLayout.elements.at("prevModelMatrix").offset,
+                &mPrevModelMatrix[0], 64);
   }
-  if (mDirty) {
-    mDeviceBuffer->upload(mBuffer);
-    mDirty = false;
-  }
+  objectBuffer.upload(buffer);
 }
 
 void SVObject::setPrevModelMatrix(glm::mat4 const &matrix) {
-  mDirty = true;
   mPrevModelMatrix = matrix;
-  if (mPrevModelMatrixOffset >= 0) {
-    std::memcpy(mBuffer.data() + mPrevModelMatrixOffset, &matrix[0][0], 64);
-  }
 }
 
 void SVObject::setModelMatrix(glm::mat4 const &matrix) {
-  mDirty = true;
   mModelMatrix = matrix;
-  std::memcpy(mBuffer.data() + mModelMatrixOffset, &matrix[0][0], 64);
 }
 
 void SVObject::setSegmentation(glm::uvec4 const &segmentation) {
-  mDirty = true;
   mSegmentation = segmentation;
-  std::memcpy(mBuffer.data() + mSegmentationOffset, &segmentation[0], 16);
 }
 
 } // namespace resource

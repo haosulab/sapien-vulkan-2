@@ -3,7 +3,7 @@
 #include "svulkan2/resource/camera.h"
 #include "svulkan2/resource/render_target.h"
 #include "svulkan2/scene/scene.h"
-#include "svulkan2/shader/manager.h"
+#include "svulkan2/shader/shader_manager.h"
 #include <map>
 
 namespace svulkan2 {
@@ -11,15 +11,34 @@ namespace renderer {
 
 class Renderer {
   core::Context *mContext;
+  std::shared_ptr<RendererConfig> mConfig;
+
+  vk::UniqueDescriptorPool mDescriptorPool;
+
   std::unique_ptr<shader::ShaderManager> mShaderManager;
   std::map<std::string, std::shared_ptr<resource::SVRenderTarget>>
       mRenderTargets;
 
+  // std::vector<vk::Pipeline> mPipelines;
+  // std::vector<vk::RenderPass> mRenderPasses;
+  std::vector<vk::UniqueFramebuffer> mFramebuffers;
+
   int mWidth{};
   int mHeight{};
+  bool mRequiresRebuild{true};
+
+  std::unique_ptr<core::Buffer> mSceneBuffer;
+  std::unique_ptr<core::Buffer> mCameraBuffer;
+  std::vector<std::unique_ptr<core::Buffer>> mObjectBuffers;
+
+  vk::UniqueDescriptorSet mSceneSet;
+  vk::UniqueDescriptorSet mCameraSet;
+  std::vector<vk::UniqueDescriptorSet> mObjectSet;
+  vk::UniqueDescriptorSet mDeferredSet;
+  std::vector<vk::UniqueDescriptorSet> mCompositeSets;
 
 public:
-  Renderer(RendererConfig const &config);
+  Renderer(core::Context &context, std::shared_ptr<RendererConfig> config);
 
   void resize(int width, int height);
 
@@ -45,6 +64,15 @@ public:
   Renderer &operator=(Renderer const &other) = delete;
   Renderer(Renderer &&other) = default;
   Renderer &operator=(Renderer &&other) = default;
+
+private:
+  void prepareRenderTargets(uint32_t width, uint32_t height);
+  void preparePipelines(int numDirectionalLights, int numPointLights);
+  void prepareFramebuffers(uint32_t width, uint32_t height);
+
+  void prepareSceneBuffer();
+  void prepareObjectBuffers(uint32_t numObjects);
+  void prepareCameaBuffer();
 };
 
 } // namespace renderer

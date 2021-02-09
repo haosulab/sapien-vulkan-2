@@ -4,44 +4,20 @@
 namespace svulkan2 {
 namespace resource {
 
-SVCamera::SVCamera(std::shared_ptr<StructDataLayout> bufferLayout)
-    : mBufferLayout(bufferLayout), mBuffer(bufferLayout->size) {
-  mViewMatrixOffset = mBufferLayout->elements.at("viewMatrix").offset;
-  mViewMatrixInverseOffset =
-      mBufferLayout->elements.at("viewMatrixInverse").offset;
-  mProjectionMatrixOffset =
-      mBufferLayout->elements.at("projectionMatrix").offset;
-  mProjectionMatrixInverseOffset =
-      mBufferLayout->elements.at("projectionMatrixInverse").offset;
-
-  auto it = mBufferLayout->elements.find("prevViewMatrix");
-  if (it != mBufferLayout->elements.end()) {
-    mPrevViewMatrixOffset = it->second.offset;
-    mPrevViewMatrixInverseOffset =
-        mBufferLayout->elements.at("prevViewMatrixInverse").offset;
-  }
-}
+SVCamera::SVCamera() {}
 
 void SVCamera::setPerspectiveParameters(float near, float far, float fovy,
-                                      float aspect) {
-  mDirty = true;
+                                        float aspect) {
   mNear = near;
   mFar = far;
   mFovy = fovy;
   mAspect = aspect;
   mProjectionMatrix = glm::perspective(fovy, aspect, near, far);
   mProjectionMatrix[1][1] *= -1;
-
-  auto projInverse = glm::inverse(mProjectionMatrix);
-  std::memcpy(mBuffer.data() + mProjectionMatrixOffset,
-              &mProjectionMatrix[0][0], 64);
-  std::memcpy(mBuffer.data() + mProjectionMatrixInverseOffset,
-              &projInverse[0][0], 64);
 }
 
 void SVCamera::setOrthographicParameters(float near, float far, float aspect,
-                                       float scaling) {
-  mDirty = true;
+                                         float scaling) {
   mNear = near;
   mFar = far;
   mAspect = aspect;
@@ -49,46 +25,42 @@ void SVCamera::setOrthographicParameters(float near, float far, float aspect,
   mProjectionMatrix = glm::ortho(-scaling * aspect, scaling * aspect, -scaling,
                                  scaling, near, far);
   mProjectionMatrix[1][1] *= -1;
-  auto projInverse = glm::inverse(mProjectionMatrix);
-  std::memcpy(mBuffer.data() + mProjectionMatrixOffset,
+}
+
+void SVCamera::uploadToDevice(core::Buffer &cameraBuffer,
+                              StructDataLayout const &cameraLayout) {
+  std::vector<char> mBuffer(cameraLayout.size);
+
+  auto viewMatrix = glm::affineInverse(mModelMatrix);
+  auto projInv = glm::affineInverse(mProjectionMatrix);
+  std::memcpy(mBuffer.data() + cameraLayout.elements.at("viewMatrix").offset,
+              &viewMatrix[0][0], 64);
+  std::memcpy(mBuffer.data() +
+                  cameraLayout.elements.at("viewMatrixInverse").offset,
+              &mModelMatrix[0][0], 64);
+  std::memcpy(mBuffer.data() +
+                  cameraLayout.elements.at("projectionMatrix").offset,
               &mProjectionMatrix[0][0], 64);
-  std::memcpy(mBuffer.data() + mProjectionMatrixInverseOffset,
-              &projInverse[0][0], 64);
-}
+  std::memcpy(mBuffer.data() +
+                  cameraLayout.elements.at("projectionMatrixInverse").offset,
+              &projInv[0][0], 64);
 
-void SVCamera::createDeviceResources(core::Context &context) {
-  mDirty = true;
-  mDeviceBuffer =
-      context.getAllocator().allocateUniformBuffer(mBufferLayout->size);
-}
-
-void SVCamera::uploadToDevice() {
-  if (!mDeviceBuffer) {
-    std::runtime_error("device resources have not been created");
-  }
-  if (mDirty) {
-    mDeviceBuffer->upload(mBuffer);
-    mDirty = false;
+  auto it = cameraLayout.elements.find("prevViewMatrix");
+  if (it != cameraLayout.elements.end()) {
+    auto prevViewMatrix = glm::affineInverse(mPrevModelMatrix);
+    std::memcpy(mBuffer.data() + it->second.offset, &prevViewMatrix[0][0], 64);
+    std::memcpy(mBuffer.data() +
+                    cameraLayout.elements.at("prevViewMatrixInverse").offset,
+                &mPrevModelMatrix[0][0], 64);
   }
 }
 
 void SVCamera::setPrevModelMatrix(glm::mat4 const &matrix) {
-  mDirty = true;
   mPrevModelMatrix = matrix;
-  if (mPrevViewMatrixOffset >= 0) {
-    auto viewMatrix = glm::affineInverse(matrix);
-    std::memcpy(mBuffer.data() + mPrevViewMatrixInverseOffset, &matrix[0][0],
-                64);
-    std::memcpy(mBuffer.data() + mPrevViewMatrixOffset, &viewMatrix[0][0], 64);
-  }
 }
 
 void SVCamera::setModelMatrix(glm::mat4 const &matrix) {
-  mDirty = true;
   mModelMatrix = matrix;
-  auto viewMatrix = glm::affineInverse(matrix);
-  std::memcpy(mBuffer.data() + mViewMatrixInverseOffset, &matrix[0][0], 64);
-  std::memcpy(mBuffer.data() + mViewMatrixOffset, &viewMatrix[0][0], 64);
 }
 
 } // namespace resource

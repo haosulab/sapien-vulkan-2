@@ -1,5 +1,6 @@
 #pragma once
 #include "base_parser.h"
+#include "svulkan2/common/config.h"
 
 namespace svulkan2 {
 namespace shader {
@@ -17,10 +18,6 @@ class GbufferPassParser : public BaseParser {
   vk::UniquePipeline mPipeline;
 
 public:
-  enum { eSPECULAR, eMETALLIC } mMaterialType;
-
-  std::vector<std::string> getOutputTextureNames() const;
-
   inline std::shared_ptr<InputDataLayout> getVertexInputLayout() const {
     return mVertexInputLayout;
   }
@@ -38,28 +35,40 @@ public:
   getCombinedSamplerLayout() const {
     return mCombinedSamplerLayout;
   }
-  inline std::shared_ptr<OutputDataLayout> getTextureOutputLayout() const {
+  inline std::shared_ptr<OutputDataLayout>
+  getTextureOutputLayout() const override {
     return mTextureOutputLayout;
   }
+  ShaderConfig::MaterialPipeline getMaterialType() const;
 
-  vk::PipelineLayout createPipelineLayout(vk::Device device) override;
+  vk::PipelineLayout
+  createPipelineLayout(vk::Device device,
+                       std::vector<vk::DescriptorSetLayout> layouts);
 
-  vk::RenderPass createRenderPass(vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
-      std::unordered_map<std::string, std::pair<vk::ImageLayout, vk::ImageLayout>> layouts);
+  vk::RenderPass createRenderPass(
+      vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
+      std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
+          &colorTargetLayouts);
 
-  vk::Pipeline
-  createGraphicsPipeline(vk::Device device,
-                         vk::Format colorFormat, vk::Format depthFormat,
-                         vk::CullModeFlags cullMode, vk::FrontFace frontFace, std::unordered_map<std::string, std::pair<vk::ImageLayout, vk::ImageLayout>> renderTargetLayouts);
+  vk::Pipeline createGraphicsPipeline(
+      vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
+      vk::CullModeFlags cullMode, vk::FrontFace frontFace,
+      std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
+          &colorTargetLayouts,
+      std::vector<vk::DescriptorSetLayout> const &descriptorSetLayouts);
 
-  vk::RenderPass getRenderPass() const { return mRenderPass.get(); }
-  vk::Pipeline getPipeline() const { return mPipeline.get(); }
+  virtual inline vk::RenderPass getRenderPass() const override {
+    return mRenderPass.get();
+  }
+  virtual inline vk::Pipeline getPipeline() const override {
+    return mPipeline.get();
+  }
+  virtual std::vector<std::string> getRenderTargetNames() const override;
 
 private:
   void reflectSPV() override;
   void validate() const;
 };
-
 
 } // namespace shader
 } // namespace svulkan2

@@ -36,6 +36,11 @@ void Scene::removedNode(Node &node) {
   // TODO: fix child transform here?
 }
 
+void Scene::prepareObjectCameraForRendering() {
+  mRootNode->updateGlobalModelMatrixRecursive();
+  mRootNode->updateObjectCameraModelMatrixRecursive();
+}
+
 void Scene::clearNodes() { mNodes.resize(1); }
 
 void Scene::forceRemove() {
@@ -44,6 +49,10 @@ void Scene::forceRemove() {
                                 return node->isMarkedRemoved();
                               }),
                mNodes.end());
+}
+
+std::vector<std::shared_ptr<resource::SVObject>> Scene::getObjects() const {
+  return mRootNode->getObjectsRecursive();
 }
 
 } // namespace scene

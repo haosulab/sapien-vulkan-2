@@ -12,18 +12,11 @@ class Node;
 namespace resource {
 
 class SVCamera {
-  std::shared_ptr<StructDataLayout> mBufferLayout;
-  std::vector<char> mBuffer;
+  // std::shared_ptr<StructDataLayout> mBufferLayout;
+  // std::vector<char> mBuffer;
   scene::Node *mParentNode;
 
-  std::unique_ptr<core::Buffer> mDeviceBuffer;
-
-  int mViewMatrixOffset = -1;
-  int mViewMatrixInverseOffset = -1;
-  int mProjectionMatrixOffset = -1;
-  int mProjectionMatrixInverseOffset = -1;
-  int mPrevViewMatrixOffset = -1;
-  int mPrevViewMatrixInverseOffset = -1;
+  // std::unique_ptr<core::Buffer> mDeviceBuffer;
 
   glm::mat4 mPrevModelMatrix{1};
   glm::mat4 mModelMatrix{1};
@@ -36,10 +29,8 @@ class SVCamera {
   float mScaling{1};
   bool mIsOrtho = false;
 
-  bool mDirty{true};
-
 public:
-  SVCamera(std::shared_ptr<StructDataLayout> bufferLayout);
+  SVCamera();
   void setPerspectiveParameters(float near, float far, float fovy,
                                 float aspect);
   void setOrthographicParameters(float near, float far, float aspect,
@@ -54,8 +45,9 @@ public:
 
   inline void setParentNode(scene::Node *node) { mParentNode = node; };
 
-  void createDeviceResources(core::Context &context);
-  void uploadToDevice();
+  // void createDeviceResources(core::Context &context);
+  void uploadToDevice(core::Buffer &cameraBuffer,
+                      StructDataLayout const &cameraLayout);
 
   void setPrevModelMatrix(glm::mat4 const &matrix);
   void setModelMatrix(glm::mat4 const &matrix);
@@ -69,12 +61,6 @@ public:
     return glm::affineInverse(mModelMatrix);
   }
   inline glm::mat4 getProjectionMatrix() const { return mProjectionMatrix; }
-
-  template <typename T>
-  void setAttribute(std::string const &key, T const &content) {
-    auto &elem = mBufferLayout->elements.at(key);
-    std::memcpy(mBuffer.data() + elem.offset, &content, elem.size);
-  }
 };
 
 } // namespace resource

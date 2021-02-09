@@ -29,23 +29,34 @@ public:
   getCombinedSamplerLayout() const {
     return mCombinedSamplerLayout;
   }
-  inline std::shared_ptr<OutputDataLayout> getTextureOutputLayout() const {
+  inline std::shared_ptr<OutputDataLayout>
+  getTextureOutputLayout() const override {
     return mTextureOutputLayout;
   }
 
-  vk::RenderPass getRenderPass() const { return mRenderPass.get(); }
-  vk::Pipeline getPipeline() const { return mPipeline.get(); }
+  virtual inline vk::RenderPass getRenderPass() const override {
+    return mRenderPass.get();
+  }
+  virtual inline vk::Pipeline getPipeline() const override {
+    return mPipeline.get();
+  }
 
-  vk::PipelineLayout createPipelineLayout(vk::Device device) override;
+  vk::PipelineLayout
+  createPipelineLayout(vk::Device device,
+                       std::vector<vk::DescriptorSetLayout> layouts);
 
-  vk::RenderPass createRenderPass(vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
-      std::unordered_map<std::string, std::pair<vk::ImageLayout, vk::ImageLayout>> layouts);
+  vk::RenderPass createRenderPass(
+      vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
+      std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const &layouts);
 
-  vk::Pipeline
-      createGraphicsPipeline(vk::Device device,
-          vk::Format colorFormat, vk::Format depthFormat,
-          std::unordered_map<std::string, std::pair<vk::ImageLayout, vk::ImageLayout>> renderTargetLayouts,
-          int numDirectionalLights = -1, int numPointLights = -1);
+  vk::Pipeline createGraphicsPipeline(
+      vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
+      std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
+          &renderTargetLayouts,
+      std::vector<vk::DescriptorSetLayout> descriptorSetLayouts,
+      int numDirectionalLights = -1, int numPointLights = -1);
+
+  virtual std::vector<std::string> getRenderTargetNames() const override;
 
 private:
   void reflectSPV() override;

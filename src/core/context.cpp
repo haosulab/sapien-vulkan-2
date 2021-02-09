@@ -46,6 +46,7 @@ Context::Context(uint32_t apiVersion, bool present, uint32_t maxNumObjects,
   createMemoryAllocator();
   createCommandPool();
   createDescriptorPool();
+  mResourceManager = std::make_unique<resource::SVResourceManager>();
 }
 
 Context::~Context() {}
@@ -196,6 +197,35 @@ void Context::createDescriptorPool() {
       vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
       mMaxNumTextures + mMaxNumObjects, 2, pool_sizes);
   mDescriptorPool = getDevice().createDescriptorPoolUnique(info);
+
+  {
+    std::vector<vk::DescriptorSetLayoutBinding> bindings;
+    bindings.push_back(
+        vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eUniformBuffer, 1,
+                                       vk::ShaderStageFlagBits::eFragment));
+    for (uint32_t i = 0; i < 4; ++i) {
+      bindings.push_back(vk::DescriptorSetLayoutBinding(
+          i + 1, vk::DescriptorType::eCombinedImageSampler, 1,
+          vk::ShaderStageFlagBits::eFragment));
+    }
+    mMetallicDescriptorSetLayout = mDevice->createDescriptorSetLayoutUnique(
+        vk::DescriptorSetLayoutCreateInfo({}, bindings.size(),
+                                          bindings.data()));
+  }
+  {
+    std::vector<vk::DescriptorSetLayoutBinding> bindings;
+    bindings.push_back(
+        vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eUniformBuffer, 1,
+                                       vk::ShaderStageFlagBits::eFragment));
+    for (uint32_t i = 0; i < 3; ++i) {
+      bindings.push_back(vk::DescriptorSetLayoutBinding(
+          i + 1, vk::DescriptorType::eCombinedImageSampler, 1,
+          vk::ShaderStageFlagBits::eFragment));
+    }
+    mSpecularDescriptorSetLayout = mDevice->createDescriptorSetLayoutUnique(
+        vk::DescriptorSetLayoutCreateInfo({}, bindings.size(),
+                                          bindings.data()));
+  }
 }
 
 vk::UniqueCommandBuffer

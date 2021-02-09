@@ -20,6 +20,7 @@ SVMesh::SVMesh(std::shared_ptr<InputDataLayout> layout)
     : mVertexLayout(layout) {}
 
 void SVMesh::setIndices(std::vector<uint32_t> const &indices) {
+  mDirty = true;
   mIndices = indices;
 }
 
@@ -29,6 +30,7 @@ std::vector<uint32_t> const &SVMesh::getIndices(std::vector<uint32_t>) const {
 
 void SVMesh::setVertexAttribute(std::string const &name,
                                 std::vector<float> const &attrib) {
+  mDirty = true;
   if (mVertexLayout->elements.find("name") == mVertexLayout->elements.end()) {
     // TODO: give a warning
     return;
@@ -46,6 +48,9 @@ SVMesh::getVertexAttribute(std::string const &name) const {
 }
 
 void SVMesh::uploadToDevice(core::Context &context) {
+  if (!mDirty) {
+    return;
+  }
 
   if (mAttributes.find("position") == mAttributes.end() ||
       mAttributes["position"].size() == 0) {
@@ -87,24 +92,28 @@ void SVMesh::uploadToDevice(core::Context &context) {
     offset += elem.getSize();
   }
 
-  mVertexBuffer =
-      std::make_unique<core::Buffer>(context, bufferSize,
-                                     vk::BufferUsageFlagBits::eVertexBuffer |
-                                         vk::BufferUsageFlagBits::eTransferDst |
-                                         vk::BufferUsageFlagBits::eTransferSrc,
-                                     VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY);
-  mIndexBuffer =
-      std::make_unique<core::Buffer>(context, indexBufferSize,
-                                     vk::BufferUsageFlagBits::eIndexBuffer |
-                                         vk::BufferUsageFlagBits::eTransferDst |
-                                         vk::BufferUsageFlagBits::eTransferSrc,
-                                     VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY);
+  if (!mVertexBuffer) {
+    mVertexBuffer = std::make_unique<core::Buffer>(
+        context, bufferSize,
+        vk::BufferUsageFlagBits::eVertexBuffer |
+            vk::BufferUsageFlagBits::eTransferDst |
+            vk::BufferUsageFlagBits::eTransferSrc,
+        VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY);
+    mIndexBuffer = std::make_unique<core::Buffer>(
+        context, indexBufferSize,
+        vk::BufferUsageFlagBits::eIndexBuffer |
+            vk::BufferUsageFlagBits::eTransferDst |
+            vk::BufferUsageFlagBits::eTransferSrc,
+        VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY);
+  }
   mVertexBuffer->upload(buffer.data(), bufferSize);
   mIndexBuffer->upload<uint32_t>(mIndices);
   mOnDevice = true;
+  mDirty = false;
 }
 
 void SVMesh::removeFromDevice() {
+  mDirty = true;
   mOnDevice = false;
   mVertexBuffer.reset();
   mIndexBuffer.reset();

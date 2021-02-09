@@ -74,7 +74,7 @@ void SVModel::load() {
   fs::path parentDir = fs::path(path).parent_path();
 
   std::vector<std::shared_ptr<SVMaterial>> materials;
-  if (mManager->getShaderConfig()->materialPipeline ==
+  if (mManager->getMaterialPipelineType() ==
       ShaderConfig::MaterialPipeline::eMETALLIC) {
     for (uint32_t mat_idx = 0; mat_idx < scene->mNumMaterials; ++mat_idx) {
       auto *m = scene->mMaterials[mat_idx];
@@ -258,8 +258,7 @@ void SVModel::load() {
       log::warn("A mesh in the file has no triangles: {}", path);
       continue;
     }
-    auto svmesh =
-        std::make_shared<SVMesh>(mManager->getShaderConfig()->vertexLayout);
+    auto svmesh = std::make_shared<SVMesh>(mManager->getVertexLayout());
     svmesh->setIndices(indices);
     svmesh->setVertexAttribute("position", positions);
     svmesh->setVertexAttribute("normal", normals);

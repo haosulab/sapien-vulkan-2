@@ -8,7 +8,6 @@ namespace resource {
 
 class SVResourceManager {
   std::shared_ptr<RendererConfig> mRendererConfig;
-  std::shared_ptr<ShaderConfig> mShaderConfig;
 
   std::unordered_map<std::string, std::vector<std::shared_ptr<SVModel>>>
       mModelRegistry;
@@ -17,9 +16,14 @@ class SVResourceManager {
   std::unordered_map<std::string, std::vector<std::shared_ptr<SVImage>>>
       mImageRegistry;
 
+  ShaderConfig::MaterialPipeline mMaterialPipeline{
+      ShaderConfig::MaterialPipeline::eUNKNOWN};
+  std::shared_ptr<InputDataLayout> mVertexLayout{};
+
+  std::shared_ptr<SVTexture> mDefaultTexture;
+
 public:
-  SVResourceManager(std::shared_ptr<RendererConfig> rendererConfig,
-                    std::shared_ptr<ShaderConfig> shaderConfig);
+  SVResourceManager();
 
   std::shared_ptr<SVImage> CreateImageFromFile(std::string const &filename,
                                                uint32_t mipLevels);
@@ -31,14 +35,24 @@ public:
       vk::SamplerAddressMode addressModeU = vk::SamplerAddressMode::eRepeat,
       vk::SamplerAddressMode addressModeV = vk::SamplerAddressMode::eRepeat);
 
+  inline std::shared_ptr<SVTexture> getDefaultTexture() const {
+    return mDefaultTexture;
+  };
+
   std::shared_ptr<SVModel> CreateModelFromFile(std::string const &filename);
 
   std::shared_ptr<RendererConfig> getRendererConfig() const {
     return mRendererConfig;
   }
 
-  std::shared_ptr<ShaderConfig> getShaderConfig() const {
-    return mShaderConfig;
+  void setMaterialPipelineType(ShaderConfig::MaterialPipeline pipeline);
+  inline ShaderConfig::MaterialPipeline getMaterialPipelineType() const {
+    return mMaterialPipeline;
+  }
+
+  void setVertexLayout(std::shared_ptr<InputDataLayout> layout);
+  inline std::shared_ptr<InputDataLayout> getVertexLayout() const {
+    return mVertexLayout;
   }
 };
 

@@ -1,5 +1,6 @@
 #pragma once
 #include "node.h"
+#include "svulkan2/resource/scene.h"
 #include <memory>
 #include <vector>
 
@@ -9,6 +10,7 @@ namespace scene {
 class Scene {
   std::vector<std::unique_ptr<Node>> mNodes{};
   Node *mRootNode{nullptr};
+  std::shared_ptr<resource::SVScene> mScene;
 
 public:
   inline Node &getRootNode() { return *mRootNode; };
@@ -17,10 +19,18 @@ public:
   void addNode(std::unique_ptr<Node> node, Node &parent);
   void removedNode(Node &node);
   void clearNodes();
-
   void forceRemove();
 
+  void prepareObjectCameraForRendering();
+
+  void prepareDeviceResources(core::Context &context);
+
+  std::vector<std::shared_ptr<resource::SVObject>> getObjects() const;
   Scene();
+
+  inline std::shared_ptr<resource::SVScene> getSVScene() const {
+    return mScene;
+  }
 };
 
 } // namespace scene

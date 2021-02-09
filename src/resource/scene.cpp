@@ -8,91 +8,82 @@ class Scene;
 }
 namespace resource {
 
-SVScene::SVScene(std::shared_ptr<StructDataLayout> bufferLayout)
-    : mBufferLayout(bufferLayout) {
-  mPointLightCapacity = bufferLayout->elements.at("pointLights").arrayDim;
-  mDirectionalLightCapacity =
-      bufferLayout->elements.at("directionalLights").arrayDim;
-}
+SVScene::SVScene() {}
 
 void SVScene::addPointLight(PointLight const &pointLight) {
-  mDirty = true;
-  mRequiresRebuild = true;
-  if (mPointLights.size() == mPointLightCapacity) {
-    log::error(
-        "failed to add point light: exceeding shader-specified capacity");
-  }
+  mLightPropertyChanged = true;
+  mLightCountChanged = true;
   mPointLights.push_back(pointLight);
 }
 
 void SVScene::addDirectionalLight(DirectionalLight const &directionalLight) {
-  mDirty = true;
-  mRequiresRebuild = true;
-  if (mDirectionalLights.size() == mDirectionalLightCapacity) {
-    log::error(
-        "failed to add directional light: exceeding shader-specified capacity");
-  }
+  mLightPropertyChanged = true;
+  mLightCountChanged = true;
   mDirectionalLights.push_back(directionalLight);
 }
 
 void SVScene::setPointLightAt(uint32_t index, PointLight const &pointLight) {
-  mDirty = true;
+  mLightPropertyChanged = true;
   if (index < mPointLights.size()) {
     mPointLights[index] = pointLight;
   }
 }
 void SVScene::setDirectionalLightAt(uint32_t index,
                                     DirectionalLight const &directionalLight) {
-  mDirty = true;
+  mLightPropertyChanged = true;
   if (index < mDirectionalLights.size()) {
     mDirectionalLights[index] = directionalLight;
   }
 }
 
 void SVScene::removePointLightAt(uint32_t index) {
-  mDirty = true;
-  mRequiresRebuild = true;
+  mLightPropertyChanged = true;
+  mLightCountChanged = true;
   if (index < mPointLights.size()) {
     mPointLights.erase(mPointLights.begin() + index);
   }
 }
 
 void SVScene::removeDirectionalLightAt(uint32_t index) {
-  mDirty = true;
-  mRequiresRebuild = true;
+  mLightPropertyChanged = true;
+  mLightCountChanged = true;
   if (index < mDirectionalLights.size()) {
     mDirectionalLights.erase(mDirectionalLights.begin() + index);
   }
 }
 
-void SVScene::createDeviceResources(core::Context &context) {
-  mDeviceBuffer =
-      context.getAllocator().allocateUniformBuffer(mBufferLayout->size);
-}
-
 void SVScene::setAmbeintLight(glm::vec4 const &color) {
-  mDirty = true;
+  mLightPropertyChanged = true;
   mAmbientLight = color;
 };
 
-void SVScene::uploadToDevice() {
-  if (!mDeviceBuffer) {
-    throw std::runtime_error(
-        "failed to upload scene to device: buffer not created");
+void SVScene::uploadToDevice(core::Buffer &sceneBuffer,
+                             StructDataLayout const &sceneLayout) {
+  sceneBuffer.upload(&mAmbientLight, 16,
+                     sceneLayout.elements.at("ambientLight").offset);
+
+  uint32_t numPointLights = mPointLights.size();
+  uint32_t numDirectionalLights = mDirectionalLights.size();
+  if (sceneLayout.elements.at("pointLights").arrayDim < mPointLights.size()) {
+    log::warn("The scene contains more point lights than the maximum number of "
+              "point lights in the shader. Truncated.");
+    numPointLights = sceneLayout.elements.at("pointLights").arrayDim;
   }
-  if (mDirty) {
-    mDeviceBuffer->upload(&mAmbientLight, 16,
-                          mBufferLayout->elements.at("ambientLight").offset);
-    mDeviceBuffer->upload(mPointLights.data(),
-                          mPointLights.size() * sizeof(PointLight),
-                          mBufferLayout->elements.at("pointLights").offset);
-    mDeviceBuffer->upload(
-        mDirectionalLights.data(),
-        mDirectionalLights.size() * sizeof(PointLight),
-        mBufferLayout->elements.at("directionalLights").offset);
-    // TODO: upload shadow matrix and other stuff
-    mDirty = false;
+  if (sceneLayout.elements.at("directionalLights").arrayDim <
+      mDirectionalLights.size()) {
+    log::warn(
+        "The scene contains more directional lights than the maximum number of "
+        "directional lights in the shader. Truncated.");
+    numDirectionalLights =
+        sceneLayout.elements.at("directionalLights").arrayDim;
   }
+
+  sceneBuffer.upload(mPointLights.data(), numPointLights * sizeof(PointLight),
+                     sceneLayout.elements.at("pointLights").offset);
+  sceneBuffer.upload(mDirectionalLights.data(),
+                     numDirectionalLights * sizeof(PointLight),
+                     sceneLayout.elements.at("directionalLights").offset);
+  mLightPropertyChanged = false;
 }
 
 } // namespace resource

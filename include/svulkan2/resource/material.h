@@ -6,10 +6,17 @@
 namespace svulkan2 {
 namespace resource {
 
-void setBit(int &number, int bit) { number |= 1 << bit; }
-void unsetBit(int &number, int bit) { number &= ~(1 << bit); }
+inline void setBit(int &number, int bit) { number |= 1 << bit; }
+inline void unsetBit(int &number, int bit) { number &= ~(1 << bit); }
 
-class SVMaterial {};
+class SVMaterial {
+protected:
+  bool mDirty{true};
+  vk::UniqueDescriptorSet mDescriptorSet;
+
+public:
+  virtual void uploadToDevice(core::Context &context) = 0;
+};
 
 class SVMetallicMaterial : public SVMaterial {
   struct Buffer {
@@ -39,8 +46,7 @@ public:
                    std::shared_ptr<SVTexture> normalTexture,
                    std::shared_ptr<SVTexture> metallicTexture);
 
-  void createDeviceResources(core::Context &context);
-  void uploadToDevice();
+  virtual void uploadToDevice(core::Context &context) override;
 };
 
 class SVSpecularMaterial : public SVMaterial {
@@ -67,8 +73,7 @@ public:
                    std::shared_ptr<SVTexture> specularTexture,
                    std::shared_ptr<SVTexture> normalTexture);
 
-  void createDeviceResources(core::Context &context);
-  void uploadToDevice();
+  virtual void uploadToDevice(core::Context &context) override;
 };
 
 } // namespace resource

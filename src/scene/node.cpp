@@ -40,5 +40,48 @@ std::shared_ptr<resource::SVCamera> Node::removeCamera() {
   return obj;
 }
 
+void Node::setTransform(Transform const &transform) { mTransform = transform; }
+
+void Node::updateGlobalModelMatrixRecursive() {
+  glm::mat4 localMatrix = glm::translate(glm::mat4(1), mTransform.position) *
+                          glm::toMat4(mTransform.rotation) *
+                          glm::scale(glm::mat4(1), mTransform.scale);
+  if (!mParent) {
+    mTransform.worldModelMatrix = localMatrix;
+  }
+  mTransform.worldModelMatrix =
+      mParent->mTransform.worldModelMatrix * localMatrix;
+  for (auto c : mChildren) {
+    c->updateGlobalModelMatrixRecursive();
+  }
+}
+
+void Node::updateObjectCameraModelMatrixRecursive() {
+  if (mObject) {
+    mObject->setPrevModelMatrix(mObject->getModelMatrix());
+    mObject->setModelMatrix(mTransform.worldModelMatrix);
+  }
+  if (mCamera) {
+    mCamera->setPrevModelMatrix(mCamera->getModelMatrix());
+    mCamera->setModelMatrix(mTransform.worldModelMatrix);
+  }
+  for (auto c : mChildren) {
+    c->updateObjectCameraModelMatrixRecursive();
+  }
+}
+
+std::vector<std::shared_ptr<resource::SVObject>>
+Node::getObjectsRecursive() const {
+  std::vector<std::shared_ptr<resource::SVObject>> result;
+  if (mObject) {
+    result.push_back(mObject);
+  }
+  for (auto c : mChildren) {
+    auto childObjects = c->getObjectsRecursive();
+    result.insert(result.end(), childObjects.begin(), childObjects.end());
+  }
+  return result;
+}
+
 } // namespace scene
 } // namespace svulkan2

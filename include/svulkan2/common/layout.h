@@ -141,6 +141,10 @@ struct InputDataLayout {
     uint32_t location{0};
     DataType dtype{eFLOAT};
     inline uint32_t getSize() const { return GetDataTypeSize(dtype); }
+    inline bool operator==(Element const &other) const {
+      return name == other.name && location == other.location &&
+             dtype == other.dtype;
+    }
   };
 
   std::unordered_map<std::string, InputDataLayout::Element> elements;
@@ -152,6 +156,9 @@ struct InputDataLayout {
   computeVertexInputBindingDescriptions() const;
   std::vector<vk::VertexInputAttributeDescription>
   computeVertexInputAttributesDescriptions() const;
+
+  bool operator==(InputDataLayout const &other) const;
+  bool operator!=(InputDataLayout const &other) const;
 };
 
 struct OutputDataLayout {

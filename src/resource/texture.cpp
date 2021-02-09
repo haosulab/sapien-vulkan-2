@@ -43,22 +43,21 @@ SVTexture::FromData(uint32_t width, uint32_t height, uint32_t channels,
 void SVTexture::uploadToDevice(core::Context &context) {
   if (!mImage->isOnDevice()) {
     mImage->uploadToDevice(context);
+    mImageView =
+        context.getDevice().createImageViewUnique(vk::ImageViewCreateInfo(
+            {}, mImage->getDeviceImage()->getVulkanImage(),
+            vk::ImageViewType::e2D, mImage->getDeviceImage()->getFormat(),
+            vk::ComponentSwizzle::eIdentity,
+            vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0,
+                                      mDescription.mipLevels, 0, 1)));
+    mSampler = context.getDevice().createSamplerUnique(vk::SamplerCreateInfo(
+        {}, mDescription.magFilter, mDescription.minFilter,
+        vk::SamplerMipmapMode::eLinear, mDescription.addressModeU,
+        mDescription.addressModeV, vk::SamplerAddressMode::eRepeat, 0.f, false,
+        0.f, false, vk::CompareOp::eNever, 0.f, 0.f,
+        vk::BorderColor::eFloatOpaqueBlack));
+    mOnDevice = true;
   }
-
-  mImageView =
-      context.getDevice().createImageViewUnique(vk::ImageViewCreateInfo(
-          {}, mImage->getDeviceImage()->getVulkanImage(),
-          vk::ImageViewType::e2D, mImage->getDeviceImage()->getFormat(),
-          vk::ComponentSwizzle::eIdentity,
-          vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0,
-                                    mDescription.mipLevels, 0, 1)));
-  mSampler = context.getDevice().createSamplerUnique(vk::SamplerCreateInfo(
-      {}, mDescription.magFilter, mDescription.minFilter,
-      vk::SamplerMipmapMode::eLinear, mDescription.addressModeU,
-      mDescription.addressModeV, vk::SamplerAddressMode::eRepeat, 0.f, false,
-      0.f, false, vk::CompareOp::eNever, 0.f, 0.f,
-      vk::BorderColor::eFloatOpaqueBlack));
-  mOnDevice = true;
 }
 
 void SVTexture::removeFromDevice() {

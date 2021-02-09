@@ -47,7 +47,7 @@ public:
   };
 
 private:
-  SVModel();
+  SVModel() = default;
 };
 
 } // namespace resource

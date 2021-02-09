@@ -4,10 +4,6 @@
 namespace svulkan2 {
 namespace shader {
 
-inline std::string getOutTextureName(std::string variableName) {// remove "out" prefix
-    return variableName.substr(3, std::string::npos);
-}
-
 void GbufferPassParser::reflectSPV() {
   spirv_cross::Compiler vertComp(mVertSPVCode);
   try {
@@ -30,74 +26,76 @@ void GbufferPassParser::reflectSPV() {
   validate();
 }
 
+ShaderConfig::MaterialPipeline GbufferPassParser::getMaterialType() const {
+  if (mMaterialBufferLayout->elements.find("metallic") !=
+      mMaterialBufferLayout->elements.end()) {
+    return ShaderConfig::eMETALLIC;
+  }
+  return ShaderConfig::eSPECULAR;
+}
+
 void GbufferPassParser::validate() const {
   for (auto &elem : mCombinedSamplerLayout->elements) {
     ASSERT(elem.second.binding >= 1 && elem.second.set == 3,
            "[frag]all textures should be bound to set 3, binding >= 1");
   }
-  for (auto& elem : mTextureOutputLayout->elements) {
-      ASSERT(elem.second.name.substr(0, 3) == "out",
-          "[frag]all out texture variables must start with \"out\"");
+  for (auto &elem : mTextureOutputLayout->elements) {
+    ASSERT(elem.second.name.substr(0, 3) == "out",
+           "[frag]all out texture variables must start with \"out\"");
   }
 };
 
-vk::PipelineLayout GbufferPassParser::createPipelineLayout(vk::Device device) {
-    //process gbuffer uniforms and samplers:
-    int numGbufferSamplers = mCombinedSamplerLayout->elements.size();
-    std::vector<vk::DescriptorSetLayoutBinding> gBufferBindings(3 + numGbufferSamplers);// Magic number 3 for Camera, object and material bufers.
-    //camera buffer(set 1, binding 0):
-    gBufferBindings[0].binding = 0;
-    gBufferBindings[0].descriptorType = vk::DescriptorType::eUniformBuffer;
-    gBufferBindings[0].descriptorCount = 1;
-    gBufferBindings[0].stageFlags = vk::ShaderStageFlagBits::eVertex;
-    gBufferBindings[0].pImmutableSamplers = nullptr;
-    //object buffer(set 2, binding 0):
-    gBufferBindings[1].binding = 0;
-    gBufferBindings[1].descriptorType = vk::DescriptorType::eUniformBuffer;
-    gBufferBindings[1].descriptorCount = 1;
-    gBufferBindings[1].stageFlags = vk::ShaderStageFlagBits::eVertex;
-    gBufferBindings[1].pImmutableSamplers = nullptr;
-    //material buffer(set 3, binding 0):
-    gBufferBindings[2].binding = 0;
-    gBufferBindings[2].descriptorType = vk::DescriptorType::eUniformBuffer;
-    gBufferBindings[2].descriptorCount = 1;
-    gBufferBindings[2].stageFlags = vk::ShaderStageFlagBits::eFragment;
-    gBufferBindings[2].pImmutableSamplers = nullptr;
-    //samplers(set 3):
-    int i = 0;
-    for (const auto elem : mCombinedSamplerLayout->elements) {
-        //material buffer:
-        gBufferBindings[3 + i].binding = elem.second.binding;
-        gBufferBindings[3 + i].descriptorType = vk::DescriptorType::eCombinedImageSampler;
-        gBufferBindings[3 + i].descriptorCount = 1;
-        gBufferBindings[3 + i].stageFlags = vk::ShaderStageFlagBits::eFragment;
-        gBufferBindings[3 + i].pImmutableSamplers = nullptr;
-        i++;
-    }
-    std::vector<vk::DescriptorSetLayoutCreateInfo> createInfo(4);
-    createInfo[0].bindingCount = 1;
-    createInfo[0].pBindings = gBufferBindings.data();
-    createInfo[1].bindingCount = 1;
-    createInfo[1].pBindings = gBufferBindings.data() + 1;
-    createInfo[2].bindingCount = gBufferBindings.size() - 2;
-    createInfo[2].pBindings = gBufferBindings.data() + 2;
-    std::vector<vk::DescriptorSetLayout> dsLayout(4);// 4 descriptor set layouts for set = 0,1,2,3
-    dsLayout[1] = device.createDescriptorSetLayout(createInfo[0]);
-    dsLayout[2] = device.createDescriptorSetLayout(createInfo[1]);
-    dsLayout[3] = device.createDescriptorSetLayout(createInfo[2]);
+vk::PipelineLayout GbufferPassParser::createPipelineLayout(
+    vk::Device device,
+    std::vector<vk::DescriptorSetLayout> descriptorSetLayouts) {
+  // // process gbuffer uniforms and samplers:
+  // int numGbufferSamplers = mCombinedSamplerLayout->elements.size();
+  // std::vector<vk::DescriptorSetLayoutBinding> gBufferBindings(
+  //     3 + numGbufferSamplers); // Magic number 3 for Camera, object and
+  //     material
+  //                              // bufers.
+  // // camera buffer(set 0, binding 0):
+  // gBufferBindings[0].binding = 0;
+  // gBufferBindings[0].descriptorType = vk::DescriptorType::eUniformBuffer;
+  // gBufferBindings[0].descriptorCount = 1;
+  // gBufferBindings[0].stageFlags = vk::ShaderStageFlagBits::eVertex;
+  // gBufferBindings[0].pImmutableSamplers = nullptr;
+  // // object buffer(set 1, binding 0):
+  // gBufferBindings[1].binding = 0;
+  // gBufferBindings[1].descriptorType = vk::DescriptorType::eUniformBuffer;
+  // gBufferBindings[1].descriptorCount = 1;
+  // gBufferBindings[1].stageFlags = vk::ShaderStageFlagBits::eVertex;
+  // gBufferBindings[1].pImmutableSamplers = nullptr;
+  // // material buffer(set 2, binding 0):
+  // gBufferBindings[2].binding = 0;
+  // gBufferBindings[2].descriptorType = vk::DescriptorType::eUniformBuffer;
+  // gBufferBindings[2].descriptorCount = 1;
+  // gBufferBindings[2].stageFlags = vk::ShaderStageFlagBits::eFragment;
+  // gBufferBindings[2].pImmutableSamplers = nullptr;
+  // // samplers(set 3):
+  // int i = 0;
+  // for (const auto &elem : mCombinedSamplerLayout->elements) {
+  //   // material buffer:
+  //   gBufferBindings[3 + i].binding = elem.second.binding;
+  //   gBufferBindings[3 + i].descriptorType =
+  //       vk::DescriptorType::eCombinedImageSampler;
+  //   gBufferBindings[3 + i].descriptorCount = 1;
+  //   gBufferBindings[3 + i].stageFlags = vk::ShaderStageFlagBits::eFragment;
+  //   gBufferBindings[3 + i].pImmutableSamplers = nullptr;
+  //   i++;
+  // }
+  vk::PipelineLayoutCreateInfo pipelineLayoutInfo;
+  pipelineLayoutInfo.setLayoutCount = descriptorSetLayouts.size();
+  pipelineLayoutInfo.pSetLayouts = descriptorSetLayouts.data();
+  mPipelineLayout = device.createPipelineLayoutUnique(pipelineLayoutInfo);
 
-    vk::PipelineLayoutCreateInfo pipelineLayoutInfo;
-    pipelineLayoutInfo.setLayoutCount = dsLayout.size();
-    pipelineLayoutInfo.pSetLayouts = dsLayout.data();
-    mPipelineLayout = device.createPipelineLayoutUnique(pipelineLayoutInfo);
-
-    return mPipelineLayout.get();
+  return mPipelineLayout.get();
 }
-
 
 vk::RenderPass GbufferPassParser::createRenderPass(
     vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
-    std::unordered_map<std::string, std::pair<vk::ImageLayout, vk::ImageLayout>> layouts) {
+    std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
+        &colorTargetLayouts) {
   std::vector<vk::AttachmentDescription> attachmentDescriptions;
   std::vector<vk::AttachmentReference> colorAttachments;
 
@@ -117,8 +115,7 @@ vk::RenderPass GbufferPassParser::createRenderPass(
         {}, format, vk::SampleCountFlagBits::e1,
         vk::AttachmentLoadOp::eDontCare, vk::AttachmentStoreOp::eStore,
         vk::AttachmentLoadOp::eDontCare, vk::AttachmentStoreOp::eDontCare,
-        layouts[getOutTextureName(elems[i].name)].first,
-        layouts[getOutTextureName(elems[i].name)].second));
+        colorTargetLayouts[i].first, colorTargetLayouts[i].second));
   }
   attachmentDescriptions.push_back(vk::AttachmentDescription(
       vk::AttachmentDescriptionFlags(), depthFormat,
@@ -142,11 +139,14 @@ vk::RenderPass GbufferPassParser::createRenderPass(
 }
 
 vk::Pipeline GbufferPassParser::createGraphicsPipeline(
-    vk::Device device,
-    vk::Format colorFormat, vk::Format depthFormat, vk::CullModeFlags cullMode, vk::FrontFace frontFace,
-    std::unordered_map<std::string, std::pair<vk::ImageLayout, vk::ImageLayout>> renderTargetLayouts) {
+    vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
+    vk::CullModeFlags cullMode, vk::FrontFace frontFace,
+    std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
+        &colorTargetLayouts,
+    std::vector<vk::DescriptorSetLayout> const &descriptorSetLayouts) {
   // render pass
-  auto renderPass = createRenderPass(device, colorFormat, depthFormat, renderTargetLayouts);
+  auto renderPass =
+      createRenderPass(device, colorFormat, depthFormat, colorTargetLayouts);
 
   // shaders
   vk::UniquePipelineCache pipelineCache =
@@ -237,10 +237,22 @@ vk::Pipeline GbufferPassParser::createGraphicsPipeline(
       &pipelineViewportStateCreateInfo, &pipelineRasterizationStateCreateInfo,
       &pipelineMultisampleStateCreateInfo, &pipelineDepthStencilStateCreateInfo,
       &pipelineColorBlendStateCreateInfo, &pipelineDynamicStateCreateInfo,
-      createPipelineLayout(device), renderPass);
-  mPipeline = device.createGraphicsPipelineUnique(pipelineCache.get(),
-                                                  graphicsPipelineCreateInfo).value;
+      createPipelineLayout(device, descriptorSetLayouts), renderPass);
+  mPipeline = device
+                  .createGraphicsPipelineUnique(pipelineCache.get(),
+                                                graphicsPipelineCreateInfo)
+                  .value;
   return mPipeline.get();
+}
+
+std::vector<std::string> GbufferPassParser::getRenderTargetNames() const {
+  std::vector<std::string> result;
+  auto elems = mTextureOutputLayout->getElementsSorted();
+  for (auto elem : elems) {
+    result.push_back(getOutTextureName(elem.name));
+  }
+  result.push_back("Depth");
+  return result;
 }
 
 } // namespace shader

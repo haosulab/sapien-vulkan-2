@@ -8,21 +8,21 @@ namespace svulkan2 {
 namespace resource {
 
 class SVScene {
-  std::shared_ptr<StructDataLayout> mBufferLayout;
-  std::unique_ptr<core::Buffer> mDeviceBuffer;
-
-  uint32_t mPointLightCapacity;
-  uint32_t mDirectionalLightCapacity;
+  // std::shared_ptr<StructDataLayout> mBufferLayout;
+  // std::unique_ptr<core::Buffer> mDeviceBuffer;
+  // uint32_t mPointLightCapacity;
+  // uint32_t mDirectionalLightCapacity;
 
   std::vector<PointLight> mPointLights;
   std::vector<DirectionalLight> mDirectionalLights;
   glm::vec4 mAmbientLight;
 
-  bool mRequiresRebuild{true};
-  bool mDirty{true};
+  bool mLightCountChanged{true};
+  bool mLightPropertyChanged{true};
 
 public:
-  SVScene(std::shared_ptr<StructDataLayout> bufferLayout);
+  SVScene( // std::shared_ptr<StructDataLayout> bufferLayout
+  );
 
   void addPointLight(PointLight const &pointLight);
   void addDirectionalLight(DirectionalLight const &directionalLight);
@@ -41,8 +41,9 @@ public:
   }
   inline glm::vec3 getAmbeintLight() const { return mAmbientLight; };
 
-  void createDeviceResources(core::Context &context);
-  void uploadToDevice();
+  // void createDeviceResources(core::Context &context);
+  void uploadToDevice(core::Buffer &sceneBuffer,
+                      StructDataLayout const &sceneLayout);
 };
 
 } // namespace resource

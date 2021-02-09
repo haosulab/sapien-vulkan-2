@@ -1,6 +1,7 @@
 #pragma once
 #include "allocator.h"
 #include "svulkan2/common/vk.h"
+#include "svulkan2/resource/manager.h"
 #include <future>
 
 namespace svulkan2 {
@@ -23,6 +24,11 @@ class Context {
 
   uint32_t mMaxNumObjects;
   uint32_t mMaxNumTextures;
+
+  std::unique_ptr<resource::SVResourceManager> mResourceManager;
+
+  vk::UniqueDescriptorSetLayout mMetallicDescriptorSetLayout;
+  vk::UniqueDescriptorSetLayout mSpecularDescriptorSetLayout;
 
 public:
   Context(uint32_t apiVersion = VK_API_VERSION_1_1, bool present = true,
@@ -49,6 +55,15 @@ public:
   }
   inline vk::DescriptorPool getDescriptorPool() const {
     return mDescriptorPool.get();
+  }
+  inline vk::DescriptorSetLayout getMetallicDescriptorSetLayout() const {
+    return mMetallicDescriptorSetLayout.get();
+  }
+  inline vk::DescriptorSetLayout getSpecularDescriptorSetLayout() const {
+    return mSpecularDescriptorSetLayout.get();
+  }
+  inline resource::SVResourceManager &getResourceManager() const {
+    return *mResourceManager;
   }
 
 private:

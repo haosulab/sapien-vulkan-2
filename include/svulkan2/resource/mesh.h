@@ -13,6 +13,7 @@ class SVMesh {
   std::vector<uint32_t> mIndices;
   std::unordered_map<std::string, std::vector<float>> mAttributes;
 
+  bool mDirty{true};
   bool mOnDevice{false};
   std::unique_ptr<core::Buffer> mVertexBuffer;
   std::unique_ptr<core::Buffer> mIndexBuffer;

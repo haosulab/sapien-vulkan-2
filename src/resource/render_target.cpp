@@ -9,6 +9,7 @@ SVRenderTarget::SVRenderTarget(std::string const &name, uint32_t width,
     : mName(name), mFormat(format), mWidth(width), mHeight(height) {}
 
 void SVRenderTarget::createDeviceResources(core::Context &context) {
+  bool isDepth = false;
   vk::ImageUsageFlags usage;
   if (mFormat == vk::Format::eR8G8B8A8Unorm ||
       mFormat == vk::Format::eR32G32B32A32Sfloat) {
@@ -19,6 +20,7 @@ void SVRenderTarget::createDeviceResources(core::Context &context) {
     usage = vk::ImageUsageFlagBits::eSampled |
             vk::ImageUsageFlagBits::eDepthStencilAttachment |
             vk::ImageUsageFlagBits::eTransferSrc;
+    isDepth = true;
   } else {
     throw std::runtime_error(
         "failed to create image resources: unsupported image format. Currently "
@@ -30,6 +32,23 @@ void SVRenderTarget::createDeviceResources(core::Context &context) {
       context, vk::Extent3D{mWidth, mHeight, 1}, mFormat, usage,
       VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, vk::SampleCountFlagBits::e1,
       1);
+  vk::ComponentMapping componentMapping(
+      vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG,
+      vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA);
+
+  vk::ImageViewCreateInfo info(
+      {}, mImage->getVulkanImage(), vk::ImageViewType::e2D, mFormat,
+      componentMapping,
+      vk::ImageSubresourceRange(isDepth ? vk::ImageAspectFlagBits::eDepth
+                                        : vk::ImageAspectFlagBits::eColor,
+                                0, 1, 0, 1));
+  mImageView = context.getDevice().createImageViewUnique(info);
+  mSampler = context.getDevice().createSamplerUnique(vk::SamplerCreateInfo(
+      {}, vk::Filter::eNearest, vk::Filter::eNearest,
+      vk::SamplerMipmapMode::eNearest, vk::SamplerAddressMode::eClampToBorder,
+      vk::SamplerAddressMode::eClampToBorder,
+      vk::SamplerAddressMode::eClampToBorder, 0.f, false, 0.f, false,
+      vk::CompareOp::eNever, 0.f, 0.f, vk::BorderColor::eFloatOpaqueBlack));
 }
 
 } // namespace resource

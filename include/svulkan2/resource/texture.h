@@ -69,8 +69,11 @@ public:
     mManager = manager;
   };
 
+  inline vk::ImageView getImageView() const { return mImageView.get(); }
+  inline vk::Sampler getSampler() const { return mSampler.get(); }
+
 private:
-  SVTexture();
+  SVTexture() = default;
 };
 
 } // namespace resource

@@ -51,7 +51,7 @@ public:
   }
 
 private:
-  SVImage();
+  SVImage() = default;
 };
 
 } // namespace resource

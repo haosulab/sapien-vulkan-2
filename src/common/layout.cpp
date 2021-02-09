@@ -85,6 +85,14 @@ InputDataLayout::computeVertexInputAttributesDescriptions() const {
   return vertexInputAttributeDescriptions;
 }
 
+bool InputDataLayout::operator==(InputDataLayout const &other) const {
+  return elements == other.elements;
+}
+
+bool InputDataLayout::operator!=(InputDataLayout const &other) const {
+  return !operator==(other);
+}
+
 std::vector<OutputDataLayout::Element>
 OutputDataLayout::getElementsSorted() const {
   std::vector<OutputDataLayout::Element> result;

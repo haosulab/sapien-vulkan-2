@@ -6,10 +6,9 @@ namespace fs = std::filesystem;
 namespace svulkan2 {
 namespace resource {
 
-SVResourceManager::SVResourceManager(
-    std::shared_ptr<RendererConfig> rendererConfig,
-    std::shared_ptr<ShaderConfig> shaderConfig)
-    : mRendererConfig(rendererConfig), mShaderConfig(shaderConfig) {}
+SVResourceManager::SVResourceManager() {
+  mDefaultTexture = SVTexture::FromData(1, 1, 4, {255, 255, 255, 255});
+}
 
 std::shared_ptr<SVImage>
 SVResourceManager::CreateImageFromFile(std::string const &filename,
@@ -81,6 +80,30 @@ SVResourceManager::CreateModelFromFile(std::string const &filename) {
   model->setManager(this);
   mModelRegistry[path].push_back(model);
   return model;
+}
+
+void SVResourceManager::setMaterialPipelineType(
+    ShaderConfig::MaterialPipeline pipeline) {
+  if (mMaterialPipeline == ShaderConfig::MaterialPipeline::eUNKNOWN) {
+    mMaterialPipeline = pipeline;
+    return;
+  }
+  if (mMaterialPipeline != pipeline) {
+    throw std::runtime_error(
+        "All shaders are required to use the same material pipeline!");
+  }
+}
+
+void SVResourceManager::setVertexLayout(
+    std::shared_ptr<InputDataLayout> layout) {
+  if (!mVertexLayout) {
+    mVertexLayout = layout;
+    return;
+  }
+  if (*mVertexLayout != *layout) {
+    throw std::runtime_error(
+        "All vertex layouts are required to be the same even across renderers");
+  }
 }
 
 } // namespace resource

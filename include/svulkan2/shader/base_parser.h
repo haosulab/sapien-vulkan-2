@@ -1,21 +1,16 @@
 #pragma once
 #include "glsl_compiler.h"
 #include "reflect.h"
+#include "svulkan2/common/err.h"
 #include "svulkan2/common/fs.h"
 #include "svulkan2/common/layout.h"
 
 namespace svulkan2 {
 namespace shader {
 
-inline void ASSERT(bool condition, std::string const &error) {
-  if (!condition) {
-    throw std::runtime_error(error);
-  }
-}
-
-template <typename Container, typename T>
-inline bool CONTAINS(Container &container, T const &element) {
-  return container.find(element) != container.end();
+inline std::string
+getOutTextureName(std::string variableName) { // remove "out" prefix
+  return variableName.substr(3, std::string::npos);
 }
 
 std::shared_ptr<InputDataLayout>
@@ -61,8 +56,12 @@ public:
   void loadSPVFiles(std::string const &vertFile, std::string const &fragFile);
   void loadSPVCode(std::vector<uint32_t> const &vertCode,
                    std::vector<uint32_t> const &fragCode);
-  virtual vk::PipelineLayout createPipelineLayout(vk::Device device) = 0;
   vk::PipelineLayout getPipelineLayout() const { return mPipelineLayout.get(); }
+
+  virtual std::shared_ptr<OutputDataLayout> getTextureOutputLayout() const = 0;
+  virtual std::vector<std::string> getRenderTargetNames() const = 0;
+  virtual vk::RenderPass getRenderPass() const = 0;
+  virtual vk::Pipeline getPipeline() const = 0;
 
 protected:
   virtual void reflectSPV() = 0;
