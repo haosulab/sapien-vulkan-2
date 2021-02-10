@@ -36,10 +36,10 @@ static bool checkValidationLayerSupport() {
 }
 #endif
 
-Context::Context(uint32_t apiVersion, bool present, uint32_t maxNumObjects,
+Context::Context(uint32_t apiVersion, bool present, uint32_t maxNumMaterials,
                  uint32_t maxNumTextures)
-    : mApiVersion(apiVersion), mPresent(present), mMaxNumObjects(maxNumObjects),
-      mMaxNumTextures(maxNumTextures) {
+    : mApiVersion(apiVersion), mPresent(present),
+      mMaxNumMaterials(maxNumMaterials), mMaxNumTextures(maxNumTextures) {
   createInstance();
   pickSuitableGpuAndQueueFamilyIndex();
   createDevice();
@@ -192,10 +192,10 @@ void Context::createCommandPool() {
 void Context::createDescriptorPool() {
   vk::DescriptorPoolSize pool_sizes[] = {
       {vk::DescriptorType::eCombinedImageSampler, mMaxNumTextures},
-      {vk::DescriptorType::eUniformBuffer, mMaxNumObjects}};
+      {vk::DescriptorType::eUniformBuffer, mMaxNumMaterials}};
   auto info = vk::DescriptorPoolCreateInfo(
       vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
-      mMaxNumTextures + mMaxNumObjects, 2, pool_sizes);
+      mMaxNumTextures + mMaxNumMaterials, 2, pool_sizes);
   mDescriptorPool = getDevice().createDescriptorPoolUnique(info);
 
   {

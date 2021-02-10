@@ -37,6 +37,8 @@ class Renderer {
   vk::UniqueDescriptorSet mDeferredSet;
   std::vector<vk::UniqueDescriptorSet> mCompositeSets;
 
+  bool mLastNumPointLights = 0;
+  bool mLastNumDirectionalLights = 0;
 public:
   Renderer(core::Context &context, std::shared_ptr<RendererConfig> config);
 

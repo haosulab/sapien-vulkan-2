@@ -1,4 +1,5 @@
 #include "svulkan2/resource/mesh.h"
+#include "svulkan2/common/log.h"
 #include <memory>
 
 namespace svulkan2 {
@@ -22,6 +23,7 @@ SVMesh::SVMesh(std::shared_ptr<InputDataLayout> layout)
 void SVMesh::setIndices(std::vector<uint32_t> const &indices) {
   mDirty = true;
   mIndices = indices;
+  mIndexCount = indices.size();
 }
 
 std::vector<uint32_t> const &SVMesh::getIndices(std::vector<uint32_t>) const {
@@ -31,17 +33,17 @@ std::vector<uint32_t> const &SVMesh::getIndices(std::vector<uint32_t>) const {
 void SVMesh::setVertexAttribute(std::string const &name,
                                 std::vector<float> const &attrib) {
   mDirty = true;
-  if (mVertexLayout->elements.find("name") == mVertexLayout->elements.end()) {
-    // TODO: give a warning
-    return;
-    // throw std::runtime_error("unknown vertex attribute " + name);
+  if (mVertexLayout->elements.find(name) == mVertexLayout->elements.end()) {
+    log::warn(
+        "failed to set vertex attribute \"{}\": it is not specified in the shader",
+        name);
   }
   mAttributes[name] = attrib;
 }
 
 std::vector<float> const &
 SVMesh::getVertexAttribute(std::string const &name) const {
-  if (mVertexLayout->elements.find("name") == mVertexLayout->elements.end()) {
+  if (mVertexLayout->elements.find(name) == mVertexLayout->elements.end()) {
     throw std::runtime_error("unknown vertex attribute " + name);
   }
   return mAttributes.at(name);

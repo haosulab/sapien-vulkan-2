@@ -11,6 +11,7 @@ namespace resource {
 class SVMesh {
   std::shared_ptr<InputDataLayout> mVertexLayout;
   std::vector<uint32_t> mIndices;
+  uint32_t mIndexCount{};
   std::unordered_map<std::string, std::vector<float>> mAttributes;
 
   bool mDirty{true};
@@ -32,6 +33,10 @@ public:
   void removeFromDevice();
 
   inline bool isOnDevice() const { return mOnDevice; }
+
+  inline core::Buffer &getVertexBuffer() const { return *mVertexBuffer; }
+  inline core::Buffer &getIndexBuffer() const { return *mIndexBuffer; }
+  inline uint32_t getIndexCount() const { return mIndexCount; }
 };
 } // namespace resource
 } // namespace svulkan2

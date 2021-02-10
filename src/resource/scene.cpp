@@ -12,13 +12,11 @@ SVScene::SVScene() {}
 
 void SVScene::addPointLight(PointLight const &pointLight) {
   mLightPropertyChanged = true;
-  mLightCountChanged = true;
   mPointLights.push_back(pointLight);
 }
 
 void SVScene::addDirectionalLight(DirectionalLight const &directionalLight) {
   mLightPropertyChanged = true;
-  mLightCountChanged = true;
   mDirectionalLights.push_back(directionalLight);
 }
 
@@ -38,7 +36,6 @@ void SVScene::setDirectionalLightAt(uint32_t index,
 
 void SVScene::removePointLightAt(uint32_t index) {
   mLightPropertyChanged = true;
-  mLightCountChanged = true;
   if (index < mPointLights.size()) {
     mPointLights.erase(mPointLights.begin() + index);
   }
@@ -46,7 +43,6 @@ void SVScene::removePointLightAt(uint32_t index) {
 
 void SVScene::removeDirectionalLightAt(uint32_t index) {
   mLightPropertyChanged = true;
-  mLightCountChanged = true;
   if (index < mDirectionalLights.size()) {
     mDirectionalLights.erase(mDirectionalLights.begin() + index);
   }

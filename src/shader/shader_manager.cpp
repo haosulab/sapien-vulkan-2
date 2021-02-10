@@ -233,9 +233,7 @@ ShaderManager::getColorRenderTargetLayoutsForPass(
 //     // compute final layout:
 //     TextureOperation nextOp = getNextOperation(texName, pass);
 //     switch (nextOp) {
-//     case TextureOperation::eTextureNoOp: // TODO : What should be the correct
-//                                          // layout if the RT is never used
-//                                          // again?
+//     case TextureOperation::eTextureNoOp: 
 //       layouts[texName].second = vk::ImageLayout::eTransferSrcOptimal;
 //       break;
 //     case TextureOperation::eTextureRead:

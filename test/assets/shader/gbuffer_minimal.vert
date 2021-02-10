@@ -3,14 +3,14 @@
 #extension GL_ARB_shading_language_420pack : enable
 
 
-layout(set = 1, binding = 0) uniform CameraBuffer {
+layout(set = 0, binding = 0) uniform CameraBuffer {
   mat4 viewMatrix;
   mat4 projectionMatrix;
   mat4 viewMatrixInverse;
   mat4 projectionMatrixInverse;
 } cameraBuffer;
 
-layout(set = 2, binding = 0) uniform ObjectBuffer {
+layout(set = 1, binding = 0) uniform ObjectBuffer {
   mat4 modelMatrix;
   uvec4 segmentation;
 } objectBuffer;

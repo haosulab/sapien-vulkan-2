@@ -8,15 +8,15 @@ void GbufferPassParser::reflectSPV() {
   spirv_cross::Compiler vertComp(mVertSPVCode);
   try {
     mVertexInputLayout = parseVertexInput(vertComp);
-    mCameraBufferLayout = parseCameraBuffer(vertComp, 0, 1);
-    mObjectBufferLayout = parseObjectBuffer(vertComp, 0, 2);
+    mCameraBufferLayout = parseCameraBuffer(vertComp, 0, 0);
+    mObjectBufferLayout = parseObjectBuffer(vertComp, 0, 1);
   } catch (std::runtime_error const &err) {
     throw std::runtime_error("[vert]" + std::string(err.what()));
   }
 
   spirv_cross::Compiler fragComp(mFragSPVCode);
   try {
-    mMaterialBufferLayout = parseMaterialBuffer(fragComp, 0, 3);
+    mMaterialBufferLayout = parseMaterialBuffer(fragComp, 0, 2);
     mCombinedSamplerLayout = parseCombinedSampler(fragComp);
     mTextureOutputLayout = parseTextureOutput(fragComp);
   } catch (std::runtime_error const &err) {
@@ -36,8 +36,8 @@ ShaderConfig::MaterialPipeline GbufferPassParser::getMaterialType() const {
 
 void GbufferPassParser::validate() const {
   for (auto &elem : mCombinedSamplerLayout->elements) {
-    ASSERT(elem.second.binding >= 1 && elem.second.set == 3,
-           "[frag]all textures should be bound to set 3, binding >= 1");
+    ASSERT(elem.second.binding >= 1 && elem.second.set == 2,
+           "[frag]all textures should be bound to set 2, binding >= 1");
   }
   for (auto &elem : mTextureOutputLayout->elements) {
     ASSERT(elem.second.name.substr(0, 3) == "out",

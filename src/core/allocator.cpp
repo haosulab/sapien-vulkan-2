@@ -1,8 +1,12 @@
 #include "svulkan2/core/allocator.h"
 #include "svulkan2/core/buffer.h"
 #include "svulkan2/core/context.h"
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
 #define VMA_IMPLEMENTATION
 #include <vk_mem_alloc.h>
+#pragma GCC diagnostic pop
 
 namespace svulkan2 {
 namespace core {

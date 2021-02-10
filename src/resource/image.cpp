@@ -69,24 +69,55 @@ void SVImage::removeFromDevice() {
   mImage.reset();
 }
 
-void SVImage::load() {
+std::future<void> SVImage::loadAsync() {
   if (mLoaded) {
-    return;
+    return {};
   }
-  if (mDescription.source != SVImageDescription::SourceType::eFILE) {
-    throw std::runtime_error(
-        "failed to load image: the image is not specified with a file");
-  }
+  return std::async(std::launch::async, [this]() {
+    std::lock_guard<std::mutex> lock(mLoadingMutex);
+    if (mLoaded) {
+      return;
+    }
+    if (mDescription.source != SVImageDescription::SourceType::eFILE) {
+      throw std::runtime_error(
+          "failed to load image: the image is not specified with a file");
+    }
 
-  int width, height, nrChannels;
-  unsigned char *data = stbi_load(mDescription.filename.c_str(), &width,
-                                  &height, &nrChannels, STBI_rgb_alpha);
-  mWidth = width;
-  mHeight = height;
-  mChannels = 4;
-  mData = std::vector(data, data + width * height * 4);
-  stbi_image_free(data);
-  mLoaded = true;
+    int width, height, nrChannels;
+    unsigned char *data = stbi_load(mDescription.filename.c_str(), &width,
+                                    &height, &nrChannels, STBI_rgb_alpha);
+    mWidth = width;
+    mHeight = height;
+    mChannels = 4;
+    mData = std::vector(data, data + width * height * 4);
+    stbi_image_free(data);
+    mLoaded = true;
+  });
+}
+
+void SVImage::load() {
+  loadAsync().wait();
+  // if (mLoaded) {
+  //   return;
+  // }
+  // std::lock_guard<std::mutex> lock(mLoadingMutex);
+  // if (mLoaded) {
+  //   return;
+  // }
+  // if (mDescription.source != SVImageDescription::SourceType::eFILE) {
+  //   throw std::runtime_error(
+  //       "failed to load image: the image is not specified with a file");
+  // }
+
+  // int width, height, nrChannels;
+  // unsigned char *data = stbi_load(mDescription.filename.c_str(), &width,
+  //                                 &height, &nrChannels, STBI_rgb_alpha);
+  // mWidth = width;
+  // mHeight = height;
+  // mChannels = 4;
+  // mData = std::vector(data, data + width * height * 4);
+  // stbi_image_free(data);
+  // mLoaded = true;
 }
 
 } // namespace resource

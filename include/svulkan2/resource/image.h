@@ -1,5 +1,6 @@
 #pragma once
 #include "svulkan2/core/image.h"
+#include <future>
 
 namespace svulkan2 {
 namespace resource {
@@ -28,6 +29,7 @@ class SVImage {
   bool mLoaded{};
   bool mOnDevice{};
 
+  std::mutex mLoadingMutex;
 public:
   static std::shared_ptr<SVImage> FromData(uint32_t width, uint32_t height,
                                            uint32_t channels,
@@ -42,6 +44,7 @@ public:
   inline bool isOnDevice() const { return mOnDevice; }
 
   /** load the image to host memory */
+  std::future<void> loadAsync();
   void load();
 
   inline core::Image *getDeviceImage() const { return mImage.get(); }

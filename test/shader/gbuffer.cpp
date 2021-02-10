@@ -112,10 +112,10 @@ TEST(Gbuffer, Minimal) {
   ASSERT_EQ(samplerLayout->elements["normalTexture"].binding, 3);
   ASSERT_EQ(samplerLayout->elements["metallicTexture"].binding, 4);
 
-  ASSERT_EQ(samplerLayout->elements["colorTexture"].set, 3);
-  ASSERT_EQ(samplerLayout->elements["roughnessTexture"].set, 3);
-  ASSERT_EQ(samplerLayout->elements["normalTexture"].set, 3);
-  ASSERT_EQ(samplerLayout->elements["metallicTexture"].set, 3);
+  ASSERT_EQ(samplerLayout->elements["colorTexture"].set, 2);
+  ASSERT_EQ(samplerLayout->elements["roughnessTexture"].set, 2);
+  ASSERT_EQ(samplerLayout->elements["normalTexture"].set, 2);
+  ASSERT_EQ(samplerLayout->elements["metallicTexture"].set, 2);
 
   // output
   auto outputLayout = gbuffer.getTextureOutputLayout();

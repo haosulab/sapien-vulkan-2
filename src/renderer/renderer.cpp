@@ -95,12 +95,16 @@ void Renderer::resize(int width, int height) {
 
 void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
                       resource::SVCamera &camera) {
-  if (mRequiresRebuild) {
+  int numPointLights = scene.getSVScene()->getPointLights().size();
+  int numDirectionalLights = scene.getSVScene()->getDirectionalLights().size();
+  bool numLightsChanged = (numPointLights != mLastNumPointLights) ||
+                          (numDirectionalLights != mLastNumDirectionalLights);
+  if (mRequiresRebuild || numLightsChanged) {
     mRequiresRebuild = false;
+    mLastNumPointLights = numPointLights;
+    mLastNumDirectionalLights = numDirectionalLights;
+
     prepareRenderTargets(mWidth, mHeight);
-    int numPointLights = scene.getSVScene()->getPointLights().size();
-    int numDirectionalLights =
-        scene.getSVScene()->getDirectionalLights().size();
     preparePipelines(numDirectionalLights, numPointLights);
     prepareFramebuffers(mWidth, mHeight);
   }
@@ -109,16 +113,132 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
   prepareSceneBuffer();
   prepareCameaBuffer();
 
-  // load objects to CPU
+  // load objects to CPU, if not already loaded
   for (auto obj : objects) {
     obj->getModel()->load();
   }
 
-  // upload objects to GPU
+  // upload objects to GPU, if not up-to-date
   for (auto obj : objects) {
     for (auto shape : obj->getModel()->getShapes()) {
       shape->material->uploadToDevice(*mContext);
       shape->mesh->uploadToDevice(*mContext);
+    }
+  }
+
+  // update camera
+  camera.uploadToDevice(*mCameraBuffer,
+                        *mShaderManager->getShaderConfig()->cameraBufferLayout);
+  // update scene
+  scene.getSVScene()->uploadToDevice(
+      *mSceneBuffer, *mShaderManager->getShaderConfig()->sceneBufferLayout);
+
+  // update objects
+  uint32_t i = 0;
+  for (auto obj : objects) {
+    obj->uploadToDevice(*mObjectBuffers[i++],
+                        *mShaderManager->getShaderConfig()->objectBufferLayout);
+  }
+
+  auto passes = mShaderManager->getAllPasses();
+  uint32_t composite_pass_index = 0;
+  vk::Viewport viewport{
+      0.f, 0.f, static_cast<float>(mWidth), static_cast<float>(mHeight),
+      0.f, 1.f};
+  vk::Rect2D scissor{vk::Offset2D{0u, 0u},
+                     vk::Extent2D{static_cast<uint32_t>(mWidth),
+                                  static_cast<uint32_t>(mHeight)}};
+  for (uint32_t pass_index = 0; i < passes.size(); ++i) {
+    auto pass = passes[i];
+    std::vector<vk::ClearValue> clearValues(
+        pass->getTextureOutputLayout()->elements.size(),
+        vk::ClearColorValue(std::array<float, 4>{0.f, 0.f, 0.f, 0.f}));
+    if (auto p = std::dynamic_pointer_cast<shader::GbufferPassParser>(pass)) {
+      clearValues.push_back(vk::ClearDepthStencilValue(1.0f, 0));
+      vk::RenderPassBeginInfo renderPassBeginInfo{
+          pass->getRenderPass(), mFramebuffers[pass_index].get(),
+          vk::Rect2D({0, 0}, {static_cast<uint32_t>(mWidth),
+                              static_cast<uint32_t>(mHeight)}),
+          static_cast<uint32_t>(clearValues.size()), clearValues.data()};
+      commandBuffer.beginRenderPass(renderPassBeginInfo,
+                                    vk::SubpassContents::eInline);
+      commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics,
+                                 pass->getPipeline());
+      commandBuffer.setViewport(0, viewport);
+      commandBuffer.setScissor(0, scissor);
+
+      commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
+                                       pass->getPipelineLayout(), 0,
+                                       mCameraSet.get(), nullptr);
+
+      uint32_t i = 0;
+      for (auto obj : objects) {
+        commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
+                                         pass->getPipelineLayout(), 1,
+                                         mObjectSet[i].get(), nullptr);
+        auto shapes = obj->getModel()->getShapes();
+        for (auto shape : shapes) {
+          commandBuffer.bindDescriptorSets(
+              vk::PipelineBindPoint::eGraphics, pass->getPipelineLayout(), 1,
+              shape->material->getDescriptorSet(), nullptr);
+          commandBuffer.bindVertexBuffers(
+              0, shape->mesh->getVertexBuffer().getVulkanBuffer(),
+              std::vector<vk::DeviceSize>(1, 0));
+          commandBuffer.bindIndexBuffer(
+              shape->mesh->getIndexBuffer().getVulkanBuffer(), 0,
+              vk::IndexType::eUint32);
+          commandBuffer.drawIndexed(shape->mesh->getIndexCount(), 1, 0, 0, 0);
+        }
+      }
+      commandBuffer.endRenderPass();
+    } else if (auto p = std::dynamic_pointer_cast<shader::DeferredPassParser>(
+                   pass)) {
+      vk::RenderPassBeginInfo renderPassBeginInfo{
+          pass->getRenderPass(), mFramebuffers[pass_index].get(),
+          vk::Rect2D{
+              {0, 0},
+              {static_cast<uint32_t>(mWidth), static_cast<uint32_t>(mHeight)}},
+          static_cast<uint32_t>(clearValues.size()), clearValues.data()};
+
+      commandBuffer.beginRenderPass(renderPassBeginInfo,
+                                    vk::SubpassContents::eInline);
+      commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics,
+                                 pass->getPipeline());
+      commandBuffer.setViewport(0, viewport);
+      commandBuffer.setScissor(0, scissor);
+      commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
+                                       pass->getPipelineLayout(), 0,
+                                       mSceneSet.get(), nullptr);
+      commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
+                                       pass->getPipelineLayout(), 1,
+                                       mCameraSet.get(), nullptr);
+      commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
+                                       pass->getPipelineLayout(), 2,
+                                       mDeferredSet.get(), nullptr);
+      commandBuffer.draw(3, 1, 0, 0);
+      commandBuffer.endRenderPass();
+    } else if (auto p = std::dynamic_pointer_cast<shader::CompositePassParser>(
+                   pass)) {
+      vk::RenderPassBeginInfo renderPassBeginInfo(
+          pass->getRenderPass(), mFramebuffers[pass_index].get(),
+          vk::Rect2D{
+              {0, 0},
+              {static_cast<uint32_t>(mWidth), static_cast<uint32_t>(mHeight)}},
+          static_cast<uint32_t>(clearValues.size()), clearValues.data());
+
+      commandBuffer.beginRenderPass(renderPassBeginInfo,
+                                    vk::SubpassContents::eInline);
+      commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics,
+                                 pass->getPipeline());
+      commandBuffer.setViewport(0, viewport);
+      commandBuffer.setScissor(0, scissor);
+      commandBuffer.bindDescriptorSets(
+          vk::PipelineBindPoint::eGraphics, pass->getPipelineLayout(), 0,
+          mCompositeSets[composite_pass_index++].get(), nullptr);
+      commandBuffer.draw(3, 1, 0, 0);
+      commandBuffer.endRenderPass();
+    } else {
+      throw std::runtime_error("Unknown pass");
     }
   }
 }

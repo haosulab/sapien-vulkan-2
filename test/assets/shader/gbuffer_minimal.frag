@@ -1,6 +1,6 @@
 #version 450
 
-layout(set = 3, binding = 0) uniform MaterialBuffer {
+layout(set = 2, binding = 0) uniform MaterialBuffer {
   vec4 baseColor;
   float fresnel;
   float roughness;
@@ -9,10 +9,10 @@ layout(set = 3, binding = 0) uniform MaterialBuffer {
   int textureMask;
 } materialBuffer;
 
-layout(set = 3, binding = 1) uniform sampler2D colorTexture;
-layout(set = 3, binding = 2) uniform sampler2D roughnessTexture;
-layout(set = 3, binding = 3) uniform sampler2D normalTexture;
-layout(set = 3, binding = 4) uniform sampler2D metallicTexture;
+layout(set = 2, binding = 1) uniform sampler2D colorTexture;
+layout(set = 2, binding = 2) uniform sampler2D roughnessTexture;
+layout(set = 2, binding = 3) uniform sampler2D normalTexture;
+layout(set = 2, binding = 4) uniform sampler2D metallicTexture;
 
 layout(location = 0) in vec4 inPosition;
 
