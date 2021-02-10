@@ -18,10 +18,15 @@ ShaderManager::ShaderManager(std::shared_ptr<RendererConfig> config)
   mGbufferPass = std::make_shared<GbufferPassParser>();
   mDeferredPass = std::make_shared<DeferredPassParser>();
   mShaderConfig = std::make_shared<ShaderConfig>();
+  processShadersInFolder(config->shaderDir);
 }
 
 void ShaderManager::processShadersInFolder(std::string const &path) {
   mNumPasses = 0;
+  if (!fs::is_directory(fs::path(path))) {
+    throw std::runtime_error("[shader manager] " + path +
+                             " is not a directory");
+  }
   if (!fs::is_regular_file(fs::path(path) / "gbuffer.vert")) {
     throw std::runtime_error("[shader manager] gbuffer.vert is required");
   }
@@ -53,6 +58,7 @@ void ShaderManager::processShadersInFolder(std::string const &path) {
     if (filename.substr(0, 9) == "composite" &&
         filename.substr(filename.length() - 5, 5) == ".frag")
       numCompositePasses++;
+    // FIXME: do an error check here (composite passes must be consecutive integers starting from 0)
   }
 
   mCompositePasses.resize(numCompositePasses);
@@ -78,6 +84,7 @@ void ShaderManager::populateShaderConfig() {
 
 void ShaderManager::prepareRenderTargetFormats() {
   auto allPasses = getAllPasses();
+  mRenderTargetFormats["Depth"] = mRenderConfig->depthFormat;
 
   for (auto pass : allPasses) {
     for (auto &elem : pass->getTextureOutputLayout()->elements) {
@@ -103,6 +110,7 @@ void ShaderManager::prepareRenderTargetFormats() {
                              "\"");
         }
       }
+      mRenderTargetFormats[texName] = texFormat;
     }
   }
 }
@@ -233,7 +241,7 @@ ShaderManager::getColorRenderTargetLayoutsForPass(
 //     // compute final layout:
 //     TextureOperation nextOp = getNextOperation(texName, pass);
 //     switch (nextOp) {
-//     case TextureOperation::eTextureNoOp: 
+//     case TextureOperation::eTextureNoOp:
 //       layouts[texName].second = vk::ImageLayout::eTransferSrcOptimal;
 //       break;
 //     case TextureOperation::eTextureRead:
@@ -300,15 +308,14 @@ void ShaderManager::createDescriptorSetLayouts(vk::Device device) {
 }
 
 void ShaderManager::createPipelines(core::Context &context,
-                                    vk::CullModeFlags cullMode,
-                                    vk::FrontFace frontFace,
                                     int numDirectionalLights,
                                     int numPointLights) {
   auto device = context.getDevice();
   createDescriptorSetLayouts(device);
   mGbufferPass->createGraphicsPipeline(
-      device, mRenderConfig->colorFormat, mRenderConfig->depthFormat, cullMode,
-      frontFace, getColorRenderTargetLayoutsForPass(mGbufferPass),
+      device, mRenderConfig->colorFormat, mRenderConfig->depthFormat,
+      mRenderConfig->culling, vk::FrontFace::eCounterClockwise,
+      getColorRenderTargetLayoutsForPass(mGbufferPass),
       {mCameraLayout.get(), mObjectLayout.get(),
        mGbufferPass->getMaterialType() ==
                ShaderConfig::MaterialPipeline::eMETALLIC

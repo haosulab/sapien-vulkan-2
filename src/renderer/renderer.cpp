@@ -43,7 +43,6 @@ Renderer::Renderer(core::Context &context,
                    std::shared_ptr<RendererConfig> config)
     : mContext(&context), mConfig(config) {
   mShaderManager = std::make_unique<shader::ShaderManager>(config);
-  mShaderManager->processShadersInFolder(config->shaderDir);
 
   vk::DescriptorPoolSize pool_sizes[] = {
       {vk::DescriptorType::eCombinedImageSampler,
@@ -65,9 +64,8 @@ void Renderer::prepareRenderTargets(uint32_t width, uint32_t height) {
 }
 
 void Renderer::preparePipelines(int numDirectionalLights, int numPointLights) {
-  mShaderManager->createPipelines(*mContext, mConfig->culling,
-                                  vk::FrontFace::eCounterClockwise,
-                                  numDirectionalLights, numPointLights);
+  mShaderManager->createPipelines(*mContext, numDirectionalLights,
+                                  numPointLights);
 }
 
 void Renderer::prepareFramebuffers(uint32_t width, uint32_t height) {

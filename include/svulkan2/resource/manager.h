@@ -7,8 +7,6 @@ namespace svulkan2 {
 namespace resource {
 
 class SVResourceManager {
-  std::shared_ptr<RendererConfig> mRendererConfig;
-
   std::unordered_map<std::string, std::vector<std::shared_ptr<SVModel>>>
       mModelRegistry;
   std::unordered_map<std::string, std::vector<std::shared_ptr<SVTexture>>>
@@ -40,10 +38,6 @@ public:
   };
 
   std::shared_ptr<SVModel> CreateModelFromFile(std::string const &filename);
-
-  std::shared_ptr<RendererConfig> getRendererConfig() const {
-    return mRendererConfig;
-  }
 
   void setMaterialPipelineType(ShaderConfig::MaterialPipeline pipeline);
   inline ShaderConfig::MaterialPipeline getMaterialPipelineType() const {

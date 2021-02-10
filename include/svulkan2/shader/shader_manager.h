@@ -1,6 +1,6 @@
 #pragma once
-#include "svulkan2/core/context.h"
 #include "svulkan2/common/config.h"
+#include "svulkan2/core/context.h"
 #include "svulkan2/shader/composite.h"
 #include "svulkan2/shader/deferred.h"
 #include "svulkan2/shader/gbuffer.h"
@@ -35,7 +35,6 @@ class ShaderManager {
 
 public:
   ShaderManager(std::shared_ptr<RendererConfig> config = nullptr);
-  void processShadersInFolder(std::string const &folder);
 
   std::shared_ptr<RendererConfig> getConfig() const { return mRenderConfig; }
   std::shared_ptr<GbufferPassParser> getGbufferPass() const {
@@ -68,8 +67,7 @@ public:
   // std::vector<vk::PipelineLayout>
   // getPipelinesLayouts(); // call only after createPipelines.
 
-  void createPipelines(core::Context &context, vk::CullModeFlags cullMode,
-                       vk::FrontFace frontFace, int numDirectionalLights = -1,
+  void createPipelines(core::Context &context, int numDirectionalLights = -1,
                        int numPointLights = -1);
   std::vector<std::shared_ptr<BaseParser>> getAllPasses() const;
 
@@ -83,6 +81,7 @@ public:
   }
 
 private:
+  void processShadersInFolder(std::string const &folder);
   void createDescriptorSetLayouts(vk::Device device);
   void populateShaderConfig();
   void prepareRenderTargetFormats();
