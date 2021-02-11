@@ -394,21 +394,29 @@ parseSpecializationConstant(spirv_cross::Compiler &compiler) {
   return layout;
 }
 
+std::future<void> BaseParser::loadGLSLFilesAsync(std::string const &vertFile,
+                                                 std::string const &fragFile) {
+  return std::async(std::launch::async,
+                    [=, this]() { loadGLSLFiles(vertFile, fragFile); });
+}
+
 void BaseParser::loadGLSLFiles(std::string const &vertFile,
                                std::string const &fragFile) {
   GLSLCompiler compiler;
+  log::info("Compiling: " + vertFile);
   mVertSPVCode = compiler.compileToSpirv(vk::ShaderStageFlagBits::eVertex,
                                          readFile(vertFile));
-  log::info("shader compiled: " + vertFile);
+  log::info("Compiled: " + vertFile);
 
+  log::info("Compiling: " + vertFile);
   mFragSPVCode = compiler.compileToSpirv(vk::ShaderStageFlagBits::eFragment,
                                          readFile(fragFile));
-  log::info("shader compiled: " + fragFile);
+  log::info("Compiled: " + fragFile);
 
   try {
     reflectSPV();
   } catch (std::runtime_error const &err) {
-    throw std::runtime_error(vertFile + "|" + fragFile +
+    throw std::runtime_error("[" + vertFile + "|" + fragFile + "]" +
                              std::string(err.what()));
   }
 }

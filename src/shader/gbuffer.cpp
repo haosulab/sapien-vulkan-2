@@ -106,7 +106,7 @@ vk::RenderPass GbufferPassParser::createRenderPass(
     if (elems[i].dtype == eFLOAT4) {
       format = colorFormat;
     } else if (elems[i].dtype == eUINT4) {
-      format = vk::Format::eR32G32B32A32Sfloat;
+      format = vk::Format::eR32G32B32A32Uint;
     } else {
       throw std::runtime_error(
           "only float4 and uint4 are allowed in output attachments");
@@ -152,9 +152,9 @@ vk::Pipeline GbufferPassParser::createGraphicsPipeline(
   vk::UniquePipelineCache pipelineCache =
       device.createPipelineCacheUnique(vk::PipelineCacheCreateInfo());
   auto vsm = device.createShaderModuleUnique(
-      {{}, mVertSPVCode.size(), mVertSPVCode.data()});
+      {{}, mVertSPVCode.size() * sizeof(uint32_t), mVertSPVCode.data()});
   auto fsm = device.createShaderModuleUnique(
-      {{}, mFragSPVCode.size(), mFragSPVCode.data()});
+      {{}, mFragSPVCode.size() * sizeof(uint32_t), mFragSPVCode.data()});
   std::array<vk::PipelineShaderStageCreateInfo, 2>
       pipelineShaderStageCreateInfos{
           vk::PipelineShaderStageCreateInfo(

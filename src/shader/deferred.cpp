@@ -56,7 +56,7 @@ vk::PipelineLayout DeferredPassParser::createPipelineLayout(
 }
 
 vk::RenderPass DeferredPassParser::createRenderPass(
-    vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
+    vk::Device device, vk::Format colorFormat,
     std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const &layouts) {
   std::vector<vk::AttachmentDescription> attachmentDescriptions;
   std::vector<vk::AttachmentReference> colorAttachments;
@@ -68,7 +68,7 @@ vk::RenderPass DeferredPassParser::createRenderPass(
     if (elems[i].dtype == eFLOAT4) {
       format = colorFormat;
     } else if (elems[i].dtype == eUINT4) {
-      format = vk::Format::eR32G32B32A32Sfloat;
+      format = vk::Format::eR32G32B32A32Uint;
     } else {
       throw std::runtime_error(
           "only float4 and uint4 are allowed in output attachments");
@@ -81,21 +81,10 @@ vk::RenderPass DeferredPassParser::createRenderPass(
         vk::AttachmentStoreOp::eDontCare, // stencil load and store op
         layouts[i].first, layouts[i].second));
   }
-  attachmentDescriptions.push_back(vk::AttachmentDescription(
-      vk::AttachmentDescriptionFlags(), depthFormat,
-      vk::SampleCountFlagBits::e1, vk::AttachmentLoadOp::eLoad,
-      vk::AttachmentStoreOp::eStore, // depth attachment
-      vk::AttachmentLoadOp::eDontCare,
-      vk::AttachmentStoreOp::eDontCare, // stencil
-      vk::ImageLayout::eDepthStencilReadOnlyOptimal,
-      vk::ImageLayout::eDepthStencilReadOnlyOptimal));
-
-  vk::AttachmentReference depthAttachment(
-      elems.size(), vk::ImageLayout::eDepthStencilAttachmentOptimal);
 
   vk::SubpassDescription subpassDescription(
       {}, vk::PipelineBindPoint::eGraphics, 0, nullptr, colorAttachments.size(),
-      colorAttachments.data(), nullptr, &depthAttachment);
+      colorAttachments.data(), nullptr, nullptr);
 
   mRenderPass = device.createRenderPassUnique(vk::RenderPassCreateInfo(
       {}, attachmentDescriptions.size(), attachmentDescriptions.data(), 1,
@@ -105,22 +94,21 @@ vk::RenderPass DeferredPassParser::createRenderPass(
 }
 
 vk::Pipeline DeferredPassParser::createGraphicsPipeline(
-    vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
+    vk::Device device, vk::Format colorFormat,
     std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
         &renderTargetLayouts,
     std::vector<vk::DescriptorSetLayout> descriptorSetLayouts,
     int numDirectionalLights, int numPointLights) {
   // render pass
-  auto renderPass =
-      createRenderPass(device, colorFormat, depthFormat, renderTargetLayouts);
+  auto renderPass = createRenderPass(device, colorFormat, renderTargetLayouts);
 
   // shaders
   vk::UniquePipelineCache pipelineCache =
       device.createPipelineCacheUnique(vk::PipelineCacheCreateInfo());
   auto vsm = device.createShaderModuleUnique(
-      {{}, mVertSPVCode.size(), mVertSPVCode.data()});
+      {{}, mVertSPVCode.size() * sizeof(uint32_t), mVertSPVCode.data()});
   auto fsm = device.createShaderModuleUnique(
-      {{}, mFragSPVCode.size(), mFragSPVCode.data()});
+      {{}, mFragSPVCode.size() * sizeof(uint32_t), mFragSPVCode.data()});
 
   // specialization Constants
   auto elems = mSpecializationConstantLayout->getElementsSorted();

@@ -37,6 +37,7 @@ void SVMesh::setVertexAttribute(std::string const &name,
     log::warn(
         "failed to set vertex attribute \"{}\": it is not specified in the shader",
         name);
+    return;
   }
   mAttributes[name] = attrib;
 }

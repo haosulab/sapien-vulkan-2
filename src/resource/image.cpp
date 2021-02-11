@@ -57,7 +57,8 @@ void SVImage::uploadToDevice(core::Context &context) {
   mImage = std::make_unique<core::Image>(
       context, vk::Extent3D{mWidth, mHeight, 1},
       mChannels == 4 ? vk::Format::eR8G8B8A8Unorm : vk::Format::eR8Unorm,
-      vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst,
+      vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst |
+          vk::ImageUsageFlagBits::eTransferSrc,
       VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, vk::SampleCountFlagBits::e1,
       mDescription.mipLevels);
   mImage->upload(mData.data(), mData.size() * sizeof(uint8_t));
@@ -71,7 +72,7 @@ void SVImage::removeFromDevice() {
 
 std::future<void> SVImage::loadAsync() {
   if (mLoaded) {
-    return {};
+    return std::async(std::launch::deferred, [](){});
   }
   return std::async(std::launch::async, [this]() {
     std::lock_guard<std::mutex> lock(mLoadingMutex);
@@ -96,7 +97,7 @@ std::future<void> SVImage::loadAsync() {
 }
 
 void SVImage::load() {
-  loadAsync().wait();
+  loadAsync().get();
   // if (mLoaded) {
   //   return;
   // }

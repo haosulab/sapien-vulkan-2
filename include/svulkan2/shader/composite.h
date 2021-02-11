@@ -32,11 +32,11 @@ public:
   createPipelineLayout(vk::Device device,
                        std::vector<vk::DescriptorSetLayout> layouts);
   vk::RenderPass createRenderPass(
-      vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
+      vk::Device device, vk::Format colorFormat,
       std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const &layouts);
 
   vk::Pipeline createGraphicsPipeline(
-      vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
+      vk::Device device, vk::Format colorFormat,
       std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
           &renderTargetLayouts,
       std::vector<vk::DescriptorSetLayout> const &descriptorSetLayouts);

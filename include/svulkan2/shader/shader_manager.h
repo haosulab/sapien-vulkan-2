@@ -59,7 +59,7 @@ public:
   inline vk::DescriptorSetLayout getDeferredDescriptorSetLayout() const {
     return mDeferredLayout.get();
   }
-  std::vector<vk::DescriptorSetLayout> getCompositeDescriptorSetLayout() const;
+  std::vector<vk::DescriptorSetLayout> getCompositeDescriptorSetLayouts() const;
 
   // std::vector<vk::Pipeline> getPipelines() const { return mPipelines; }
   // std::vector<vk::RenderPass> getRenderPasses() const { return mRenderPasses;

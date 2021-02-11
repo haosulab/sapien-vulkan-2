@@ -38,6 +38,7 @@ class SVTexture {
    */
   class SVResourceManager *mManager;
 
+  std::mutex mLoadingMutex;
 public:
   static std::shared_ptr<SVTexture> FromFile(
       std::string const &filename, uint32_t mipLevels,
@@ -59,6 +60,7 @@ public:
 
   inline bool isOnDevice() const { return mOnDevice && mImage->isOnDevice(); }
   inline bool isLoaded() const { return mLoaded; }
+  std::future<void> loadAsync();
   void load();
 
   inline SVTextureDescription const &getDescription() const {

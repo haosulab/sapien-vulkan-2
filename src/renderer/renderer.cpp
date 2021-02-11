@@ -44,6 +44,12 @@ Renderer::Renderer(core::Context &context,
     : mContext(&context), mConfig(config) {
   mShaderManager = std::make_unique<shader::ShaderManager>(config);
 
+  mContext->getResourceManager().setMaterialPipelineType(
+      mShaderManager->getShaderConfig()->materialPipeline);
+
+  mContext->getResourceManager().setVertexLayout(
+      mShaderManager->getShaderConfig()->vertexLayout);
+
   vk::DescriptorPoolSize pool_sizes[] = {
       {vk::DescriptorType::eCombinedImageSampler,
        100}, // render targets and input textures TODO: configure instead of 100
@@ -79,13 +85,17 @@ void Renderer::prepareFramebuffers(uint32_t width, uint32_t height) {
     }
     vk::FramebufferCreateInfo info({}, parsers[i]->getRenderPass(),
                                    attachments.size(), attachments.data(),
-                                   width, height);
+                                   width, height, 1);
     mFramebuffers.push_back(
         mContext->getDevice().createFramebufferUnique(info));
   }
 }
 
 void Renderer::resize(int width, int height) {
+  if (width <= 0 || height <= 0) {
+    throw std::runtime_error(
+        "failed to resize: width and height must be positive.");
+  }
   mWidth = width;
   mHeight = height;
   mRequiresRebuild = true;
@@ -93,6 +103,10 @@ void Renderer::resize(int width, int height) {
 
 void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
                       resource::SVCamera &camera) {
+  if (mWidth <= 0 || mHeight <= 0) {
+    throw std::runtime_error(
+        "failed to render: resize must be called before rendering.");
+  }
   int numPointLights = scene.getSVScene()->getPointLights().size();
   int numDirectionalLights = scene.getSVScene()->getDirectionalLights().size();
   bool numLightsChanged = (numPointLights != mLastNumPointLights) ||
@@ -105,6 +119,7 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
     prepareRenderTargets(mWidth, mHeight);
     preparePipelines(numDirectionalLights, numPointLights);
     prepareFramebuffers(mWidth, mHeight);
+    prepareDeferredDescriptorSets();
   }
   auto objects = scene.getObjects();
   prepareObjectBuffers(objects.size());
@@ -112,8 +127,12 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
   prepareCameaBuffer();
 
   // load objects to CPU, if not already loaded
+  std::vector<std::future<void>> futures;
   for (auto obj : objects) {
-    obj->getModel()->load();
+    futures.push_back(obj->getModel()->loadAsync());
+  }
+  for (auto &f : futures) {
+    f.get();
   }
 
   // upload objects to GPU, if not up-to-date
@@ -132,10 +151,10 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
       *mSceneBuffer, *mShaderManager->getShaderConfig()->sceneBufferLayout);
 
   // update objects
-  uint32_t i = 0;
-  for (auto obj : objects) {
-    obj->uploadToDevice(*mObjectBuffers[i++],
-                        *mShaderManager->getShaderConfig()->objectBufferLayout);
+  for (uint32_t i = 0; i < objects.size(); ++i) {
+    objects[i]->uploadToDevice(
+        *mObjectBuffers[i],
+        *mShaderManager->getShaderConfig()->objectBufferLayout);
   }
 
   auto passes = mShaderManager->getAllPasses();
@@ -146,8 +165,8 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
   vk::Rect2D scissor{vk::Offset2D{0u, 0u},
                      vk::Extent2D{static_cast<uint32_t>(mWidth),
                                   static_cast<uint32_t>(mHeight)}};
-  for (uint32_t pass_index = 0; i < passes.size(); ++i) {
-    auto pass = passes[i];
+  for (uint32_t pass_index = 0; pass_index < passes.size(); ++pass_index) {
+    auto pass = passes[pass_index];
     std::vector<vk::ClearValue> clearValues(
         pass->getTextureOutputLayout()->elements.size(),
         vk::ClearColorValue(std::array<float, 4>{0.f, 0.f, 0.f, 0.f}));
@@ -177,7 +196,7 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
         auto shapes = obj->getModel()->getShapes();
         for (auto shape : shapes) {
           commandBuffer.bindDescriptorSets(
-              vk::PipelineBindPoint::eGraphics, pass->getPipelineLayout(), 1,
+              vk::PipelineBindPoint::eGraphics, pass->getPipelineLayout(), 2,
               shape->material->getDescriptorSet(), nullptr);
           commandBuffer.bindVertexBuffers(
               0, shape->mesh->getVertexBuffer().getVulkanBuffer(),
@@ -281,6 +300,48 @@ void Renderer::prepareObjectBuffers(uint32_t numObjects) {
                            mSceneBuffer->getVulkanBuffer(), nullptr}},
                          {}, 0);
     mObjectSet.push_back(std::move(objectSet));
+  }
+}
+
+void Renderer::prepareDeferredDescriptorSets() {
+  // deferred set
+  {
+    auto layout = mShaderManager->getDeferredDescriptorSetLayout();
+    mDeferredSet = std::move(
+        mContext->getDevice()
+            .allocateDescriptorSetsUnique(vk::DescriptorSetAllocateInfo(
+                mDescriptorPool.get(), 1, &layout))
+            .front());
+    std::vector<std::tuple<vk::ImageView, vk::Sampler>> textureData;
+    auto names = mShaderManager->getDeferredPass()->getRenderTargetNames();
+    for (auto &name : names) {
+      textureData.push_back({mRenderTargets[name]->getImageView(),
+                             mRenderTargets[name]->getSampler()});
+    }
+    updateDescriptorSets(mContext->getDevice(), mDeferredSet.get(), {},
+                         textureData, 0);
+  }
+
+  // composite sets
+  auto compositePasses = mShaderManager->getCompositePasses();
+  auto compositeLayouts = mShaderManager->getCompositeDescriptorSetLayouts();
+  mCompositeSets.clear();
+  mCompositeSets.reserve(compositePasses.size());
+  for (uint32_t i = 0; i < compositePasses.size(); ++i) {
+    auto layout = compositeLayouts[i];
+    mCompositeSets.push_back(std::move(
+        mContext->getDevice()
+            .allocateDescriptorSetsUnique(vk::DescriptorSetAllocateInfo(
+                mDescriptorPool.get(), 1, &layout))
+            .front()));
+    std::vector<std::tuple<vk::ImageView, vk::Sampler>> textureData;
+    auto names = compositePasses[i]->getRenderTargetNames();
+    for (auto &name : names) {
+      textureData.push_back({mRenderTargets[name]->getImageView(),
+                             mRenderTargets[name]->getSampler()});
+    }
+    updateDescriptorSets(mContext->getDevice(), mCompositeSets.back().get(), {},
+                         textureData, 0);
   }
 }
 

@@ -39,14 +39,42 @@ public:
 
   std::shared_ptr<SVModel> CreateModelFromFile(std::string const &filename);
 
+  /** release all cached resources */
+  void clearCachedResources();
+
   void setMaterialPipelineType(ShaderConfig::MaterialPipeline pipeline);
   inline ShaderConfig::MaterialPipeline getMaterialPipelineType() const {
+    if (mMaterialPipeline == ShaderConfig::MaterialPipeline::eUNKNOWN) {
+      throw std::runtime_error(
+          "[resource manager] getMaterialPipelineType called before "
+          "setMaterialPipelineType is not allowed");
+    }
     return mMaterialPipeline;
   }
 
   void setVertexLayout(std::shared_ptr<InputDataLayout> layout);
   inline std::shared_ptr<InputDataLayout> getVertexLayout() const {
+    if (!mVertexLayout) {
+      throw std::runtime_error("[resource manager] getVertexLayout called "
+                               "before setVertexLayout is not allowed");
+    }
     return mVertexLayout;
+  }
+
+  std::unordered_map<std::string, std::vector<std::shared_ptr<SVModel>>> const &
+  getModels() const {
+    return mModelRegistry;
+  }
+
+  std::unordered_map<std::string, std::vector<std::shared_ptr<SVTexture>>> const
+      &
+      getTextures() const {
+    return mTextureRegistry;
+  }
+
+  std::unordered_map<std::string, std::vector<std::shared_ptr<SVImage>>> const &
+  getImages() const {
+    return mImageRegistry;
   }
 };
 

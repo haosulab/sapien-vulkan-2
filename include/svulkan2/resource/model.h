@@ -24,6 +24,8 @@ class SVModel {
    */
   class SVResourceManager *mManager;
 
+  std::mutex mLoadingMutex;
+
 public:
   static std::shared_ptr<SVModel> FromFile(std::string const &filename);
   static std::shared_ptr<SVModel>
@@ -38,7 +40,8 @@ public:
    */
   inline bool isLoaded() const { return mLoaded; }
 
-  void load();
+  // void load();
+  std::future<void> loadAsync();
 
   inline ModelDescription const &getDescription() const { return mDescription; }
 

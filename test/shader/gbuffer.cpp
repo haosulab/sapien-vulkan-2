@@ -6,8 +6,10 @@ using namespace svulkan2::shader;
 
 TEST(Gbuffer, Minimal) {
   GbufferPassParser gbuffer;
+  GLSLCompiler::InitializeProcess();
   gbuffer.loadGLSLFiles("../test/assets/shader/gbuffer_minimal.vert",
                         "../test/assets/shader/gbuffer_minimal.frag");
+  GLSLCompiler::FinalizeProcess();
 
   // vertex
   auto vertexLayout = gbuffer.getVertexInputLayout();

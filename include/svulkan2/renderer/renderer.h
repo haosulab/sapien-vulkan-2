@@ -75,6 +75,7 @@ private:
   void prepareSceneBuffer();
   void prepareObjectBuffers(uint32_t numObjects);
   void prepareCameaBuffer();
+  void prepareDeferredDescriptorSets();
 };
 
 } // namespace renderer

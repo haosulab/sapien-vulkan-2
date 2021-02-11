@@ -6,8 +6,10 @@ using namespace svulkan2::shader;
 
 TEST(Composite, Minimal) {
   CompositePassParser composite;
+  GLSLCompiler::InitializeProcess();
   composite.loadGLSLFiles("../test/assets/shader/composite_minimal.vert",
-                         "../test/assets/shader/composite_minimal.frag");
+                          "../test/assets/shader/composite_minimal.frag");
+  GLSLCompiler::FinalizeProcess();
 
   auto outputLayout = composite.getTextureOutputLayout();
   ASSERT_TRUE(CONTAINS(outputLayout->elements, "outLighting2"));

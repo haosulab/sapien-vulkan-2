@@ -41,23 +41,26 @@ SVTexture::FromData(uint32_t width, uint32_t height, uint32_t channels,
 }
 
 void SVTexture::uploadToDevice(core::Context &context) {
+  if (mOnDevice) {
+    return;
+  }
   if (!mImage->isOnDevice()) {
     mImage->uploadToDevice(context);
-    mImageView =
-        context.getDevice().createImageViewUnique(vk::ImageViewCreateInfo(
-            {}, mImage->getDeviceImage()->getVulkanImage(),
-            vk::ImageViewType::e2D, mImage->getDeviceImage()->getFormat(),
-            vk::ComponentSwizzle::eIdentity,
-            vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0,
-                                      mDescription.mipLevels, 0, 1)));
-    mSampler = context.getDevice().createSamplerUnique(vk::SamplerCreateInfo(
-        {}, mDescription.magFilter, mDescription.minFilter,
-        vk::SamplerMipmapMode::eLinear, mDescription.addressModeU,
-        mDescription.addressModeV, vk::SamplerAddressMode::eRepeat, 0.f, false,
-        0.f, false, vk::CompareOp::eNever, 0.f, 0.f,
-        vk::BorderColor::eFloatOpaqueBlack));
-    mOnDevice = true;
   }
+  mImageView =
+      context.getDevice().createImageViewUnique(vk::ImageViewCreateInfo(
+          {}, mImage->getDeviceImage()->getVulkanImage(),
+          vk::ImageViewType::e2D, mImage->getDeviceImage()->getFormat(),
+          vk::ComponentSwizzle::eIdentity,
+          vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0,
+                                    mDescription.mipLevels, 0, 1)));
+  mSampler = context.getDevice().createSamplerUnique(vk::SamplerCreateInfo(
+      {}, mDescription.magFilter, mDescription.minFilter,
+      vk::SamplerMipmapMode::eLinear, mDescription.addressModeU,
+      mDescription.addressModeV, vk::SamplerAddressMode::eRepeat, 0.f, false,
+      0.f, false, vk::CompareOp::eNever, 0.f, 0.f,
+      vk::BorderColor::eFloatOpaqueBlack));
+  mOnDevice = true;
 }
 
 void SVTexture::removeFromDevice() {
@@ -66,20 +69,29 @@ void SVTexture::removeFromDevice() {
   mSampler.reset();
 }
 
-void SVTexture::load() {
+std::future<void> SVTexture::loadAsync() {
   if (mLoaded) {
-    return;
+    return std::async(std::launch::deferred, []() {});
   }
+  log::info("Loading: {}", mDescription.filename);
   if (mDescription.source != SVTextureDescription::SourceType::eFILE) {
     throw std::runtime_error(
         "failed to load texture: the texture is not specified by a file");
   }
-
-  mImage = mManager->CreateImageFromFile(mDescription.filename,
-                                         mDescription.mipLevels);
-  mImage->load();
-  mLoaded = true;
+  return std::async(std::launch::async, [this]() {
+    std::lock_guard<std::mutex> lock(mLoadingMutex);
+    if (mLoaded) {
+      return;
+    }
+    mImage = mManager->CreateImageFromFile(mDescription.filename,
+                                           mDescription.mipLevels);
+    mImage->loadAsync().get();
+    mLoaded = true;
+    log::info("Loaded: {}", mDescription.filename);
+  });
 }
+
+void SVTexture::load() { loadAsync().get(); }
 
 } // namespace resource
 } // namespace svulkan2

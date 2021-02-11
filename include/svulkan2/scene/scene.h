@@ -15,8 +15,11 @@ class Scene {
 public:
   inline Node &getRootNode() { return *mRootNode; };
 
-  void addNode(std::unique_ptr<Node> node);
-  void addNode(std::unique_ptr<Node> node, Node &parent);
+  Node &addNode();
+  Node &addNode(Node &parent);
+
+  // void addNode(std::unique_ptr<Node> node);
+  // void addNode(std::unique_ptr<Node> node, Node &parent);
   void removedNode(Node &node);
   void clearNodes();
   void forceRemove();
@@ -28,7 +31,15 @@ public:
   std::vector<std::shared_ptr<resource::SVObject>> getObjects() const;
   Scene();
 
+  inline void setSVScene(std::shared_ptr<resource::SVScene> scene) {
+    mScene = scene;
+  }
+
   inline std::shared_ptr<resource::SVScene> getSVScene() const {
+    if (!mScene) {
+      throw std::runtime_error(
+          "getSVScene failed: setSVScene must be called first");
+    }
     return mScene;
   }
 };

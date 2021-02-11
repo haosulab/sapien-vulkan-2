@@ -10,22 +10,15 @@ Scene::Scene() {
   mRootNode->setScene(this);
 }
 
-void Scene::addNode(std::unique_ptr<Node> node) {
-  addNode(std::move(node), getRootNode());
+Node &Scene::addNode(Node &parent) {
+  mNodes.push_back(std::make_unique<Node>());
+  mNodes.back()->setScene(this);
+  mNodes.back()->setParent(parent);
+  parent.addChild(*mNodes.back());
+  return *mNodes.back();
 }
 
-void Scene::addNode(std::unique_ptr<Node> node, Node &parent) {
-  if (node == nullptr) {
-    throw std::invalid_argument("addNode: nullptr is not allowed");
-  }
-  if (parent.getScene() != this) {
-    throw std::invalid_argument("addNode: parent node is not in the scene");
-  }
-  node->setScene(this);
-  node->setParent(parent);
-  parent.addChild(*node.get());
-  mNodes.push_back(std::move(node));
-}
+Node &Scene::addNode() { return addNode(getRootNode()); }
 
 void Scene::removedNode(Node &node) {
   node.markRemoved();

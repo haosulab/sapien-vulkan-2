@@ -21,7 +21,7 @@ TEST(Context, SubmitCommand) {
   cb->begin(vk::CommandBufferBeginInfo(
       vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
   cb->end();
-  context.submitCommandBuffer(cb.get()).wait();
+  context.submitCommandBuffer(cb.get()).get();
 
   cb = context.createCommandBuffer();
   cb->begin(vk::CommandBufferBeginInfo(

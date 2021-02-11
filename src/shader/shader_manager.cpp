@@ -40,16 +40,20 @@ void ShaderManager::processShadersInFolder(std::string const &path) {
     throw std::runtime_error("[shader manager] deferred.frag is required");
   }
 
+  GLSLCompiler::InitializeProcess();
+
+  std::vector<std::future<void>> futures;
+
   // load gbuffer pass
   std::string vsFile = path + "/gbuffer.vert";
   std::string fsFile = path + "/gbuffer.frag";
-  mGbufferPass->loadGLSLFiles(vsFile, fsFile);
+  futures.push_back(mGbufferPass->loadGLSLFilesAsync(vsFile, fsFile));
   mPassIndex[mGbufferPass] = mNumPasses++;
 
   // load deferred pass
   vsFile = path + "/deferred.vert";
   fsFile = path + "/deferred.frag";
-  mDeferredPass->loadGLSLFiles(vsFile, fsFile);
+  futures.push_back(mDeferredPass->loadGLSLFilesAsync(vsFile, fsFile));
   mPassIndex[mDeferredPass] = mNumPasses++;
 
   int numCompositePasses = 0;
@@ -58,7 +62,8 @@ void ShaderManager::processShadersInFolder(std::string const &path) {
     if (filename.substr(0, 9) == "composite" &&
         filename.substr(filename.length() - 5, 5) == ".frag")
       numCompositePasses++;
-    // FIXME: do an error check here (composite passes must be consecutive integers starting from 0)
+    // FIXME: do an error check here (composite passes must be consecutive
+    // integers starting from 0)
   }
 
   mCompositePasses.resize(numCompositePasses);
@@ -66,9 +71,15 @@ void ShaderManager::processShadersInFolder(std::string const &path) {
   for (int i = 0; i < numCompositePasses; i++) {
     fsFile = path + "/composite" + std::to_string(i) + ".frag";
     mCompositePasses[i] = std::make_shared<CompositePassParser>();
-    mCompositePasses[i]->loadGLSLFiles(vsFile, fsFile);
+    futures.push_back(mCompositePasses[i]->loadGLSLFilesAsync(vsFile, fsFile));
     mPassIndex[mCompositePasses[i]] = mNumPasses++;
   }
+  for (auto &f : futures) {
+    f.get();
+  }
+
+  GLSLCompiler::FinalizeProcess();
+
   populateShaderConfig();
   prepareRenderTargetFormats();
   prepareRenderTargetOperationTable();
@@ -323,13 +334,13 @@ void ShaderManager::createPipelines(core::Context &context,
            : context.getSpecularDescriptorSetLayout()});
 
   mDeferredPass->createGraphicsPipeline(
-      device, mRenderConfig->colorFormat, mRenderConfig->depthFormat,
+      device, mRenderConfig->colorFormat,
       getColorRenderTargetLayoutsForPass(mDeferredPass),
       {mSceneLayout.get(), mCameraLayout.get(), mDeferredLayout.get()},
       numDirectionalLights, numPointLights);
   for (uint32_t i = 0; i < mCompositePasses.size(); ++i) {
     mCompositePasses[i]->createGraphicsPipeline(
-        device, mRenderConfig->colorFormat, mRenderConfig->depthFormat,
+        device, mRenderConfig->colorFormat,
         getColorRenderTargetLayoutsForPass(mDeferredPass),
         {mCompositeLayouts[i].get()});
   }
@@ -357,7 +368,7 @@ std::vector<std::shared_ptr<BaseParser>> ShaderManager::getAllPasses() const {
 }
 
 std::vector<vk::DescriptorSetLayout>
-ShaderManager::getCompositeDescriptorSetLayout() const {
+ShaderManager::getCompositeDescriptorSetLayouts() const {
   std::vector<vk::DescriptorSetLayout> result;
   for (auto &l : mCompositeLayouts) {
     result.push_back(l.get());

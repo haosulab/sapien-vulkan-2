@@ -106,5 +106,11 @@ void SVResourceManager::setVertexLayout(
   }
 }
 
+void SVResourceManager::clearCachedResources() {
+  mModelRegistry.clear();
+  mTextureRegistry.clear();
+  mImageRegistry.clear();
+}
+
 } // namespace resource
 } // namespace svulkan2

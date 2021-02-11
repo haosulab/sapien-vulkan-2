@@ -4,6 +4,7 @@
 #include "svulkan2/common/err.h"
 #include "svulkan2/common/fs.h"
 #include "svulkan2/common/layout.h"
+#include <future>
 
 namespace svulkan2 {
 namespace shader {
@@ -56,6 +57,9 @@ public:
   void loadSPVFiles(std::string const &vertFile, std::string const &fragFile);
   void loadSPVCode(std::vector<uint32_t> const &vertCode,
                    std::vector<uint32_t> const &fragCode);
+
+  std::future<void> loadGLSLFilesAsync(std::string const &vertFile, std::string const &fragFile);
+
   vk::PipelineLayout getPipelineLayout() const { return mPipelineLayout.get(); }
 
   virtual std::shared_ptr<OutputDataLayout> getTextureOutputLayout() const = 0;
