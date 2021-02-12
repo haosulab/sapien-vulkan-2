@@ -57,6 +57,7 @@ public:
       int numDirectionalLights = -1, int numPointLights = -1);
 
   virtual std::vector<std::string> getRenderTargetNames() const override;
+  std::vector<std::string> getInputTextureNames() const;
 
 private:
   void reflectSPV() override;

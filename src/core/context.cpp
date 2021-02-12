@@ -82,17 +82,20 @@ void Context::createInstance() {
 
   if (mPresent) {
     if (!glfwVulkanSupported()) {
-      throw std::runtime_error("createInstance: GLFW does not support Vulkan");
-    }
-    uint32_t glfwExtensionCount = 0;
-    const char **glfwExtensions =
-        glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
-    if (!glfwExtensions) {
-      throw std::runtime_error(
-          "createInstance: Vulkan does not support GLFW extensions");
-    }
-    for (uint32_t i = 0; i < glfwExtensionCount; ++i) {
-      instanceExtensions.push_back(glfwExtensions[i]);
+      log::error("createInstance: present requested but GLFW does not support "
+                 "Vulkan. Continue without GLFW.");
+      mPresent = false;
+    } else {
+      uint32_t glfwExtensionCount = 0;
+      const char **glfwExtensions =
+          glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+      if (!glfwExtensions) {
+        throw std::runtime_error(
+            "createInstance: Vulkan does not support GLFW extensions");
+      }
+      for (uint32_t i = 0; i < glfwExtensionCount; ++i) {
+        instanceExtensions.push_back(glfwExtensions[i]);
+      }
     }
   }
   vk::InstanceCreateInfo createInfo(

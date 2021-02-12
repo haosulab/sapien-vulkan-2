@@ -191,55 +191,64 @@ void Image::download(void *data, size_t size, vk::Offset3D offset,
   }
 
   vk::ImageLayout sourceLayout;
-  vk::AccessFlags sourceAccessFlag1;
-  vk::AccessFlags sourceAccessFlag2;
+  vk::AccessFlags sourceAccessFlag;
   vk::PipelineStageFlags sourceStage;
+
   vk::ImageAspectFlags aspect;
-  if (mFormat == vk::Format::eR8G8B8A8Unorm ||
-      mFormat == vk::Format::eR32G32B32A32Uint ||
-      mFormat == vk::Format::eR32G32B32A32Sfloat) {
-    sourceLayout = vk::ImageLayout::eColorAttachmentOptimal;
-    sourceAccessFlag1 = vk::AccessFlagBits::eColorAttachmentWrite;
-    sourceAccessFlag2 = vk::AccessFlagBits::eColorAttachmentWrite |
-                        vk::AccessFlagBits::eColorAttachmentRead;
-    sourceStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+  switch (mFormat) {
+  case vk::Format::eR8G8B8A8Unorm:
+  case vk::Format::eR32G32B32A32Uint:
+  case vk::Format::eR32G32B32A32Sfloat:
     aspect = vk::ImageAspectFlagBits::eColor;
-  } else if (mFormat == vk::Format::eD32Sfloat) {
-    sourceLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
-    sourceAccessFlag1 = vk::AccessFlagBits::eDepthStencilAttachmentWrite;
-    sourceAccessFlag2 = vk::AccessFlagBits::eDepthStencilAttachmentWrite |
-                        vk::AccessFlagBits::eDepthStencilAttachmentRead;
-    sourceStage = vk::PipelineStageFlagBits::eEarlyFragmentTests |
-                  vk::PipelineStageFlagBits::eLateFragmentTests;
+    break;
+  case vk::Format::eD32Sfloat:
     aspect = vk::ImageAspectFlagBits::eDepth;
-  } else if (mFormat == vk::Format::eD24UnormS8Uint) {
+  case vk::Format::eD24UnormS8Uint:
+    vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
+  default:
+    throw std::runtime_error("failed to download image: unsupported format.");
+  }
+
+  switch (mCurrentLayout) {
+  case vk::ImageLayout::eColorAttachmentOptimal:
+    sourceLayout = vk::ImageLayout::eColorAttachmentOptimal;
+    sourceAccessFlag = vk::AccessFlagBits::eColorAttachmentWrite;
+    sourceStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+    break;
+  case vk::ImageLayout::eDepthStencilAttachmentOptimal:
     sourceLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
-    sourceAccessFlag1 = vk::AccessFlagBits::eDepthStencilAttachmentWrite;
-    sourceAccessFlag2 = vk::AccessFlagBits::eDepthStencilAttachmentWrite |
-                        vk::AccessFlagBits::eDepthStencilAttachmentRead;
+    sourceAccessFlag = vk::AccessFlagBits::eDepthStencilAttachmentWrite;
     sourceStage = vk::PipelineStageFlagBits::eEarlyFragmentTests |
                   vk::PipelineStageFlagBits::eLateFragmentTests;
-    aspect =
-        vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
+    break;
+  case vk::ImageLayout::eShaderReadOnlyOptimal:
+    sourceLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+    sourceAccessFlag = {};
+    sourceStage = vk::PipelineStageFlagBits::eFragmentShader;
+    break;
+  case vk::ImageLayout::eTransferSrcOptimal:
+    break;
+  default:
+    throw std::runtime_error("failed to download image: invalid layout.");
   }
+
   if (!mHostCoherent) {
     auto stagingBuffer = mContext->getAllocator().allocateStagingBuffer(size);
     auto cb = mContext->createCommandBuffer();
     cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
-    transitionLayout(cb.get(), sourceLayout,
-                     vk::ImageLayout::eTransferSrcOptimal, sourceAccessFlag1,
-                     vk::AccessFlagBits::eTransferRead, sourceStage,
-                     vk::PipelineStageFlagBits::eTransfer);
+    if (mCurrentLayout != vk::ImageLayout::eTransferSrcOptimal) {
+      transitionLayout(cb.get(), sourceLayout,
+                       vk::ImageLayout::eTransferSrcOptimal, sourceAccessFlag,
+                       vk::AccessFlagBits::eTransferRead, sourceStage,
+                       vk::PipelineStageFlagBits::eTransfer);
+    }
     vk::BufferImageCopy copyRegion(0, mExtent.width, mExtent.height,
                                    {aspect, 0, 0, 1}, offset, extent);
     cb->copyImageToBuffer(mImage, vk::ImageLayout::eTransferSrcOptimal,
                           stagingBuffer->getVulkanBuffer(), copyRegion);
-    transitionLayout(cb.get(), vk::ImageLayout::eTransferSrcOptimal,
-                     sourceLayout, vk::AccessFlagBits::eTransferRead,
-                     sourceAccessFlag2, vk::PipelineStageFlagBits::eTransfer,
-                     sourceStage);
     cb->end();
     mContext->submitCommandBufferAndWait(cb.get());
+    setCurrentLayout(vk::ImageLayout::eTransferSrcOptimal);
 
     std::memcpy(data, stagingBuffer->map(), size);
     stagingBuffer->unmap();

@@ -67,6 +67,7 @@ void Renderer::prepareRenderTargets(uint32_t width, uint32_t height) {
         std::make_shared<resource::SVRenderTarget>(name, width, height, format);
     mRenderTargets[name]->createDeviceResources(*mContext);
   }
+  mRenderTargetFinalLayouts = mShaderManager->getRenderTargetFinalLayouts();
 }
 
 void Renderer::preparePipelines(int numDirectionalLights, int numPointLights) {
@@ -258,6 +259,9 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
       throw std::runtime_error("Unknown pass");
     }
   }
+  for (auto& [name, target]: mRenderTargets) {
+    target->getImage().setCurrentLayout(mRenderTargetFinalLayouts[name]);
+  }
 }
 
 void Renderer::prepareSceneBuffer() {
@@ -313,7 +317,7 @@ void Renderer::prepareDeferredDescriptorSets() {
                 mDescriptorPool.get(), 1, &layout))
             .front());
     std::vector<std::tuple<vk::ImageView, vk::Sampler>> textureData;
-    auto names = mShaderManager->getDeferredPass()->getRenderTargetNames();
+    auto names = mShaderManager->getDeferredPass()->getInputTextureNames();
     for (auto &name : names) {
       textureData.push_back({mRenderTargets[name]->getImageView(),
                              mRenderTargets[name]->getSampler()});
@@ -335,7 +339,7 @@ void Renderer::prepareDeferredDescriptorSets() {
                 mDescriptorPool.get(), 1, &layout))
             .front()));
     std::vector<std::tuple<vk::ImageView, vk::Sampler>> textureData;
-    auto names = compositePasses[i]->getRenderTargetNames();
+    auto names = compositePasses[i]->getInputTextureNames();
     for (auto &name : names) {
       textureData.push_back({mRenderTargets[name]->getImageView(),
                              mRenderTargets[name]->getSampler()});

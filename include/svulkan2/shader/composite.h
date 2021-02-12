@@ -42,6 +42,7 @@ public:
       std::vector<vk::DescriptorSetLayout> const &descriptorSetLayouts);
 
   virtual std::vector<std::string> getRenderTargetNames() const override;
+  std::vector<std::string> getInputTextureNames() const;
 
 private:
   void reflectSPV() override;

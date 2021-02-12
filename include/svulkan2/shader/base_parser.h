@@ -14,6 +14,11 @@ getOutTextureName(std::string variableName) { // remove "out" prefix
   return variableName.substr(3, std::string::npos);
 }
 
+inline static std::string
+getInTextureName(std::string variableName) { // remove "sampler" prefix
+  return variableName.substr(7, std::string::npos);
+}
+
 std::shared_ptr<InputDataLayout>
 parseInputData(spirv_cross::Compiler &compiler);
 std::shared_ptr<InputDataLayout>

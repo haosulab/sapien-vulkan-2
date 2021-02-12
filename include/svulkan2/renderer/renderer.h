@@ -16,8 +16,9 @@ class Renderer {
   vk::UniqueDescriptorPool mDescriptorPool;
 
   std::unique_ptr<shader::ShaderManager> mShaderManager;
-  std::map<std::string, std::shared_ptr<resource::SVRenderTarget>>
+  std::unordered_map<std::string, std::shared_ptr<resource::SVRenderTarget>>
       mRenderTargets;
+  std::unordered_map<std::string, vk::ImageLayout> mRenderTargetFinalLayouts;
 
   // std::vector<vk::Pipeline> mPipelines;
   // std::vector<vk::RenderPass> mRenderPasses;
@@ -39,6 +40,7 @@ class Renderer {
 
   bool mLastNumPointLights = 0;
   bool mLastNumDirectionalLights = 0;
+
 public:
   Renderer(core::Context &context, std::shared_ptr<RendererConfig> config);
 

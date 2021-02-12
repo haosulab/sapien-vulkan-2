@@ -11,7 +11,7 @@
 namespace svulkan2 {
 
 namespace shader {
-enum class TextureOperation { eTextureNoOp, eTextureRead, eTextureWrite };
+enum class RenderTargetOperation { eNoOp, eRead, eColorWrite, eDepthWrite };
 
 class ShaderManager {
   uint32_t mNumPasses{};
@@ -23,7 +23,7 @@ class ShaderManager {
   std::vector<std::shared_ptr<CompositePassParser>> mCompositePasses;
   std::map<std::weak_ptr<BaseParser>, unsigned int, std::owner_less<>>
       mPassIndex;
-  std::unordered_map<std::string, std::vector<TextureOperation>>
+  std::unordered_map<std::string, std::vector<RenderTargetOperation>>
       mTextureOperationTable;
   std::unordered_map<std::string, vk::Format> mRenderTargetFormats;
 
@@ -76,6 +76,9 @@ public:
     return mRenderTargetFormats;
   };
 
+  std::unordered_map<std::string, vk::ImageLayout>
+  getRenderTargetFinalLayouts() const;
+
   inline std::shared_ptr<ShaderConfig> getShaderConfig() const {
     return mShaderConfig;
   }
@@ -86,15 +89,18 @@ private:
   void populateShaderConfig();
   void prepareRenderTargetFormats();
   void prepareRenderTargetOperationTable();
-  TextureOperation getNextOperation(std::string texName,
-                                    std::shared_ptr<BaseParser> pass);
-  TextureOperation getPrevOperation(std::string texName,
-                                    std::shared_ptr<BaseParser> pass);
+  RenderTargetOperation getNextOperation(std::string texName,
+                                         std::shared_ptr<BaseParser> pass);
+  RenderTargetOperation getPrevOperation(std::string texName,
+                                         std::shared_ptr<BaseParser> pass);
+  RenderTargetOperation getLastOperation(std::string texName) const;
   // std::unordered_map<std::string, std::pair<vk::ImageLayout,
   // vk::ImageLayout>> getRenderTargetLayouts(std::shared_ptr<BaseParser> pass,
   //                   std::shared_ptr<OutputDataLayout> outputLayout);
   std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>>
-  getColorRenderTargetLayoutsForPass(std::shared_ptr<BaseParser> pass);
+  getColorAttachmentLayoutsForPass(std::shared_ptr<BaseParser> pass);
+  std::pair<vk::ImageLayout, vk::ImageLayout>
+  getDepthAttachmentLayoutsForPass(std::shared_ptr<BaseParser> pass);
 };
 
 } // namespace shader

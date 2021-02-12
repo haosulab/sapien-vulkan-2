@@ -229,5 +229,14 @@ std::vector<std::string> DeferredPassParser::getRenderTargetNames() const {
   return result;
 }
 
+std::vector<std::string> DeferredPassParser::getInputTextureNames() const {
+  std::vector<std::string> result;
+  auto elems = mCombinedSamplerLayout->getElementsSorted();
+  for (auto elem : elems) {
+    result.push_back(getInTextureName(elem.name));
+  }
+  return result;
+}
+
 } // namespace shader
 } // namespace svulkan2

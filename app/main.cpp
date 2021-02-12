@@ -4,6 +4,10 @@
 #include "svulkan2/renderer/renderer.h"
 #include "svulkan2/scene/scene.h"
 #include "svulkan2/shader/shader.h"
+#include <iostream>
+
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb_image_write.h>
 
 using namespace svulkan2;
 
@@ -22,23 +26,25 @@ int main() {
 
   auto config = std::make_shared<RendererConfig>();
   config->shaderDir = "../test/assets/shader/full";
+  config->colorFormat = vk::Format::eR8G8B8A8Unorm;
   renderer::Renderer renderer(context, config);
 
   svulkan2::scene::Scene scene;
-  auto node = scene.addNode();
-
-  // auto model = context.getResourceManager().CreateModelFromFile(
-  //     "../test/assets/scene/sponza/sponza.obj");
-  // model->loadAsync().get();
 
   scene.setSVScene(std::make_shared<resource::SVScene>());
   scene.getSVScene()->addPointLight({{1, 0, 0, 1}, {1, 1, 1, 1}});
   scene.getSVScene()->addDirectionalLight({{0, 0, -1, 1}, {1, 1, 1, 1}});
 
-  // auto object = std::make_shared<resource::SVObject>(model);
-  // node.setObject(object);
+  auto node = scene.addNode();
+  auto model = context.getResourceManager().CreateModelFromFile(
+      "../test/assets/scene/sponza/sponza.obj");
+  node.setTransform(scene::Transform{.scale = {0.01, 0.01, 0.01}});
+  model->loadAsync().get();
+  auto object = std::make_shared<resource::SVObject>(model);
+  node.setObject(object);
 
   auto cameraNode = scene.addNode();
+  cameraNode.setTransform(scene::Transform{.position{0, 0, 0.3}});
   auto camera = std::make_shared<resource::SVCamera>();
   camera->setPerspectiveParameters(0.1, 10, 1, 4.f / 3);
   cameraNode.setCamera(camera);
@@ -51,6 +57,13 @@ int main() {
   renderer.render(commandBuffer.get(), scene, *camera);
   commandBuffer->end();
   context.submitCommandBufferAndWait(commandBuffer.get());
+
+  auto [output, size] = renderer.download<uint8_t>("Albedo");
+  std::cout << output.size() << std::endl;
+  std::cout << size[0] << " " << size[1] << " " << size[2] << std::endl;
+
+  stbi_write_png("out.png", size[1], size[0], size[2], output.data(),
+                 size[1] * size[2]);
 
   return 0;
 }

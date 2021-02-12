@@ -48,13 +48,15 @@ public:
   vk::RenderPass createRenderPass(
       vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
       std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
-          &colorTargetLayouts);
+          &colorTargetLayouts,
+      std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout);
 
   vk::Pipeline createGraphicsPipeline(
       vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
       vk::CullModeFlags cullMode, vk::FrontFace frontFace,
       std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
           &colorTargetLayouts,
+      std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,
       std::vector<vk::DescriptorSetLayout> const &descriptorSetLayouts);
 
   virtual inline vk::RenderPass getRenderPass() const override {

@@ -53,7 +53,10 @@ private:
   bool mMapped{};
   void *mMappedData;
 
+  vk::ImageLayout mCurrentLayout;
+
   void generateMipmaps(vk::CommandBuffer cb);
+
 public:
   Image(Context &context, vk::Extent3D extent, vk::Format format,
         vk::ImageUsageFlags usageFlags, VmaMemoryUsage memoryUsage,
@@ -101,6 +104,9 @@ public:
   std::vector<DataType> downloadPixel(vk::Offset3D offset) {
     return download<DataType>(offset, {1, 1, 1});
   }
+
+  /** call to tell this image its current layout, call before download */
+  void setCurrentLayout(vk::ImageLayout layout) { mCurrentLayout = layout; };
 
   void transitionLayout(vk::CommandBuffer commandBuffer,
                         vk::ImageLayout oldImageLayout,

@@ -95,7 +95,8 @@ vk::PipelineLayout GbufferPassParser::createPipelineLayout(
 vk::RenderPass GbufferPassParser::createRenderPass(
     vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
     std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
-        &colorTargetLayouts) {
+        &colorTargetLayouts,
+    std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout) {
   std::vector<vk::AttachmentDescription> attachmentDescriptions;
   std::vector<vk::AttachmentReference> colorAttachments;
 
@@ -111,18 +112,24 @@ vk::RenderPass GbufferPassParser::createRenderPass(
       throw std::runtime_error(
           "only float4 and uint4 are allowed in output attachments");
     }
+
     attachmentDescriptions.push_back(vk::AttachmentDescription(
         {}, format, vk::SampleCountFlagBits::e1,
-        vk::AttachmentLoadOp::eDontCare, vk::AttachmentStoreOp::eStore,
-        vk::AttachmentLoadOp::eDontCare, vk::AttachmentStoreOp::eDontCare,
-        colorTargetLayouts[i].first, colorTargetLayouts[i].second));
+        colorTargetLayouts[i].first == vk::ImageLayout::eUndefined
+            ? vk::AttachmentLoadOp::eClear
+            : vk::AttachmentLoadOp::eLoad,
+        vk::AttachmentStoreOp::eStore, vk::AttachmentLoadOp::eDontCare,
+        vk::AttachmentStoreOp::eDontCare, colorTargetLayouts[i].first,
+        colorTargetLayouts[i].second));
   }
   attachmentDescriptions.push_back(vk::AttachmentDescription(
       vk::AttachmentDescriptionFlags(), depthFormat,
-      vk::SampleCountFlagBits::e1, vk::AttachmentLoadOp::eDontCare,
+      vk::SampleCountFlagBits::e1,
+      depthLayout.first == vk::ImageLayout::eUndefined
+          ? vk::AttachmentLoadOp::eClear
+          : vk::AttachmentLoadOp::eLoad,
       vk::AttachmentStoreOp::eStore, vk::AttachmentLoadOp::eDontCare,
-      vk::AttachmentStoreOp::eDontCare, vk::ImageLayout::eUndefined,
-      vk::ImageLayout::eDepthStencilReadOnlyOptimal));
+      vk::AttachmentStoreOp::eDontCare, depthLayout.first, depthLayout.second));
 
   vk::AttachmentReference depthAttachment(
       elems.size(), vk::ImageLayout::eDepthStencilAttachmentOptimal);
@@ -143,10 +150,11 @@ vk::Pipeline GbufferPassParser::createGraphicsPipeline(
     vk::CullModeFlags cullMode, vk::FrontFace frontFace,
     std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
         &colorTargetLayouts,
+    std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,
     std::vector<vk::DescriptorSetLayout> const &descriptorSetLayouts) {
   // render pass
-  auto renderPass =
-      createRenderPass(device, colorFormat, depthFormat, colorTargetLayouts);
+  auto renderPass = createRenderPass(device, colorFormat, depthFormat,
+                                     colorTargetLayouts, depthLayout);
 
   // shaders
   vk::UniquePipelineCache pipelineCache =

@@ -3,15 +3,12 @@
 #include <filesystem>
 #include <set>
 
+// #include <iostream>
+
 namespace fs = std::filesystem;
 
 namespace svulkan2 {
 namespace shader {
-
-inline static std::string
-getInTextureName(std::string variableName) { // remove "sampler" prefix
-  return variableName.substr(7, std::string::npos);
-}
 
 ShaderManager::ShaderManager(std::shared_ptr<RendererConfig> config)
     : mRenderConfig(config) {
@@ -129,23 +126,25 @@ void ShaderManager::prepareRenderTargetFormats() {
 void ShaderManager::prepareRenderTargetOperationTable() {
   mTextureOperationTable = {};
   for (auto tex : mRenderTargetFormats) {
-    mTextureOperationTable[tex.first] = std::vector<TextureOperation>(
-        mNumPasses, TextureOperation::eTextureNoOp);
+    mTextureOperationTable[tex.first] = std::vector<RenderTargetOperation>(
+        mNumPasses, RenderTargetOperation::eNoOp);
   }
 
   // process gbuffer out textures:
   for (auto &elem : mGbufferPass->getTextureOutputLayout()->elements) {
     std::string texName = getOutTextureName(elem.second.name);
     mTextureOperationTable[texName][mPassIndex[mGbufferPass]] =
-        TextureOperation::eTextureWrite;
+        RenderTargetOperation::eColorWrite;
   }
+  mTextureOperationTable["Depth"][mPassIndex[mGbufferPass]] =
+      RenderTargetOperation::eDepthWrite;
 
   // process input textures of deferred pass:
   for (auto &elem : mDeferredPass->getCombinedSamplerLayout()->elements) {
     std::string texName = getInTextureName(elem.second.name);
     if (mTextureOperationTable.find(texName) != mTextureOperationTable.end()) {
       mTextureOperationTable[texName][mPassIndex[mDeferredPass]] =
-          TextureOperation::eTextureRead;
+          RenderTargetOperation::eRead;
     }
   }
 
@@ -153,7 +152,7 @@ void ShaderManager::prepareRenderTargetOperationTable() {
   for (auto &elem : mDeferredPass->getTextureOutputLayout()->elements) {
     std::string texName = getOutTextureName(elem.second.name);
     mTextureOperationTable[texName][mPassIndex[mDeferredPass]] =
-        TextureOperation::eTextureWrite;
+        RenderTargetOperation::eColorWrite;
   }
 
   for (uint32_t i = 0; i < mCompositePasses.size(); i++) {
@@ -164,44 +163,68 @@ void ShaderManager::prepareRenderTargetOperationTable() {
       if (mTextureOperationTable.find(texName) !=
           mTextureOperationTable.end()) {
         mTextureOperationTable[texName][mPassIndex[mCompositePasses[i]]] =
-            TextureOperation::eTextureRead;
+            RenderTargetOperation::eRead;
       }
     }
     // add composite out texture to the set:
     for (auto &elem : compositePass->getTextureOutputLayout()->elements) {
       std::string texName = getOutTextureName(elem.second.name);
       mTextureOperationTable[texName][mPassIndex[mCompositePasses[i]]] =
-          TextureOperation::eTextureWrite;
+          RenderTargetOperation::eColorWrite;
     }
   }
+  // for (auto &[tex, ops] : mTextureOperationTable) {
+  //   std::cout << std::setw(20) << tex << " ";
+  //   for (auto &op : ops) {
+  //     if (op == RenderTargetOperation::eNoOp) {
+  //       std::cout << "N ";
+  //     } else if (op == RenderTargetOperation::eRead) {
+  //       std::cout << "R ";
+  //     } else if (op == RenderTargetOperation::eWrite) {
+  //       std::cout << "W ";
+  //     }
+  //   }
+  //   std::cout << std::endl;
+  // }
 }
 
-TextureOperation
+RenderTargetOperation
 ShaderManager::getNextOperation(std::string texName,
                                 std::shared_ptr<BaseParser> pass) {
   for (uint32_t i = mPassIndex[pass] + 1; i < mNumPasses; i++) {
-    TextureOperation op = mTextureOperationTable[texName][i];
-    if (op != TextureOperation::eTextureNoOp) {
+    RenderTargetOperation op = mTextureOperationTable[texName][i];
+    if (op != RenderTargetOperation::eNoOp) {
       return op;
     }
   }
-  return TextureOperation::eTextureNoOp;
+  return RenderTargetOperation::eNoOp;
 }
 
-TextureOperation
+RenderTargetOperation
 ShaderManager::getPrevOperation(std::string texName,
                                 std::shared_ptr<BaseParser> pass) {
   for (int i = mPassIndex[pass] - 1; i >= 0; i--) {
-    TextureOperation op = mTextureOperationTable[texName][i];
-    if (op != TextureOperation::eTextureNoOp) {
+    RenderTargetOperation op = mTextureOperationTable[texName][i];
+    if (op != RenderTargetOperation::eNoOp) {
       return op;
     }
   }
-  return TextureOperation::eTextureNoOp;
+  return RenderTargetOperation::eNoOp;
+}
+
+RenderTargetOperation
+ShaderManager::getLastOperation(std::string texName) const {
+  for (int i = mNumPasses - 1; i >= 0; i--) {
+    RenderTargetOperation op = mTextureOperationTable.at(texName).at(i);
+    if (op != RenderTargetOperation::eNoOp) {
+      return op;
+    }
+  }
+  throw std::runtime_error("invalid last operation on " + texName);
 }
 
 std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>>
-ShaderManager::getColorRenderTargetLayoutsForPass(
+ShaderManager::getColorAttachmentLayoutsForPass(
     std::shared_ptr<BaseParser> pass) {
   auto elems = pass->getTextureOutputLayout()->getElementsSorted();
   std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> result(elems.size());
@@ -211,62 +234,65 @@ ShaderManager::getColorRenderTargetLayoutsForPass(
     auto texName = getOutTextureName(elems[i].name);
     auto prevOp = getPrevOperation(texName, pass);
     auto nextOp = getNextOperation(texName, pass);
-    if (prevOp == TextureOperation::eTextureNoOp) {
+    if (prevOp == RenderTargetOperation::eNoOp) {
       result[i].first = vk::ImageLayout::eUndefined;
     } else {
       result[i].first = vk::ImageLayout::eColorAttachmentOptimal;
     }
     switch (nextOp) {
-    case TextureOperation::eTextureNoOp:
-      result[i].second = vk::ImageLayout::eTransferSrcOptimal;
-      break;
-    case TextureOperation::eTextureRead:
-      result[i].second = vk::ImageLayout::eShaderReadOnlyOptimal;
-      break;
-    case TextureOperation::eTextureWrite:
+    case RenderTargetOperation::eNoOp:
       result[i].second = vk::ImageLayout::eColorAttachmentOptimal;
       break;
+    case RenderTargetOperation::eRead:
+      result[i].second = vk::ImageLayout::eShaderReadOnlyOptimal;
+      break;
+    case RenderTargetOperation::eColorWrite:
+      result[i].second = vk::ImageLayout::eColorAttachmentOptimal;
+      break;
+    case RenderTargetOperation::eDepthWrite:
+      throw std::runtime_error("invalid depth attachment layout");
     }
   }
   return result;
 }
 
-// std::unordered_map<std::string, std::pair<vk::ImageLayout, vk::ImageLayout>>
-// ShaderManager::getRenderTargetLayouts(
-//     std::shared_ptr<BaseParser> pass,
-//     std::shared_ptr<OutputDataLayout> outputLayout) {
-//   std::unordered_map<std::string, std::pair<vk::ImageLayout,
-//   vk::ImageLayout>>
-//       layouts;
-//   for (auto &elem : outputLayout->elements) {
-//     std::string texName = getOutTextureName(elem.second.name);
-
-//     // compute initial layout:
-//     TextureOperation prevOp = getPrevOperation(texName, pass);
-//     if (prevOp == TextureOperation::eTextureNoOp) {
-//       layouts[texName].first = vk::ImageLayout::eUndefined;
-//     } else { // this layout would have been set by prev paas
-//       layouts[texName].first = vk::ImageLayout::eColorAttachmentOptimal;
-//     }
-
-//     // compute final layout:
-//     TextureOperation nextOp = getNextOperation(texName, pass);
-//     switch (nextOp) {
-//     case TextureOperation::eTextureNoOp:
-//       layouts[texName].second = vk::ImageLayout::eTransferSrcOptimal;
-//       break;
-//     case TextureOperation::eTextureRead:
-//       layouts[texName].second = vk::ImageLayout::eShaderReadOnlyOptimal;
-//       break;
-//     case TextureOperation::eTextureWrite:
-//       layouts[texName].second = vk::ImageLayout::eColorAttachmentOptimal;
-//       break;
-//     default:
-//       break;
-//     }
-//   }
-//   return layouts;
-// }
+std::pair<vk::ImageLayout, vk::ImageLayout>
+ShaderManager::getDepthAttachmentLayoutsForPass(
+    std::shared_ptr<BaseParser> pass) {
+  if (pass != mGbufferPass) {
+    throw std::runtime_error(
+        "getDepthAttachmentLayoutsForPass failed: pass does not use depth.");
+  }
+  auto prevOp = getPrevOperation("Depth", pass);
+  auto nextOp = getNextOperation("Depth", pass);
+  vk::ImageLayout prev;
+  vk::ImageLayout next;
+  switch (prevOp) {
+  case RenderTargetOperation::eNoOp:
+    prev = vk::ImageLayout::eUndefined;
+    break;
+  case RenderTargetOperation::eRead:
+  case RenderTargetOperation::eDepthWrite:
+    prev = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+    break;
+  case RenderTargetOperation::eColorWrite:
+    throw std::runtime_error("invalid depth attachment layout");
+  }
+  switch (nextOp) {
+  case RenderTargetOperation::eNoOp:
+    next = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+    break;
+  case RenderTargetOperation::eRead:
+    next = vk::ImageLayout::eShaderReadOnlyOptimal;
+    break;
+  case RenderTargetOperation::eDepthWrite:
+    next = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+    break;
+  case RenderTargetOperation::eColorWrite:
+    throw std::runtime_error("invalid depth attachment layout");
+  }
+  return {prev, next};
+}
 
 void ShaderManager::createDescriptorSetLayouts(vk::Device device) {
   // TODO: read shader and create layouts for the other shaders
@@ -326,7 +352,8 @@ void ShaderManager::createPipelines(core::Context &context,
   mGbufferPass->createGraphicsPipeline(
       device, mRenderConfig->colorFormat, mRenderConfig->depthFormat,
       mRenderConfig->culling, vk::FrontFace::eCounterClockwise,
-      getColorRenderTargetLayoutsForPass(mGbufferPass),
+      getColorAttachmentLayoutsForPass(mGbufferPass),
+      getDepthAttachmentLayoutsForPass(mGbufferPass),
       {mCameraLayout.get(), mObjectLayout.get(),
        mGbufferPass->getMaterialType() ==
                ShaderConfig::MaterialPipeline::eMETALLIC
@@ -335,28 +362,16 @@ void ShaderManager::createPipelines(core::Context &context,
 
   mDeferredPass->createGraphicsPipeline(
       device, mRenderConfig->colorFormat,
-      getColorRenderTargetLayoutsForPass(mDeferredPass),
+      getColorAttachmentLayoutsForPass(mDeferredPass),
       {mSceneLayout.get(), mCameraLayout.get(), mDeferredLayout.get()},
       numDirectionalLights, numPointLights);
   for (uint32_t i = 0; i < mCompositePasses.size(); ++i) {
     mCompositePasses[i]->createGraphicsPipeline(
         device, mRenderConfig->colorFormat,
-        getColorRenderTargetLayoutsForPass(mDeferredPass),
+        getColorAttachmentLayoutsForPass(mDeferredPass),
         {mCompositeLayouts[i].get()});
   }
 }
-
-// std::vector<vk::PipelineLayout> ShaderManager::getPipelinesLayouts() {
-//   std::vector<vk::PipelineLayout> layouts(mNumPasses);
-//   layouts[0] = mGbufferPass->getPipelineLayout();
-//   layouts[1] = mDeferredPass->getPipelineLayout();
-//   int i = 2;
-//   for (auto pass : mCompositePasses) {
-//     layouts[i] = mCompositePasses[i]->getPipelineLayout();
-//     ++i;
-//   }
-//   return layouts;
-// }
 
 std::vector<std::shared_ptr<BaseParser>> ShaderManager::getAllPasses() const {
   std::vector<std::shared_ptr<BaseParser>> allPasses;
@@ -372,6 +387,28 @@ ShaderManager::getCompositeDescriptorSetLayouts() const {
   std::vector<vk::DescriptorSetLayout> result;
   for (auto &l : mCompositeLayouts) {
     result.push_back(l.get());
+  }
+  return result;
+}
+
+std::unordered_map<std::string, vk::ImageLayout>
+ShaderManager::getRenderTargetFinalLayouts() const {
+  std::unordered_map<std::string, vk::ImageLayout> result;
+  for (auto tex : mRenderTargetFormats) {
+    auto op = getLastOperation(tex.first);
+    switch (op) {
+    case RenderTargetOperation::eRead:
+      result[tex.first] = vk::ImageLayout::eShaderReadOnlyOptimal;
+      break;
+    case RenderTargetOperation::eColorWrite:
+      result[tex.first] = vk::ImageLayout::eColorAttachmentOptimal;
+      break;
+    case RenderTargetOperation::eDepthWrite:
+      result[tex.first] = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+      break;
+    case RenderTargetOperation::eNoOp:
+      throw std::runtime_error("invalid render target");
+    }
   }
   return result;
 }

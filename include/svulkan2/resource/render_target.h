@@ -28,11 +28,14 @@ public:
                  vk::Format format);
 
   void createDeviceResources(core::Context &context);
-  template <typename T> std::vector<T> download();
+  template <typename T> std::vector<T> download() {
+    return mImage->download<T>();
+  }
 
   inline uint32_t getWidth() const { return mWidth; }
   inline uint32_t getHeight() const { return mHeight; }
 
+  inline core::Image &getImage() const { return *mImage; }
   inline vk::ImageView getImageView() const { return mImageView.get(); };
   inline vk::Sampler getSampler() const { return mSampler.get(); };
 };
