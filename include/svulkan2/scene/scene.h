@@ -42,6 +42,9 @@ public:
     }
     return mScene;
   }
+
+  /** call exactly once per frame to update the object matrices */
+  void updateModelMatrices();
 };
 
 } // namespace scene

@@ -1,6 +1,7 @@
 #pragma once
 #include "allocator.h"
 #include "svulkan2/common/vk.h"
+#include "svulkan2/renderer/gui.h"
 #include "svulkan2/resource/manager.h"
 #include <future>
 
@@ -32,7 +33,8 @@ class Context {
 
 public:
   Context(uint32_t apiVersion = VK_API_VERSION_1_1, bool present = true,
-          uint32_t maxNumMaterials = 5000, uint32_t maxNumTextures = 5000);
+          uint32_t maxNumMaterials = 5000, uint32_t maxNumTextures = 5000,
+          uint32_t defaultMipLevels = 1);
   ~Context();
 
   vk::Queue getQueue() const;
@@ -65,6 +67,9 @@ public:
   inline resource::SVResourceManager &getResourceManager() const {
     return *mResourceManager;
   }
+
+  std::unique_ptr<renderer::GuiWindow> createWindow(uint32_t width,
+                                                    uint32_t height);
 
 private:
   void createInstance();

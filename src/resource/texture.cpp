@@ -58,7 +58,8 @@ void SVTexture::uploadToDevice(core::Context &context) {
       {}, mDescription.magFilter, mDescription.minFilter,
       vk::SamplerMipmapMode::eLinear, mDescription.addressModeU,
       mDescription.addressModeV, vk::SamplerAddressMode::eRepeat, 0.f, false,
-      0.f, false, vk::CompareOp::eNever, 0.f, 0.f,
+      0.f, false, vk::CompareOp::eNever, 0.f,
+      static_cast<float>(mDescription.mipLevels),
       vk::BorderColor::eFloatOpaqueBlack));
   mOnDevice = true;
 }

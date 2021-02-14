@@ -37,7 +37,7 @@ static bool checkValidationLayerSupport() {
 #endif
 
 Context::Context(uint32_t apiVersion, bool present, uint32_t maxNumMaterials,
-                 uint32_t maxNumTextures)
+                 uint32_t maxNumTextures, uint32_t defaultMipLevels)
     : mApiVersion(apiVersion), mPresent(present),
       mMaxNumMaterials(maxNumMaterials), mMaxNumTextures(maxNumTextures) {
   createInstance();
@@ -47,6 +47,7 @@ Context::Context(uint32_t apiVersion, bool present, uint32_t maxNumMaterials,
   createCommandPool();
   createDescriptorPool();
   mResourceManager = std::make_unique<resource::SVResourceManager>();
+  mResourceManager->setDefaultMipLevels(defaultMipLevels);
 }
 
 Context::~Context() {}
@@ -117,6 +118,7 @@ void Context::pickSuitableGpuAndQueueFamilyIndex() {
       throw std::runtime_error("Window creation failed, you may not create "
                                "GLFW window for presenting rendered results.");
     }
+    glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
   }
 
   vk::PhysicalDevice pickedDevice;
@@ -267,6 +269,25 @@ Context::submitCommandBuffer(vk::CommandBuffer commandBuffer) const {
 vk::Queue Context::getQueue() const {
   return mDevice->getQueue(mQueueFamilyIndex, 0);
 }
+
+std::unique_ptr<renderer::GuiWindow> Context::createWindow(uint32_t width,
+                                                           uint32_t height) {
+  if (!mPresent) {
+    throw std::runtime_error(
+        "Create window failed: context is not created with present support");
+  }
+  if (width == 0 || height == 0) {
+    throw std::runtime_error(
+        "Create window failed: width and height must be positive.");
+  }
+  return std::make_unique<renderer::GuiWindow>(
+      *this,
+      std::vector<vk::Format>{
+          vk::Format::eB8G8R8A8Unorm, vk::Format::eR8G8B8A8Unorm,
+          vk::Format::eB8G8R8Unorm, vk::Format::eR8G8B8Unorm},
+      vk::ColorSpaceKHR::eSrgbNonlinear, width, height,
+      std::vector<vk::PresentModeKHR>{vk::PresentModeKHR::eFifo}, 2);
+};
 
 } // namespace core
 

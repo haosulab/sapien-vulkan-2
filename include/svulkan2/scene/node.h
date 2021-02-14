@@ -16,7 +16,7 @@ class Scene;
 class Node {
   std::string mName;
   Transform mTransform{};
-  Node *mParent;
+  Node *mParent{};
   std::vector<Node *> mChildren{};
   std::shared_ptr<resource::SVObject> mObject{nullptr};
   std::shared_ptr<resource::SVCamera> mCamera{nullptr};
@@ -62,11 +62,11 @@ public:
 
   /** called before rendering to update the cached model matrix */
   void updateGlobalModelMatrixRecursive();
-  /** called right after updateGlobalModelMatrixRecursive to update object/camera model matrices */
+  /** called right after updateGlobalModelMatrixRecursive to update
+   * object/camera model matrices */
   void updateObjectCameraModelMatrixRecursive();
 
   std::vector<std::shared_ptr<resource::SVObject>> getObjectsRecursive() const;
-
 };
 
 } // namespace scene

@@ -49,6 +49,10 @@ public:
   void render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
               resource::SVCamera &camera);
 
+  void display(vk::CommandBuffer commandBuffer,
+               std::string const &renderTargetName, vk::Image backBuffer,
+               vk::Format format, uint32_t width, uint32_t height);
+
   template <typename T>
   std::tuple<std::vector<T>, std::array<uint32_t, 3>>
   download(std::string const &targetName) {

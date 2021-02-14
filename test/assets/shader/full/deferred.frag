@@ -43,8 +43,7 @@ vec3 getBackgroundColor(vec3 texcoord) {
 }
 
 float diffuse(vec3 L, vec3 V, vec3 N) {
-  float NoL = dot(N, L);
-  return max(NoL, 0.f) / 3.141592653589793f;
+  return max(dot(N, L), 0.f) / 3.141592653589793f;
 }
 
 float ggx(vec3 L, vec3 V, vec3 N, float roughness, float fresnel) {
@@ -82,8 +81,11 @@ void main() {
   float roughness = frm.y;
   float metallic = frm.z;
 
-  vec3 normal = texture(samplerNormal, inUV).xyz;
-  vec4 csPosition = texture(samplerPosition, inUV);
+  vec3 normal = texture(samplerNormal, inUV).xyz * 2 - 1;
+  float depth = texture(samplerDepth, inUV).x;
+  vec4 csPosition = cameraBuffer.projectionMatrixInverse * (vec4(inUV * 2 - 1, depth, 1));
+  csPosition /= csPosition.w;
+
   vec3 camDir = -normalize(csPosition.xyz);
 
   vec3 color = vec3(0.f);
@@ -132,12 +134,9 @@ void main() {
 
   color += sceneBuffer.ambientLight.rgb * albedo;
 
-  float depth = texture(samplerDepth, inUV).x;
   if (depth == 1) {
     outLighting = vec4(getBackgroundColor((cameraBuffer.viewMatrixInverse * csPosition).xyz), 1.f);
   } else {
     outLighting = vec4(color, 1);
   }
 }
-
-

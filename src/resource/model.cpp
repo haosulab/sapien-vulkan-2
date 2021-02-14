@@ -319,6 +319,7 @@ std::future<void> SVModel::loadAsync() {
 
     std::vector<std::future<void>> futures; // futures of subtasks
 
+    const uint32_t MIP_LEVEL = mManager->getDefaultMipLevels();
     std::vector<std::shared_ptr<SVMaterial>> materials;
     if (mManager->getMaterialPipelineType() ==
         ShaderConfig::MaterialPipeline::eMETALLIC) {
@@ -344,28 +345,30 @@ std::future<void> SVModel::loadAsync() {
           std::string p = std::string(path.C_Str());
           std::string fullPath = (parentDir / p);
           baseColorTexture = mManager->CreateTextureFromFile(
-              fullPath, 1); // TODO configurable mip levels
+              fullPath, MIP_LEVEL); // TODO configurable mip levels
           futures.push_back(baseColorTexture->loadAsync());
         }
         if (m->GetTextureCount(aiTextureType_METALNESS) > 0 &&
             m->GetTexture(aiTextureType_METALNESS, 0, &path) == AI_SUCCESS) {
           std::string p = std::string(path.C_Str());
           std::string fullPath = (parentDir / p);
-          metallicTexture = mManager->CreateTextureFromFile(fullPath, 1);
+          metallicTexture =
+              mManager->CreateTextureFromFile(fullPath, MIP_LEVEL);
           futures.push_back(metallicTexture->loadAsync());
         }
         if (m->GetTextureCount(aiTextureType_NORMALS) > 0 &&
             m->GetTexture(aiTextureType_NORMALS, 0, &path) == AI_SUCCESS) {
           std::string p = std::string(path.C_Str());
           std::string fullPath = (parentDir / p);
-          normalTexture = mManager->CreateTextureFromFile(fullPath, 1);
+          normalTexture = mManager->CreateTextureFromFile(fullPath, MIP_LEVEL);
           futures.push_back(normalTexture->loadAsync());
         }
         if (m->GetTextureCount(aiTextureType_DIFFUSE_ROUGHNESS) > 0 &&
             m->GetTexture(aiTextureType_NORMALS, 0, &path) == AI_SUCCESS) {
           std::string p = std::string(path.C_Str());
           std::string fullPath = (parentDir / p);
-          roughnessTexture = mManager->CreateTextureFromFile(fullPath, 1);
+          roughnessTexture =
+              mManager->CreateTextureFromFile(fullPath, MIP_LEVEL);
           futures.push_back(roughnessTexture->loadAsync());
         }
 
@@ -399,21 +402,22 @@ std::future<void> SVModel::loadAsync() {
           std::string p = std::string(path.C_Str());
           std::string fullPath = (parentDir / p);
           diffuseTexture = mManager->CreateTextureFromFile(
-              fullPath, 1); // TODO configurable mip levels
+              fullPath, MIP_LEVEL); // TODO configurable mip levels
           futures.push_back(diffuseTexture->loadAsync());
         }
         if (m->GetTextureCount(aiTextureType_SPECULAR) > 0 &&
             m->GetTexture(aiTextureType_SPECULAR, 0, &path) == AI_SUCCESS) {
           std::string p = std::string(path.C_Str());
           std::string fullPath = (parentDir / p);
-          specularTexture = mManager->CreateTextureFromFile(fullPath, 1);
+          specularTexture =
+              mManager->CreateTextureFromFile(fullPath, MIP_LEVEL);
           futures.push_back(specularTexture->loadAsync());
         }
         if (m->GetTextureCount(aiTextureType_NORMALS) > 0 &&
             m->GetTexture(aiTextureType_NORMALS, 0, &path) == AI_SUCCESS) {
           std::string p = std::string(path.C_Str());
           std::string fullPath = (parentDir / p);
-          normalTexture = mManager->CreateTextureFromFile(fullPath, 1);
+          normalTexture = mManager->CreateTextureFromFile(fullPath, MIP_LEVEL);
           futures.push_back(normalTexture->loadAsync());
         }
 

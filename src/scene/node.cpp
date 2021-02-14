@@ -48,9 +48,10 @@ void Node::updateGlobalModelMatrixRecursive() {
                           glm::scale(glm::mat4(1), mTransform.scale);
   if (!mParent) {
     mTransform.worldModelMatrix = localMatrix;
+  } else {
+    mTransform.worldModelMatrix =
+        mParent->mTransform.worldModelMatrix * localMatrix;
   }
-  mTransform.worldModelMatrix =
-      mParent->mTransform.worldModelMatrix * localMatrix;
   for (auto c : mChildren) {
     c->updateGlobalModelMatrixRecursive();
   }

@@ -20,6 +20,8 @@ class SVResourceManager {
 
   std::shared_ptr<SVTexture> mDefaultTexture;
 
+  uint32_t mDefaultMipLevels{1};
+
 public:
   SVResourceManager();
 
@@ -76,6 +78,9 @@ public:
   getImages() const {
     return mImageRegistry;
   }
+
+  void setDefaultMipLevels(uint32_t level) { mDefaultMipLevels = level; }
+  uint32_t getDefaultMipLevels() const { return mDefaultMipLevels; }
 };
 
 } // namespace resource

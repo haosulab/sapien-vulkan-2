@@ -32,7 +32,7 @@ void SVCamera::uploadToDevice(core::Buffer &cameraBuffer,
   std::vector<char> mBuffer(cameraLayout.size);
 
   auto viewMatrix = glm::affineInverse(mModelMatrix);
-  auto projInv = glm::affineInverse(mProjectionMatrix);
+  auto projInv = glm::inverse(mProjectionMatrix);
   std::memcpy(mBuffer.data() + cameraLayout.elements.at("viewMatrix").offset,
               &viewMatrix[0][0], 64);
   std::memcpy(mBuffer.data() +
@@ -53,6 +53,7 @@ void SVCamera::uploadToDevice(core::Buffer &cameraBuffer,
                     cameraLayout.elements.at("prevViewMatrixInverse").offset,
                 &mPrevModelMatrix[0][0], 64);
   }
+  cameraBuffer.upload<char>(mBuffer);
 }
 
 void SVCamera::setPrevModelMatrix(glm::mat4 const &matrix) {

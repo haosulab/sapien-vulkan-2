@@ -1,4 +1,5 @@
 #include "svulkan2/renderer/gui.h"
+#include "svulkan2/core/context.h"
 
 namespace svulkan2 {
 namespace renderer {
@@ -39,12 +40,12 @@ static vk::UniqueRenderPass createImguiRenderPass(vk::Device device,
   return device.createRenderPassUnique(info);
 }
 
-static vk::UniqueFramebuffer
-createImguiFramebuffer(vk::Device device, vk::RenderPass renderPass,
-                       vk::ImageView view, uint32_t width, uint32_t height) {
-  vk::FramebufferCreateInfo info({}, renderPass, 1, &view, width, height, 1);
-  return device.createFramebufferUnique(info);
-}
+// static vk::UniqueFramebuffer
+// createImguiFramebuffer(vk::Device device, vk::RenderPass renderPass,
+//                        vk::ImageView view, uint32_t width, uint32_t height) {
+//   vk::FramebufferCreateInfo info({}, renderPass, 1, &view, width, height, 1);
+//   return device.createFramebufferUnique(info);
+// }
 
 GuiWindow::GuiWindow(core::Context &context,
                      std::vector<vk::Format> const &requestFormats,
@@ -69,21 +70,20 @@ void GuiWindow::newFrame() {
   }
   mFrameIndex = result.value;
 
-  // auto mousePos = ImGui::GetMousePos();
-  // static bool firstFrame = true;
-  // if (firstFrame) {
-  //   firstFrame = false;
-  // } else {
-  //   mMouseDelta = {mousePos.x - mMousePos.x, mousePos.y - mMousePos.y};
-  // }
-  // mMousePos = mousePos;
+  auto mousePos = ImGui::GetMousePos();
+  static bool firstFrame = true;
+  if (firstFrame) {
+    firstFrame = false;
+  } else {
+    mMouseDelta = {mousePos.x - mMousePos.x, mousePos.y - mMousePos.y};
+  }
+  mMousePos = mousePos;
 
-  // if (ImGui::GetIO().WantCaptureMouse) {
-  //   mMouseWheelDelta = {0, 0};
-  // } else {
-  //   mMouseWheelDelta = {ImGui::GetIO().MouseWheel,
-  //   ImGui::GetIO().MouseWheelH};
-  // }
+  if (ImGui::GetIO().WantCaptureMouse) {
+    mMouseWheelDelta = {0, 0};
+  } else {
+    mMouseWheelDelta = {ImGui::GetIO().MouseWheel, ImGui::GetIO().MouseWheelH};
+  }
 
   ImGui_ImplVulkan_NewFrame();
   ImGui_ImplGlfw_NewFrame();
@@ -160,7 +160,7 @@ void GuiWindow::initImgui() {
   initInfo.Instance = mContext->getInstance();
   initInfo.PhysicalDevice = mContext->getPhysicalDevice();
   initInfo.Device = device;
-  initInfo.QueueFamily = mPresentQueueFamilyIndex;
+  initInfo.QueueFamily = mContext->getGraphicsQueueFamilyIndex();
   initInfo.Queue = mContext->getQueue();
 
   initInfo.PipelineCache = {};
@@ -172,9 +172,13 @@ void GuiWindow::initImgui() {
   ImGui_ImplVulkan_Init(&initInfo, mImguiRenderPass.get());
 
   auto commandBuffer = mContext->createCommandBuffer();
+  commandBuffer->begin(vk::CommandBufferBeginInfo(
+      vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
   ImGui_ImplVulkan_CreateFontsTexture(commandBuffer.get());
+  commandBuffer->end();
   mContext->submitCommandBufferAndWait(commandBuffer.get());
   log::info("Imgui initialized");
+  updateSize(mWidth, mHeight);
 }
 
 void GuiWindow::createGlfwWindow(uint32_t width, uint32_t height) {
@@ -329,7 +333,7 @@ void GuiWindow::recreateImguiResources() {
   for (uint32_t i = 0; i < mFrames.size(); ++i) {
     mFrames[i].mImguiCommandPool = device.createCommandPoolUnique(
         {vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
-         mGraphicsQueueFamilyIndex});
+         mContext->getGraphicsQueueFamilyIndex()});
     mFrames[i].mImguiCommandBuffer = std::move(
         device
             .allocateCommandBuffersUnique({mFrames[i].mImguiCommandPool.get(),
@@ -364,6 +368,49 @@ void GuiWindow::close() {
 }
 
 GuiWindow::~GuiWindow() { glfwDestroyWindow(mWindow); }
+bool GuiWindow::isKeyDown(char key) {
+  if (ImGui::GetIO().WantTextInput || ImGui::GetIO().WantCaptureKeyboard) {
+    return false;
+  }
+  if (key >= 'a' && key <= 'z') {
+    return ImGui::IsKeyDown(ImGui::GetKeyIndex(ImGuiKey_A) + key - 'a');
+  }
+  if (key == ' ') {
+    return ImGui::IsKeyDown(ImGui::GetKeyIndex(ImGuiKey_Space));
+  }
+  return false;
+}
+
+bool GuiWindow::isKeyPressed(char key) {
+  if (ImGui::GetIO().WantTextInput || ImGui::GetIO().WantCaptureKeyboard) {
+    return false;
+  }
+  if (key >= 'a' && key <= 'z') {
+    return ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_A) + key - 'a');
+  }
+  if (key == ' ') {
+    return ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Space));
+  }
+  return false;
+}
+
+ImVec2 GuiWindow::getMouseDelta() {
+  mMouseDelta.x = std::clamp(mMouseDelta.x, -100.f, 100.f);
+  mMouseDelta.y = std::clamp(mMouseDelta.y, -100.f, 100.f);
+  return mMouseDelta;
+}
+
+ImVec2 GuiWindow::getMouseWheelDelta() { return mMouseWheelDelta; }
+
+ImVec2 GuiWindow::getMousePosition() { return mMousePos; }
+
+bool GuiWindow::isMouseKeyDown(int key) {
+  return !ImGui::GetIO().WantCaptureMouse && ImGui::IsMouseDown(key);
+}
+
+bool GuiWindow::isMouseKeyClicked(int key) {
+  return !ImGui::GetIO().WantCaptureMouse && ImGui::IsMouseClicked(key);
+}
 
 } // namespace renderer
 } // namespace svulkan2

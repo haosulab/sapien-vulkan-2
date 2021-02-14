@@ -368,7 +368,7 @@ void ShaderManager::createPipelines(core::Context &context,
   for (uint32_t i = 0; i < mCompositePasses.size(); ++i) {
     mCompositePasses[i]->createGraphicsPipeline(
         device, mRenderConfig->colorFormat,
-        getColorAttachmentLayoutsForPass(mDeferredPass),
+        getColorAttachmentLayoutsForPass(mCompositePasses[i]),
         {mCompositeLayouts[i].get()});
   }
 }

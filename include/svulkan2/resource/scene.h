@@ -15,7 +15,7 @@ class SVScene {
 
   std::vector<PointLight> mPointLights;
   std::vector<DirectionalLight> mDirectionalLights;
-  glm::vec4 mAmbientLight;
+  glm::vec4 mAmbientLight{0, 0, 0, 1};
 
   bool mLightCountChanged{true};
   bool mLightPropertyChanged{true};
@@ -41,7 +41,6 @@ public:
   }
   inline glm::vec3 getAmbeintLight() const { return mAmbientLight; };
 
-  // void createDeviceResources(core::Context &context);
   void uploadToDevice(core::Buffer &sceneBuffer,
                       StructDataLayout const &sceneLayout);
 };

@@ -48,5 +48,10 @@ std::vector<std::shared_ptr<resource::SVObject>> Scene::getObjects() const {
   return mRootNode->getObjectsRecursive();
 }
 
+void Scene::updateModelMatrices() {
+  mRootNode->updateGlobalModelMatrixRecursive();
+  mRootNode->updateObjectCameraModelMatrixRecursive();
+}
+
 } // namespace scene
 } // namespace svulkan2

@@ -5,13 +5,15 @@
 #include <vector>
 #include <vulkan/vulkan.hpp>
 
-#include "svulkan2/core/context.h"
 #include <GLFW/glfw3.h>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_vulkan.h>
 
 namespace svulkan2 {
+namespace core {
+class Context;
+}
 namespace renderer {
 
 struct Frame {
@@ -31,8 +33,6 @@ struct VulkanFrameSemaphores {
 class GuiWindow {
   GLFWwindow *mWindow;
   vk::UniqueSurfaceKHR mSurface;
-  uint32_t mGraphicsQueueFamilyIndex;
-  uint32_t mPresentQueueFamilyIndex;
 
   core::Context *mContext;
   uint32_t mMinImageCount;
@@ -110,6 +110,26 @@ public:
 
   void close();
   inline bool isClosed() const { return mClosed; }
+
+public:
+  bool mFirstFrame{true};
+  ImVec2 mMousePos{0, 0};
+  ImVec2 mMouseDelta{0, 0};
+  ImVec2 mMouseWheelDelta{0, 0};
+
+  bool isKeyDown(char key);
+
+  bool isKeyPressed(char key);
+
+  ImVec2 getMouseDelta();
+
+  ImVec2 getMouseWheelDelta();
+
+  ImVec2 getMousePosition();
+
+  bool isMouseKeyDown(int key);
+
+  bool isMouseKeyClicked(int key);
 
 private:
   /** Called at initialization time  */

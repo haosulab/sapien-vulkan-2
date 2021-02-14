@@ -122,6 +122,9 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
     prepareFramebuffers(mWidth, mHeight);
     prepareDeferredDescriptorSets();
   }
+
+  scene.updateModelMatrices();
+
   auto objects = scene.getObjects();
   prepareObjectBuffers(objects.size());
   prepareSceneBuffer();
@@ -259,8 +262,78 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
       throw std::runtime_error("Unknown pass");
     }
   }
-  for (auto& [name, target]: mRenderTargets) {
+  for (auto &[name, target] : mRenderTargets) {
     target->getImage().setCurrentLayout(mRenderTargetFinalLayouts[name]);
+  }
+}
+
+void Renderer::display(vk::CommandBuffer commandBuffer,
+                       std::string const &renderTargetName,
+                       vk::Image backBuffer, vk::Format format, uint32_t width,
+                       uint32_t height) {
+  auto &renderTarget = mRenderTargets.at(renderTargetName);
+  auto targetFormat = renderTarget->getImage().getFormat();
+  if (targetFormat != vk::Format::eR8G8B8A8Unorm &&
+      targetFormat != vk::Format::eR32G32B32A32Sfloat) {
+    throw std::runtime_error(
+        "failed to display: only color textures are supported in display");
+  };
+  auto layout = mRenderTargetFinalLayouts.at(renderTargetName);
+  vk::AccessFlags sourceAccessMask;
+  vk::PipelineStageFlags sourceStage;
+  if (layout == vk::ImageLayout::eColorAttachmentOptimal) {
+    sourceAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
+    sourceStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+  } else if (layout == vk::ImageLayout::eShaderReadOnlyOptimal) {
+    sourceAccessMask = {};
+    sourceStage = vk::PipelineStageFlagBits::eTopOfPipe;
+  } else {
+    throw std::runtime_error("invalid layout");
+  }
+
+  // transfer render target
+  renderTarget->getImage().transitionLayout(
+      commandBuffer, layout, vk::ImageLayout::eTransferSrcOptimal,
+      sourceAccessMask, vk::AccessFlagBits::eTransferRead, sourceStage,
+      vk::PipelineStageFlagBits::eTransfer);
+
+  // transfer swap chain
+  {
+    vk::ImageSubresourceRange imageSubresourceRange(
+        vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1);
+    vk::ImageMemoryBarrier barrier(
+        {}, vk::AccessFlagBits::eTransferWrite, vk::ImageLayout::eUndefined,
+        vk::ImageLayout::eTransferDstOptimal, VK_QUEUE_FAMILY_IGNORED,
+        VK_QUEUE_FAMILY_IGNORED, backBuffer, imageSubresourceRange);
+    commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe,
+                                  vk::PipelineStageFlagBits::eTransfer, {},
+                                  nullptr, nullptr, barrier);
+  }
+  vk::ImageSubresourceLayers imageSubresourceLayers(
+      vk::ImageAspectFlagBits::eColor, 0, 0, 1);
+  vk::ImageBlit imageBlit(
+      imageSubresourceLayers,
+      {{vk::Offset3D{0, 0, 0}, vk::Offset3D{mWidth, mHeight, 1}}},
+      imageSubresourceLayers,
+      {{vk::Offset3D{0, 0, 0},
+        vk::Offset3D{static_cast<int>(width), static_cast<int>(height), 1}}});
+  commandBuffer.blitImage(renderTarget->getImage().getVulkanImage(),
+                          vk::ImageLayout::eTransferSrcOptimal, backBuffer,
+                          vk::ImageLayout::eTransferDstOptimal, imageBlit,
+                          vk::Filter::eNearest);
+
+  // transfer swap chain back
+  {
+    vk::ImageSubresourceRange imageSubresourceRange(
+        vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1);
+    vk::ImageMemoryBarrier barrier(
+        vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eMemoryRead,
+        vk::ImageLayout::eTransferDstOptimal,
+        vk::ImageLayout::eColorAttachmentOptimal, VK_QUEUE_FAMILY_IGNORED,
+        VK_QUEUE_FAMILY_IGNORED, backBuffer, imageSubresourceRange);
+    commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer,
+                                  vk::PipelineStageFlagBits::eAllCommands, {},
+                                  nullptr, nullptr, barrier);
   }
 }
 
@@ -301,7 +374,7 @@ void Renderer::prepareObjectBuffers(uint32_t numObjects) {
             .front());
     updateDescriptorSets(mContext->getDevice(), objectSet.get(),
                          {{vk::DescriptorType::eUniformBuffer,
-                           mSceneBuffer->getVulkanBuffer(), nullptr}},
+                           mObjectBuffers[i]->getVulkanBuffer(), nullptr}},
                          {}, 0);
     mObjectSet.push_back(std::move(objectSet));
   }
@@ -361,7 +434,7 @@ void Renderer::prepareCameaBuffer() {
             .front());
     updateDescriptorSets(mContext->getDevice(), mCameraSet.get(),
                          {{vk::DescriptorType::eUniformBuffer,
-                           mSceneBuffer->getVulkanBuffer(), nullptr}},
+                           mCameraBuffer->getVulkanBuffer(), nullptr}},
                          {}, 0);
   }
 }

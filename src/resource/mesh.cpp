@@ -11,7 +11,7 @@ static void strided_memcpy(void *target, void *source, size_t chunk_size,
   char *source_ = reinterpret_cast<char *>(source);
 
   for (size_t i = 0; i < chunks; ++i) {
-    std::memcpy(target, source, chunk_size);
+    std::memcpy(target_, source_, chunk_size);
     target_ += stride;
     source_ += chunk_size;
   }
@@ -34,9 +34,9 @@ void SVMesh::setVertexAttribute(std::string const &name,
                                 std::vector<float> const &attrib) {
   mDirty = true;
   if (mVertexLayout->elements.find(name) == mVertexLayout->elements.end()) {
-    log::warn(
-        "failed to set vertex attribute \"{}\": it is not specified in the shader",
-        name);
+    log::warn("failed to set vertex attribute \"{}\": it is not specified in "
+              "the shader",
+              name);
     return;
   }
   mAttributes[name] = attrib;
@@ -79,7 +79,6 @@ void SVMesh::uploadToDevice(core::Context &context) {
 
   std::vector<char> buffer(bufferSize, 0);
   auto elements = mVertexLayout->getElementsSorted();
-  std::vector<uint32_t> offsets;
   uint32_t offset = 0;
   for (auto &elem : elements) {
     if (mAttributes.find(elem.name) != mAttributes.end()) {
