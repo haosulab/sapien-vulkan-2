@@ -49,7 +49,6 @@ int main() {
   auto model = context.getResourceManager().CreateModelFromFile(
       "../test/assets/scene/sponza/sponza.obj");
   node.setTransform(scene::Transform{.scale = {0.001, 0.001, 0.001}});
-  model->loadAsync().get();
   auto object = std::make_shared<resource::SVObject>(model);
   node.setObject(object);
 

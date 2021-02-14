@@ -42,42 +42,65 @@ vec3 getBackgroundColor(vec3 texcoord) {
   return vec3(1,1,1);
 }
 
-float diffuse(vec3 L, vec3 V, vec3 N) {
-  return max(dot(N, L), 0.f) / 3.141592653589793f;
+float diffuse(float NoL) {
+  return max(NoL, 0.f) / 3.141592653589793f;
 }
 
-float ggx(vec3 L, vec3 V, vec3 N, float roughness, float fresnel) {
-  float NoV = dot(N, V);
-  float NoL = dot(N, L);
-  if (NoV <= 0 || NoL <= 0) {
-    return 0;
-  }
+// float diffuse(vec3 L, vec3 V, vec3 N) {
+//   return max(dot(N, L), 0.f) / 3.141592653589793f;
+// }
 
-  vec3 H = normalize((L+V) / 2);
-  NoL = clamp(NoL, 1e-6, 1);
-  NoV = clamp(NoV, 1e-6, 1);
-  float NoH = clamp(dot(N, H), 1e-6, 1);
-  float VoH = clamp(dot(V, H), 1e-6, 1);
-
+vec3 ggx(float NoL, float NoV, float NoH, float VoH, float roughness, vec3 fresnel) {
   float alpha = roughness * roughness;
   float alpha2 = alpha * alpha;
+
   float k = (alpha + 2 * roughness + 1.0) / 8.0;
-  float FMi = ((-5.55473) * VoH - 5.98316) * VoH;
-  float frac0 = fresnel + (1 - fresnel) * pow(2.0, FMi);
-  float frac = frac0 * alpha2;
+
+  float FMi = ((-5.55473) * VoH - 6.98316) * VoH;
+  vec3 frac = (fresnel + (1 - fresnel) * pow(2.0, FMi)) * alpha2;
   float nom0 = NoH * NoH * (alpha2 - 1) + 1;
   float nom1 = NoV * (1 - k) + k;
   float nom2 = NoL * (1 - k) + k;
-  float nom = clamp((4 * 4 * 3.141592653589793f * nom0 * nom0 * nom1 * nom2), 1e-6, 4 * 3.141592653589793f);
-  float spec = frac / nom;
+  float nom = clamp((4 * 3.141592653589793f * nom0 * nom0 * nom1 * nom2), 1e-6, 4 * 3.141592653589793f);
+  vec3 spec = frac / nom;
 
   return spec * NoL;
 }
 
+// float ggx(vec3 L, vec3 V, vec3 N, float roughness, float fresnel) {
+//   float NoV = dot(N, V);
+//   float NoL = dot(N, L);
+//   if (NoV <= 0 || NoL <= 0) {
+//     return 0;
+//   }
+
+//   vec3 H = normalize((L+V) / 2);
+//   NoL = clamp(NoL, 1e-6, 1);
+//   NoV = clamp(NoV, 1e-6, 1);
+//   float NoH = clamp(dot(N, H), 1e-6, 1);
+//   float VoH = clamp(dot(V, H), 1e-6, 1);
+
+//   float alpha = roughness * roughness;
+//   float alpha2 = alpha * alpha;
+
+//   float k = (alpha + 2 * roughness + 1.0) / 8.0;
+
+//   float FMi = ((-5.55473) * VoH - 6.98316) * VoH;
+//   float frac0 = fresnel + (1 - fresnel) * pow(2.0, FMi);
+//   float frac = frac0 * alpha2;
+//   float nom0 = NoH * NoH * (alpha2 - 1) + 1;
+//   float nom1 = NoV * (1 - k) + k;
+//   float nom2 = NoL * (1 - k) + k;
+//   float nom = clamp((4 * 4 * 3.141592653589793f * nom0 * nom0 * nom1 * nom2), 1e-6, 4 * 3.141592653589793f);
+//   float spec = frac / nom;
+
+//   return spec * NoL;
+// }
+
 void main() {
   vec3 albedo = texture(samplerAlbedo, inUV).xyz;
   vec3 frm = texture(samplerSpecular, inUV).xyz;
-  float F0 = frm.x;
+  float specular = frm.x;
   float roughness = frm.y;
   float metallic = frm.z;
 
@@ -87,6 +110,9 @@ void main() {
   csPosition /= csPosition.w;
 
   vec3 camDir = -normalize(csPosition.xyz);
+
+  vec3 diffuseAlbedo = albedo * (1 - metallic);
+  vec3 fresnel = specular * (1 - metallic) + albedo * metallic;
 
   vec3 color = vec3(0.f);
   for (int i = 0; i < NUM_POINT_LIGHTS; i++) {
@@ -100,16 +126,16 @@ void main() {
 
     vec3 lightDir = normalize(l);
 
-    // diffuse
-    color += (1 - metallic) * albedo * sceneBuffer.pointLights[i].emission.rgb *
-             diffuse(lightDir, camDir, normal) / d / d;
+    vec3 H = lightDir + camDir;
+    float H2 = dot(H, H);
+    H = H2 < 1e-6 ? vec3(0) : normalize(H);
+    float NoH = dot(normal, H);
+    float VoH = dot(camDir, H);
+    float NoL = dot(normal, lightDir);
+    float NoV = dot(normal, camDir);
 
-    // metallic
-    color += metallic * albedo * sceneBuffer.pointLights[i].emission.rgb *
-             ggx(lightDir, camDir, normal, roughness, 1.f) / d / d;
-
-    // specular
-    color += sceneBuffer.pointLights[i].emission.rgb * ggx(lightDir, camDir, normal, roughness, F0) / d / d;
+    color += diffuseAlbedo * sceneBuffer.pointLights[i].emission.rgb * diffuse(NoL) / d / d;
+    color += sceneBuffer.pointLights[i].emission.rgb * ggx(NoL, NoV, NoH, VoH, roughness, fresnel) / d / d;
   }
 
   for (int i = 0; i < NUM_DIRECTIONAL_LIGHTS; ++i) {
@@ -120,16 +146,16 @@ void main() {
     vec3 lightDir = -normalize((cameraBuffer.viewMatrix *
                                 vec4(sceneBuffer.directionalLights[i].direction.xyz, 0)).xyz);
 
-    // diffuse
-    color += (1 - metallic) * albedo * sceneBuffer.directionalLights[i].emission.rgb *
-             diffuse(lightDir, camDir, normal);
+    vec3 H = lightDir + camDir;
+    float H2 = dot(H, H);
+    H = H2 < 1e-6 ? vec3(0) : normalize(H);
+    float NoH = dot(normal, H);
+    float VoH = dot(camDir, H);
+    float NoL = dot(normal, lightDir);
+    float NoV = dot(normal, camDir);
 
-    // metallic
-    color += metallic * albedo * sceneBuffer.directionalLights[i].emission.rgb *
-             ggx(lightDir, camDir, normal, roughness, 1.f);
-
-    // specular
-    color += sceneBuffer.directionalLights[i].emission.rgb * ggx(lightDir, camDir, normal, roughness, F0);
+    color += diffuseAlbedo * sceneBuffer.directionalLights[i].emission.rgb * diffuse(NoL);
+    color += sceneBuffer.directionalLights[i].emission.rgb * ggx(NoL, NoV, NoH, VoH, roughness, fresnel);
   }
 
   color += sceneBuffer.ambientLight.rgb * albedo;
