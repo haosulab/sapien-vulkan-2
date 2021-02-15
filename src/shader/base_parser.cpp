@@ -351,6 +351,29 @@ parseSceneBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
   return layout;
 }
 
+std::shared_ptr<StructDataLayout>
+parseLightSpaceBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
+                  uint32_t setNumber) {
+  auto layout = parseBuffer(compiler, bindingNumber, setNumber);
+  ASSERT(layout->elements.size() == 2,
+         "lightSpace buffer should contain the following elements: lightViewMatrix, "
+         "lightProjectionMatrix.");
+
+  // required fields
+  ASSERT(CONTAINS(layout->elements, "lightViewMatrix"),
+         "camera buffer requires lightViewMatrix");
+  ASSERT(CONTAINS(layout->elements, "lightProjectionMatrix"),
+         "camera buffer requires lightProjectionMatrix");
+ 
+  // required types
+  ASSERT(layout->elements["lightViewMatrix"].dtype == eFLOAT44,
+         "camera lightViewMatrix should have type float44");
+  ASSERT(layout->elements["lightProjectionMatrix"].dtype == eFLOAT44,
+         "camera lightProjectionMatrix should have type float44");
+
+  return layout;
+}
+
 std::shared_ptr<CombinedSamplerLayout>
 parseCombinedSampler(spirv_cross::Compiler &compiler) {
   auto resources = compiler.get_shader_resources();

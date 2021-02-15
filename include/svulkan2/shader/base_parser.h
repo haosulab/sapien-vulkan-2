@@ -44,6 +44,9 @@ parseObjectBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
 std::shared_ptr<StructDataLayout>
 parseSceneBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
                  uint32_t setNumber);
+std::shared_ptr<StructDataLayout>
+parseLightSpaceBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
+                  uint32_t setNumber);
 
 std::shared_ptr<CombinedSamplerLayout>
 parseCombinedSampler(spirv_cross::Compiler &compiler);
