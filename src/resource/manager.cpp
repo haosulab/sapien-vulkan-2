@@ -13,7 +13,7 @@ SVResourceManager::SVResourceManager() {
 std::shared_ptr<SVImage>
 SVResourceManager::CreateImageFromFile(std::string const &filename,
                                        uint32_t mipLevels) {
-  std::string path = fs::canonical(filename);
+  std::string path = fs::canonical(filename).string();
   SVImageDescription desc = {.source = SVImageDescription::SourceType::eFILE,
                              .filename = path,
                              .mipLevels = mipLevels};
@@ -35,7 +35,7 @@ std::shared_ptr<SVTexture> SVResourceManager::CreateTextureFromFile(
     std::string const &filename, uint32_t mipLevels, vk::Filter magFilter,
     vk::Filter minFilter, vk::SamplerAddressMode addressModeU,
     vk::SamplerAddressMode addressModeV) {
-  std::string path = fs::canonical(filename);
+  std::string path = fs::canonical(filename).string();
 
   SVTextureDescription desc = {.source =
                                    SVTextureDescription::SourceType::eFILE,
@@ -63,7 +63,7 @@ std::shared_ptr<SVTexture> SVResourceManager::CreateTextureFromFile(
 
 std::shared_ptr<SVModel>
 SVResourceManager::CreateModelFromFile(std::string const &filename) {
-  std::string path = fs::canonical(filename);
+  std::string path = fs::canonical(filename).string();
 
   ModelDescription desc = {.source = ModelDescription::SourceType::eFILE,
                            .filename = filename};

@@ -49,7 +49,7 @@ TEST(Gbuffer, Minimal) {
   ASSERT_EQ(objectLayout->elements["modelMatrix"].offset, 0);
 
   ASSERT_EQ(objectLayout->elements["segmentation"].dtype, eUINT4);
-  ASSERT_EQ(objectLayout->elements["segmentation"].size, sizeof(uint) * 4);
+  ASSERT_EQ(objectLayout->elements["segmentation"].size, sizeof(uint32_t) * 4);
   ASSERT_EQ(objectLayout->elements["segmentation"].arrayDim, 0);
   ASSERT_EQ(objectLayout->elements["segmentation"].member, nullptr);
   ASSERT_EQ(objectLayout->elements["segmentation"].offset, 64);
