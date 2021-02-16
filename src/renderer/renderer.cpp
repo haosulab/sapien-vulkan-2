@@ -103,7 +103,7 @@ void Renderer::resize(int width, int height) {
 }
 
 void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
-                      resource::SVCamera &camera) {
+                      scene::Camera &camera) {
   if (mWidth <= 0 || mHeight <= 0) {
     throw std::runtime_error(
         "failed to render: resize must be called before rendering.");

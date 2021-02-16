@@ -1,8 +1,5 @@
 #pragma once
-
-#include "svulkan2/resource/camera.h"
 #include "svulkan2/resource/model.h"
-#include "svulkan2/resource/object.h"
 #include "transform.h"
 #include <memory>
 #include <string>
@@ -14,30 +11,21 @@ namespace scene {
 class Scene;
 
 class Node {
+protected:
   std::string mName;
   Transform mTransform{};
   Node *mParent{};
   std::vector<Node *> mChildren{};
-  std::shared_ptr<resource::SVObject> mObject{nullptr};
-  std::shared_ptr<resource::SVCamera> mCamera{nullptr};
 
   Scene *mScene{nullptr};
   bool mRemoved{false};
 
 public:
+  enum Type { eNode, eObject, eCamera, eLight, eUnknown };
+
   Node(std::string const &name = "");
 
-  void setObject(std::shared_ptr<resource::SVObject> object);
-  std::shared_ptr<resource::SVObject> removeObject();
-  inline std::shared_ptr<resource::SVObject> const getObject() const {
-    return mObject;
-  }
-
-  void setCamera(std::shared_ptr<resource::SVCamera> camera);
-  std::shared_ptr<resource::SVCamera> removeCamera();
-  inline std::shared_ptr<resource::SVCamera> const getCamrea() const {
-    return mCamera;
-  }
+  virtual inline Type getType() const { return Type::eNode; }
 
   inline void setName(std::string const &name) { mName = name; }
   inline std::string getName() const { return mName; }
@@ -62,11 +50,9 @@ public:
 
   /** called before rendering to update the cached model matrix */
   void updateGlobalModelMatrixRecursive();
-  /** called right after updateGlobalModelMatrixRecursive to update
-   * object/camera model matrices */
-  void updateObjectCameraModelMatrixRecursive();
+  std::vector<class Object *> getObjectsRecursive() const;
 
-  std::vector<std::shared_ptr<resource::SVObject>> getObjectsRecursive() const;
+  virtual ~Node() = default;
 };
 
 } // namespace scene

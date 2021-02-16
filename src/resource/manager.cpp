@@ -112,5 +112,11 @@ void SVResourceManager::clearCachedResources() {
   mImageRegistry.clear();
 }
 
+SVResourceManager::~SVResourceManager() {
+  mModelRegistry.clear();
+  mTextureRegistry.clear();
+  mImageRegistry.clear();
+}
+
 } // namespace resource
 } // namespace svulkan2

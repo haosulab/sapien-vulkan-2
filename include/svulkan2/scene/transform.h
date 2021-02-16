@@ -9,6 +9,7 @@ struct Transform {
   glm::quat rotation{glm::quat(1, 0, 0, 0)};
   glm::vec3 scale{1, 1, 1};
 
+  glm::mat4 prevWorldModelMatrix;
   glm::mat4 worldModelMatrix;
 };
 

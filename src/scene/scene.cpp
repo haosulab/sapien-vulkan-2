@@ -11,6 +11,7 @@ Scene::Scene() {
 }
 
 Node &Scene::addNode(Node &parent) {
+  forceRemove();
   mNodes.push_back(std::make_unique<Node>());
   mNodes.back()->setScene(this);
   mNodes.back()->setParent(parent);
@@ -20,37 +21,64 @@ Node &Scene::addNode(Node &parent) {
 
 Node &Scene::addNode() { return addNode(getRootNode()); }
 
-void Scene::removedNode(Node &node) {
+Object &Scene::addObject(std::shared_ptr<resource::SVModel> model) {
+  return addObject(getRootNode(), model);
+}
+
+Object &Scene::addObject(Node &parent,
+                         std::shared_ptr<resource::SVModel> model) {
+  forceRemove();
+  auto obj = std::make_unique<Object>(model);
+  auto &result = *obj;
+  mNodes.push_back(std::move(obj));
+  mNodes.back()->setScene(this);
+  mNodes.back()->setParent(parent);
+  parent.addChild(*mNodes.back());
+  return result;
+}
+
+Camera &Scene::addCamera() { return addCamera(getRootNode()); }
+Camera &Scene::addCamera(Node &parent) {
+  forceRemove();
+  auto cam = std::make_unique<Camera>();
+  auto &result = *cam;
+  mNodes.push_back(std::move(cam));
+  mNodes.back()->setScene(this);
+  mNodes.back()->setParent(parent);
+  parent.addChild(*mNodes.back());
+  return result;
+}
+
+void Scene::removeNode(Node &node) {
+  mRequireForceRemove = true;
   node.markRemoved();
   node.getParent().removeChild(node);
   for (Node *c : node.getChildren()) {
     node.getParent().addChild(*c);
   }
-  // TODO: fix child transform here?
-}
-
-void Scene::prepareObjectCameraForRendering() {
-  mRootNode->updateGlobalModelMatrixRecursive();
-  mRootNode->updateObjectCameraModelMatrixRecursive();
 }
 
 void Scene::clearNodes() { mNodes.resize(1); }
 
 void Scene::forceRemove() {
+  if (!mRequireForceRemove) {
+    return;
+  }
   mNodes.erase(std::remove_if(mNodes.begin(), mNodes.end(),
                               [](std::unique_ptr<Node> &node) {
                                 return node->isMarkedRemoved();
                               }),
                mNodes.end());
+  mRequireForceRemove = false;
 }
 
-std::vector<std::shared_ptr<resource::SVObject>> Scene::getObjects() const {
+std::vector<Object *> Scene::getObjects() {
+  forceRemove();
   return mRootNode->getObjectsRecursive();
 }
 
 void Scene::updateModelMatrices() {
   mRootNode->updateGlobalModelMatrixRecursive();
-  mRootNode->updateObjectCameraModelMatrixRecursive();
 }
 
 } // namespace scene

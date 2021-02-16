@@ -15,8 +15,11 @@ protected:
   vk::UniqueDescriptorSet mDescriptorSet;
 
 public:
-  inline vk::DescriptorSet getDescriptorSet() const { return mDescriptorSet.get(); }
+  inline vk::DescriptorSet getDescriptorSet() const {
+    return mDescriptorSet.get();
+  }
   virtual void uploadToDevice(core::Context &context) = 0;
+  virtual ~SVMaterial() = default;
 };
 
 class SVMetallicMaterial : public SVMaterial {

@@ -29,6 +29,9 @@ parseOutputData(spirv_cross::Compiler &compiler);
 std::shared_ptr<OutputDataLayout>
 parseTextureOutput(spirv_cross::Compiler &compiler);
 
+bool hasUniformBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
+                      uint32_t setNumber);
+
 std::shared_ptr<StructDataLayout> parseBuffer(spirv_cross::Compiler &compiler,
                                               uint32_t bindingNumber,
                                               uint32_t setNumber);
@@ -63,7 +66,8 @@ public:
   void loadSPVCode(std::vector<uint32_t> const &vertCode,
                    std::vector<uint32_t> const &fragCode);
 
-  std::future<void> loadGLSLFilesAsync(std::string const &vertFile, std::string const &fragFile);
+  std::future<void> loadGLSLFilesAsync(std::string const &vertFile,
+                                       std::string const &fragFile);
 
   vk::PipelineLayout getPipelineLayout() const { return mPipelineLayout.get(); }
 
@@ -71,6 +75,8 @@ public:
   virtual std::vector<std::string> getRenderTargetNames() const = 0;
   virtual vk::RenderPass getRenderPass() const = 0;
   virtual vk::Pipeline getPipeline() const = 0;
+
+  virtual ~BaseParser() = default;
 
 protected:
   virtual void reflectSPV() = 0;

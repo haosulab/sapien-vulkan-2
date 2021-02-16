@@ -1,4 +1,5 @@
 #include "svulkan2/scene/node.h"
+#include "svulkan2/scene/object.h"
 #include <algorithm>
 
 namespace svulkan2 {
@@ -16,36 +17,13 @@ void Node::removeChild(Node &child) {
 
 void Node::clearChild() { mChildren = {}; }
 
-void Node::setObject(std::shared_ptr<resource::SVObject> object) {
-  mObject = object;
-  mObject->setParentNode(this);
-}
-
-std::shared_ptr<resource::SVObject> Node::removeObject() {
-  mObject->setParentNode(nullptr);
-  auto obj = mObject;
-  mObject = nullptr;
-  return obj;
-}
-
-void Node::setCamera(std::shared_ptr<resource::SVCamera> camera) {
-  mCamera = camera;
-  mCamera->setParentNode(this);
-}
-
-std::shared_ptr<resource::SVCamera> Node::removeCamera() {
-  mCamera->setParentNode(nullptr);
-  auto obj = mCamera;
-  mCamera = nullptr;
-  return obj;
-}
-
 void Node::setTransform(Transform const &transform) { mTransform = transform; }
 
 void Node::updateGlobalModelMatrixRecursive() {
   glm::mat4 localMatrix = glm::translate(glm::mat4(1), mTransform.position) *
                           glm::toMat4(mTransform.rotation) *
                           glm::scale(glm::mat4(1), mTransform.scale);
+  mTransform.prevWorldModelMatrix = mTransform.worldModelMatrix;
   if (!mParent) {
     mTransform.worldModelMatrix = localMatrix;
   } else {
@@ -57,27 +35,13 @@ void Node::updateGlobalModelMatrixRecursive() {
   }
 }
 
-void Node::updateObjectCameraModelMatrixRecursive() {
-  if (mObject) {
-    mObject->setPrevModelMatrix(mObject->getModelMatrix());
-    mObject->setModelMatrix(mTransform.worldModelMatrix);
-  }
-  if (mCamera) {
-    mCamera->setPrevModelMatrix(mCamera->getModelMatrix());
-    mCamera->setModelMatrix(mTransform.worldModelMatrix);
-  }
+std::vector<Object *> Node::getObjectsRecursive() const {
+  std::vector<Object *> result;
   for (auto c : mChildren) {
-    c->updateObjectCameraModelMatrixRecursive();
-  }
-}
-
-std::vector<std::shared_ptr<resource::SVObject>>
-Node::getObjectsRecursive() const {
-  std::vector<std::shared_ptr<resource::SVObject>> result;
-  if (mObject) {
-    result.push_back(mObject);
-  }
-  for (auto c : mChildren) {
+    if (auto object = dynamic_cast<Object *>(c))
+      if (object) {
+        result.push_back(object);
+      }
     auto childObjects = c->getObjectsRecursive();
     result.insert(result.end(), childObjects.begin(), childObjects.end());
   }

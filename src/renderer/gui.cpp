@@ -352,22 +352,27 @@ void GuiWindow::recreateImguiResources() {
 }
 
 void GuiWindow::close() {
-  mClosed = true;
-  glfwSetWindowShouldClose(mWindow, true);
+  if (!mClosed) {
+    mClosed = true;
+    glfwSetWindowShouldClose(mWindow, true);
 
-  mContext->getDevice().waitIdle();
+    mContext->getDevice().waitIdle();
 
-  ImGui_ImplVulkan_Shutdown();
-  ImGui_ImplGlfw_Shutdown();
+    ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
 
-  mImguiRenderPass.reset();
-  mFrameSemaphores.clear();
-  mFrames.clear();
-  mSwapchain.reset();
-  mSurface.reset();
+    mImguiRenderPass.reset();
+    mFrameSemaphores.clear();
+    mFrames.clear();
+    mSwapchain.reset();
+    mSurface.reset();
+  }
 }
 
-GuiWindow::~GuiWindow() { glfwDestroyWindow(mWindow); }
+GuiWindow::~GuiWindow() {
+  close();
+  glfwDestroyWindow(mWindow);
+}
 bool GuiWindow::isKeyDown(char key) {
   if (ImGui::GetIO().WantTextInput || ImGui::GetIO().WantCaptureKeyboard) {
     return false;

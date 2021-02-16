@@ -4,6 +4,7 @@
 #include "svulkan2/renderer/renderer.h"
 #include "svulkan2/scene/scene.h"
 #include "svulkan2/shader/shader.h"
+#include "svulkan2/ui/ui.h"
 #include <iostream>
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -45,17 +46,13 @@ int main() {
   scene.getSVScene()->addDirectionalLight({{0, -1, -1, 1}, {1, 1, 1, 1}});
   scene.getSVScene()->setAmbeintLight({0.1, 0.1, 0.1, 0});
 
-  auto &node = scene.addNode();
   auto model = context.getResourceManager().CreateModelFromFile(
       "../test/assets/scene/sponza/sponza.obj");
-  node.setTransform(scene::Transform{.scale = {0.001, 0.001, 0.001}});
-  auto object = std::make_shared<resource::SVObject>(model);
-  node.setObject(object);
+  scene.addObject(model).setTransform(
+      scene::Transform{.scale = {0.001, 0.001, 0.001}});
 
-  auto &cameraNode = scene.addNode();
-  auto camera = std::make_shared<resource::SVCamera>();
-  camera->setPerspectiveParameters(0.1, 10, 1, 4.f / 3);
-  cameraNode.setCamera(camera);
+  auto &cameraNode = scene.addCamera();
+  cameraNode.setPerspectiveParameters(0.1, 10, 1, 4.f / 3);
   FPSCameraController controller(cameraNode, {0, 0, -1}, {0, 1, 0});
   controller.setXYZ(0, 0.5, 0);
 
@@ -70,14 +67,21 @@ int main() {
       {vk::FenceCreateFlagBits::eSignaled});
   auto commandBuffer = context.createCommandBuffer();
 
-  // commandBuffer->begin(vk::CommandBufferBeginInfo(
-  //     vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
-  // renderer.render(commandBuffer.get(), scene, *camera);
-  // commandBuffer->end();
-  // context.submitCommandBufferAndWait(commandBuffer.get());
-
   glfwSetWindowSizeCallback(window->getGLFWWindow(), glfw_resize_callback);
   glfwSetWindowCloseCallback(window->getGLFWWindow(), window_close_callback);
+
+  auto uiWindow =
+      ui::Widget::Create<ui::Window>()
+          ->Name("main window")
+          ->append(ui::Widget::Create<ui::DisplayText>()->Text("Hello!"))
+          ->append(ui::Widget::Create<ui::InputText>()->Label("Input##1"))
+          ->append(ui::Widget::Create<ui::InputFloat>()->Label("Input##2"))
+          ->append(ui::Widget::Create<ui::InputFloat2>()->Label("Input##3"))
+          ->append(ui::Widget::Create<ui::InputFloat3>()->Label("Input##4"))
+          ->append(ui::Widget::Create<ui::InputFloat4>()->Label("Input##5"));
+
+  model->loadAsync().get();
+  model->getShapes()[0]->material->uploadToDevice(context);
 
   while (!window->isClosed()) {
     if (gSwapchainRebuild) {
@@ -86,7 +90,9 @@ int main() {
       window->updateSize(gSwapchainResizeWidth, gSwapchainResizeHeight);
       renderer.resize(window->getWidth(), window->getHeight());
       context.getDevice().waitIdle();
-      camera->setPerspectiveParameters(0.1, 10, 1, 4.f / 3);
+      cameraNode.setPerspectiveParameters(
+          0.1, 10, 1,
+          static_cast<float>(window->getWidth()) / window->getHeight());
       continue;
     }
     try {
@@ -96,8 +102,12 @@ int main() {
       context.getDevice().waitIdle();
       continue;
     }
+
     ImGui::NewFrame();
+
+    uiWindow->build();
     ImGui::ShowDemoWindow();
+
     ImGui::Render();
 
     // wait for previous frame to finish
@@ -109,7 +119,7 @@ int main() {
     // draw
     {
       commandBuffer->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
-      renderer.render(commandBuffer.get(), scene, *camera);
+      renderer.render(commandBuffer.get(), scene, cameraNode);
       renderer.display(commandBuffer.get(), "Color", window->getBackbuffer(),
                        window->getBackBufferFormat(), window->getWidth(),
                        window->getHeight());
@@ -164,15 +174,11 @@ int main() {
     }
   }
 
+  scene.clearNodes();
+  model.reset();
+
   context.getDevice().waitIdle();
   log::info("finish");
-
-  // auto [output, size] = renderer.download<uint8_t>("Albedo");
-  // std::cout << output.size() << std::endl;
-  // std::cout << size[0] << " " << size[1] << " " << size[2] << std::endl;
-
-  // stbi_write_png("out.png", size[1], size[0], size[2], output.data(),
-  //                size[1] * size[2]);
 
   return 0;
 }

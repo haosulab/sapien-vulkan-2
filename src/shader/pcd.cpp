@@ -1,23 +1,23 @@
-#include "svulkan2/shader/gbuffer.h"
+#include "svulkan2/shader/pcd.h"
 #include "svulkan2/common/log.h"
 
 namespace svulkan2 {
 namespace shader {
 
-void GbufferPassParser::reflectSPV() {
+void PcdPassParser::reflectSPV() {
   spirv_cross::Compiler vertComp(mVertSPVCode);
   try {
     mVertexInputLayout = parseVertexInput(vertComp);
-    mCameraBufferLayout = parseCameraBuffer(vertComp, 0, 0);
-    mObjectBufferLayout = parseObjectBuffer(vertComp, 0, 1);
+    mCameraBufferLayout = parseCameraBuffer(vertComp, 0, 1);
   } catch (std::runtime_error const &err) {
     throw std::runtime_error("[vert]" + std::string(err.what()));
   }
 
   spirv_cross::Compiler fragComp(mFragSPVCode);
   try {
-    mMaterialBufferLayout = parseMaterialBuffer(fragComp, 0, 2);
-    mCombinedSamplerLayout = parseCombinedSampler(fragComp);
+    if (hasUniformBuffer(fragComp, 0, 0)) {
+      mSceneBufferLayout = parseSceneBuffer(vertComp, 0, 0);
+    }
     mTextureOutputLayout = parseTextureOutput(fragComp);
   } catch (std::runtime_error const &err) {
     throw std::runtime_error("[frag]" + std::string(err.what()));
@@ -26,26 +26,14 @@ void GbufferPassParser::reflectSPV() {
   validate();
 }
 
-ShaderConfig::MaterialPipeline GbufferPassParser::getMaterialType() const {
-  if (mMaterialBufferLayout->elements.find("metallic") !=
-      mMaterialBufferLayout->elements.end()) {
-    return ShaderConfig::eMETALLIC;
-  }
-  return ShaderConfig::eSPECULAR;
-}
-
-void GbufferPassParser::validate() const {
-  for (auto &elem : mCombinedSamplerLayout->elements) {
-    ASSERT(elem.second.binding >= 1 && elem.second.set == 2,
-           "[frag]all textures should be bound to set 2, binding >= 1");
-  }
+void PcdPassParser::validate() const {
   for (auto &elem : mTextureOutputLayout->elements) {
     ASSERT(elem.second.name.substr(0, 3) == "out",
            "[frag]all out texture variables must start with \"out\"");
   }
 };
 
-vk::PipelineLayout GbufferPassParser::createPipelineLayout(
+vk::PipelineLayout PcdPassParser::createPipelineLayout(
     vk::Device device,
     std::vector<vk::DescriptorSetLayout> descriptorSetLayouts) {
   vk::PipelineLayoutCreateInfo pipelineLayoutInfo;
@@ -55,7 +43,7 @@ vk::PipelineLayout GbufferPassParser::createPipelineLayout(
   return mPipelineLayout.get();
 }
 
-vk::RenderPass GbufferPassParser::createRenderPass(
+vk::RenderPass PcdPassParser::createRenderPass(
     vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
     std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
         &colorTargetLayouts,
@@ -108,7 +96,7 @@ vk::RenderPass GbufferPassParser::createRenderPass(
   return mRenderPass.get();
 }
 
-vk::Pipeline GbufferPassParser::createGraphicsPipeline(
+vk::Pipeline PcdPassParser::createGraphicsPipeline(
     vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
     vk::CullModeFlags cullMode, vk::FrontFace frontFace,
     std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
@@ -214,16 +202,6 @@ vk::Pipeline GbufferPassParser::createGraphicsPipeline(
                                                 graphicsPipelineCreateInfo)
                   .value;
   return mPipeline.get();
-}
-
-std::vector<std::string> GbufferPassParser::getRenderTargetNames() const {
-  std::vector<std::string> result;
-  auto elems = mTextureOutputLayout->getElementsSorted();
-  for (auto elem : elems) {
-    result.push_back(getOutTextureName(elem.name));
-  }
-  result.push_back("Depth");
-  return result;
 }
 
 } // namespace shader

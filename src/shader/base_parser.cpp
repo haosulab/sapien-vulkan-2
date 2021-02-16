@@ -144,6 +144,14 @@ parseBuffer(spirv_cross::Compiler &compiler,
   return layout;
 }
 
+bool hasUniformBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
+                uint32_t setNumber) {
+  auto resources = compiler.get_shader_resources();
+  auto binding =
+      find_uniform_by_decoration(compiler, resources, bindingNumber, setNumber);
+  return binding != nullptr;
+}
+
 std::shared_ptr<StructDataLayout> parseBuffer(spirv_cross::Compiler &compiler,
                                               uint32_t bindingNumber,
                                               uint32_t setNumber) {

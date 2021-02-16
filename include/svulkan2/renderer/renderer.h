@@ -1,6 +1,5 @@
 #pragma once
 #include "svulkan2/core/context.h"
-#include "svulkan2/resource/camera.h"
 #include "svulkan2/resource/render_target.h"
 #include "svulkan2/scene/scene.h"
 #include "svulkan2/shader/shader_manager.h"
@@ -47,7 +46,7 @@ public:
   void resize(int width, int height);
 
   void render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
-              resource::SVCamera &camera);
+              scene::Camera &camera);
 
   void display(vk::CommandBuffer commandBuffer,
                std::string const &renderTargetName, vk::Image backBuffer,
