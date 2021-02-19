@@ -4,6 +4,124 @@
 namespace svulkan2 {
 namespace shader {
 
+DescriptorSetDescription
+DescriptorSetDescription::merge(DescriptorSetDescription const &other) const {
+  if (type != other.type) {
+    throw std::runtime_error("Descriptor merge failed: different types");
+  }
+  DescriptorSetDescription newLayout;
+  newLayout.type = type;
+
+  std::vector<std::shared_ptr<StructDataLayout>> newBuffers = buffers;
+  std::vector<std::string> newSamplers = samplers;
+  std::map<uint32_t, Binding> newBindings = bindings;
+
+  for (auto &[bindingIndex, binding] : other.bindings) {
+    if (bindings.contains(bindingIndex)) {
+      if (binding.type == vk::DescriptorType::eUniformBuffer) {
+        if (other.buffers[binding.arrayIndex] !=
+            buffers[(bindings.at(bindingIndex)).arrayIndex]) {
+          throw std::runtime_error("Incompatible descriptor at binding " +
+                                   std::to_string(bindingIndex) +
+                                   ": buffers are different.");
+        }
+      } else if (binding.type == vk::DescriptorType::eCombinedImageSampler) {
+        if (other.samplers[binding.arrayIndex] !=
+            samplers[(bindings.at(bindingIndex)).arrayIndex]) {
+          throw std::runtime_error("Incompatible descriptor at binding " +
+                                   std::to_string(bindingIndex) +
+                                   ": texture names are different.");
+        }
+      } else {
+        throw std::runtime_error(
+            "Descriptor merge failed: unsupported descriptor type");
+      }
+    } else {
+      if (binding.type == vk::DescriptorType::eUniformBuffer) {
+        newBuffers.push_back(other.buffers[binding.arrayIndex]);
+        newBindings[bindingIndex] = {
+            .type = vk::DescriptorType::eUniformBuffer,
+            .arrayIndex = static_cast<uint32_t>(newBuffers.size() - 1)};
+      } else if (binding.type == vk::DescriptorType::eCombinedImageSampler) {
+        newSamplers.push_back(other.samplers[binding.arrayIndex]);
+        newBindings[bindingIndex] = {
+            .type = vk::DescriptorType::eCombinedImageSampler,
+            .arrayIndex = static_cast<uint32_t>(newSamplers.size() - 1)};
+      } else {
+        throw std::runtime_error(
+            "Descriptor merge failed: unsupported descriptor type");
+      }
+    }
+  }
+  return newLayout;
+}
+
+// std::map<uint32_t, std::tuple<vk::DescriptorType, spirv_cross::Resource>>
+// getDescriptorSetResources(spirv_cross::Compiler &compiler, uint32_t
+// setNumber) {
+//   std::map<uint32_t, std::tuple<vk::DescriptorType, spirv_cross::Resource>>
+//       result;
+//   auto resources = compiler.get_shader_resources();
+//   for (auto &r : resources.uniform_buffers) {
+//     if (compiler.get_decoration(
+//             r.id, spv::Decoration::DecorationDescriptorSet) == setNumber) {
+//       uint32_t bindingNumber =
+//           compiler.get_decoration(r.id, spv::Decoration::DecorationBinding);
+//       result[bindingNumber] = {vk::DescriptorType::eUniformBuffer, r};
+//     }
+//   }
+//   for (auto &r : resources.sampled_images) {
+//     if (compiler.get_decoration(
+//             r.id, spv::Decoration::DecorationDescriptorSet) == setNumber) {
+//       uint32_t bindingNumber =
+//           compiler.get_decoration(r.id, spv::Decoration::DecorationBinding);
+//       result[bindingNumber] = {vk::DescriptorType::eCombinedImageSampler, r};
+//     }
+//   }
+//   return result;
+// }
+
+// UniformBindingType getDescriptorSetType(
+//     spirv_cross::Compiler &compiler,
+//     std::map<uint32_t,
+//              std::tuple<vk::DescriptorType, spirv_cross::Resource>> const
+//         &resources) {
+//   if (resources.empty()) {
+//     return UniformBindingType::eNone;
+//   }
+//   if (!resources.contains(0)) {
+//     return UniformBindingType::eUnknown;
+//   }
+//   if (std::get<0>(resources.at(0)) ==
+//       vk::DescriptorType::eCombinedImageSampler) {
+//     for (auto &p : resources) {
+//       if (std::get<0>(p.second) != vk::DescriptorType::eCombinedImageSampler)
+//       {
+//         return UniformBindingType::eUnknown;
+//       }
+//     }
+//     return UniformBindingType::eTextures;
+//   }
+//   if (std::get<0>(resources.at(0)) == vk::DescriptorType::eUniformBuffer) {
+//     auto &resource = std::get<1>(resources.at(0));
+//     auto &type = compiler.get_type(resource.type_id);
+//     auto &name = compiler.get_name(type.self);
+//     if (name == "cameraBuffer") {
+//       return UniformBindingType::eCamera;
+//     }
+//     if (name == "objectBuffer") {
+//       return UniformBindingType::eObject;
+//     }
+//     if (name == "sceneBuffer") {
+//       return UniformBindingType::eScene;
+//     }
+//     if (name == "materialBuffer") {
+//       return UniformBindingType::eMaterial;
+//     }
+//   }
+//   return UniformBindingType::eUnknown;
+// }
+
 std::shared_ptr<InputDataLayout>
 parseInputData(spirv_cross::Compiler &compiler) {
   auto layout = std::make_shared<InputDataLayout>();
@@ -144,8 +262,14 @@ parseBuffer(spirv_cross::Compiler &compiler,
   return layout;
 }
 
+std::shared_ptr<StructDataLayout> parseBuffer(spirv_cross::Compiler &compiler,
+                                              spirv_cross::Resource &resource) {
+  auto &type = compiler.get_type(resource.type_id);
+  return parseBuffer(compiler, type);
+}
+
 bool hasUniformBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
-                uint32_t setNumber) {
+                      uint32_t setNumber) {
   auto resources = compiler.get_shader_resources();
   auto binding =
       find_uniform_by_decoration(compiler, resources, bindingNumber, setNumber);
@@ -168,10 +292,7 @@ std::shared_ptr<StructDataLayout> parseBuffer(spirv_cross::Compiler &compiler,
   return parseBuffer(compiler, type);
 }
 
-std::shared_ptr<StructDataLayout>
-parseCameraBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
-                  uint32_t setNumber) {
-  auto layout = parseBuffer(compiler, bindingNumber, setNumber);
+void verifyCameraBuffer(std::shared_ptr<StructDataLayout> layout) {
   ASSERT(layout->elements.size() == 4 || layout->elements.size() == 6,
          "camera buffer should contain the following elements: viewMatrix, "
          "viewMatrixInverse, projectionMatrix, projectionMatrixInverse. If "
@@ -209,14 +330,9 @@ parseCameraBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
     ASSERT(layout->elements["prevViewMatrixInverse"].dtype == eFLOAT44,
            "camera prevViewMatrixInverse should have type float44");
   }
-
-  return layout;
 }
 
-std::shared_ptr<StructDataLayout>
-parseMaterialBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
-                    uint32_t setNumber) {
-  auto layout = parseBuffer(compiler, bindingNumber, setNumber);
+void verifyMaterialBuffer(std::shared_ptr<StructDataLayout> layout) {
   ASSERT(CONTAINS(layout->elements, "baseColor") ||
              CONTAINS(layout->elements, "diffuse"),
          "material buffer must contains the variable baseColor or diffuse");
@@ -274,14 +390,9 @@ parseMaterialBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
     ASSERT(layout->elements["textureMask"].dtype == eINT,
            "material textureMask should be float");
   }
-  return layout;
 }
 
-std::shared_ptr<StructDataLayout>
-parseObjectBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
-                  uint32_t setNumber) {
-  auto layout = parseBuffer(compiler, bindingNumber, setNumber);
-
+void verifyObjectBuffer(std::shared_ptr<StructDataLayout> layout) {
   ASSERT(layout->elements.size() >= 2,
          "object buffer requires modelMatrix and segmentation");
 
@@ -300,14 +411,9 @@ parseObjectBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
   ASSERT(!CONTAINS(layout->elements, "userData") ||
              layout->elements["userData"].dtype == eFLOAT44,
          "object userData should be float44");
-
-  return layout;
 }
 
-std::shared_ptr<StructDataLayout>
-parseSceneBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
-                 uint32_t setNumber) {
-  auto layout = parseBuffer(compiler, bindingNumber, setNumber);
+void verifySceneBuffer(std::shared_ptr<StructDataLayout> layout) {
   ASSERT(CONTAINS(layout->elements, "ambientLight"),
          "scene buffer requires variable ambientLight");
   ASSERT(CONTAINS(layout->elements, "directionalLights"),
@@ -356,29 +462,63 @@ parseSceneBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
   ASSERT(!CONTAINS(layout->elements, "shadowMatrix") ||
              layout->elements["shadowMatrix"].dtype == eFLOAT44,
          "scene shadowMatrix should have type float44");
-  return layout;
 }
 
-std::shared_ptr<StructDataLayout>
-parseLightSpaceBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
-                  uint32_t setNumber) {
-  auto layout = parseBuffer(compiler, bindingNumber, setNumber);
-  ASSERT(layout->elements.size() == 2,
-         "lightSpace buffer should contain the following elements: lightViewMatrix, "
-         "lightProjectionMatrix.");
+void verifyLightSpaceBuffer(std::shared_ptr<StructDataLayout> layout) {
+  ASSERT(layout->elements.size() == 2, "lightSpace buffer should contain the "
+                                       "following elements: lightViewMatrix, "
+                                       "lightProjectionMatrix.");
 
   // required fields
   ASSERT(CONTAINS(layout->elements, "lightViewMatrix"),
          "camera buffer requires lightViewMatrix");
   ASSERT(CONTAINS(layout->elements, "lightProjectionMatrix"),
          "camera buffer requires lightProjectionMatrix");
- 
+
   // required types
   ASSERT(layout->elements["lightViewMatrix"].dtype == eFLOAT44,
          "camera lightViewMatrix should have type float44");
   ASSERT(layout->elements["lightProjectionMatrix"].dtype == eFLOAT44,
          "camera lightProjectionMatrix should have type float44");
+}
 
+std::shared_ptr<StructDataLayout>
+parseCameraBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
+                  uint32_t setNumber) {
+  auto layout = parseBuffer(compiler, bindingNumber, setNumber);
+  verifyCameraBuffer(layout);
+  return layout;
+}
+
+std::shared_ptr<StructDataLayout>
+parseMaterialBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
+                    uint32_t setNumber) {
+  auto layout = parseBuffer(compiler, bindingNumber, setNumber);
+  verifyMaterialBuffer(layout);
+  return layout;
+}
+
+std::shared_ptr<StructDataLayout>
+parseObjectBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
+                  uint32_t setNumber) {
+  auto layout = parseBuffer(compiler, bindingNumber, setNumber);
+  verifyObjectBuffer(layout);
+  return layout;
+}
+
+std::shared_ptr<StructDataLayout>
+parseSceneBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
+                 uint32_t setNumber) {
+  auto layout = parseBuffer(compiler, bindingNumber, setNumber);
+  verifySceneBuffer(layout);
+  return layout;
+}
+
+std::shared_ptr<StructDataLayout>
+parseLightSpaceBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
+                      uint32_t setNumber) {
+  auto layout = parseBuffer(compiler, bindingNumber, setNumber);
+  verifyLightSpaceBuffer(layout);
   return layout;
 }
 
@@ -423,6 +563,81 @@ parseSpecializationConstant(spirv_cross::Compiler &compiler) {
     }
   }
   return layout;
+}
+
+DescriptorSetDescription
+getDescriptorSetDescription(spirv_cross::Compiler &compiler,
+                            uint32_t setNumber) {
+  DescriptorSetDescription result;
+  auto resources = compiler.get_shader_resources();
+  for (auto &r : resources.uniform_buffers) {
+    if (compiler.get_decoration(
+            r.id, spv::Decoration::DecorationDescriptorSet) == setNumber) {
+      uint32_t bindingNumber =
+          compiler.get_decoration(r.id, spv::Decoration::DecorationBinding);
+      result.buffers.push_back(parseBuffer(compiler, r));
+      result.bindings[bindingNumber] = {
+          .name = r.name,
+          .type = vk::DescriptorType::eUniformBuffer,
+          .arrayIndex = static_cast<uint32_t>(result.buffers.size() - 1)};
+    }
+  }
+  for (auto &r : resources.sampled_images) {
+    if (compiler.get_decoration(
+            r.id, spv::Decoration::DecorationDescriptorSet) == setNumber) {
+      uint32_t bindingNumber =
+          compiler.get_decoration(r.id, spv::Decoration::DecorationBinding);
+      result.samplers.push_back(r.name);
+      result.bindings[bindingNumber] = {
+          .name = r.name,
+          .type = vk::DescriptorType::eCombinedImageSampler,
+          .arrayIndex = static_cast<uint32_t>(result.samplers.size() - 1)};
+    }
+  }
+
+  if (result.bindings.empty()) {
+    result.type = UniformBindingType::eNone;
+    return result;
+  }
+  if (!result.bindings.contains(0)) {
+    throw std::runtime_error("All descriptor set must have binding=0, this is "
+                             "used to identify its type.");
+  }
+  if (result.bindings[0].type == vk::DescriptorType::eCombinedImageSampler) {
+    for (auto &b : result.bindings) {
+      if (b.second.type != vk::DescriptorType::eCombinedImageSampler) {
+        throw std::runtime_error("When a texture is bound at binding=0, all "
+                                 "other bindings must be textures.");
+      }
+    }
+    result.type = UniformBindingType::eTextures;
+    return result;
+  }
+  if (result.bindings[0].type == vk::DescriptorType::eUniformBuffer) {
+    auto name = result.bindings[0].name;
+    if (name == "CameraBuffer") {
+      result.type = UniformBindingType::eCamera;
+      verifyCameraBuffer(result.buffers[result.bindings[0].arrayIndex]);
+      return result;
+    }
+    if (name == "ObjectBuffer") {
+      result.type = UniformBindingType::eObject;
+      verifyObjectBuffer(result.buffers[result.bindings[0].arrayIndex]);
+      return result;
+    }
+    if (name == "SceneBuffer") {
+      result.type = UniformBindingType::eScene;
+      verifySceneBuffer(result.buffers[result.bindings[0].arrayIndex]);
+      return result;
+    }
+    if (name == "MaterialBuffer") {
+      result.type = UniformBindingType::eMaterial;
+      verifyMaterialBuffer(result.buffers[result.bindings[0].arrayIndex]);
+      return result;
+    }
+  }
+  throw std::runtime_error(
+      "Parse descriptor set failed: cannot recognize this set.");
 }
 
 std::future<void> BaseParser::loadGLSLFilesAsync(std::string const &vertFile,
@@ -481,6 +696,12 @@ void BaseParser::loadSPVCode(std::vector<uint32_t> const &vertCode,
   mFragSPVCode = fragCode;
   reflectSPV();
 }
+
+std::vector<UniformBindingType> BaseParser::getUniformBindingTypes() const {
+  return {};
+}
+
+std::vector<std::string> BaseParser::getInputTextureNames() const { return {}; }
 
 } // namespace shader
 } // namespace svulkan2

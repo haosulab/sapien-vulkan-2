@@ -216,5 +216,10 @@ std::vector<std::string> CompositePassParser::getInputTextureNames() const {
   return result;
 }
 
+std::vector<UniformBindingType>
+CompositePassParser::getUniformBindingTypes() const {
+  return {UniformBindingType::eTextures};
+}
+
 } // namespace shader
 } // namespace svulkan2

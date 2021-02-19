@@ -16,7 +16,7 @@ void ShadowPassParser::reflectSPV() {
 }
 
 void ShadowPassParser::validate() const {
-    // Is this needed any more?
+  // Is this needed any more?
 }
 
 vk::PipelineLayout ShadowPassParser::createPipelineLayout(
@@ -30,8 +30,8 @@ vk::PipelineLayout ShadowPassParser::createPipelineLayout(
   return mPipelineLayout.get();
 }
 
-vk::RenderPass ShadowPassParser::createRenderPass(vk::Device device,
-    vk::Format depthFormat,
+vk::RenderPass ShadowPassParser::createRenderPass(
+    vk::Device device, vk::Format depthFormat,
     std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout) {
   std::vector<vk::AttachmentDescription> attachmentDescriptions;
 
@@ -43,16 +43,16 @@ vk::RenderPass ShadowPassParser::createRenderPass(vk::Device device,
           ? vk::AttachmentLoadOp::eClear
           : vk::AttachmentLoadOp::eLoad,
       vk::AttachmentStoreOp::eStore, vk::AttachmentLoadOp::eDontCare,
-      vk::AttachmentStoreOp::eDontCare, 
-      depthLayout.first,                            // Initial Layout
-      depthLayout.second));                         // Final Layout
+      vk::AttachmentStoreOp::eDontCare,
+      depthLayout.first,    // Initial Layout
+      depthLayout.second)); // Final Layout
 
   vk::AttachmentReference depthAttachment(
       0, vk::ImageLayout::eDepthStencilAttachmentOptimal);
 
   vk::SubpassDescription subpassDescription(
-      {}, vk::PipelineBindPoint::eGraphics, 0, nullptr, 0,
-      nullptr, nullptr, &depthAttachment);
+      {}, vk::PipelineBindPoint::eGraphics, 0, nullptr, 0, nullptr, nullptr,
+      &depthAttachment);
 
   mRenderPass = device.createRenderPassUnique(vk::RenderPassCreateInfo(
       {}, attachmentDescriptions.size(), attachmentDescriptions.data(), 1,
@@ -62,10 +62,10 @@ vk::RenderPass ShadowPassParser::createRenderPass(vk::Device device,
 }
 
 vk::Pipeline ShadowPassParser::createGraphicsPipeline(
-        vk::Device device, vk::Format depthFormat, vk::CullModeFlags cullMode,
-        vk::FrontFace frontFace,
-        std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,
-        std::vector<vk::DescriptorSetLayout> const &descriptorSetLayouts) {
+    vk::Device device, vk::Format depthFormat, vk::CullModeFlags cullMode,
+    vk::FrontFace frontFace,
+    std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,
+    std::vector<vk::DescriptorSetLayout> const &descriptorSetLayouts) {
   // render pass
   auto renderPass = createRenderPass(device, depthFormat, depthLayout);
 
@@ -76,10 +76,9 @@ vk::Pipeline ShadowPassParser::createGraphicsPipeline(
       {{}, mVertSPVCode.size() * sizeof(uint32_t), mVertSPVCode.data()});
 
   std::array<vk::PipelineShaderStageCreateInfo, 1>
-      pipelineShaderStageCreateInfos{
-          vk::PipelineShaderStageCreateInfo(
-              vk::PipelineShaderStageCreateFlags(),
-              vk::ShaderStageFlagBits::eVertex, vsm.get(), "main", nullptr)};
+      pipelineShaderStageCreateInfos{vk::PipelineShaderStageCreateInfo(
+          vk::PipelineShaderStageCreateFlags(),
+          vk::ShaderStageFlagBits::eVertex, vsm.get(), "main", nullptr)};
 
   // vertex input
   auto vertexInputBindingDescriptions =
@@ -141,6 +140,11 @@ vk::Pipeline ShadowPassParser::createGraphicsPipeline(
                                                 graphicsPipelineCreateInfo)
                   .value;
   return mPipeline.get();
+}
+
+std::vector<UniformBindingType>
+ShadowPassParser::getUniformBindingTypes() const {
+  return {UniformBindingType::eLight, UniformBindingType::eObject};
 }
 
 } // namespace shader

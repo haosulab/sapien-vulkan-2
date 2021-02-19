@@ -181,12 +181,14 @@ struct StructDataLayout {
     uint32_t arrayDim{0};
     DataType dtype{eFLOAT};
     std::shared_ptr<StructDataLayout> member;
+    bool operator==(Element const &other) const;
   };
 
   uint32_t size;
   std::unordered_map<std::string, StructDataLayout::Element> elements;
-
   std::vector<StructDataLayout::Element const *> getElementsSorted() const;
+
+  bool operator==(StructDataLayout const &other) const;
 };
 
 }; // namespace svulkan2

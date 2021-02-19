@@ -6,43 +6,66 @@ namespace shader {
 
 void GbufferPassParser::reflectSPV() {
   spirv_cross::Compiler vertComp(mVertSPVCode);
+  std::vector<DescriptorSetDescription> vertDesc;
+  std::vector<DescriptorSetDescription> fragDesc;
   try {
     mVertexInputLayout = parseVertexInput(vertComp);
-    mCameraBufferLayout = parseCameraBuffer(vertComp, 0, 0);
-    mObjectBufferLayout = parseObjectBuffer(vertComp, 0, 1);
+    for (uint32_t i = 0; i < 4; ++i) {
+      vertDesc.push_back(getDescriptorSetDescription(vertComp, i));
+    }
   } catch (std::runtime_error const &err) {
     throw std::runtime_error("[vert]" + std::string(err.what()));
   }
 
   spirv_cross::Compiler fragComp(mFragSPVCode);
   try {
-    mMaterialBufferLayout = parseMaterialBuffer(fragComp, 0, 2);
-    mCombinedSamplerLayout = parseCombinedSampler(fragComp);
     mTextureOutputLayout = parseTextureOutput(fragComp);
+    for (uint32_t i = 0; i < 4; ++i) {
+      fragDesc.push_back(getDescriptorSetDescription(fragComp, i));
+    }
   } catch (std::runtime_error const &err) {
     throw std::runtime_error("[frag]" + std::string(err.what()));
   }
 
-  validate();
+  for (uint32_t i = 0, stop = false; i < 4; ++i) {
+    if (vertDesc[i].type == UniformBindingType::eNone &&
+        fragDesc[i].type == UniformBindingType::eNone) {
+      stop = true;
+      continue;
+    }
+    if (stop == true) {
+      throw std::runtime_error("gbuffer: descriptor sets should use "
+                               "consecutive integers starting from 0");
+    }
+    if (vertDesc[i].type == UniformBindingType::eNone) {
+      mDescriptorSetDescriptions.push_back(fragDesc[i]);
+    } else if (fragDesc[i].type == UniformBindingType::eNone) {
+      mDescriptorSetDescriptions.push_back(vertDesc[i]);
+    } else {
+      mDescriptorSetDescriptions.push_back(vertDesc[i].merge(fragDesc[i]));
+    }
+  }
+
+  // validate();
 }
 
-ShaderConfig::MaterialPipeline GbufferPassParser::getMaterialType() const {
-  if (mMaterialBufferLayout->elements.find("metallic") !=
-      mMaterialBufferLayout->elements.end()) {
-    return ShaderConfig::eMETALLIC;
-  }
-  return ShaderConfig::eSPECULAR;
-}
+// ShaderConfig::MaterialPipeline GbufferPassParser::getMaterialType() const {
+//   if (mMaterialBufferLayout->elements.find("metallic") !=
+//       mMaterialBufferLayout->elements.end()) {
+//     return ShaderConfig::eMETALLIC;
+//   }
+//   return ShaderConfig::eSPECULAR;
+// }
 
 void GbufferPassParser::validate() const {
-  for (auto &elem : mCombinedSamplerLayout->elements) {
-    ASSERT(elem.second.binding >= 1 && elem.second.set == 2,
-           "[frag]all textures should be bound to set 2, binding >= 1");
-  }
-  for (auto &elem : mTextureOutputLayout->elements) {
-    ASSERT(elem.second.name.substr(0, 3) == "out",
-           "[frag]all out texture variables must start with \"out\"");
-  }
+    // for (auto &elem : mCombinedSamplerLayout->elements) {
+    //   ASSERT(elem.second.binding >= 1 && elem.second.set == 2,
+    //          "[frag]all textures should be bound to set 2, binding >= 1");
+    // }
+    // for (auto &elem : mTextureOutputLayout->elements) {
+    //   ASSERT(elem.second.name.substr(0, 3) == "out",
+    //          "[frag]all out texture variables must start with \"out\"");
+    // }
 };
 
 vk::PipelineLayout GbufferPassParser::createPipelineLayout(
@@ -223,6 +246,15 @@ std::vector<std::string> GbufferPassParser::getRenderTargetNames() const {
     result.push_back(getOutTextureName(elem.name));
   }
   result.push_back("Depth");
+  return result;
+}
+
+std::vector<UniformBindingType>
+GbufferPassParser::getUniformBindingTypes() const {
+  std::vector<UniformBindingType> result;
+  for (auto &desc : mDescriptorSetDescriptions) {
+    result.push_back(desc.type);
+  }
   return result;
 }
 

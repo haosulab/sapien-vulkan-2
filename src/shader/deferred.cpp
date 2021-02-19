@@ -238,5 +238,11 @@ std::vector<std::string> DeferredPassParser::getInputTextureNames() const {
   return result;
 }
 
+std::vector<UniformBindingType>
+DeferredPassParser::getUniformBindingTypes() const {
+  return {UniformBindingType::eScene, UniformBindingType::eCamera,
+          UniformBindingType::eTextures};
+}
+
 } // namespace shader
 } // namespace svulkan2

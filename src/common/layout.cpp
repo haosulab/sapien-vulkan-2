@@ -116,4 +116,16 @@ StructDataLayout::getElementsSorted() const {
             });
   return result;
 }
+
+bool StructDataLayout::Element::operator==(
+    StructDataLayout::Element const &other) const {
+  return name == other.name && size == other.size && offset == other.offset &&
+         arrayDim == other.arrayDim && dtype == other.dtype &&
+         *member == *other.member;
+}
+
+bool StructDataLayout::operator==(StructDataLayout const &other) const {
+  return size == other.size && elements == other.elements;
+}
+
 }; // namespace svulkan2

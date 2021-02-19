@@ -12,28 +12,27 @@ namespace shader {
 
 ShaderManager::ShaderManager(std::shared_ptr<RendererConfig> config)
     : mRenderConfig(config) {
-  mGbufferPass = std::make_shared<GbufferPassParser>();
-  mDeferredPass = std::make_shared<DeferredPassParser>();
   mShaderConfig = std::make_shared<ShaderConfig>();
   processShadersInFolder(config->shaderDir);
 }
 
-void ShaderManager::processShadersInFolder(std::string const &path) {
+void ShaderManager::processShadersInFolder(std::string const &folder) {
+  fs::path path(folder);
   mNumPasses = 0;
-  if (!fs::is_directory(fs::path(path))) {
-    throw std::runtime_error("[shader manager] " + path +
+  if (!fs::is_directory(path)) {
+    throw std::runtime_error("[shader manager] " + folder +
                              " is not a directory");
   }
-  if (!fs::is_regular_file(fs::path(path) / "gbuffer.vert")) {
+  if (!fs::is_regular_file(path / "gbuffer.vert")) {
     throw std::runtime_error("[shader manager] gbuffer.vert is required");
   }
-  if (!fs::is_regular_file(fs::path(path) / "gbuffer.frag")) {
+  if (!fs::is_regular_file(path / "gbuffer.frag")) {
     throw std::runtime_error("[shader manager] gbuffer.frag is required");
   }
-  if (!fs::is_regular_file(fs::path(path) / "deferred.vert")) {
+  if (!fs::is_regular_file(path / "deferred.vert")) {
     throw std::runtime_error("[shader manager] deferred.vert is required");
   }
-  if (!fs::is_regular_file(fs::path(path) / "deferred.frag")) {
+  if (!fs::is_regular_file(path / "deferred.frag")) {
     throw std::runtime_error("[shader manager] deferred.frag is required");
   }
 
@@ -42,14 +41,16 @@ void ShaderManager::processShadersInFolder(std::string const &path) {
   std::vector<std::future<void>> futures;
 
   // load gbuffer pass
-  std::string vsFile = path + "/gbuffer.vert";
-  std::string fsFile = path + "/gbuffer.frag";
+  mGbufferPass = std::make_shared<GbufferPassParser>();
+  std::string vsFile = (path / "gbuffer.vert").string();
+  std::string fsFile = (path / "gbuffer.frag").string();
   futures.push_back(mGbufferPass->loadGLSLFilesAsync(vsFile, fsFile));
   mPassIndex[mGbufferPass] = mNumPasses++;
 
   // load deferred pass
-  vsFile = path + "/deferred.vert";
-  fsFile = path + "/deferred.frag";
+  mDeferredPass = std::make_shared<DeferredPassParser>();
+  vsFile = (path / "deferred.vert").string();
+  fsFile = (path / "deferred.frag").string();
   futures.push_back(mDeferredPass->loadGLSLFilesAsync(vsFile, fsFile));
   mPassIndex[mDeferredPass] = mNumPasses++;
 
@@ -59,14 +60,12 @@ void ShaderManager::processShadersInFolder(std::string const &path) {
     if (filename.substr(0, 9) == "composite" &&
         filename.substr(filename.length() - 5, 5) == ".frag")
       numCompositePasses++;
-    // FIXME: do an error check here (composite passes must be consecutive
-    // integers starting from 0)
   }
 
   mCompositePasses.resize(numCompositePasses);
-  vsFile = path + "/composite.vert";
+  vsFile = (path / "composite.vert").string();
   for (int i = 0; i < numCompositePasses; i++) {
-    fsFile = path + "/composite" + std::to_string(i) + ".frag";
+    fsFile = path / ("composite" + std::to_string(i) + ".frag");
     mCompositePasses[i] = std::make_shared<CompositePassParser>();
     futures.push_back(mCompositePasses[i]->loadGLSLFilesAsync(vsFile, fsFile));
     mPassIndex[mCompositePasses[i]] = mNumPasses++;
@@ -83,11 +82,36 @@ void ShaderManager::processShadersInFolder(std::string const &path) {
 }
 
 void ShaderManager::populateShaderConfig() {
-  mShaderConfig->materialPipeline = mGbufferPass->getMaterialType();
+  auto allPasses = getAllPasses();
+  for (auto &pass : allPasses) {
+    pass->getUniformBindingTypes();
+  }
+
+  auto descs = mGbufferPass->getDescriptorSetDescriptions();
+  for (auto &desc : descs) {
+    switch (desc.type) {
+    case UniformBindingType::eCamera:
+      mShaderConfig->cameraBufferLayout =
+          desc.buffers[desc.bindings[0].arrayIndex];
+      break;
+    case UniformBindingType::eObject:
+      mShaderConfig->objectBufferLayout =
+          desc.buffers[desc.bindings[0].arrayIndex];
+      break;
+    case UniformBindingType::eMaterial:
+      if (desc.bindings[1].name == "colorTexture") {
+        mShaderConfig->materialPipeline = ShaderConfig::eMETALLIC;
+      } else {
+        mShaderConfig->materialPipeline = ShaderConfig::eSPECULAR;
+      }
+      break;
+    default:
+      throw std::runtime_error("not implemented");
+    }
+  }
+
   mShaderConfig->vertexLayout = mGbufferPass->getVertexInputLayout();
-  mShaderConfig->objectBufferLayout = mGbufferPass->getObjectBufferLayout();
   mShaderConfig->sceneBufferLayout = mDeferredPass->getSceneBufferLayout();
-  mShaderConfig->cameraBufferLayout = mGbufferPass->getCameraBufferLayout();
 }
 
 void ShaderManager::prepareRenderTargetFormats() {
@@ -259,12 +283,12 @@ ShaderManager::getColorAttachmentLayoutsForPass(
 std::pair<vk::ImageLayout, vk::ImageLayout>
 ShaderManager::getDepthAttachmentLayoutsForPass(
     std::shared_ptr<BaseParser> pass) {
-  if (pass != mGbufferPass) {
-    throw std::runtime_error(
-        "getDepthAttachmentLayoutsForPass failed: pass does not use depth.");
+  std::string texName;
+  if (pass == mGbufferPass) {
+    texName = "Depth";
   }
-  auto prevOp = getPrevOperation("Depth", pass);
-  auto nextOp = getNextOperation("Depth", pass);
+  auto prevOp = getPrevOperation(texName, pass);
+  auto nextOp = getNextOperation(texName, pass);
   vk::ImageLayout prev;
   vk::ImageLayout next;
   switch (prevOp) {
@@ -355,7 +379,7 @@ void ShaderManager::createPipelines(core::Context &context,
       getColorAttachmentLayoutsForPass(mGbufferPass),
       getDepthAttachmentLayoutsForPass(mGbufferPass),
       {mCameraLayout.get(), mObjectLayout.get(),
-       mGbufferPass->getMaterialType() ==
+       mShaderConfig->materialPipeline ==
                ShaderConfig::MaterialPipeline::eMETALLIC
            ? context.getMetallicDescriptorSetLayout()
            : context.getSpecularDescriptorSetLayout()});
@@ -373,15 +397,6 @@ void ShaderManager::createPipelines(core::Context &context,
   }
 }
 
-std::vector<std::shared_ptr<BaseParser>> ShaderManager::getAllPasses() const {
-  std::vector<std::shared_ptr<BaseParser>> allPasses;
-  allPasses.push_back(mGbufferPass);
-  allPasses.push_back(mDeferredPass);
-  allPasses.insert(allPasses.end(), mCompositePasses.begin(),
-                   mCompositePasses.end());
-  return allPasses;
-}
-
 std::vector<vk::DescriptorSetLayout>
 ShaderManager::getCompositeDescriptorSetLayouts() const {
   std::vector<vk::DescriptorSetLayout> result;
@@ -389,6 +404,15 @@ ShaderManager::getCompositeDescriptorSetLayouts() const {
     result.push_back(l.get());
   }
   return result;
+}
+
+std::vector<std::shared_ptr<BaseParser>> ShaderManager::getAllPasses() const {
+  std::vector<std::shared_ptr<BaseParser>> allPasses;
+  allPasses.push_back(mGbufferPass);
+  allPasses.push_back(mDeferredPass);
+  allPasses.insert(allPasses.end(), mCompositePasses.begin(),
+                   mCompositePasses.end());
+  return allPasses;
 }
 
 std::unordered_map<std::string, vk::ImageLayout>

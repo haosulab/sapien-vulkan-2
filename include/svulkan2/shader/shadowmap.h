@@ -13,7 +13,6 @@ class ShadowPassParser : public BaseParser {
   vk::UniquePipeline mPipeline;
 
 public:
-
   // Is this needed?
   // std::vector<std::string> getOutputTextureNames() const;
 
@@ -27,27 +26,34 @@ public:
     return mObjectBufferLayout;
   }
 
-  inline std::shared_ptr<OutputDataLayout> getTextureOutputLayout() const {
+  inline std::shared_ptr<OutputDataLayout>
+  getTextureOutputLayout() const override {
     return nullptr;
   };
 
-  inline std::vector<std::string> getRenderTargetNames() const { return {"ShadowDepthMap"}; };
+  inline std::vector<std::string> getRenderTargetNames() const override {
+    return {"ShadowDepthMap"};
+  };
 
   vk::PipelineLayout
   createPipelineLayout(vk::Device device,
                        std::vector<vk::DescriptorSetLayout> layouts);
 
-  vk::RenderPass createRenderPass(vk::Device device, vk::Format depthFormat,
+  vk::RenderPass createRenderPass(
+      vk::Device device, vk::Format depthFormat,
       std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout);
 
   vk::Pipeline createGraphicsPipeline(
-      vk::Device device, vk::Format depthFormat,
-      vk::CullModeFlags cullMode, vk::FrontFace frontFace,
+      vk::Device device, vk::Format depthFormat, vk::CullModeFlags cullMode,
+      vk::FrontFace frontFace,
       std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,
       std::vector<vk::DescriptorSetLayout> const &descriptorSetLayouts);
 
-  vk::RenderPass getRenderPass() const { return mRenderPass.get(); }
-  vk::Pipeline getPipeline() const { return mPipeline.get(); }
+  inline vk::RenderPass getRenderPass() const override {
+    return mRenderPass.get();
+  }
+  inline vk::Pipeline getPipeline() const override { return mPipeline.get(); }
+  std::vector<UniformBindingType> getUniformBindingTypes() const override;
 
 private:
   void reflectSPV() override;

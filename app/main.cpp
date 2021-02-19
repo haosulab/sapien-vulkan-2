@@ -52,7 +52,7 @@ int main() {
       scene::Transform{.scale = {0.001, 0.001, 0.001}});
 
   auto &cameraNode = scene.addCamera();
-  cameraNode.setPerspectiveParameters(0.1, 10, 1, 4.f / 3);
+  cameraNode.setPerspectiveParameters(0.05, 10, 1, 4.f / 3);
   FPSCameraController controller(cameraNode, {0, 0, -1}, {0, 1, 0});
   controller.setXYZ(0, 0.5, 0);
 
@@ -72,6 +72,7 @@ int main() {
 
   auto uiWindow =
       ui::Widget::Create<ui::Window>()
+          ->Size(400, 400)
           ->Name("main window")
           ->append(ui::Widget::Create<ui::DisplayText>()->Text("Hello!"))
           ->append(ui::Widget::Create<ui::InputText>()->Label("Input##1"))
@@ -91,7 +92,7 @@ int main() {
       renderer.resize(window->getWidth(), window->getHeight());
       context.getDevice().waitIdle();
       cameraNode.setPerspectiveParameters(
-          0.1, 10, 1,
+          0.05, 10, 1,
           static_cast<float>(window->getWidth()) / window->getHeight());
       continue;
     }

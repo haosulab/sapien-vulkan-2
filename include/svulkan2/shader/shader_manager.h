@@ -61,12 +61,6 @@ public:
   }
   std::vector<vk::DescriptorSetLayout> getCompositeDescriptorSetLayouts() const;
 
-  // std::vector<vk::Pipeline> getPipelines() const { return mPipelines; }
-  // std::vector<vk::RenderPass> getRenderPasses() const { return mRenderPasses;
-  // }
-  // std::vector<vk::PipelineLayout>
-  // getPipelinesLayouts(); // call only after createPipelines.
-
   void createPipelines(core::Context &context, int numDirectionalLights = -1,
                        int numPointLights = -1);
   std::vector<std::shared_ptr<BaseParser>> getAllPasses() const;
