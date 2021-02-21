@@ -6,10 +6,8 @@ namespace shader {
 class DeferredPassParser : public BaseParser {
 
   std::shared_ptr<SpecializationConstantLayout> mSpecializationConstantLayout;
-  std::shared_ptr<StructDataLayout> mCameraBufferLayout;
-  std::shared_ptr<StructDataLayout> mSceneBufferLayout;
-  std::shared_ptr<CombinedSamplerLayout> mCombinedSamplerLayout;
   std::shared_ptr<OutputDataLayout> mTextureOutputLayout;
+  std::vector<DescriptorSetDescription> mDescriptorSetDescriptions;
 
   vk::UniqueRenderPass mRenderPass;
   vk::UniquePipeline mPipeline;
@@ -19,16 +17,7 @@ public:
   getSpecializationConstantLayout() const {
     return mSpecializationConstantLayout;
   }
-  inline std::shared_ptr<StructDataLayout> getCameraBufferLayout() const {
-    return mCameraBufferLayout;
-  }
-  inline std::shared_ptr<StructDataLayout> getSceneBufferLayout() const {
-    return mSceneBufferLayout;
-  }
-  inline std::shared_ptr<CombinedSamplerLayout>
-  getCombinedSamplerLayout() const {
-    return mCombinedSamplerLayout;
-  }
+
   inline std::shared_ptr<OutputDataLayout>
   getTextureOutputLayout() const override {
     return mTextureOutputLayout;
@@ -49,16 +38,24 @@ public:
       vk::Device device, vk::Format colorFormat,
       std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const &layouts);
 
-  vk::Pipeline createGraphicsPipeline(
-      vk::Device device, vk::Format colorFormat,
+  virtual vk::Pipeline createGraphicsPipeline(
+      vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
+      vk::CullModeFlags cullMode, vk::FrontFace frontFace,
       std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
-          &renderTargetLayouts,
-      std::vector<vk::DescriptorSetLayout> descriptorSetLayouts,
-      int numDirectionalLights = -1, int numPointLights = -1);
+          &colorTargetLayouts,
+      std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,
+      std::vector<vk::DescriptorSetLayout> const &descriptorSetLayouts,
+      std::map<std::string, SpecializationConstantValue> const
+          &specializationConstantInfo) override;
 
-  virtual std::vector<std::string> getRenderTargetNames() const override;
+  std::vector<std::string> getColorRenderTargetNames() const override;
   std::vector<std::string> getInputTextureNames() const override;
   std::vector<UniformBindingType> getUniformBindingTypes() const override;
+
+  inline std::vector<DescriptorSetDescription>
+  getDescriptorSetDescriptions() const override {
+    return mDescriptorSetDescriptions;
+  };
 
 private:
   void reflectSPV() override;

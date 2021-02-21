@@ -19,8 +19,6 @@ class Renderer {
       mRenderTargets;
   std::unordered_map<std::string, vk::ImageLayout> mRenderTargetFinalLayouts;
 
-  // std::vector<vk::Pipeline> mPipelines;
-  // std::vector<vk::RenderPass> mRenderPasses;
   std::vector<vk::UniqueFramebuffer> mFramebuffers;
 
   int mWidth{};
@@ -34,14 +32,18 @@ class Renderer {
   vk::UniqueDescriptorSet mSceneSet;
   vk::UniqueDescriptorSet mCameraSet;
   std::vector<vk::UniqueDescriptorSet> mObjectSet;
-  vk::UniqueDescriptorSet mDeferredSet;
-  std::vector<vk::UniqueDescriptorSet> mCompositeSets;
 
-  bool mLastNumPointLights = 0;
-  bool mLastNumDirectionalLights = 0;
+  std::vector<vk::UniqueDescriptorSet> mInputTextureSets;
+
+  bool mSpecializationConstantsChanged = true;
+  std::map<std::string, shader::SpecializationConstantValue>
+      mSpecializationConstants;
 
 public:
   Renderer(core::Context &context, std::shared_ptr<RendererConfig> config);
+
+  void setSpecializationConstantInt(std::string const &name, int value);
+  void setSpecializationConstantFloat(std::string const &name, float value);
 
   void resize(int width, int height);
 
@@ -74,13 +76,13 @@ public:
 
 private:
   void prepareRenderTargets(uint32_t width, uint32_t height);
-  void preparePipelines(int numDirectionalLights, int numPointLights);
+  void preparePipelines();
   void prepareFramebuffers(uint32_t width, uint32_t height);
 
   void prepareSceneBuffer();
   void prepareObjectBuffers(uint32_t numObjects);
   void prepareCameaBuffer();
-  void prepareDeferredDescriptorSets();
+  void prepareInputTextureDescriptorSets();
 };
 
 } // namespace renderer

@@ -46,26 +46,14 @@ void GbufferPassParser::reflectSPV() {
     }
   }
 
-  // validate();
+  validate();
 }
 
-// ShaderConfig::MaterialPipeline GbufferPassParser::getMaterialType() const {
-//   if (mMaterialBufferLayout->elements.find("metallic") !=
-//       mMaterialBufferLayout->elements.end()) {
-//     return ShaderConfig::eMETALLIC;
-//   }
-//   return ShaderConfig::eSPECULAR;
-// }
-
 void GbufferPassParser::validate() const {
-    // for (auto &elem : mCombinedSamplerLayout->elements) {
-    //   ASSERT(elem.second.binding >= 1 && elem.second.set == 2,
-    //          "[frag]all textures should be bound to set 2, binding >= 1");
-    // }
-    // for (auto &elem : mTextureOutputLayout->elements) {
-    //   ASSERT(elem.second.name.substr(0, 3) == "out",
-    //          "[frag]all out texture variables must start with \"out\"");
-    // }
+  for (auto &elem : mTextureOutputLayout->elements) {
+    ASSERT(elem.second.name.substr(0, 3) == "out",
+           "[frag]all out texture variables must start with \"out\"");
+  }
 };
 
 vk::PipelineLayout GbufferPassParser::createPipelineLayout(
@@ -137,7 +125,9 @@ vk::Pipeline GbufferPassParser::createGraphicsPipeline(
     std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
         &colorTargetLayouts,
     std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,
-    std::vector<vk::DescriptorSetLayout> const &descriptorSetLayouts) {
+    std::vector<vk::DescriptorSetLayout> const &descriptorSetLayouts,
+    std::map<std::string, SpecializationConstantValue> const
+        &specializationConstantInfo) {
   // render pass
   auto renderPass = createRenderPass(device, colorFormat, depthFormat,
                                      colorTargetLayouts, depthLayout);
@@ -205,12 +195,24 @@ vk::Pipeline GbufferPassParser::createGraphicsPipeline(
       vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA);
   std::vector<vk::PipelineColorBlendAttachmentState>
       pipelineColorBlendAttachmentStates;
+
+  auto outTextures = mTextureOutputLayout->getElementsSorted();
   for (uint32_t i = 0; i < numColorAttachments; ++i) {
-    pipelineColorBlendAttachmentStates.push_back(
-        vk::PipelineColorBlendAttachmentState(
-            false, vk::BlendFactor::eZero, vk::BlendFactor::eZero,
-            vk::BlendOp::eAdd, vk::BlendFactor::eZero, vk::BlendFactor::eZero,
-            vk::BlendOp::eAdd, colorComponentFlags));
+    // alpha blend float textures
+    if (mAlphaBlend && outTextures[i].dtype == DataType::eFLOAT4) {
+      pipelineColorBlendAttachmentStates.push_back(
+          vk::PipelineColorBlendAttachmentState(
+              true, vk::BlendFactor::eSrcAlpha,
+              vk::BlendFactor::eOneMinusSrcAlpha, vk::BlendOp::eAdd,
+              vk::BlendFactor::eOne, vk::BlendFactor::eZero, vk::BlendOp::eAdd,
+              colorComponentFlags));
+    } else {
+      pipelineColorBlendAttachmentStates.push_back(
+          vk::PipelineColorBlendAttachmentState(
+              false, vk::BlendFactor::eZero, vk::BlendFactor::eZero,
+              vk::BlendOp::eAdd, vk::BlendFactor::eZero, vk::BlendFactor::eZero,
+              vk::BlendOp::eAdd, colorComponentFlags));
+    }
   }
   vk::PipelineColorBlendStateCreateInfo pipelineColorBlendStateCreateInfo(
       vk::PipelineColorBlendStateCreateFlags(), false, vk::LogicOp::eNoOp,
@@ -239,14 +241,16 @@ vk::Pipeline GbufferPassParser::createGraphicsPipeline(
   return mPipeline.get();
 }
 
-std::vector<std::string> GbufferPassParser::getRenderTargetNames() const {
+std::vector<std::string> GbufferPassParser::getColorRenderTargetNames() const {
   std::vector<std::string> result;
   auto elems = mTextureOutputLayout->getElementsSorted();
   for (auto elem : elems) {
     result.push_back(getOutTextureName(elem.name));
   }
-  result.push_back("Depth");
   return result;
+}
+std::optional<std::string> GbufferPassParser::getDepthRenderTargetName() const {
+  return "Depth";
 }
 
 std::vector<UniformBindingType>

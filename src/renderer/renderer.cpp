@@ -70,19 +70,22 @@ void Renderer::prepareRenderTargets(uint32_t width, uint32_t height) {
   mRenderTargetFinalLayouts = mShaderManager->getRenderTargetFinalLayouts();
 }
 
-void Renderer::preparePipelines(int numDirectionalLights, int numPointLights) {
-  mShaderManager->createPipelines(*mContext, numDirectionalLights,
-                                  numPointLights);
+void Renderer::preparePipelines() {
+  mShaderManager->createPipelines(*mContext, mSpecializationConstants);
 }
 
 void Renderer::prepareFramebuffers(uint32_t width, uint32_t height) {
   mFramebuffers.clear();
   auto parsers = mShaderManager->getAllPasses();
   for (uint32_t i = 0; i < parsers.size(); ++i) {
-    auto names = parsers[i]->getRenderTargetNames();
+    auto names = parsers[i]->getColorRenderTargetNames();
     std::vector<vk::ImageView> attachments;
     for (auto &name : names) {
       attachments.push_back(mRenderTargets[name]->getImageView());
+    }
+    auto depthName = parsers[i]->getDepthRenderTargetName();
+    if (depthName.has_value()) {
+      attachments.push_back(mRenderTargets[depthName.value()]->getImageView());
     }
     vk::FramebufferCreateInfo info({}, parsers[i]->getRenderPass(),
                                    attachments.size(), attachments.data(),
@@ -102,6 +105,34 @@ void Renderer::resize(int width, int height) {
   mRequiresRebuild = true;
 }
 
+void Renderer::setSpecializationConstantInt(std::string const &name,
+                                            int value) {
+  if (mSpecializationConstants.contains(name)) {
+    if (mSpecializationConstants[name].dtype != DataType::eINT) {
+      throw std::runtime_error("failed to set specialization constant: the "
+                               "same constant can only have a single type");
+    }
+  }
+  if (mSpecializationConstants[name].intValue != value) {
+    mSpecializationConstants[name].dtype = DataType::eINT;
+    mSpecializationConstantsChanged = true;
+    mSpecializationConstants[name].intValue = value;
+  }
+}
+
+void Renderer::setSpecializationConstantFloat(std::string const &name,
+                                              float value) {
+  if (mSpecializationConstants.contains(name)) {
+    if (mSpecializationConstants[name].dtype != DataType::eFLOAT) {
+      throw std::runtime_error("failed to set specialization constant: the "
+                               "same constant can only have a single type");
+    }
+  }
+  mSpecializationConstants[name].dtype = DataType::eFLOAT;
+  mSpecializationConstantsChanged = true;
+  mSpecializationConstants[name].floatValue = value;
+}
+
 void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
                       scene::Camera &camera) {
   if (mWidth <= 0 || mHeight <= 0) {
@@ -110,17 +141,16 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
   }
   int numPointLights = scene.getSVScene()->getPointLights().size();
   int numDirectionalLights = scene.getSVScene()->getDirectionalLights().size();
-  bool numLightsChanged = (numPointLights != mLastNumPointLights) ||
-                          (numDirectionalLights != mLastNumDirectionalLights);
-  if (mRequiresRebuild || numLightsChanged) {
-    mRequiresRebuild = false;
-    mLastNumPointLights = numPointLights;
-    mLastNumDirectionalLights = numDirectionalLights;
+  setSpecializationConstantInt("NUM_POINT_LIGHTS", numPointLights);
+  setSpecializationConstantInt("NUM_DIRECTIONAL_LIGHTS", numDirectionalLights);
 
+  if (mRequiresRebuild || mSpecializationConstantsChanged) {
     prepareRenderTargets(mWidth, mHeight);
-    preparePipelines(numDirectionalLights, numPointLights);
+    preparePipelines();
     prepareFramebuffers(mWidth, mHeight);
-    prepareDeferredDescriptorSets();
+    prepareInputTextureDescriptorSets();
+    mSpecializationConstantsChanged = false;
+    mRequiresRebuild = false;
   }
 
   scene.updateModelMatrices();
@@ -162,7 +192,6 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
   }
 
   auto passes = mShaderManager->getAllPasses();
-  uint32_t composite_pass_index = 0;
   vk::Viewport viewport{
       0.f, 0.f, static_cast<float>(mWidth), static_cast<float>(mHeight),
       0.f, 1.f};
@@ -174,34 +203,65 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
     std::vector<vk::ClearValue> clearValues(
         pass->getTextureOutputLayout()->elements.size(),
         vk::ClearColorValue(std::array<float, 4>{0.f, 0.f, 0.f, 0.f}));
-    if (auto p = std::dynamic_pointer_cast<shader::GbufferPassParser>(pass)) {
-      clearValues.push_back(vk::ClearDepthStencilValue(1.0f, 0));
-      vk::RenderPassBeginInfo renderPassBeginInfo{
-          pass->getRenderPass(), mFramebuffers[pass_index].get(),
-          vk::Rect2D({0, 0}, {static_cast<uint32_t>(mWidth),
-                              static_cast<uint32_t>(mHeight)}),
-          static_cast<uint32_t>(clearValues.size()), clearValues.data()};
-      commandBuffer.beginRenderPass(renderPassBeginInfo,
-                                    vk::SubpassContents::eInline);
-      commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics,
-                                 pass->getPipeline());
-      commandBuffer.setViewport(0, viewport);
-      commandBuffer.setScissor(0, scissor);
+    // if (auto p = std::dynamic_pointer_cast<shader::GbufferPassParser>(pass))
+    // {
+    clearValues.push_back(vk::ClearDepthStencilValue(1.0f, 0));
+    vk::RenderPassBeginInfo renderPassBeginInfo{
+        pass->getRenderPass(), mFramebuffers[pass_index].get(),
+        vk::Rect2D({0, 0}, {static_cast<uint32_t>(mWidth),
+                            static_cast<uint32_t>(mHeight)}),
+        static_cast<uint32_t>(clearValues.size()), clearValues.data()};
+    commandBuffer.beginRenderPass(renderPassBeginInfo,
+                                  vk::SubpassContents::eInline);
+    commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics,
+                               pass->getPipeline());
+    commandBuffer.setViewport(0, viewport);
+    commandBuffer.setScissor(0, scissor);
 
-      commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
-                                       pass->getPipelineLayout(), 0,
-                                       mCameraSet.get(), nullptr);
+    int objectBinding = -1;
+    int materialBinding = -1;
+    auto types = pass->getUniformBindingTypes();
+    for (uint32_t i = 0; i < types.size(); ++i) {
+      switch (types[i]) {
+      case shader::UniformBindingType::eCamera:
+        commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
+                                         pass->getPipelineLayout(), i,
+                                         mCameraSet.get(), nullptr);
+        break;
+      case shader::UniformBindingType::eScene:
+        commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
+                                         pass->getPipelineLayout(), i,
+                                         mSceneSet.get(), nullptr);
+        break;
+      case shader::UniformBindingType::eTextures:
+        commandBuffer.bindDescriptorSets(
+            vk::PipelineBindPoint::eGraphics, pass->getPipelineLayout(), i,
+            mInputTextureSets[pass_index].get(), nullptr);
+        break;
+      case shader::UniformBindingType::eObject:
+        objectBinding = i;
+        break;
+      case shader::UniformBindingType::eMaterial:
+        materialBinding = i;
+        break;
+      default:
+        throw std::runtime_error("not implemented");
+      }
+    }
 
+    if (objectBinding >= 0) {
       uint32_t i = 0;
       for (auto obj : objects) {
         commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
                                          pass->getPipelineLayout(), 1,
-                                         mObjectSet[i].get(), nullptr);
+                                         mObjectSet[i++].get(), nullptr);
         auto shapes = obj->getModel()->getShapes();
         for (auto shape : shapes) {
-          commandBuffer.bindDescriptorSets(
-              vk::PipelineBindPoint::eGraphics, pass->getPipelineLayout(), 2,
-              shape->material->getDescriptorSet(), nullptr);
+          if (materialBinding >= 0) {
+            commandBuffer.bindDescriptorSets(
+                vk::PipelineBindPoint::eGraphics, pass->getPipelineLayout(),
+                materialBinding, shape->material->getDescriptorSet(), nullptr);
+          }
           commandBuffer.bindVertexBuffers(
               0, shape->mesh->getVertexBuffer().getVulkanBuffer(),
               std::vector<vk::DeviceSize>(1, 0));
@@ -211,56 +271,10 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
           commandBuffer.drawIndexed(shape->mesh->getIndexCount(), 1, 0, 0, 0);
         }
       }
-      commandBuffer.endRenderPass();
-    } else if (auto p = std::dynamic_pointer_cast<shader::DeferredPassParser>(
-                   pass)) {
-      vk::RenderPassBeginInfo renderPassBeginInfo{
-          pass->getRenderPass(), mFramebuffers[pass_index].get(),
-          vk::Rect2D{
-              {0, 0},
-              {static_cast<uint32_t>(mWidth), static_cast<uint32_t>(mHeight)}},
-          static_cast<uint32_t>(clearValues.size()), clearValues.data()};
-
-      commandBuffer.beginRenderPass(renderPassBeginInfo,
-                                    vk::SubpassContents::eInline);
-      commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics,
-                                 pass->getPipeline());
-      commandBuffer.setViewport(0, viewport);
-      commandBuffer.setScissor(0, scissor);
-      commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
-                                       pass->getPipelineLayout(), 0,
-                                       mSceneSet.get(), nullptr);
-      commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
-                                       pass->getPipelineLayout(), 1,
-                                       mCameraSet.get(), nullptr);
-      commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
-                                       pass->getPipelineLayout(), 2,
-                                       mDeferredSet.get(), nullptr);
-      commandBuffer.draw(3, 1, 0, 0);
-      commandBuffer.endRenderPass();
-    } else if (auto p = std::dynamic_pointer_cast<shader::CompositePassParser>(
-                   pass)) {
-      vk::RenderPassBeginInfo renderPassBeginInfo(
-          pass->getRenderPass(), mFramebuffers[pass_index].get(),
-          vk::Rect2D{
-              {0, 0},
-              {static_cast<uint32_t>(mWidth), static_cast<uint32_t>(mHeight)}},
-          static_cast<uint32_t>(clearValues.size()), clearValues.data());
-
-      commandBuffer.beginRenderPass(renderPassBeginInfo,
-                                    vk::SubpassContents::eInline);
-      commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics,
-                                 pass->getPipeline());
-      commandBuffer.setViewport(0, viewport);
-      commandBuffer.setScissor(0, scissor);
-      commandBuffer.bindDescriptorSets(
-          vk::PipelineBindPoint::eGraphics, pass->getPipelineLayout(), 0,
-          mCompositeSets[composite_pass_index++].get(), nullptr);
-      commandBuffer.draw(3, 1, 0, 0);
-      commandBuffer.endRenderPass();
     } else {
-      throw std::runtime_error("Unknown pass");
+      commandBuffer.draw(3, 1, 0, 0);
     }
+    commandBuffer.endRenderPass();
   }
   for (auto &[name, target] : mRenderTargets) {
     target->getImage().setCurrentLayout(mRenderTargetFinalLayouts[name]);
@@ -380,45 +394,33 @@ void Renderer::prepareObjectBuffers(uint32_t numObjects) {
   }
 }
 
-void Renderer::prepareDeferredDescriptorSets() {
-  // deferred set
-  {
-    auto layout = mShaderManager->getDeferredDescriptorSetLayout();
-    mDeferredSet = std::move(
-        mContext->getDevice()
-            .allocateDescriptorSetsUnique(vk::DescriptorSetAllocateInfo(
-                mDescriptorPool.get(), 1, &layout))
-            .front());
-    std::vector<std::tuple<vk::ImageView, vk::Sampler>> textureData;
-    auto names = mShaderManager->getDeferredPass()->getInputTextureNames();
-    for (auto &name : names) {
-      textureData.push_back({mRenderTargets[name]->getImageView(),
-                             mRenderTargets[name]->getSampler()});
-    }
-    updateDescriptorSets(mContext->getDevice(), mDeferredSet.get(), {},
-                         textureData, 0);
-  }
+void Renderer::prepareInputTextureDescriptorSets() {
+  auto layouts = mShaderManager->getInputTextureLayouts();
+  auto passes = mShaderManager->getAllPasses();
+  mInputTextureSets.clear();
+  for (uint32_t i = 0; i < passes.size(); ++i) {
+    auto layout = layouts[i];
+    vk::UniqueDescriptorSet set{};
+    if (layout) {
+      mInputTextureSets.push_back(std::move(
+          mContext->getDevice()
+              .allocateDescriptorSetsUnique(vk::DescriptorSetAllocateInfo(
+                  mDescriptorPool.get(), 1, &layout))
+              .front()));
 
-  // composite sets
-  auto compositePasses = mShaderManager->getCompositePasses();
-  auto compositeLayouts = mShaderManager->getCompositeDescriptorSetLayouts();
-  mCompositeSets.clear();
-  mCompositeSets.reserve(compositePasses.size());
-  for (uint32_t i = 0; i < compositePasses.size(); ++i) {
-    auto layout = compositeLayouts[i];
-    mCompositeSets.push_back(std::move(
-        mContext->getDevice()
-            .allocateDescriptorSetsUnique(vk::DescriptorSetAllocateInfo(
-                mDescriptorPool.get(), 1, &layout))
-            .front()));
-    std::vector<std::tuple<vk::ImageView, vk::Sampler>> textureData;
-    auto names = compositePasses[i]->getInputTextureNames();
-    for (auto &name : names) {
-      textureData.push_back({mRenderTargets[name]->getImageView(),
-                             mRenderTargets[name]->getSampler()});
+      std::vector<std::tuple<vk::ImageView, vk::Sampler>> textureData;
+      auto names = passes[i]->getInputTextureNames();
+      for (auto name : names) {
+        // TODO: allow custom textures
+        textureData.push_back({mRenderTargets[name]->getImageView(),
+                               mRenderTargets[name]->getSampler()});
+      }
+      updateDescriptorSets(mContext->getDevice(),
+                           mInputTextureSets.back().get(), {}, textureData, 0);
+
+    } else {
+      mInputTextureSets.push_back({});
     }
-    updateDescriptorSets(mContext->getDevice(), mCompositeSets.back().get(), {},
-                         textureData, 0);
   }
 }
 

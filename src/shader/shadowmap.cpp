@@ -8,8 +8,8 @@ void ShadowPassParser::reflectSPV() {
   spirv_cross::Compiler vertComp(mVertSPVCode);
   try {
     mVertexInputLayout = parseVertexInput(vertComp);
-    mLightSpaceBufferLayout = parseLightSpaceBuffer(vertComp, 0, 0);
-    mObjectBufferLayout = parseObjectBuffer(vertComp, 0, 1);
+    // mLightSpaceBufferLayout = parseLightSpaceBuffer(vertComp, 0, 0);
+    // mObjectBufferLayout = parseObjectBuffer(vertComp, 0, 1);
   } catch (std::runtime_error const &err) {
     throw std::runtime_error("[vert]" + std::string(err.what()));
   }
@@ -62,10 +62,14 @@ vk::RenderPass ShadowPassParser::createRenderPass(
 }
 
 vk::Pipeline ShadowPassParser::createGraphicsPipeline(
-    vk::Device device, vk::Format depthFormat, vk::CullModeFlags cullMode,
-    vk::FrontFace frontFace,
+    vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
+    vk::CullModeFlags cullMode, vk::FrontFace frontFace,
+    std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
+        &colorTargetLayouts,
     std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,
-    std::vector<vk::DescriptorSetLayout> const &descriptorSetLayouts) {
+    std::vector<vk::DescriptorSetLayout> const &descriptorSetLayouts,
+    std::map<std::string, SpecializationConstantValue> const
+        &specializationConstantInfo) {
   // render pass
   auto renderPass = createRenderPass(device, depthFormat, depthLayout);
 

@@ -1,7 +1,6 @@
 #pragma once
 #include "svulkan2/common/config.h"
 #include "svulkan2/core/context.h"
-#include "svulkan2/shader/composite.h"
 #include "svulkan2/shader/deferred.h"
 #include "svulkan2/shader/gbuffer.h"
 #include <map>
@@ -14,15 +13,17 @@ namespace shader {
 enum class RenderTargetOperation { eNoOp, eRead, eColorWrite, eDepthWrite };
 
 class ShaderManager {
-  uint32_t mNumPasses{};
   std::shared_ptr<RendererConfig> mRenderConfig;
   std::shared_ptr<ShaderConfig> mShaderConfig;
 
-  std::shared_ptr<GbufferPassParser> mGbufferPass;
-  std::shared_ptr<DeferredPassParser> mDeferredPass;
-  std::vector<std::shared_ptr<CompositePassParser>> mCompositePasses;
+  std::vector<std::shared_ptr<BaseParser>> mAllPasses;
   std::map<std::weak_ptr<BaseParser>, unsigned int, std::owner_less<>>
       mPassIndex;
+
+  // std::shared_ptr<GbufferPassParser> mGbufferPass;
+  // std::shared_ptr<DeferredPassParser> mDeferredPass;
+  // std::vector<std::shared_ptr<DeferredPassParser>> mCompositePasses;
+
   std::unordered_map<std::string, std::vector<RenderTargetOperation>>
       mTextureOperationTable;
   std::unordered_map<std::string, vk::Format> mRenderTargetFormats;
@@ -30,22 +31,13 @@ class ShaderManager {
   vk::UniqueDescriptorSetLayout mSceneLayout;
   vk::UniqueDescriptorSetLayout mCameraLayout;
   vk::UniqueDescriptorSetLayout mObjectLayout;
-  vk::UniqueDescriptorSetLayout mDeferredLayout;
-  std::vector<vk::UniqueDescriptorSetLayout> mCompositeLayouts;
+
+  std::vector<vk::UniqueDescriptorSetLayout> mInputTextureLayouts;
 
 public:
   ShaderManager(std::shared_ptr<RendererConfig> config = nullptr);
 
   std::shared_ptr<RendererConfig> getConfig() const { return mRenderConfig; }
-  std::shared_ptr<GbufferPassParser> getGbufferPass() const {
-    return mGbufferPass;
-  }
-  std::shared_ptr<DeferredPassParser> getDeferredPass() const {
-    return mDeferredPass;
-  }
-  std::vector<std::shared_ptr<CompositePassParser>> getCompositePasses() const {
-    return mCompositePasses;
-  }
 
   inline vk::DescriptorSetLayout getSceneDescriptorSetLayout() const {
     return mSceneLayout.get();
@@ -56,13 +48,12 @@ public:
   inline vk::DescriptorSetLayout getObjectDescriptorSetLayout() const {
     return mObjectLayout.get();
   }
-  inline vk::DescriptorSetLayout getDeferredDescriptorSetLayout() const {
-    return mDeferredLayout.get();
-  }
-  std::vector<vk::DescriptorSetLayout> getCompositeDescriptorSetLayouts() const;
 
-  void createPipelines(core::Context &context, int numDirectionalLights = -1,
-                       int numPointLights = -1);
+  std::vector<vk::DescriptorSetLayout> getInputTextureLayouts() const;
+
+  void createPipelines(core::Context &context,
+                       std::map<std::string, SpecializationConstantValue> const
+                           &specializationConstantInfo);
   std::vector<std::shared_ptr<BaseParser>> getAllPasses() const;
 
   inline std::unordered_map<std::string, vk::Format>
@@ -88,9 +79,7 @@ private:
   RenderTargetOperation getPrevOperation(std::string texName,
                                          std::shared_ptr<BaseParser> pass);
   RenderTargetOperation getLastOperation(std::string texName) const;
-  // std::unordered_map<std::string, std::pair<vk::ImageLayout,
-  // vk::ImageLayout>> getRenderTargetLayouts(std::shared_ptr<BaseParser> pass,
-  //                   std::shared_ptr<OutputDataLayout> outputLayout);
+
   std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>>
   getColorAttachmentLayoutsForPass(std::shared_ptr<BaseParser> pass);
   std::pair<vk::ImageLayout, vk::ImageLayout>

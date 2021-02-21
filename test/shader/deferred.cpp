@@ -12,7 +12,7 @@ TEST(Deferred, Minimal) {
   GLSLCompiler::FinalizeProcess();
 
   // specialization Constant
-  auto specializationConstantLayout =
+  auto specializationConstant =
       deferred.getSpecializationConstantLayout();
   ASSERT_TRUE(CONTAINS(specializationConstantLayout->elements,
                        "NUM_DIRECTIONAL_LIGHTS"));

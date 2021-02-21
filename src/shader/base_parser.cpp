@@ -19,8 +19,8 @@ DescriptorSetDescription::merge(DescriptorSetDescription const &other) const {
   for (auto &[bindingIndex, binding] : other.bindings) {
     if (bindings.contains(bindingIndex)) {
       if (binding.type == vk::DescriptorType::eUniformBuffer) {
-        if (other.buffers[binding.arrayIndex] !=
-            buffers[(bindings.at(bindingIndex)).arrayIndex]) {
+        if (*other.buffers[binding.arrayIndex] !=
+            *buffers[bindings.at(bindingIndex).arrayIndex]) {
           throw std::runtime_error("Incompatible descriptor at binding " +
                                    std::to_string(bindingIndex) +
                                    ": buffers are different.");
@@ -53,6 +53,9 @@ DescriptorSetDescription::merge(DescriptorSetDescription const &other) const {
       }
     }
   }
+  newLayout.buffers = newBuffers;
+  newLayout.samplers = newSamplers;
+  newLayout.bindings = newBindings;
   return newLayout;
 }
 

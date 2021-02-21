@@ -7,36 +7,46 @@ namespace shader {
 void DeferredPassParser::reflectSPV() {
   spirv_cross::Compiler vertComp(mVertSPVCode);
   spirv_cross::Compiler fragComp(mFragSPVCode);
+  std::vector<DescriptorSetDescription> fragDesc;
   try {
     mSpecializationConstantLayout = parseSpecializationConstant(fragComp);
-    mCameraBufferLayout = parseCameraBuffer(fragComp, 0, 1);
-    mSceneBufferLayout = parseSceneBuffer(fragComp, 0, 0);
-    mCombinedSamplerLayout = parseCombinedSampler(fragComp);
     mTextureOutputLayout = parseTextureOutput(fragComp);
+    for (uint32_t i = 0; i < 4; ++i) {
+      fragDesc.push_back(getDescriptorSetDescription(fragComp, i));
+    }
+
   } catch (std::runtime_error const &err) {
     throw std::runtime_error("[frag]" + std::string(err.what()));
+  }
+
+  for (uint32_t i = 0, stop = false; i < 4; ++i) {
+    if (fragDesc[i].type == UniformBindingType::eNone) {
+      stop = true;
+      continue;
+    }
+    if (stop == true) {
+      throw std::runtime_error("deferred: descriptor sets should use "
+                               "consecutive integers starting from 0");
+    }
+    mDescriptorSetDescriptions.push_back(fragDesc[i]);
   }
 
   validate();
 }
 
 void DeferredPassParser::validate() const {
-  // validate constants
-  ASSERT(CONTAINS(mSpecializationConstantLayout->elements,
-                  "NUM_DIRECTIONAL_LIGHTS"),
-         "[frag]NUM_DIRECTIONAL_LIGHTS is a required specialization "
-         "constant");
-  ASSERT(CONTAINS(mSpecializationConstantLayout->elements, "NUM_POINT_LIGHTS"),
-         "[frag]NUM_POINT_LIGHTS is a required specialization "
-         "constant");
-
-  // validate samplers
-  for (auto &sampler : mCombinedSamplerLayout->elements) {
-    ASSERT(sampler.second.name.length() > 7 &&
-               sampler.second.name.substr(0, 7) == "sampler",
-           "[frag]texture sampler variable must start with \"sampler\"");
-    ASSERT(sampler.second.set == 2, "all deferred.frag: all texture sampler "
-                                    "should be bound at descriptor set 2");
+  for (auto &desc : mDescriptorSetDescriptions) {
+    if (desc.type == UniformBindingType::eScene) {
+      // validate constants
+      ASSERT(CONTAINS(mSpecializationConstantLayout->elements,
+                      "NUM_DIRECTIONAL_LIGHTS"),
+             "[frag]NUM_DIRECTIONAL_LIGHTS is a required specialization "
+             "constant when using SceneBuffer");
+      ASSERT(
+          CONTAINS(mSpecializationConstantLayout->elements, "NUM_POINT_LIGHTS"),
+          "[frag]NUM_POINT_LIGHTS is a required specialization "
+          "constant when using SceneBuffer");
+    }
   }
 
   // validate out textures
@@ -94,13 +104,16 @@ vk::RenderPass DeferredPassParser::createRenderPass(
 }
 
 vk::Pipeline DeferredPassParser::createGraphicsPipeline(
-    vk::Device device, vk::Format colorFormat,
+    vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
+    vk::CullModeFlags cullMode, vk::FrontFace frontFace,
     std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
-        &renderTargetLayouts,
-    std::vector<vk::DescriptorSetLayout> descriptorSetLayouts,
-    int numDirectionalLights, int numPointLights) {
+        &colorTargetLayouts,
+    std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,
+    std::vector<vk::DescriptorSetLayout> const &descriptorSetLayouts,
+    std::map<std::string, SpecializationConstantValue> const
+        &specializationConstantInfo) {
   // render pass
-  auto renderPass = createRenderPass(device, colorFormat, renderTargetLayouts);
+  auto renderPass = createRenderPass(device, colorFormat, colorTargetLayouts);
 
   // shaders
   vk::UniquePipelineCache pipelineCache =
@@ -112,26 +125,39 @@ vk::Pipeline DeferredPassParser::createGraphicsPipeline(
 
   // specialization Constants
   auto elems = mSpecializationConstantLayout->getElementsSorted();
+  vk::SpecializationInfo fragSpecializationInfo;
   std::vector<vk::SpecializationMapEntry> entries;
   std::vector<int> specializationData;
-  for (uint32_t i = 0; i < elems.size(); ++i) {
-    if (elems[i].dtype == eINT) {
-      entries.emplace_back(elems[i].id, i * sizeof(int), sizeof(int));
-      if (elems[i].name == "NUM_DIRECTIONAL_LIGHTS" &&
-          numDirectionalLights != -1)
-        specializationData.push_back(numDirectionalLights);
-      else if (elems[i].name == "NUM_POINT_LIGHTS" && numPointLights != -1)
-        specializationData.push_back(numPointLights);
-      else
-        specializationData.push_back(elems[i].intValue);
-    } else {
-      throw std::runtime_error(
-          "only int is allowed for number of point and directional lights");
+  if (elems.size()) {
+    specializationData.resize(elems.size());
+    for (uint32_t i = 0; i < elems.size(); ++i) {
+      if (specializationConstantInfo.contains(elems[i].name) &&
+          elems[i].dtype !=
+              specializationConstantInfo.at(elems[i].name).dtype) {
+        throw std::runtime_error("Type mismatch on specialization constant " +
+                                 elems[i].name + ".");
+      }
+      if (elems[i].dtype == eINT) {
+        entries.emplace_back(elems[i].id, i * sizeof(int), sizeof(int));
+        int v = specializationConstantInfo.contains(elems[i].name)
+                    ? specializationConstantInfo.at(elems[i].name).intValue
+                    : elems[i].intValue;
+        std::memcpy(specializationData.data() + i, &v, sizeof(int));
+      } else if (elems[i].dtype == eFLOAT) {
+        entries.emplace_back(elems[i].id, i * sizeof(float), sizeof(float));
+        float v = specializationConstantInfo.contains(elems[i].name)
+                      ? specializationConstantInfo.at(elems[i].name).floatValue
+                      : elems[i].floatValue;
+        std::memcpy(specializationData.data() + i, &v, sizeof(float));
+      } else {
+        throw std::runtime_error(
+            "only int and float are allowed specialization constants");
+      }
     }
+    fragSpecializationInfo = vk::SpecializationInfo(
+        entries.size(), entries.data(), specializationData.size() * sizeof(int),
+        specializationData.data());
   }
-  vk::SpecializationInfo fragSpecializationInfo(
-      entries.size(), entries.data(), specializationData.size() * sizeof(int),
-      specializationData.data());
 
   std::array<vk::PipelineShaderStageCreateInfo, 2>
       pipelineShaderStageCreateInfos{
@@ -141,7 +167,7 @@ vk::Pipeline DeferredPassParser::createGraphicsPipeline(
           vk::PipelineShaderStageCreateInfo(
               vk::PipelineShaderStageCreateFlags(),
               vk::ShaderStageFlagBits::eFragment, fsm.get(), "main",
-              &fragSpecializationInfo)};
+              elems.size() ? &fragSpecializationInfo : nullptr)};
 
   // vertex input
   // drawing a single hardcoded triangle
@@ -220,7 +246,7 @@ vk::Pipeline DeferredPassParser::createGraphicsPipeline(
   return mPipeline.get();
 }
 
-std::vector<std::string> DeferredPassParser::getRenderTargetNames() const {
+std::vector<std::string> DeferredPassParser::getColorRenderTargetNames() const {
   std::vector<std::string> result;
   auto elems = mTextureOutputLayout->getElementsSorted();
   for (auto elem : elems) {
@@ -231,17 +257,23 @@ std::vector<std::string> DeferredPassParser::getRenderTargetNames() const {
 
 std::vector<std::string> DeferredPassParser::getInputTextureNames() const {
   std::vector<std::string> result;
-  auto elems = mCombinedSamplerLayout->getElementsSorted();
-  for (auto elem : elems) {
-    result.push_back(getInTextureName(elem.name));
+  for (auto &desc : mDescriptorSetDescriptions) {
+    if (desc.type == UniformBindingType::eTextures) {
+      for (uint32_t i = 0; i < desc.bindings.size(); ++i) {
+        result.push_back(getInTextureName(desc.bindings.at(i).name));
+      }
+    }
   }
   return result;
 }
 
 std::vector<UniformBindingType>
 DeferredPassParser::getUniformBindingTypes() const {
-  return {UniformBindingType::eScene, UniformBindingType::eCamera,
-          UniformBindingType::eTextures};
+  std::vector<UniformBindingType> result;
+  for (auto &desc : mDescriptorSetDescriptions) {
+    result.push_back(desc.type);
+  }
+  return result;
 }
 
 } // namespace shader

@@ -1,9 +1,8 @@
 #include "svulkan2/shader/shader_manager.h"
 #include "svulkan2/common/err.h"
 #include <filesystem>
+#include <iostream>
 #include <set>
-
-// #include <iostream>
 
 namespace fs = std::filesystem;
 
@@ -18,7 +17,6 @@ ShaderManager::ShaderManager(std::shared_ptr<RendererConfig> config)
 
 void ShaderManager::processShadersInFolder(std::string const &folder) {
   fs::path path(folder);
-  mNumPasses = 0;
   if (!fs::is_directory(path)) {
     throw std::runtime_error("[shader manager] " + folder +
                              " is not a directory");
@@ -29,30 +27,36 @@ void ShaderManager::processShadersInFolder(std::string const &folder) {
   if (!fs::is_regular_file(path / "gbuffer.frag")) {
     throw std::runtime_error("[shader manager] gbuffer.frag is required");
   }
-  if (!fs::is_regular_file(path / "deferred.vert")) {
-    throw std::runtime_error("[shader manager] deferred.vert is required");
-  }
-  if (!fs::is_regular_file(path / "deferred.frag")) {
-    throw std::runtime_error("[shader manager] deferred.frag is required");
-  }
 
   GLSLCompiler::InitializeProcess();
 
   std::vector<std::future<void>> futures;
 
+  bool hasDeferred = fs::is_regular_file(path / "deferred.vert") &&
+                     fs::is_regular_file(path / "deferred.frag");
+
+  mAllPasses = {};
   // load gbuffer pass
-  mGbufferPass = std::make_shared<GbufferPassParser>();
+  auto gbufferPass = std::make_shared<GbufferPassParser>();
+  if (!hasDeferred) {
+    gbufferPass->enableAlphaBlend(true);
+  }
+  mAllPasses.push_back(gbufferPass);
+  mPassIndex[gbufferPass] = mAllPasses.size() - 1;
+
   std::string vsFile = (path / "gbuffer.vert").string();
   std::string fsFile = (path / "gbuffer.frag").string();
-  futures.push_back(mGbufferPass->loadGLSLFilesAsync(vsFile, fsFile));
-  mPassIndex[mGbufferPass] = mNumPasses++;
+  futures.push_back(gbufferPass->loadGLSLFilesAsync(vsFile, fsFile));
 
   // load deferred pass
-  mDeferredPass = std::make_shared<DeferredPassParser>();
   vsFile = (path / "deferred.vert").string();
   fsFile = (path / "deferred.frag").string();
-  futures.push_back(mDeferredPass->loadGLSLFilesAsync(vsFile, fsFile));
-  mPassIndex[mDeferredPass] = mNumPasses++;
+  if (fs::is_regular_file(vsFile) && fs::is_regular_file(fsFile)) {
+    auto deferredPass = std::make_shared<DeferredPassParser>();
+    mAllPasses.push_back(deferredPass);
+    mPassIndex[deferredPass] = mAllPasses.size() - 1;
+    futures.push_back(deferredPass->loadGLSLFilesAsync(vsFile, fsFile));
+  }
 
   int numCompositePasses = 0;
   for (const auto &entry : fs::directory_iterator(path)) {
@@ -62,19 +66,21 @@ void ShaderManager::processShadersInFolder(std::string const &folder) {
       numCompositePasses++;
   }
 
-  mCompositePasses.resize(numCompositePasses);
   vsFile = (path / "composite.vert").string();
   for (int i = 0; i < numCompositePasses; i++) {
     fsFile = path / ("composite" + std::to_string(i) + ".frag");
-    mCompositePasses[i] = std::make_shared<CompositePassParser>();
-    futures.push_back(mCompositePasses[i]->loadGLSLFilesAsync(vsFile, fsFile));
-    mPassIndex[mCompositePasses[i]] = mNumPasses++;
+    auto compositePass = std::make_shared<DeferredPassParser>();
+    mAllPasses.push_back(compositePass);
+    mPassIndex[compositePass] = mAllPasses.size() - 1;
+    futures.push_back(compositePass->loadGLSLFilesAsync(vsFile, fsFile));
   }
   for (auto &f : futures) {
     f.get();
   }
 
   GLSLCompiler::FinalizeProcess();
+
+  mShaderConfig->vertexLayout = gbufferPass->getVertexInputLayout();
 
   populateShaderConfig();
   prepareRenderTargetFormats();
@@ -83,35 +89,83 @@ void ShaderManager::processShadersInFolder(std::string const &folder) {
 
 void ShaderManager::populateShaderConfig() {
   auto allPasses = getAllPasses();
-  for (auto &pass : allPasses) {
-    pass->getUniformBindingTypes();
-  }
+  DescriptorSetDescription cameraSetDesc;
+  DescriptorSetDescription objectSetDesc;
+  DescriptorSetDescription sceneSetDesc;
+  DescriptorSetDescription lightSetDesc;
+  ShaderConfig::MaterialPipeline material =
+      ShaderConfig::MaterialPipeline::eUNKNOWN;
 
-  auto descs = mGbufferPass->getDescriptorSetDescriptions();
-  for (auto &desc : descs) {
-    switch (desc.type) {
-    case UniformBindingType::eCamera:
-      mShaderConfig->cameraBufferLayout =
-          desc.buffers[desc.bindings[0].arrayIndex];
-      break;
-    case UniformBindingType::eObject:
-      mShaderConfig->objectBufferLayout =
-          desc.buffers[desc.bindings[0].arrayIndex];
-      break;
-    case UniformBindingType::eMaterial:
-      if (desc.bindings[1].name == "colorTexture") {
-        mShaderConfig->materialPipeline = ShaderConfig::eMETALLIC;
-      } else {
-        mShaderConfig->materialPipeline = ShaderConfig::eSPECULAR;
+  for (auto &pass : allPasses) {
+    auto descs = pass->getDescriptorSetDescriptions();
+    for (auto &desc : descs) {
+      switch (desc.type) {
+      case UniformBindingType::eCamera:
+        if (cameraSetDesc.type == UniformBindingType::eUnknown) {
+          cameraSetDesc = desc;
+        } else {
+          cameraSetDesc = cameraSetDesc.merge(desc);
+        }
+        break;
+      case UniformBindingType::eObject:
+        if (objectSetDesc.type == UniformBindingType::eUnknown) {
+          objectSetDesc = desc;
+        } else {
+          objectSetDesc = objectSetDesc.merge(desc);
+        }
+        break;
+      case UniformBindingType::eScene:
+        if (sceneSetDesc.type == UniformBindingType::eUnknown) {
+          sceneSetDesc = desc;
+        } else {
+          sceneSetDesc = sceneSetDesc.merge(desc);
+        }
+        break;
+      case UniformBindingType::eLight:
+        if (lightSetDesc.type == UniformBindingType::eUnknown) {
+          lightSetDesc = desc;
+        } else {
+          lightSetDesc = lightSetDesc.merge(desc);
+        }
+        break;
+      case UniformBindingType::eMaterial:
+        if (desc.bindings[1].name == "colorTexture") {
+          if (material == ShaderConfig::MaterialPipeline::eSPECULAR) {
+            throw std::runtime_error(
+                "Only one type of material (either metallic or specular) may "
+                "be used in all shader pipelines.");
+          }
+          material = ShaderConfig::MaterialPipeline::eMETALLIC;
+        } else {
+          if (material == ShaderConfig::MaterialPipeline::eMETALLIC) {
+            throw std::runtime_error(
+                "Only one type of material (either metallic or specular) may "
+                "be used in all shader pipelines.");
+          }
+          material = ShaderConfig::MaterialPipeline::eMETALLIC;
+        }
+        break;
+      case UniformBindingType::eTextures:
+        break;
+      case UniformBindingType::eNone:
+      case UniformBindingType::eUnknown:
+        throw std::runtime_error("invalid descriptor set");
       }
-      break;
-    default:
-      throw std::runtime_error("not implemented");
     }
   }
 
-  mShaderConfig->vertexLayout = mGbufferPass->getVertexInputLayout();
-  mShaderConfig->sceneBufferLayout = mDeferredPass->getSceneBufferLayout();
+  if (material == ShaderConfig::MaterialPipeline::eUNKNOWN) {
+    throw std::runtime_error(
+        "at least one shader needs to specify the material buffer");
+  }
+  mShaderConfig->materialPipeline = material;
+  mShaderConfig->cameraBufferLayout =
+      cameraSetDesc.buffers[cameraSetDesc.bindings[0].arrayIndex];
+  mShaderConfig->objectBufferLayout =
+      objectSetDesc.buffers[objectSetDesc.bindings[0].arrayIndex];
+  mShaderConfig->sceneBufferLayout =
+      sceneSetDesc.buffers[sceneSetDesc.bindings[0].arrayIndex];
+  // TODO: light buffer
 }
 
 void ShaderManager::prepareRenderTargetFormats() {
@@ -149,73 +203,51 @@ void ShaderManager::prepareRenderTargetFormats() {
 
 void ShaderManager::prepareRenderTargetOperationTable() {
   mTextureOperationTable = {};
+  auto passes = getAllPasses();
   for (auto tex : mRenderTargetFormats) {
     mTextureOperationTable[tex.first] = std::vector<RenderTargetOperation>(
-        mNumPasses, RenderTargetOperation::eNoOp);
+        passes.size(), RenderTargetOperation::eNoOp);
   }
 
-  // process gbuffer out textures:
-  for (auto &elem : mGbufferPass->getTextureOutputLayout()->elements) {
-    std::string texName = getOutTextureName(elem.second.name);
-    mTextureOperationTable[texName][mPassIndex[mGbufferPass]] =
-        RenderTargetOperation::eColorWrite;
-  }
-  mTextureOperationTable["Depth"][mPassIndex[mGbufferPass]] =
-      RenderTargetOperation::eDepthWrite;
-
-  // process input textures of deferred pass:
-  for (auto &elem : mDeferredPass->getCombinedSamplerLayout()->elements) {
-    std::string texName = getInTextureName(elem.second.name);
-    if (mTextureOperationTable.find(texName) != mTextureOperationTable.end()) {
-      mTextureOperationTable[texName][mPassIndex[mDeferredPass]] =
-          RenderTargetOperation::eRead;
-    }
-  }
-
-  // process out textures of deferred paas:
-  for (auto &elem : mDeferredPass->getTextureOutputLayout()->elements) {
-    std::string texName = getOutTextureName(elem.second.name);
-    mTextureOperationTable[texName][mPassIndex[mDeferredPass]] =
-        RenderTargetOperation::eColorWrite;
-  }
-
-  for (uint32_t i = 0; i < mCompositePasses.size(); i++) {
-    auto compositePass = mCompositePasses[i];
-    // process input textures of composite pass:
-    for (auto &elem : compositePass->getCombinedSamplerLayout()->elements) {
-      std::string texName = getInTextureName(elem.second.name);
-      if (mTextureOperationTable.find(texName) !=
-          mTextureOperationTable.end()) {
-        mTextureOperationTable[texName][mPassIndex[mCompositePasses[i]]] =
-            RenderTargetOperation::eRead;
+  for (uint32_t passIdx = 0; passIdx < passes.size(); ++passIdx) {
+    auto pass = passes[passIdx];
+    for (auto name : pass->getInputTextureNames()) {
+      if (mTextureOperationTable.find(name) != mTextureOperationTable.end()) {
+        mTextureOperationTable[name][passIdx] = RenderTargetOperation::eRead;
       }
     }
-    // add composite out texture to the set:
-    for (auto &elem : compositePass->getTextureOutputLayout()->elements) {
-      std::string texName = getOutTextureName(elem.second.name);
-      mTextureOperationTable[texName][mPassIndex[mCompositePasses[i]]] =
+    for (auto &name : pass->getColorRenderTargetNames()) {
+      mTextureOperationTable[name][passIdx] =
           RenderTargetOperation::eColorWrite;
     }
+    auto name = pass->getDepthRenderTargetName();
+    if (name.has_value()) {
+      mTextureOperationTable[name.value()][passIdx] =
+          RenderTargetOperation::eDepthWrite;
+    }
   }
-  // for (auto &[tex, ops] : mTextureOperationTable) {
-  //   std::cout << std::setw(20) << tex << " ";
-  //   for (auto &op : ops) {
-  //     if (op == RenderTargetOperation::eNoOp) {
-  //       std::cout << "N ";
-  //     } else if (op == RenderTargetOperation::eRead) {
-  //       std::cout << "R ";
-  //     } else if (op == RenderTargetOperation::eWrite) {
-  //       std::cout << "W ";
-  //     }
-  //   }
-  //   std::cout << std::endl;
-  // }
+
+  for (auto &[tex, ops] : mTextureOperationTable) {
+    std::cout << std::setw(20) << tex << " ";
+    for (auto &op : ops) {
+      if (op == RenderTargetOperation::eNoOp) {
+        std::cout << "N ";
+      } else if (op == RenderTargetOperation::eRead) {
+        std::cout << "R ";
+      } else if (op == RenderTargetOperation::eColorWrite) {
+        std::cout << "W ";
+      } else if (op == RenderTargetOperation::eDepthWrite) {
+        std::cout << "D ";
+      }
+    }
+    std::cout << std::endl;
+  }
 }
 
 RenderTargetOperation
 ShaderManager::getNextOperation(std::string texName,
                                 std::shared_ptr<BaseParser> pass) {
-  for (uint32_t i = mPassIndex[pass] + 1; i < mNumPasses; i++) {
+  for (uint32_t i = mPassIndex[pass] + 1; i < mAllPasses.size(); i++) {
     RenderTargetOperation op = mTextureOperationTable[texName][i];
     if (op != RenderTargetOperation::eNoOp) {
       return op;
@@ -238,7 +270,7 @@ ShaderManager::getPrevOperation(std::string texName,
 
 RenderTargetOperation
 ShaderManager::getLastOperation(std::string texName) const {
-  for (int i = mNumPasses - 1; i >= 0; i--) {
+  for (int i = mAllPasses.size() - 1; i >= 0; i--) {
     RenderTargetOperation op = mTextureOperationTable.at(texName).at(i);
     if (op != RenderTargetOperation::eNoOp) {
       return op;
@@ -283,10 +315,11 @@ ShaderManager::getColorAttachmentLayoutsForPass(
 std::pair<vk::ImageLayout, vk::ImageLayout>
 ShaderManager::getDepthAttachmentLayoutsForPass(
     std::shared_ptr<BaseParser> pass) {
-  std::string texName;
-  if (pass == mGbufferPass) {
-    texName = "Depth";
+  auto name = pass->getDepthRenderTargetName();
+  if (!name.has_value()) {
+    return {vk::ImageLayout::eUndefined, vk::ImageLayout::eUndefined};
   }
+  std::string texName = name.value();
   auto prevOp = getPrevOperation(texName, pass);
   auto nextOp = getNextOperation(texName, pass);
   vk::ImageLayout prev;
@@ -319,7 +352,6 @@ ShaderManager::getDepthAttachmentLayoutsForPass(
 }
 
 void ShaderManager::createDescriptorSetLayouts(vk::Device device) {
-  // TODO: read shader and create layouts for the other shaders
   {
     vk::DescriptorSetLayoutBinding binding(
         0, vk::DescriptorType::eUniformBuffer, 1,
@@ -341,78 +373,88 @@ void ShaderManager::createDescriptorSetLayouts(vk::Device device) {
     mSceneLayout = device.createDescriptorSetLayoutUnique(
         vk::DescriptorSetLayoutCreateInfo({}, 1, &binding));
   }
-  {
-    std::vector<vk::DescriptorSetLayoutBinding> bindings;
-    auto textures =
-        mDeferredPass->getCombinedSamplerLayout()->getElementsSorted();
-    for (auto tex : textures) {
-      bindings.push_back(vk::DescriptorSetLayoutBinding(
-          tex.binding, vk::DescriptorType::eCombinedImageSampler, 1,
-          vk::ShaderStageFlagBits::eFragment));
+
+  mInputTextureLayouts.clear();
+  auto parsers = getAllPasses();
+  for (auto &p : parsers) {
+    auto types = p->getUniformBindingTypes();
+    vk::UniqueDescriptorSetLayout layout{};
+    for (auto type : types) {
+      if (type == shader::UniformBindingType::eTextures) {
+        std::vector<vk::DescriptorSetLayoutBinding> bindings;
+        auto texs = p->getInputTextureNames();
+        for (uint32_t i = 0; i < texs.size(); ++i) {
+          bindings.push_back(vk::DescriptorSetLayoutBinding(
+              i, vk::DescriptorType::eCombinedImageSampler, 1,
+              vk::ShaderStageFlagBits::eFragment));
+        }
+        layout = device.createDescriptorSetLayoutUnique(
+            vk::DescriptorSetLayoutCreateInfo({}, bindings.size(),
+                                              bindings.data()));
+        break;
+      }
     }
-    mDeferredLayout = device.createDescriptorSetLayoutUnique(
-        vk::DescriptorSetLayoutCreateInfo({}, bindings.size(),
-                                          bindings.data()));
-  }
-  for (auto pass : mCompositePasses) {
-    std::vector<vk::DescriptorSetLayoutBinding> bindings;
-    auto textures = pass->getCombinedSamplerLayout()->getElementsSorted();
-    for (auto tex : textures) {
-      bindings.push_back(vk::DescriptorSetLayoutBinding(
-          tex.binding, vk::DescriptorType::eCombinedImageSampler, 1,
-          vk::ShaderStageFlagBits::eFragment));
-    }
-    mCompositeLayouts.push_back(device.createDescriptorSetLayoutUnique(
-        vk::DescriptorSetLayoutCreateInfo({}, bindings.size(),
-                                          bindings.data())));
+    mInputTextureLayouts.push_back(std::move(layout));
   }
 }
 
-void ShaderManager::createPipelines(core::Context &context,
-                                    int numDirectionalLights,
-                                    int numPointLights) {
+void ShaderManager::createPipelines(
+    core::Context &context,
+    std::map<std::string, SpecializationConstantValue> const
+        &specializationConstantInfo) {
   auto device = context.getDevice();
   createDescriptorSetLayouts(device);
-  mGbufferPass->createGraphicsPipeline(
-      device, mRenderConfig->colorFormat, mRenderConfig->depthFormat,
-      mRenderConfig->culling, vk::FrontFace::eCounterClockwise,
-      getColorAttachmentLayoutsForPass(mGbufferPass),
-      getDepthAttachmentLayoutsForPass(mGbufferPass),
-      {mCameraLayout.get(), mObjectLayout.get(),
-       mShaderConfig->materialPipeline ==
-               ShaderConfig::MaterialPipeline::eMETALLIC
-           ? context.getMetallicDescriptorSetLayout()
-           : context.getSpecularDescriptorSetLayout()});
 
-  mDeferredPass->createGraphicsPipeline(
-      device, mRenderConfig->colorFormat,
-      getColorAttachmentLayoutsForPass(mDeferredPass),
-      {mSceneLayout.get(), mCameraLayout.get(), mDeferredLayout.get()},
-      numDirectionalLights, numPointLights);
-  for (uint32_t i = 0; i < mCompositePasses.size(); ++i) {
-    mCompositePasses[i]->createGraphicsPipeline(
-        device, mRenderConfig->colorFormat,
-        getColorAttachmentLayoutsForPass(mCompositePasses[i]),
-        {mCompositeLayouts[i].get()});
+  auto passes = getAllPasses();
+  for (uint32_t passIdx = 0; passIdx < passes.size(); ++passIdx) {
+    auto pass = passes[passIdx];
+    std::vector<vk::DescriptorSetLayout> descriptorSetLayouts;
+    for (auto type : pass->getUniformBindingTypes()) {
+      switch (type) {
+      case UniformBindingType::eCamera:
+        descriptorSetLayouts.push_back(mCameraLayout.get());
+        break;
+      case UniformBindingType::eObject:
+        descriptorSetLayouts.push_back(mObjectLayout.get());
+        break;
+      case UniformBindingType::eScene:
+        descriptorSetLayouts.push_back(mSceneLayout.get());
+        break;
+      case UniformBindingType::eMaterial:
+        descriptorSetLayouts.push_back(
+            mShaderConfig->materialPipeline ==
+                    ShaderConfig::MaterialPipeline::eMETALLIC
+                ? context.getMetallicDescriptorSetLayout()
+                : context.getSpecularDescriptorSetLayout());
+        break;
+      case UniformBindingType::eTextures:
+        descriptorSetLayouts.push_back(mInputTextureLayouts[passIdx].get());
+        break;
+      default:
+        throw std::runtime_error("ShaderManager::createPipelines: not "
+                                 "implemented uniform binding type");
+      }
+    }
+    pass->createGraphicsPipeline(
+        device, mRenderConfig->colorFormat, mRenderConfig->depthFormat,
+        mRenderConfig->culling, vk::FrontFace::eCounterClockwise,
+        getColorAttachmentLayoutsForPass(pass),
+        getDepthAttachmentLayoutsForPass(pass), descriptorSetLayouts,
+        specializationConstantInfo);
   }
 }
 
 std::vector<vk::DescriptorSetLayout>
-ShaderManager::getCompositeDescriptorSetLayouts() const {
+ShaderManager::getInputTextureLayouts() const {
   std::vector<vk::DescriptorSetLayout> result;
-  for (auto &l : mCompositeLayouts) {
+  for (auto &l : mInputTextureLayouts) {
     result.push_back(l.get());
   }
   return result;
 }
 
 std::vector<std::shared_ptr<BaseParser>> ShaderManager::getAllPasses() const {
-  std::vector<std::shared_ptr<BaseParser>> allPasses;
-  allPasses.push_back(mGbufferPass);
-  allPasses.push_back(mDeferredPass);
-  allPasses.insert(allPasses.end(), mCompositePasses.begin(),
-                   mCompositePasses.end());
-  return allPasses;
+  return mAllPasses;
 }
 
 std::unordered_map<std::string, vk::ImageLayout>

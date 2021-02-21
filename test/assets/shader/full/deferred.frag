@@ -13,8 +13,8 @@ struct DirectionalLight {
 };
 layout(set = 0, binding = 0) uniform SceneBuffer {
   vec4 ambientLight;
-  DirectionalLight directionalLights[NUM_DIRECTIONAL_LIGHTS];
-  PointLight pointLights[NUM_POINT_LIGHTS];
+  DirectionalLight directionalLights[NUM_DIRECTIONAL_LIGHTS > 0 ? NUM_DIRECTIONAL_LIGHTS : 1];
+  PointLight pointLights[NUM_POINT_LIGHTS > 0 ? NUM_POINT_LIGHTS : 1];
 } sceneBuffer;
 
 layout(set = 1, binding = 0) uniform CameraBuffer {

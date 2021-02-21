@@ -6,8 +6,10 @@ namespace shader {
 
 class ShadowPassParser : public BaseParser {
   std::shared_ptr<InputDataLayout> mVertexInputLayout;
-  std::shared_ptr<StructDataLayout> mLightSpaceBufferLayout;
-  std::shared_ptr<StructDataLayout> mObjectBufferLayout;
+  // std::shared_ptr<StructDataLayout> mLightSpaceBufferLayout;
+  // std::shared_ptr<StructDataLayout> mObjectBufferLayout;
+
+  std::vector<DescriptorSetDescription> mDescriptorSetDescriptions;
 
   vk::UniqueRenderPass mRenderPass;
   vk::UniquePipeline mPipeline;
@@ -19,20 +21,17 @@ public:
   inline std::shared_ptr<InputDataLayout> getVertexInputLayout() const {
     return mVertexInputLayout;
   }
-  inline std::shared_ptr<StructDataLayout> getLightSpaceBufferLayout() const {
-    return mLightSpaceBufferLayout;
-  }
-  inline std::shared_ptr<StructDataLayout> getObjectBufferLayout() const {
-    return mObjectBufferLayout;
-  }
 
   inline std::shared_ptr<OutputDataLayout>
   getTextureOutputLayout() const override {
     return nullptr;
   };
 
-  inline std::vector<std::string> getRenderTargetNames() const override {
-    return {"ShadowDepthMap"};
+  inline std::vector<std::string> getColorRenderTargetNames() const override {
+    return {};
+  };
+  inline std::optional<std::string> getDepthRenderTargetName() const override {
+    return "ShadowDepth";
   };
 
   vk::PipelineLayout
@@ -44,16 +43,25 @@ public:
       std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout);
 
   vk::Pipeline createGraphicsPipeline(
-      vk::Device device, vk::Format depthFormat, vk::CullModeFlags cullMode,
-      vk::FrontFace frontFace,
+      vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
+      vk::CullModeFlags cullMode, vk::FrontFace frontFace,
+      std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
+          &colorTargetLayouts,
       std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,
-      std::vector<vk::DescriptorSetLayout> const &descriptorSetLayouts);
+      std::vector<vk::DescriptorSetLayout> const &descriptorSetLayouts,
+      std::map<std::string, SpecializationConstantValue> const
+          &specializationConstantInfo) override;
 
   inline vk::RenderPass getRenderPass() const override {
     return mRenderPass.get();
   }
   inline vk::Pipeline getPipeline() const override { return mPipeline.get(); }
   std::vector<UniformBindingType> getUniformBindingTypes() const override;
+
+  inline std::vector<DescriptorSetDescription>
+  getDescriptorSetDescriptions() const override {
+    return mDescriptorSetDescriptions;
+  };
 
 private:
   void reflectSPV() override;

@@ -8,11 +8,6 @@ namespace shader {
 class GbufferPassParser : public BaseParser {
   std::shared_ptr<InputDataLayout> mVertexInputLayout;
   std::shared_ptr<OutputDataLayout> mTextureOutputLayout;
-  // std::shared_ptr<StructDataLayout> mCameraBufferLayout;
-  // std::shared_ptr<StructDataLayout> mObjectBufferLayout;
-
-  // std::shared_ptr<StructDataLayout> mMaterialBufferLayout;
-  // std::shared_ptr<CombinedSamplerLayout> mCombinedSamplerLayout;
   std::vector<DescriptorSetDescription> mDescriptorSetDescriptions;
 
   vk::UniqueRenderPass mRenderPass;
@@ -22,21 +17,6 @@ public:
   inline std::shared_ptr<InputDataLayout> getVertexInputLayout() const {
     return mVertexInputLayout;
   }
-  // inline std::shared_ptr<StructDataLayout> getCameraBufferLayout() const {
-  //   return mCameraBufferLayout;
-  // }
-  // inline std::shared_ptr<StructDataLayout> getObjectBufferLayout() const {
-  //   return mObjectBufferLayout;
-  // }
-
-  // inline std::shared_ptr<StructDataLayout> getMaterialBufferLayout() const {
-  //   return mMaterialBufferLayout;
-  // }
-  // inline std::shared_ptr<CombinedSamplerLayout>
-  // getCombinedSamplerLayout() const {
-  //   return mCombinedSamplerLayout;
-  // }
-  // ShaderConfig::MaterialPipeline getMaterialType() const;
 
   inline std::shared_ptr<OutputDataLayout>
   getTextureOutputLayout() const override {
@@ -53,23 +33,34 @@ public:
           &colorTargetLayouts,
       std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout);
 
-  vk::Pipeline createGraphicsPipeline(
+  // vk::Pipeline createGraphicsPipeline(
+  //     vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
+  //     vk::CullModeFlags cullMode, vk::FrontFace frontFace,
+  //     std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
+  //         &colorTargetLayouts,
+  //     std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,
+  //     std::vector<vk::DescriptorSetLayout> const &descriptorSetLayouts);
+
+  virtual vk::Pipeline createGraphicsPipeline(
       vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
       vk::CullModeFlags cullMode, vk::FrontFace frontFace,
       std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
           &colorTargetLayouts,
       std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,
-      std::vector<vk::DescriptorSetLayout> const &descriptorSetLayouts);
+      std::vector<vk::DescriptorSetLayout> const &descriptorSetLayouts,
+      std::map<std::string, SpecializationConstantValue> const
+          &specializationConstantInfo) override;
 
   inline vk::RenderPass getRenderPass() const override {
     return mRenderPass.get();
   }
   inline vk::Pipeline getPipeline() const override { return mPipeline.get(); }
-  std::vector<std::string> getRenderTargetNames() const override;
+  std::vector<std::string> getColorRenderTargetNames() const override;
+  std::optional<std::string> getDepthRenderTargetName() const override;
   std::vector<UniformBindingType> getUniformBindingTypes() const override;
 
   inline std::vector<DescriptorSetDescription>
-  getDescriptorSetDescriptions() const {
+  getDescriptorSetDescriptions() const override {
     return mDescriptorSetDescriptions;
   };
 

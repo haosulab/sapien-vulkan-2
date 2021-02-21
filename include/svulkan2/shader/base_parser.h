@@ -10,6 +10,14 @@
 namespace svulkan2 {
 namespace shader {
 
+struct SpecializationConstantValue {
+  DataType dtype;
+  union {
+    int intValue;
+    float floatValue;
+  };
+};
+
 enum UniformBindingType {
   eScene,
   eObject,
@@ -40,21 +48,19 @@ DescriptorSetDescription
 getDescriptorSetDescription(spirv_cross::Compiler &compiler,
                             uint32_t setNumber);
 
-// std::map<uint32_t, std::tuple<vk::DescriptorType, spirv_cross::Resource>>
-// getDescriptorSetResources(spirv_cross::Compiler &compiler, uint32_t
-// setNumber); UniformBindingType getDescriptorSetType(
-//     spirv_cross::Compiler &compiler,
-//     std::map<uint32_t,
-//              std::tuple<vk::DescriptorType, spirv_cross::Resource>> const
-//         &resources);
-
 inline std::string
 getOutTextureName(std::string variableName) { // remove "out" prefix
+  if (variableName.substr(0, 3) != "out") {
+    throw std::runtime_error("Output texture must start with \"out\"");
+  }
   return variableName.substr(3, std::string::npos);
 }
 
 inline static std::string
 getInTextureName(std::string variableName) { // remove "sampler" prefix
+  if (variableName.substr(0, 7) != "sampler") {
+    throw std::runtime_error("Input texture must start with \"sampler\"");
+  }
   return variableName.substr(7, std::string::npos);
 }
 
@@ -106,6 +112,8 @@ protected:
   std::vector<uint32_t> mFragSPVCode;
   vk::UniquePipelineLayout mPipelineLayout;
 
+  bool mAlphaBlend{};
+
 public:
   void loadGLSLFiles(std::string const &vertFile, std::string const &fragFile);
   void loadSPVFiles(std::string const &vertFile, std::string const &fragFile);
@@ -118,14 +126,33 @@ public:
   vk::PipelineLayout getPipelineLayout() const { return mPipelineLayout.get(); }
 
   virtual std::shared_ptr<OutputDataLayout> getTextureOutputLayout() const = 0;
-  virtual std::vector<std::string> getRenderTargetNames() const = 0;
+  virtual std::vector<std::string> getColorRenderTargetNames() const = 0;
+  virtual std::optional<std::string> getDepthRenderTargetName() const {
+    return {};
+  };
+
   virtual vk::RenderPass getRenderPass() const = 0;
   virtual vk::Pipeline getPipeline() const = 0;
   virtual std::vector<UniformBindingType> getUniformBindingTypes() const;
 
-  /** name of textures used in the texture descriptor set (only in deferred-like
-   * passes) */
+  /** name of textures used in the texture descriptor set (only in
+   * deferred-like passes) */
   virtual std::vector<std::string> getInputTextureNames() const;
+
+  inline void enableAlphaBlend(bool enable) { mAlphaBlend = enable; }
+
+  virtual vk::Pipeline createGraphicsPipeline(
+      vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
+      vk::CullModeFlags cullMode, vk::FrontFace frontFace,
+      std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
+          &colorTargetLayouts,
+      std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,
+      std::vector<vk::DescriptorSetLayout> const &descriptorSetLayouts,
+      std::map<std::string, SpecializationConstantValue> const
+          &specializationConstantInfo) = 0;
+
+  virtual std::vector<DescriptorSetDescription>
+  getDescriptorSetDescriptions() const = 0;
 
   virtual ~BaseParser() = default;
 
