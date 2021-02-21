@@ -192,6 +192,7 @@ vk::Pipeline GbufferPassParser::createGraphicsPipeline(
   auto vertexInputAttributeDescriptions =
       mVertexInputLayout->computeVertexInputAttributesDescriptions();
   vk::PipelineVertexInputStateCreateInfo pipelineVertexInputStateCreateInfo;
+  pipelineVertexInputStateCreateInfo.vertexBindingDescriptionCount =
       vertexInputBindingDescriptions.size();
   pipelineVertexInputStateCreateInfo.pVertexBindingDescriptions =
       vertexInputBindingDescriptions.data();
@@ -288,7 +289,7 @@ std::vector<std::string> GbufferPassParser::getColorRenderTargetNames() const {
 }
 
 std::optional<std::string> GbufferPassParser::getDepthRenderTargetName() const {
-  return "Depth";
+  return getName() + "Depth";
 }
 
 std::vector<UniformBindingType>

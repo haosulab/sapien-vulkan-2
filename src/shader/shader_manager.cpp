@@ -38,6 +38,7 @@ void ShaderManager::processShadersInFolder(std::string const &folder) {
   mAllPasses = {};
   // load gbuffer pass
   auto gbufferPass = std::make_shared<GbufferPassParser>();
+  gbufferPass->setName("Gbuffer");
   if (!hasDeferred) {
     gbufferPass->enableAlphaBlend(true);
   }
@@ -53,6 +54,7 @@ void ShaderManager::processShadersInFolder(std::string const &folder) {
   fsFile = (path / "deferred.frag").string();
   if (fs::is_regular_file(vsFile) && fs::is_regular_file(fsFile)) {
     auto deferredPass = std::make_shared<DeferredPassParser>();
+    deferredPass->setName("Deferred");
     mAllPasses.push_back(deferredPass);
     mPassIndex[deferredPass] = mAllPasses.size() - 1;
     futures.push_back(deferredPass->loadGLSLFilesAsync(vsFile, fsFile));
@@ -70,6 +72,7 @@ void ShaderManager::processShadersInFolder(std::string const &folder) {
   for (int i = 0; i < numCompositePasses; i++) {
     fsFile = path / ("composite" + std::to_string(i) + ".frag");
     auto compositePass = std::make_shared<DeferredPassParser>();
+    compositePass->setName("Composite" + std::to_string(i));
     mAllPasses.push_back(compositePass);
     mPassIndex[compositePass] = mAllPasses.size() - 1;
     futures.push_back(compositePass->loadGLSLFilesAsync(vsFile, fsFile));
@@ -170,12 +173,14 @@ void ShaderManager::populateShaderConfig() {
 
 void ShaderManager::prepareRenderTargetFormats() {
   auto allPasses = getAllPasses();
-  mRenderTargetFormats["Depth"] = mRenderConfig->depthFormat;
-
   for (auto pass : allPasses) {
+    auto depthName = pass->getDepthRenderTargetName();
+    if (depthName.has_value()) {
+      mRenderTargetFormats[depthName.value()] = mRenderConfig->depthFormat;
+    }
     for (auto &elem : pass->getTextureOutputLayout()->elements) {
       std::string texName = getOutTextureName(elem.second.name);
-      if (texName == "Depth") {
+      if (texName.ends_with("Depth")) {
         throw std::runtime_error(
             "You are not allowed to name your texture \"Depth\"");
       }
@@ -227,21 +232,34 @@ void ShaderManager::prepareRenderTargetOperationTable() {
     }
   }
 
+  std::stringstream ss;
+  ss << "Operation Table" << std::endl;
+  ss << std::setw(20) << ""
+     << " ";
+  for (auto pass : getAllPasses()) {
+    ss << std::setw(15) << pass->getName() << " ";
+  }
+  ss << std::endl;
   for (auto &[tex, ops] : mTextureOperationTable) {
-    std::cout << std::setw(20) << tex << " ";
+    ss << std::setw(20) << tex << " ";
     for (auto &op : ops) {
       if (op == RenderTargetOperation::eNoOp) {
-        std::cout << "N ";
+        ss << std::setw(15) << "N"
+           << " ";
       } else if (op == RenderTargetOperation::eRead) {
-        std::cout << "R ";
+        ss << std::setw(15) << "R"
+           << " ";
       } else if (op == RenderTargetOperation::eColorWrite) {
-        std::cout << "W ";
+        ss << std::setw(15) << "W"
+           << " ";
       } else if (op == RenderTargetOperation::eDepthWrite) {
-        std::cout << "D ";
+        ss << std::setw(15) << "D"
+           << " ";
       }
     }
-    std::cout << std::endl;
+    ss << std::endl;
   }
+  log::info(ss.str());
 }
 
 RenderTargetOperation

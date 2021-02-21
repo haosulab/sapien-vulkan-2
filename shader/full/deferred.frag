@@ -1,24 +1,4 @@
-#version 450
-
-layout(set = 0, binding = 0) uniform CameraBuffer {
-  mat4 viewMatrix;
-  mat4 projectionMatrix;
-  mat4 viewMatrixInverse;
-  mat4 projectionMatrixInverse;
-} cameraBuffer;
-
-layout(set = 2, binding = 0) uniform MaterialBuffer {
-  vec4 baseColor;
-  float fresnel;
-  float roughness;
-  float metallic;
-  float transparency;
-  int textureMask;
-} materialBuffer;
-layout(set = 2, binding = 1) uniform sampler2D colorTexture;
-layout(set = 2, binding = 2) uniform sampler2D roughnessTexture;
-layout(set = 2, binding = 3) uniform sampler2D normalTexture;
-layout(set = 2, binding = 4) uniform sampler2D metallicTexture;
+#version 450 
 
 layout (constant_id = 0) const int NUM_DIRECTIONAL_LIGHTS = 3;
 layout (constant_id = 1) const int NUM_POINT_LIGHTS = 10;
@@ -31,11 +11,28 @@ struct DirectionalLight {
   vec4 direction;
   vec4 emission;
 };
-layout(set = 3, binding = 0) uniform SceneBuffer {
+layout(set = 0, binding = 0) uniform SceneBuffer {
   vec4 ambientLight;
   DirectionalLight directionalLights[NUM_DIRECTIONAL_LIGHTS > 0 ? NUM_DIRECTIONAL_LIGHTS : 1];
   PointLight pointLights[NUM_POINT_LIGHTS > 0 ? NUM_POINT_LIGHTS : 1];
 } sceneBuffer;
+
+layout(set = 1, binding = 0) uniform CameraBuffer {
+  mat4 viewMatrix;
+  mat4 projectionMatrix;
+  mat4 viewMatrixInverse;
+  mat4 projectionMatrixInverse;
+} cameraBuffer;
+
+layout(set = 2, binding = 0) uniform sampler2D samplerAlbedo;
+layout(set = 2, binding = 1) uniform sampler2D samplerPosition;
+layout(set = 2, binding = 2) uniform sampler2D samplerSpecular;
+layout(set = 2, binding = 3) uniform sampler2D samplerNormal;
+layout(set = 2, binding = 4) uniform sampler2D samplerGbufferDepth;
+layout(set = 2, binding = 5) uniform sampler2D samplerCustom;
+
+layout(location = 0) in vec2 inUV;
+layout(location = 0) out vec4 outLighting;
 
 vec4 world2camera(vec4 pos) {
   return cameraBuffer.viewMatrix * pos;
@@ -66,65 +63,22 @@ vec3 ggx(float NoL, float NoV, float NoH, float VoH, float roughness, vec3 fresn
   return spec * NoL;
 }
 
-layout(location = 0) in vec4 inPosition;
-layout(location = 1) in vec2 inUV;
-layout(location = 2) in flat uvec4 inSegmentation;
-layout(location = 3) in vec3 objectCoord;
-layout(location = 4) in mat3 inTbn;
-
-layout(location = 0) out vec4 outColor;
-layout(location = 1) out vec4 outNormal;
-layout(location = 2) out uvec4 outSegmentation;
-
 void main() {
-  outSegmentation = inSegmentation;
-
-  vec4 albedo;
-  vec4 frm;
-
-  if ((materialBuffer.textureMask & 1) != 0) {
-    albedo = texture(colorTexture, inUV);
-  } else {
-    albedo = materialBuffer.baseColor;
-  }
-
-  if (albedo.a == 0) {
-    discard;
-  }
-
-  frm.r = materialBuffer.fresnel;
-
-  if ((materialBuffer.textureMask & 2) != 0) {
-    frm.g = texture(roughnessTexture, inUV).r;
-  } else {
-    frm.g = materialBuffer.roughness;
-  }
-
-  if ((materialBuffer.textureMask & 8) != 0) {
-    frm.b = texture(metallicTexture, inUV).r;
-  } else {
-    frm.b = materialBuffer.metallic;
-  }
-
-  if ((materialBuffer.textureMask & 4) != 0) {
-    outNormal = vec4(normalize(inTbn * texture(normalTexture, inUV).xyz), 0);
-  } else {
-    outNormal = vec4(normalize(inTbn * vec3(0, 0, 1)), 0);
-  }
-  outNormal = outNormal * 0.5 + 0.5;
-
+  vec3 albedo = texture(samplerAlbedo, inUV).xyz;
+  vec3 frm = texture(samplerSpecular, inUV).xyz;
   float specular = frm.x;
   float roughness = frm.y;
   float metallic = frm.z;
 
-  vec3 normal = outNormal.xyz;
-  vec4 csPosition = inPosition;
+  vec3 normal = texture(samplerNormal, inUV).xyz * 2 - 1;
+  float depth = texture(samplerGbufferDepth, inUV).x;
+  vec4 csPosition = cameraBuffer.projectionMatrixInverse * (vec4(inUV * 2 - 1, depth, 1));
   csPosition /= csPosition.w;
 
   vec3 camDir = -normalize(csPosition.xyz);
 
-  vec3 diffuseAlbedo = albedo.rgb * (1 - metallic);
-  vec3 fresnel = specular * (1 - metallic) + albedo.rgb * metallic;
+  vec3 diffuseAlbedo = albedo * (1 - metallic);
+  vec3 fresnel = specular * (1 - metallic) + albedo * metallic;
 
   vec3 color = vec3(0.f);
   for (int i = 0; i < NUM_POINT_LIGHTS; i++) {
@@ -170,8 +124,11 @@ void main() {
     color += sceneBuffer.directionalLights[i].emission.rgb * ggx(NoL, NoV, NoH, VoH, roughness, fresnel);
   }
 
-  color += sceneBuffer.ambientLight.rgb * albedo.rgb;
+  color += sceneBuffer.ambientLight.rgb * albedo;
 
-  outColor = vec4(color, albedo.a);
-  outColor = pow(outLighting, vec4(1/2.2));
+  if (depth == 1) {
+    outLighting = vec4(getBackgroundColor((cameraBuffer.viewMatrixInverse * csPosition).xyz), 1.f);
+  } else {
+    outLighting = vec4(color, 1);
+  }
 }

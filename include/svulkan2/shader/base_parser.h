@@ -108,6 +108,7 @@ parseSpecializationConstant(spirv_cross::Compiler &compiler);
 class BaseParser {
 
 protected:
+  std::string mName;
   std::vector<uint32_t> mVertSPVCode;
   std::vector<uint32_t> mFragSPVCode;
   vk::UniquePipelineLayout mPipelineLayout;
@@ -140,6 +141,8 @@ public:
   virtual std::vector<std::string> getInputTextureNames() const;
 
   inline void enableAlphaBlend(bool enable) { mAlphaBlend = enable; }
+  inline void setName(std::string const &name) { mName = name; }
+  inline std::string getName() const { return mName; }
 
   virtual vk::Pipeline createGraphicsPipeline(
       vk::Device device, vk::Format colorFormat, vk::Format depthFormat,

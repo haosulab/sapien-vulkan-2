@@ -20,10 +20,6 @@ class ShaderManager {
   std::map<std::weak_ptr<BaseParser>, unsigned int, std::owner_less<>>
       mPassIndex;
 
-  // std::shared_ptr<GbufferPassParser> mGbufferPass;
-  // std::shared_ptr<DeferredPassParser> mDeferredPass;
-  // std::vector<std::shared_ptr<DeferredPassParser>> mCompositePasses;
-
   std::unordered_map<std::string, std::vector<RenderTargetOperation>>
       mTextureOperationTable;
   std::unordered_map<std::string, vk::Format> mRenderTargetFormats;
