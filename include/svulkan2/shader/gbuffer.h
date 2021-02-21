@@ -6,6 +6,7 @@ namespace svulkan2 {
 namespace shader {
 
 class GbufferPassParser : public BaseParser {
+  std::shared_ptr<SpecializationConstantLayout> mSpecializationConstantLayout;
   std::shared_ptr<InputDataLayout> mVertexInputLayout;
   std::shared_ptr<OutputDataLayout> mTextureOutputLayout;
   std::vector<DescriptorSetDescription> mDescriptorSetDescriptions;

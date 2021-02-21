@@ -35,7 +35,8 @@ int main() {
   svulkan2::core::Context context(VK_API_VERSION_1_1, true, 5000, 5000, 4);
 
   auto config = std::make_shared<RendererConfig>();
-  config->shaderDir = "../test/assets/shader/full";
+  // config->shaderDir = "../test/assets/shader/full";
+  config->shaderDir = "../shader/forward";
   config->colorFormat = vk::Format::eR8G8B8A8Unorm;
   renderer::Renderer renderer(context, config);
 
@@ -121,7 +122,7 @@ int main() {
     {
       commandBuffer->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
       renderer.render(commandBuffer.get(), scene, cameraNode);
-      renderer.display(commandBuffer.get(), "Color", window->getBackbuffer(),
+      renderer.display(commandBuffer.get(), "Lighting", window->getBackbuffer(),
                        window->getBackBufferFormat(), window->getWidth(),
                        window->getHeight());
       commandBuffer->end();

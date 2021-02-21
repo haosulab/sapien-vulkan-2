@@ -19,6 +19,7 @@ void GbufferPassParser::reflectSPV() {
 
   spirv_cross::Compiler fragComp(mFragSPVCode);
   try {
+    mSpecializationConstantLayout = parseSpecializationConstant(fragComp);
     mTextureOutputLayout = parseTextureOutput(fragComp);
     for (uint32_t i = 0; i < 4; ++i) {
       fragDesc.push_back(getDescriptorSetDescription(fragComp, i));
@@ -139,6 +140,42 @@ vk::Pipeline GbufferPassParser::createGraphicsPipeline(
       {{}, mVertSPVCode.size() * sizeof(uint32_t), mVertSPVCode.data()});
   auto fsm = device.createShaderModuleUnique(
       {{}, mFragSPVCode.size() * sizeof(uint32_t), mFragSPVCode.data()});
+
+  auto elems = mSpecializationConstantLayout->getElementsSorted();
+  vk::SpecializationInfo fragSpecializationInfo;
+  std::vector<vk::SpecializationMapEntry> entries;
+  std::vector<int> specializationData;
+  if (elems.size()) {
+    specializationData.resize(elems.size());
+    for (uint32_t i = 0; i < elems.size(); ++i) {
+      if (specializationConstantInfo.contains(elems[i].name) &&
+          elems[i].dtype !=
+              specializationConstantInfo.at(elems[i].name).dtype) {
+        throw std::runtime_error("Type mismatch on specialization constant " +
+                                 elems[i].name + ".");
+      }
+      if (elems[i].dtype == eINT) {
+        entries.emplace_back(elems[i].id, i * sizeof(int), sizeof(int));
+        int v = specializationConstantInfo.contains(elems[i].name)
+                    ? specializationConstantInfo.at(elems[i].name).intValue
+                    : elems[i].intValue;
+        std::memcpy(specializationData.data() + i, &v, sizeof(int));
+      } else if (elems[i].dtype == eFLOAT) {
+        entries.emplace_back(elems[i].id, i * sizeof(float), sizeof(float));
+        float v = specializationConstantInfo.contains(elems[i].name)
+                      ? specializationConstantInfo.at(elems[i].name).floatValue
+                      : elems[i].floatValue;
+        std::memcpy(specializationData.data() + i, &v, sizeof(float));
+      } else {
+        throw std::runtime_error(
+            "only int and float are allowed specialization constants");
+      }
+    }
+    fragSpecializationInfo = vk::SpecializationInfo(
+        entries.size(), entries.data(), specializationData.size() * sizeof(int),
+        specializationData.data());
+  }
+
   std::array<vk::PipelineShaderStageCreateInfo, 2>
       pipelineShaderStageCreateInfos{
           vk::PipelineShaderStageCreateInfo(
@@ -146,7 +183,8 @@ vk::Pipeline GbufferPassParser::createGraphicsPipeline(
               vk::ShaderStageFlagBits::eVertex, vsm.get(), "main", nullptr),
           vk::PipelineShaderStageCreateInfo(
               vk::PipelineShaderStageCreateFlags(),
-              vk::ShaderStageFlagBits::eFragment, fsm.get(), "main", nullptr)};
+              vk::ShaderStageFlagBits::eFragment, fsm.get(), "main",
+              elems.size() ? &fragSpecializationInfo : nullptr)};
 
   // vertex input
   auto vertexInputBindingDescriptions =
@@ -154,7 +192,6 @@ vk::Pipeline GbufferPassParser::createGraphicsPipeline(
   auto vertexInputAttributeDescriptions =
       mVertexInputLayout->computeVertexInputAttributesDescriptions();
   vk::PipelineVertexInputStateCreateInfo pipelineVertexInputStateCreateInfo;
-  pipelineVertexInputStateCreateInfo.vertexBindingDescriptionCount =
       vertexInputBindingDescriptions.size();
   pipelineVertexInputStateCreateInfo.pVertexBindingDescriptions =
       vertexInputBindingDescriptions.data();
@@ -249,6 +286,7 @@ std::vector<std::string> GbufferPassParser::getColorRenderTargetNames() const {
   }
   return result;
 }
+
 std::optional<std::string> GbufferPassParser::getDepthRenderTargetName() const {
   return "Depth";
 }
