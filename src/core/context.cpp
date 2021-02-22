@@ -289,6 +289,80 @@ std::unique_ptr<renderer::GuiWindow> Context::createWindow(uint32_t width,
       std::vector<vk::PresentModeKHR>{vk::PresentModeKHR::eFifo}, 2);
 };
 
-} // namespace core
+std::shared_ptr<resource::SVTexture>
+Context::createTexture(std::string const &filename) {
+  return mResourceManager->CreateTextureFromFile(
+      filename, mResourceManager->getDefaultMipLevels());
+}
 
+std::shared_ptr<resource::SVMetallicMaterial>
+Context::createMetallicMaterial(glm::vec4 baseColor, float fresnel,
+                                float roughness, float metallic,
+                                float transparency) {
+  return std::make_shared<resource::SVMetallicMaterial>(
+      baseColor, fresnel, roughness, metallic, transparency);
+}
+
+std::shared_ptr<resource::SVSpecularMaterial>
+Context::createSpecularMaterial(glm::vec4 diffuse, glm::vec4 specular,
+                                float transparency) {
+  return std::make_shared<resource::SVSpecularMaterial>(diffuse, specular,
+                                                        transparency);
+}
+
+std::shared_ptr<resource::SVModel> Context::createModel(
+    std::vector<std::shared_ptr<resource::SVMesh>> meshes,
+    std::vector<std::shared_ptr<resource::SVMaterial>> materials) {
+  if (meshes.size() != materials.size()) {
+    throw std::runtime_error(
+        "create model failed: meshes and materials must have the same size.");
+  }
+  std::vector<std::shared_ptr<resource::SVShape>> shapes;
+  for (uint32_t i = 0; i < meshes.size(); ++i) {
+    auto shape = std::make_shared<resource::SVShape>();
+    shape->mesh = meshes[i];
+    shape->material = materials[i];
+    shapes.push_back(shape);
+  }
+  return resource::SVModel::FromData(shapes);
+}
+
+std::shared_ptr<resource::SVMesh>
+Context::createTriangleMesh(std::vector<glm::vec3> const &vertices,
+                            std::vector<uint32_t> const &indices,
+                            std::vector<glm::vec3> const &normals,
+                            std::vector<glm::vec2> const &uvs) {
+  auto mesh = std::make_shared<resource::SVMesh>();
+
+  std::vector<float> vertices_;
+  for (auto &v : vertices) {
+    vertices_.push_back(v.x);
+    vertices_.push_back(v.y);
+    vertices_.push_back(v.z);
+  }
+  mesh->setVertexAttribute("position", vertices_);
+
+  if (normals.size()) {
+    std::vector<float> normals_;
+    for (auto &v : normals) {
+      normals_.push_back(v.x);
+      normals_.push_back(v.y);
+      normals_.push_back(v.z);
+    }
+    mesh->setVertexAttribute("normal", normals_);
+  }
+
+  if (uvs.size()) {
+    std::vector<float> uvs_;
+    for (auto &v : uvs) {
+      uvs_.push_back(v.x);
+      uvs_.push_back(v.y);
+    }
+    mesh->setVertexAttribute("uv", uvs_);
+  }
+
+  return mesh;
+}
+
+} // namespace core
 } // namespace svulkan2

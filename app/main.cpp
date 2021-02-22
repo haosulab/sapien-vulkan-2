@@ -42,10 +42,14 @@ int main() {
 
   svulkan2::scene::Scene scene;
 
-  scene.setSVScene(std::make_shared<resource::SVScene>());
-  scene.getSVScene()->addPointLight({{0, 0.5, 0, 1}, {0, 0, 1, 1}});
-  scene.getSVScene()->addDirectionalLight({{0, -1, -1, 1}, {1, 1, 1, 1}});
-  scene.getSVScene()->setAmbeintLight({0.1, 0.1, 0.1, 0});
+  auto &pointLight = scene.addPointLight();
+  pointLight.setTransform({.position = glm::vec4{0, 0.5, 0, 1}});
+  pointLight.setColor({0, 0, 1, 1});
+
+  auto &dl = scene.addDirectionalLight();
+  dl.setDirection({0, -1, -1});
+  dl.setColor({1, 1, 1, 1});
+  scene.setAmbeintLight({0.1, 0.1, 0.1, 0});
 
   auto model = context.getResourceManager().CreateModelFromFile(
       "../test/assets/scene/sponza/sponza.obj");

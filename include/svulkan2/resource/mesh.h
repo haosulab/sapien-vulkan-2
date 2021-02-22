@@ -9,7 +9,6 @@ namespace svulkan2 {
 namespace resource {
 
 class SVMesh {
-  std::shared_ptr<InputDataLayout> mVertexLayout;
   std::vector<uint32_t> mIndices;
   uint32_t mIndexCount{};
   std::unordered_map<std::string, std::vector<float>> mAttributes;
@@ -20,7 +19,7 @@ class SVMesh {
   std::unique_ptr<core::Buffer> mIndexBuffer;
 
 public:
-  SVMesh(std::shared_ptr<InputDataLayout> layout);
+  SVMesh();
 
   void setIndices(std::vector<uint32_t> const &indices);
   std::vector<uint32_t> const &getIndices(std::vector<uint32_t>) const;

@@ -1,5 +1,6 @@
 #include "svulkan2/resource/mesh.h"
 #include "svulkan2/common/log.h"
+#include "svulkan2/core/context.h"
 #include <memory>
 
 namespace svulkan2 {
@@ -17,8 +18,7 @@ static void strided_memcpy(void *target, void *source, size_t chunk_size,
   }
 }
 
-SVMesh::SVMesh(std::shared_ptr<InputDataLayout> layout)
-    : mVertexLayout(layout) {}
+SVMesh::SVMesh() {}
 
 void SVMesh::setIndices(std::vector<uint32_t> const &indices) {
   mDirty = true;
@@ -33,19 +33,13 @@ std::vector<uint32_t> const &SVMesh::getIndices(std::vector<uint32_t>) const {
 void SVMesh::setVertexAttribute(std::string const &name,
                                 std::vector<float> const &attrib) {
   mDirty = true;
-  if (mVertexLayout->elements.find(name) == mVertexLayout->elements.end()) {
-    log::warn("failed to set vertex attribute \"{}\": it is not specified in "
-              "the shader",
-              name);
-    return;
-  }
   mAttributes[name] = attrib;
 }
 
 std::vector<float> const &
 SVMesh::getVertexAttribute(std::string const &name) const {
-  if (mVertexLayout->elements.find(name) == mVertexLayout->elements.end()) {
-    throw std::runtime_error("unknown vertex attribute " + name);
+  if (!mAttributes.contains(name)) {
+    throw std::runtime_error("attribute " + name + " does not exist on vertex");
   }
   return mAttributes.at(name);
 }
@@ -54,6 +48,8 @@ void SVMesh::uploadToDevice(core::Context &context) {
   if (!mDirty) {
     return;
   }
+
+  auto layout = context.getResourceManager().getVertexLayout();
 
   if (mAttributes.find("position") == mAttributes.end() ||
       mAttributes["position"].size() == 0) {
@@ -73,12 +69,12 @@ void SVMesh::uploadToDevice(core::Context &context) {
   }
 
   size_t vertexCount = mAttributes["position"].size() / 3;
-  size_t vertexSize = mVertexLayout->getSize();
+  size_t vertexSize = layout->getSize();
   size_t bufferSize = vertexSize * vertexCount;
   size_t indexBufferSize = sizeof(uint32_t) * mIndices.size();
 
   std::vector<char> buffer(bufferSize, 0);
-  auto elements = mVertexLayout->getElementsSorted();
+  auto elements = layout->getElementsSorted();
   uint32_t offset = 0;
   for (auto &elem : elements) {
     if (mAttributes.find(elem.name) != mAttributes.end()) {

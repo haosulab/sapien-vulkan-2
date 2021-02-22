@@ -71,6 +71,27 @@ public:
   std::unique_ptr<renderer::GuiWindow> createWindow(uint32_t width,
                                                     uint32_t height);
 
+  std::shared_ptr<resource::SVTexture>
+  createTexture(std::string const &filename);
+
+  std::shared_ptr<resource::SVMetallicMaterial>
+  createMetallicMaterial(glm::vec4 baseColor, float fresnel, float roughness,
+                         float metallic, float transparency);
+
+  std::shared_ptr<resource::SVSpecularMaterial>
+  createSpecularMaterial(glm::vec4 diffuse, glm::vec4 specular,
+                         float transparency);
+
+  std::shared_ptr<resource::SVModel>
+  createModel(std::vector<std::shared_ptr<resource::SVMesh>> meshes,
+              std::vector<std::shared_ptr<resource::SVMaterial>> materials);
+
+  std::shared_ptr<resource::SVMesh>
+  createTriangleMesh(std::vector<glm::vec3> const &vertices,
+                     std::vector<uint32_t> const &indices,
+                     std::vector<glm::vec3> const &normals = {},
+                     std::vector<glm::vec2> const &uvs = {});
+
 private:
   void createInstance();
   void pickSuitableGpuAndQueueFamilyIndex();

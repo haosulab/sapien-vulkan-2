@@ -139,8 +139,8 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
     throw std::runtime_error(
         "failed to render: resize must be called before rendering.");
   }
-  int numPointLights = scene.getSVScene()->getPointLights().size();
-  int numDirectionalLights = scene.getSVScene()->getDirectionalLights().size();
+  int numPointLights = scene.getPointLights().size();
+  int numDirectionalLights = scene.getDirectionalLights().size();
   setSpecializationConstantInt("NUM_POINT_LIGHTS", numPointLights);
   setSpecializationConstantInt("NUM_DIRECTIONAL_LIGHTS", numDirectionalLights);
 
@@ -181,8 +181,8 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
   camera.uploadToDevice(*mCameraBuffer,
                         *mShaderManager->getShaderConfig()->cameraBufferLayout);
   // update scene
-  scene.getSVScene()->uploadToDevice(
-      *mSceneBuffer, *mShaderManager->getShaderConfig()->sceneBufferLayout);
+  scene.uploadToDevice(*mSceneBuffer,
+                       *mShaderManager->getShaderConfig()->sceneBufferLayout);
 
   // update objects
   for (uint32_t i = 0; i < objects.size(); ++i) {
@@ -203,8 +203,6 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
     std::vector<vk::ClearValue> clearValues(
         pass->getTextureOutputLayout()->elements.size(),
         vk::ClearColorValue(std::array<float, 4>{0.f, 0.f, 0.f, 0.f}));
-    // if (auto p = std::dynamic_pointer_cast<shader::GbufferPassParser>(pass))
-    // {
     clearValues.push_back(vk::ClearDepthStencilValue(1.0f, 0));
     vk::RenderPassBeginInfo renderPassBeginInfo{
         pass->getRenderPass(), mFramebuffers[pass_index].get(),

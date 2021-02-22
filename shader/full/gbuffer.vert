@@ -13,6 +13,7 @@ layout(set = 0, binding = 0) uniform CameraBuffer {
 layout(set = 1, binding = 0) uniform ObjectBuffer {
   mat4 modelMatrix;
   uvec4 segmentation;
+  float transparency;
 } objectBuffer;
 
 layout(location = 0) in vec3 position;
