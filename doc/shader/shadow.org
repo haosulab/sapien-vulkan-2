@@ -1,9 +1,3 @@
 * Shadow pass (optional)
-  Multiple shadow passes for multiple light sources is possible. Conceptually,
-  shadow pass runs in parallel with the gbuffer pass and uses similar resources.
-  Currently, only a vertex shader is allowed for the shadow. For directional
-  shadow, the shaders should be named =directional_shadow_XXX.gbuffer= where
-  =XXX= is a number starting from 0. For spot shadow, the should be named
-  =spot_shadow_XXX.gbuffer= where =XXX= is a number starting from 0. The shadow
-  maps will later be attached as samplers =samplerDirectionalShadowXXX= and
-  =samplerSpotShadowXXX=.
+  Shadow pass happens before gbuffer pass, all kinds of shadow are unified into
+  a single pipeline.

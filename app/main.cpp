@@ -35,8 +35,8 @@ int main() {
   svulkan2::core::Context context(VK_API_VERSION_1_1, true, 5000, 5000, 4);
 
   auto config = std::make_shared<RendererConfig>();
-  config->shaderDir = "../shader/full";
-  // config->shaderDir = "../shader/forward";
+  // config->shaderDir = "../shader/full";
+  config->shaderDir = "../shader/forward";
   config->colorFormat = vk::Format::eR8G8B8A8Unorm;
   renderer::Renderer renderer(context, config);
 

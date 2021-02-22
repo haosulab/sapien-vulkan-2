@@ -173,5 +173,5 @@ void main() {
   color += sceneBuffer.ambientLight.rgb * albedo.rgb;
 
   outColor = vec4(color, albedo.a);
-  outColor = pow(outLighting, vec4(1/2.2));
+  outColor = pow(outColor, vec4(1/2.2));
 }

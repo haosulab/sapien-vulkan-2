@@ -23,8 +23,8 @@
    will default to float, but it is possible to configure them to use unsigned
    char.
    
-   The following output textures are required. They should probably be defined
-   in the gbuffer pass.
+   The following output textures are recommended. They should probably be
+   defined in the gbuffer pass.
    | name            | layout       | type   | required |
    |-----------------+--------------+--------+----------|
    | outAlbedo       | any location | float4 | required |
@@ -34,21 +34,25 @@
    | outSegmentation | any location | uint4  | required |
 
 ** Object uniform buffer
+   Uniform buffers can be bound at any descriptor set, the struct name is used
+   to identify them. For example, you may not change the name =ObjectBuffer=.
+   However, they need to be consecutive integers starting from 0 for each pass.
 #+begin_src glsl
-layout(set = 2, binding = 0) uniform ObjectBuffer { ... } objectBuffer;
+layout(set = X, binding = 0) uniform ObjectBuffer { ... } objectBuffer;  // X=0,1,2,3
 #+end_src
-   | name            | type     | required               |
-   |-----------------+----------+------------------------|
-   | modelMatrix     | float4x4 | required               |
-   | prevModelMatrix | float4x4 | optional (motion blur) |
-   | segmentation    | uint4    | required               |
+   | name            | type     | required                     |
+   |-----------------+----------+------------------------------|
+   | modelMatrix     | float4x4 | required                     |
+   | prevModelMatrix | float4x4 | optional (motion blur)       |
+   | segmentation    | uint4    | required                     |
+   | transparency    | float    | optional (for visulaization) |
 
    Other "simple" variables are also allowed, but it is not allowed to use
    structs. Object buffer is only available in the vertex shader.
    
 ** Camera buffer <<sec:camera>>
 #+begin_src glsl
-layout(set = 1, binding = 0) uniform CameraBuffer { ... } cameraBuffer;
+layout(set = Y, binding = 0) uniform CameraBuffer { ... } cameraBuffer;  // Y=0,1,2,3
 #+end_src
    | name                    | type     | required               |
    |-------------------------+----------+------------------------|
@@ -65,7 +69,7 @@ layout(set = 1, binding = 0) uniform CameraBuffer { ... } cameraBuffer;
 ** Material buffer
    You need to choose from the 2 rendering pipelines: =metallic pipeline= and =specular pipeline=.
 #+begin_src glsl
-layout(set = 3, binding = 0) uniform MaterialBuffer { ... } materialBuffer;
+layout(set = Z, binding = 0) uniform MaterialBuffer { ... } materialBuffer;  // Z=0,1,2,3
 #+end_src
 *** Metallic pipeline
    | name         | type   | required |
@@ -78,10 +82,10 @@ layout(set = 3, binding = 0) uniform MaterialBuffer { ... } materialBuffer;
    | textureMask  | int    | required |
 
 #+begin_src glsl
-layout(set = 3, binding = 1) uniform sampler2D colorTexture;
-layout(set = 3, binding = 2) uniform sampler2D roughnessTexture;
-layout(set = 3, binding = 3) uniform sampler2D normalTexture;
-layout(set = 3, binding = 4) uniform sampler2D metallicTexture;
+layout(set = Z, binding = 1) uniform sampler2D colorTexture;
+layout(set = Z, binding = 2) uniform sampler2D roughnessTexture;
+layout(set = Z, binding = 3) uniform sampler2D normalTexture;
+layout(set = Z, binding = 4) uniform sampler2D metallicTexture;
 #+end_src
    
    
@@ -94,9 +98,15 @@ layout(set = 3, binding = 4) uniform sampler2D metallicTexture;
    | textureMask  | int    | required |
 
 #+begin_src glsl
-layout(set = 2, binding = 1) uniform sampler2D diffuseTexture;
-layout(set = 2, binding = 2) uniform sampler2D specularTexture;
-layout(set = 2, binding = 3) uniform sampler2D normalTexture;
+layout(set = Z, binding = 1) uniform sampler2D diffuseTexture;
+layout(set = Z, binding = 2) uniform sampler2D specularTexture;
+layout(set = Z, binding = 3) uniform sampler2D normalTexture;
 #+end_src
 
 Material buffer is only available in the fragment shader.
+
+** Other information
+   If using multiple gbuffers, name them =gbuffer.{vert,frag}=,
+   =gbuffre1.{vert,frag}=, =gbuffer2.{vert,frag}=. If a deferred pass exists,
+   then the first gbuffer will have alpha blend disabled. All other gbuffers use
+   standard alpha blend.

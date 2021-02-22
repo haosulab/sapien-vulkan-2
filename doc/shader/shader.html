@@ -3,7 +3,7 @@
 "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
-<!-- 2020-12-17 Thu 22:05 -->
+<!-- 2021-02-22 Mon 13:55 -->
 <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Shaders</title>
@@ -253,35 +253,37 @@ for the JavaScript code in this tag.
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents">
 <ul>
-<li><a href="#orge1d403b">1. Gbuffer pass</a>
+<li><a href="#org499a499">1. Gbuffer pass</a>
 <ul>
-<li><a href="#org4035102">1.1. Vertex Format</a></li>
-<li><a href="#org18d4ec7">1.2. Output texture</a></li>
-<li><a href="#org9efa335">1.3. Object uniform buffer</a></li>
-<li><a href="#orga7cceca">1.4. Camera buffer </a></li>
-<li><a href="#orgc9ed9f6">1.5. Material buffer</a>
+<li><a href="#orgc4430ef">1.1. Vertex Format</a></li>
+<li><a href="#orgf6a692b">1.2. Output texture</a></li>
+<li><a href="#orgb9f16f6">1.3. Object uniform buffer</a></li>
+<li><a href="#org0eb4a5d">1.4. Camera buffer </a></li>
+<li><a href="#org329b486">1.5. Material buffer</a>
 <ul>
-<li><a href="#org4b5970f">Metallic pipeline</a></li>
-<li><a href="#org4bc1247">Specular pipeline</a></li>
+<li><a href="#org07b9069">Metallic pipeline</a></li>
+<li><a href="#orgea8b058">Specular pipeline</a></li>
 </ul>
 </li>
+<li><a href="#orgd1ba41f">1.6. Other information</a></li>
 </ul>
 </li>
-<li><a href="#org9fd0a84">2. Deferred pass</a>
+<li><a href="#org0c2955f">2. Deferred pass (Optional)</a>
 <ul>
-<li><a href="#orga0453e2">2.1. Vertex shader</a></li>
-<li><a href="#org4db51c9">2.2. Constants</a></li>
-<li><a href="#orgc272b4c">2.3. Scene buffer</a></li>
-<li><a href="#orgb239b4a">2.4. Camera buffer</a></li>
-<li><a href="#org7ed927b">2.5. Textures</a></li>
-<li><a href="#org1211762">2.6. Output</a></li>
+<li><a href="#orged684e7">2.1. Vertex shader</a></li>
+<li><a href="#orgae54f5c">2.2. Constants</a></li>
+<li><a href="#orge496974">2.3. Scene buffer</a></li>
+<li><a href="#org038c303">2.4. Shadow buffer</a></li>
+<li><a href="#orgd622d85">2.5. Camera buffer</a></li>
+<li><a href="#org7a0e0ac">2.6. Textures</a></li>
+<li><a href="#org6dbfda5">2.7. Output</a></li>
 </ul>
 </li>
-<li><a href="#orgce6f138">3. Transparency pass</a></li>
-<li><a href="#org91c066d">4. Axis pass</a></li>
-<li><a href="#org0ed34c2">5. Composite passes</a></li>
-<li><a href="#orgbf74ae0">6. Shadow pass (optional)</a></li>
-<li><a href="#orgf4e9c67">7. Ambient Occlusion pass (optional)</a></li>
+<li><a href="#org9b459eb">3. Transparency pass</a></li>
+<li><a href="#org6fb661a">4. Axis pass</a></li>
+<li><a href="#org6d57ad0">5. Composite passes</a></li>
+<li><a href="#org55509ff">6. Shadow pass (optional)</a></li>
+<li><a href="#orgb3cab35">7. Ambient Occlusion pass (optional)</a></li>
 </ul>
 </div>
 </div>
@@ -297,16 +299,16 @@ for the JavaScript code in this tag.
 
 <hr />
 
-<div id="outline-container-orge1d403b" class="outline-2">
-<h2 id="orge1d403b"><span class="section-number-2">1</span> Gbuffer pass</h2>
+<div id="outline-container-org499a499" class="outline-2">
+<h2 id="org499a499"><span class="section-number-2">1</span> Gbuffer pass</h2>
 <div class="outline-text-2" id="text-1">
 <p>
 Files: <code>gbuffer.vert</code>, <code>gbuffer.frag</code>
 </p>
 </div>
 
-<div id="outline-container-org4035102" class="outline-3">
-<h3 id="org4035102"><span class="section-number-3">1.1</span> Vertex Format</h3>
+<div id="outline-container-orgc4430ef" class="outline-3">
+<h3 id="orgc4430ef"><span class="section-number-3">1.1</span> Vertex Format</h3>
 <div class="outline-text-3" id="text-1-1">
 <p>
 The following vertex attributes are supported
@@ -383,8 +385,8 @@ supported. They can be later set by the variable name.
 </div>
 </div>
 
-<div id="outline-container-org18d4ec7" class="outline-3">
-<h3 id="org18d4ec7"><span class="section-number-3">1.2</span> Output texture</h3>
+<div id="outline-container-orgf6a692b" class="outline-3">
+<h3 id="orgf6a692b"><span class="section-number-3">1.2</span> Output texture</h3>
 <div class="outline-text-3" id="text-1-2">
 <p>
 Any texture that starts with <code>out</code> is a valid output texture. A texture named
@@ -396,8 +398,8 @@ char.
 </p>
 
 <p>
-The following output textures are required. They should probably be defined
-in the gbuffer pass.
+The following output textures are recommended. They should probably be
+defined in the gbuffer pass.
 </p>
 <table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
 
@@ -459,11 +461,16 @@ in the gbuffer pass.
 </div>
 </div>
 
-<div id="outline-container-org9efa335" class="outline-3">
-<h3 id="org9efa335"><span class="section-number-3">1.3</span> Object uniform buffer</h3>
+<div id="outline-container-orgb9f16f6" class="outline-3">
+<h3 id="orgb9f16f6"><span class="section-number-3">1.3</span> Object uniform buffer</h3>
 <div class="outline-text-3" id="text-1-3">
+<p>
+Uniform buffers can be bound at any descriptor set, the struct name is used
+to identify them. For example, you may not change the name <code>ObjectBuffer</code>.
+However, they need to be consecutive integers starting from 0 for each pass.
+</p>
 <div class="org-src-container">
-<pre class="src src-glsl">layout(set = 2, binding = 0) uniform ObjectBuffer { ... } objectBuffer;
+<pre class="src src-glsl">layout(set = X, binding = 0) uniform ObjectBuffer { ... } objectBuffer;  // X=0,1,2,3
 </pre>
 </div>
 <table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
@@ -501,6 +508,12 @@ in the gbuffer pass.
 <td class="org-left">uint4</td>
 <td class="org-left">required</td>
 </tr>
+
+<tr>
+<td class="org-left">transparency</td>
+<td class="org-left">float</td>
+<td class="org-left">optional (for visulaization)</td>
+</tr>
 </tbody>
 </table>
 
@@ -511,11 +524,11 @@ structs. Object buffer is only available in the vertex shader.
 </div>
 </div>
 
-<div id="outline-container-orga7cceca" class="outline-3">
-<h3 id="orga7cceca"><span class="section-number-3">1.4</span> Camera buffer <a id="orgd7dd5f5"></a></h3>
+<div id="outline-container-org0eb4a5d" class="outline-3">
+<h3 id="org0eb4a5d"><span class="section-number-3">1.4</span> Camera buffer <a id="org8f8879f"></a></h3>
 <div class="outline-text-3" id="text-1-4">
 <div class="org-src-container">
-<pre class="src src-glsl">layout(set = 1, binding = 0) uniform CameraBuffer { ... } cameraBuffer;
+<pre class="src src-glsl">layout(set = Y, binding = 0) uniform CameraBuffer { ... } cameraBuffer;  // Y=0,1,2,3
 </pre>
 </div>
 <table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
@@ -581,20 +594,20 @@ structs. Object buffer is only available in the vertex shader.
 </div>
 </div>
 
-<div id="outline-container-orgc9ed9f6" class="outline-3">
-<h3 id="orgc9ed9f6"><span class="section-number-3">1.5</span> Material buffer</h3>
+<div id="outline-container-org329b486" class="outline-3">
+<h3 id="org329b486"><span class="section-number-3">1.5</span> Material buffer</h3>
 <div class="outline-text-3" id="text-1-5">
 <p>
 You need to choose from the 2 rendering pipelines: <code>metallic pipeline</code> and <code>specular pipeline</code>.
 </p>
 <div class="org-src-container">
-<pre class="src src-glsl">layout(set = 3, binding = 0) uniform MaterialBuffer { ... } materialBuffer;
+<pre class="src src-glsl">layout(set = Z, binding = 0) uniform MaterialBuffer { ... } materialBuffer;  // Z=0,1,2,3
 </pre>
 </div>
 </div>
-<div id="outline-container-org4b5970f" class="outline-4">
-<h4 id="org4b5970f">Metallic pipeline</h4>
-<div class="outline-text-4" id="text-org4b5970f">
+<div id="outline-container-org07b9069" class="outline-4">
+<h4 id="org07b9069">Metallic pipeline</h4>
+<div class="outline-text-4" id="text-org07b9069">
 <table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
 
 
@@ -652,19 +665,19 @@ You need to choose from the 2 rendering pipelines: <code>metallic pipeline</code
 </table>
 
 <div class="org-src-container">
-<pre class="src src-glsl">layout(set = 3, binding = 1) uniform sampler2D colorTexture;
-layout(set = 3, binding = 2) uniform sampler2D roughnessTexture;
-layout(set = 3, binding = 3) uniform sampler2D normalTexture;
-layout(set = 3, binding = 4) uniform sampler2D metallicTexture;
+<pre class="src src-glsl">layout(set = Z, binding = 1) uniform sampler2D colorTexture;
+layout(set = Z, binding = 2) uniform sampler2D roughnessTexture;
+layout(set = Z, binding = 3) uniform sampler2D normalTexture;
+layout(set = Z, binding = 4) uniform sampler2D metallicTexture;
 </pre>
 </div>
 </div>
 </div>
 
 
-<div id="outline-container-org4bc1247" class="outline-4">
-<h4 id="org4bc1247">Specular pipeline</h4>
-<div class="outline-text-4" id="text-org4bc1247">
+<div id="outline-container-orgea8b058" class="outline-4">
+<h4 id="orgea8b058">Specular pipeline</h4>
+<div class="outline-text-4" id="text-orgea8b058">
 <table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
 
 
@@ -710,9 +723,9 @@ layout(set = 3, binding = 4) uniform sampler2D metallicTexture;
 </table>
 
 <div class="org-src-container">
-<pre class="src src-glsl">layout(set = 2, binding = 1) uniform sampler2D diffuseTexture;
-layout(set = 2, binding = 2) uniform sampler2D specularTexture;
-layout(set = 2, binding = 3) uniform sampler2D normalTexture;
+<pre class="src src-glsl">layout(set = Z, binding = 1) uniform sampler2D diffuseTexture;
+layout(set = Z, binding = 2) uniform sampler2D specularTexture;
+layout(set = Z, binding = 3) uniform sampler2D normalTexture;
 </pre>
 </div>
 
@@ -722,9 +735,21 @@ Material buffer is only available in the fragment shader.
 </div>
 </div>
 </div>
+
+<div id="outline-container-orgd1ba41f" class="outline-3">
+<h3 id="orgd1ba41f"><span class="section-number-3">1.6</span> Other information</h3>
+<div class="outline-text-3" id="text-1-6">
+<p>
+If using multiple gbuffers, name them <code>gbuffer.{vert,frag}</code>,
+<code>gbuffre1.{vert,frag}</code>, <code>gbuffer2.{vert,frag}</code>. If a deferred pass exists,
+then the first gbuffer will have alpha blend disabled. All other gbuffers use
+standard alpha blend.
+</p>
 </div>
-<div id="outline-container-org9fd0a84" class="outline-2">
-<h2 id="org9fd0a84"><span class="section-number-2">2</span> Deferred pass</h2>
+</div>
+</div>
+<div id="outline-container-org0c2955f" class="outline-2">
+<h2 id="org0c2955f"><span class="section-number-2">2</span> Deferred pass (Optional)</h2>
 <div class="outline-text-2" id="text-2">
 <p>
 Files: <code>deferred.vert</code>, <code>deferred.frag</code>
@@ -732,11 +757,13 @@ Files: <code>deferred.vert</code>, <code>deferred.frag</code>
 
 <p>
 Deferred pass runs after gbuffer pass to compute lighting in the pixel space.
+It is in general recommended, however, using a single gbuffer to do everything
+is possible.
 </p>
 </div>
 
-<div id="outline-container-orga0453e2" class="outline-3">
-<h3 id="orga0453e2"><span class="section-number-3">2.1</span> Vertex shader</h3>
+<div id="outline-container-orged684e7" class="outline-3">
+<h3 id="orged684e7"><span class="section-number-3">2.1</span> Vertex shader</h3>
 <div class="outline-text-3" id="text-2-1">
 <p>
 The vertex shader should almost always be the following. It draws a triangle and clip it to a quad.
@@ -754,8 +781,8 @@ void main()
 </div>
 </div>
 
-<div id="outline-container-org4db51c9" class="outline-3">
-<h3 id="org4db51c9"><span class="section-number-3">2.2</span> Constants</h3>
+<div id="outline-container-orgae54f5c" class="outline-3">
+<h3 id="orgae54f5c"><span class="section-number-3">2.2</span> Constants</h3>
 <div class="outline-text-3" id="text-2-2">
 <p>
 These constants are determined when the scene is rendered. The shader
@@ -763,16 +790,20 @@ pipeline is recreated if number of lights change. However, the buffers are
 pre-allocated according to the pre-specified values. So users should fill in
 the maximum number of directional lights and point lights.
 </p>
+
+<p>
+Other specialization constants of type <code>int</code> and <code>float</code> are also allowed.
+</p>
 <div class="org-src-container">
-<pre class="src src-glsl">layout (constant_id = 0) const uint NUM_DIRECTIONAL_LIGHTS=...;
-layout (constant_id = 1) const uint NUM_POINT_LIGHTS=...;
+<pre class="src src-glsl">layout (constant_id = 0) const int NUM_DIRECTIONAL_LIGHTS=...;
+layout (constant_id = 1) const int NUM_POINT_LIGHTS=...;
 </pre>
 </div>
 </div>
 </div>
 
-<div id="outline-container-orgc272b4c" class="outline-3">
-<h3 id="orgc272b4c"><span class="section-number-3">2.3</span> Scene buffer</h3>
+<div id="outline-container-orge496974" class="outline-3">
+<h3 id="orge496974"><span class="section-number-3">2.3</span> Scene buffer</h3>
 <div class="outline-text-3" id="text-2-3">
 <div class="org-src-container">
 <pre class="src src-glsl">struct PointLight {
@@ -783,11 +814,10 @@ struct DirectionalLight {
   vec4 direction;
   vec4 emission;
 };
-layout(set = 0, binding = 0) uniform SceneBuffer {
+layout(set = X, binding = 0) uniform SceneBuffer {
   vec4 ambientLight;
   DirectionalLight directionalLights[NUM_DIRECTIONAL_LIGHTS];
   PointLight pointLights[NUM_POINT_LIGHTS];
-  mat4 shadowMatrix;  // optional
 } sceneBuffer;
 </pre>
 </div>
@@ -799,52 +829,85 @@ structs.
 </div>
 </div>
 
-<div id="outline-container-orgb239b4a" class="outline-3">
-<h3 id="orgb239b4a"><span class="section-number-3">2.4</span> Camera buffer</h3>
+
+<div id="outline-container-org038c303" class="outline-3">
+<h3 id="org038c303"><span class="section-number-3">2.4</span> Shadow buffer</h3>
 <div class="outline-text-3" id="text-2-4">
+<p>
+When there are shadows, a shadow buffer should be declared at binding 1 of
+the scene descriptor. And the shadow texture arrays are attached at binding
+2, 3, 4.
+</p>
+
 <div class="org-src-container">
-<pre class="src src-glsl">layout(set = 1, binding = 0) uniform CameraBuffer { ... } cameraBuffer;
+<pre class="src src-glsl">layout (constant_id = 2) const int NUM_POINT_SHADOWS=...;
+layout (constant_id = 3) const int NUM_DIRECTIONAL_SHADOWS=...;
+layout (constant_id = 4) const int NUM_CUSTOM_SHADOWS=...;
+
+struct ShadowCamera {
+  mat4 viewMatrix;
+  mat4 projectionMatrix;
+  mat4 viewMatrixInverse;
+  mat4 projectionMatrixInverse;
+};
+layout(set = X, binding = 1) uniform ShadowBuffer {
+  ShadowCamera pointShadowCameras[NUM_POINT_SHADOWS];
+  ShadowCamera directionalShadowCameras[NUM_DIRECTIONAL_SHADOWS];
+  ShadowCamera customShadowCameras[NUM_CUSTOM_SHADOWS];
+} shadowBuffer;
+layout(set = X, binding = 2) uniform sampler2D samplerPointShadowDepth[NUM_POINT_SHADOWS];
+layout(set = X, binding = 3) uniform sampler2D samplerPointShadowDepth[NUM_DIRECTIONAL_SHADOWS];
+layout(set = X, binding = 4) uniform sampler2D samplerPointShadowDepth[NUM_CUSTOM_SHADOWS];
+</pre>
+</div>
+</div>
+</div>
+
+<div id="outline-container-orgd622d85" class="outline-3">
+<h3 id="orgd622d85"><span class="section-number-3">2.5</span> Camera buffer</h3>
+<div class="outline-text-3" id="text-2-5">
+<div class="org-src-container">
+<pre class="src src-glsl">layout(set = Y, binding = 0) uniform CameraBuffer { ... } cameraBuffer;
 </pre>
 </div>
 <p>
-It should have the same format as <a href="#orgd7dd5f5">1.4</a>.
+It should have the same format as <a href="#org8f8879f">1.4</a>.
 </p>
 </div>
 </div>
 
-<div id="outline-container-org7ed927b" class="outline-3">
-<h3 id="org7ed927b"><span class="section-number-3">2.5</span> Textures</h3>
-<div class="outline-text-3" id="text-2-5">
+<div id="outline-container-org7a0e0ac" class="outline-3">
+<h3 id="org7a0e0ac"><span class="section-number-3">2.6</span> Textures</h3>
+<div class="outline-text-3" id="text-2-6">
 <p>
 The input textures will be the output textures in the gbuffer pass, bound at
 description set 2. The following refers to the outAlbedo.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-glsl">layout(set = 2, binding = 0) uniform sampler2D samplerAlbedo;
+<pre class="src src-glsl">layout(set = Z, binding = 0) uniform sampler2D samplerAlbedo;
 </pre>
 </div>
 
 <p>
-2 Special names are reserved for depth buffers. <code>samplerDepth</code> refers to the
-depth output of the gbuffer pass, and <code>samplerShadow</code> refers to the depth
-output of the shadow pass (if there is one).
+Names ending with <code>Depth</code> are reserved for depth buffers. For example,
+<code>samplerGbufferDepth</code> refers to the depth output of the gbuffer pass.
 </p>
 </div>
 </div>
 
-<div id="outline-container-org1211762" class="outline-3">
-<h3 id="org1211762"><span class="section-number-3">2.6</span> Output</h3>
-<div class="outline-text-3" id="text-2-6">
+<div id="outline-container-org6dbfda5" class="outline-3">
+<h3 id="org6dbfda5"><span class="section-number-3">2.7</span> Output</h3>
+<div class="outline-text-3" id="text-2-7">
 <p>
 Any output texture should start with <code>out</code>. Texture with the same name are
-the same texture.
+the same texture. Texture names may not end with <code>Depth</code>.
 </p>
 </div>
 </div>
 </div>
-<div id="outline-container-orgce6f138" class="outline-2">
-<h2 id="orgce6f138"><span class="section-number-2">3</span> Transparency pass</h2>
+<div id="outline-container-org9b459eb" class="outline-2">
+<h2 id="org9b459eb"><span class="section-number-2">3</span> Transparency pass</h2>
 <div class="outline-text-2" id="text-3">
 <p>
 Transparency pass is essentially a single forward shading pass, combining
@@ -872,8 +935,8 @@ texture follow the same rules as before.
 </p>
 </div>
 </div>
-<div id="outline-container-org91c066d" class="outline-2">
-<h2 id="org91c066d"><span class="section-number-2">4</span> Axis pass</h2>
+<div id="outline-container-org6fb661a" class="outline-2">
+<h2 id="org6fb661a"><span class="section-number-2">4</span> Axis pass</h2>
 <div class="outline-text-2" id="text-4">
 <p>
 The axis pass draws plain colors for visualizing things like the coordinate
@@ -882,8 +945,8 @@ off-screen rendering.
 </p>
 </div>
 </div>
-<div id="outline-container-org0ed34c2" class="outline-2">
-<h2 id="org0ed34c2"><span class="section-number-2">5</span> Composite passes</h2>
+<div id="outline-container-org6d57ad0" class="outline-2">
+<h2 id="org6d57ad0"><span class="section-number-2">5</span> Composite passes</h2>
 <div class="outline-text-2" id="text-5">
 <p>
 The composite passes are full-screen passes for processing results produced in
@@ -891,17 +954,6 @@ previous passes. We use texture names to identify textures to read from and
 write to. The following line will read from the lighting texture in deferred
 pass and transparency pass.
 </p>
-<div class="org-src-container">
-<pre class="src src-glsl">layout(set = 0, binding = 0) uniform sampler2D inLighting;
-</pre>
-</div>
-<p>
-And the following line will write to this texture bound at location 0.
-</p>
-<div class="org-src-container">
-<pre class="src src-glsl">layout(location=0) out vec4 outLighting;
-</pre>
-</div>
 
 <p>
 Multiple composite passes can be created with name <code>composite1.frag</code>,
@@ -909,35 +961,35 @@ Multiple composite passes can be created with name <code>composite1.frag</code>,
 texture. The Composite pass is responsible for creating effects such as motion
 blur, bloom, and SSR.
 </p>
-</div>
-</div>
-<div id="outline-container-orgbf74ae0" class="outline-2">
-<h2 id="orgbf74ae0"><span class="section-number-2">6</span> Shadow pass (optional)</h2>
-<div class="outline-text-2" id="text-6">
+
 <p>
-Multiple shadow passes for multiple light sources is possible. Conceptually,
-shadow pass runs in parallel with the gbuffer pass and uses similar resources.
-Currently, only a vertex shader is allowed for the shadow. For directional
-shadow, the shaders should be named <code>directional_shadow_XXX.gbuffer</code> where
-<code>XXX</code> is a number starting from 0. For spot shadow, the should be named
-<code>spot_shadow_XXX.gbuffer</code> where <code>XXX</code> is a number starting from 0. The shadow
-maps will later be attached as samplers <code>samplerDirectionalShadowXXX</code> and
-<code>samplerSpotShadowXXX</code>.
+The implementation is exactly the same as deferred pass.
 </p>
 </div>
 </div>
-<div id="outline-container-orgf4e9c67" class="outline-2">
-<h2 id="orgf4e9c67"><span class="section-number-2">7</span> Ambient Occlusion pass (optional)</h2>
+<div id="outline-container-org55509ff" class="outline-2">
+<h2 id="org55509ff"><span class="section-number-2">6</span> Shadow pass (optional)</h2>
+<div class="outline-text-2" id="text-6">
+<p>
+Shadow pass happens before gbuffer pass, all kinds of shadow are unified into
+a single pipeline.
+</p>
+</div>
+</div>
+<div id="outline-container-orgb3cab35" class="outline-2">
+<h2 id="orgb3cab35"><span class="section-number-2">7</span> Ambient Occlusion pass (optional)</h2>
 <div class="outline-text-2" id="text-7">
 <p>
-Discuss about it after other parts are finished.
+The AO pass is a custom-resolution pass (usually half resolution) that happens
+right after the gbuffer pass used to produce the AO map. The implementation is
+exactly the same as deferred pass.
 </p>
 </div>
 </div>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Fanbo Xiang</p>
-<p class="date">Created: 2020-12-17 Thu 22:05</p>
+<p class="date">Created: 2021-02-22 Mon 13:55</p>
 <p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
