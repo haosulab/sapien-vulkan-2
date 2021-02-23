@@ -21,6 +21,7 @@ void ShaderManager::processShadersInFolder(std::string const &folder) {
     throw std::runtime_error("[shader manager] " + folder +
                              " is not a directory");
   }
+
   if (!fs::is_regular_file(path / "gbuffer.vert")) {
     throw std::runtime_error("[shader manager] gbuffer.vert is required");
   }
@@ -34,24 +35,40 @@ void ShaderManager::processShadersInFolder(std::string const &folder) {
 
   bool hasDeferred = fs::is_regular_file(path / "deferred.vert") &&
                      fs::is_regular_file(path / "deferred.frag");
-
   mAllPasses = {};
-  // load gbuffer pass
-  auto gbufferPass = std::make_shared<GbufferPassParser>();
-  gbufferPass->setName("Gbuffer");
-  if (!hasDeferred) {
-    gbufferPass->enableAlphaBlend(true);
-  }
-  mAllPasses.push_back(gbufferPass);
-  mPassIndex[gbufferPass] = mAllPasses.size() - 1;
 
-  std::string vsFile = (path / "gbuffer.vert").string();
-  std::string fsFile = (path / "gbuffer.frag").string();
-  futures.push_back(gbufferPass->loadGLSLFilesAsync(vsFile, fsFile));
+  mNumGbufferPasses = 0;
+  for (const auto &entry : fs::directory_iterator(path)) {
+    std::string filename = entry.path().filename().string();
+    if (filename.substr(0, 7) == "gbuffer" &&
+        filename.substr(filename.length() - 5) == ".frag") {
+      mNumGbufferPasses++;
+    }
+  }
+
+  std::shared_ptr<GbufferPassParser> firstGbufferPass;
+  for (uint32_t i = 0; i < mNumGbufferPasses; ++i) {
+    std::string suffix = i == 0 ? "" : std::to_string(i);
+    // load gbuffer pass
+    auto gbufferPass = std::make_shared<GbufferPassParser>();
+    if (i == 0) {
+      firstGbufferPass = gbufferPass;
+    }
+    if (!hasDeferred || i != 0) {
+      gbufferPass->enableAlphaBlend(true);
+    }
+    gbufferPass->setName("Gbuffer" + suffix);
+    mAllPasses.push_back(gbufferPass);
+    mPassIndex[gbufferPass] = mAllPasses.size() - 1;
+
+    std::string vsFile = (path / ("gbuffer" + suffix + ".vert")).string();
+    std::string fsFile = (path / ("gbuffer" + suffix + ".frag")).string();
+    futures.push_back(gbufferPass->loadGLSLFilesAsync(vsFile, fsFile));
+  }
 
   // load deferred pass
-  vsFile = (path / "deferred.vert").string();
-  fsFile = (path / "deferred.frag").string();
+  std::string vsFile = (path / "deferred.vert").string();
+  std::string fsFile = (path / "deferred.frag").string();
   if (fs::is_regular_file(vsFile) && fs::is_regular_file(fsFile)) {
     auto deferredPass = std::make_shared<DeferredPassParser>();
     deferredPass->setName("Deferred");
@@ -83,7 +100,7 @@ void ShaderManager::processShadersInFolder(std::string const &folder) {
 
   GLSLCompiler::FinalizeProcess();
 
-  mShaderConfig->vertexLayout = gbufferPass->getVertexInputLayout();
+  mShaderConfig->vertexLayout = firstGbufferPass->getVertexInputLayout();
 
   populateShaderConfig();
   prepareRenderTargetFormats();

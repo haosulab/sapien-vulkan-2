@@ -30,10 +30,14 @@ class ShaderManager {
 
   std::vector<vk::UniqueDescriptorSetLayout> mInputTextureLayouts;
 
+  uint32_t mNumGbufferPasses;
+
 public:
   ShaderManager(std::shared_ptr<RendererConfig> config = nullptr);
 
   std::shared_ptr<RendererConfig> getConfig() const { return mRenderConfig; }
+
+  inline uint32_t getNumGbufferPasses() const { return mNumGbufferPasses; }
 
   inline vk::DescriptorSetLayout getSceneDescriptorSetLayout() const {
     return mSceneLayout.get();

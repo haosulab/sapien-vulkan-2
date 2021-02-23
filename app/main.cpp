@@ -35,8 +35,8 @@ int main() {
   svulkan2::core::Context context(VK_API_VERSION_1_1, true, 5000, 5000, 4);
 
   auto config = std::make_shared<RendererConfig>();
-  // config->shaderDir = "../shader/full";
-  config->shaderDir = "../shader/forward";
+  config->shaderDir = "../shader/full";
+  // config->shaderDir = "../shader/forward";
   config->colorFormat = vk::Format::eR8G8B8A8Unorm;
   renderer::Renderer renderer(context, config);
 
@@ -55,6 +55,15 @@ int main() {
       "../test/assets/scene/sponza/sponza.obj");
   scene.addObject(model).setTransform(
       scene::Transform{.scale = {0.001, 0.001, 0.001}});
+
+  auto dragon = context.getResourceManager().CreateModelFromFile("../test/assets/scene/dragon/dragon.obj");
+  auto &dragonObj = scene.addObject(dragon);
+  dragonObj.setTransform({.position={0,0.3,0}, .scale={0.3, 0.3, 0.3}});
+  dragonObj.setTransparency(0.5);
+
+  auto &dragonObj2 = scene.addObject(dragon);
+  dragonObj2.setTransform({.position={0.1,0.3,0}, .scale={0.3, 0.3, 0.3}});
+  dragonObj2.setShadingMode(2);
 
   auto &cameraNode = scene.addCamera();
   cameraNode.setPerspectiveParameters(0.05, 10, 1, 4.f / 3);
@@ -89,7 +98,13 @@ int main() {
   model->loadAsync().get();
   model->getShapes()[0]->material->uploadToDevice(context);
 
+  int count = 0;
   while (!window->isClosed()) {
+    count += 1;
+    
+    float T = std::abs((count % 120 - 60) / 60.f) - 1e-3;
+    dragonObj.setTransparency(T);
+
     if (gSwapchainRebuild) {
       gSwapchainRebuild = false;
       context.getDevice().waitIdle();

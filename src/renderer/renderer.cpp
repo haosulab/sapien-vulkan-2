@@ -160,6 +160,34 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
   prepareSceneBuffer();
   prepareCameaBuffer();
 
+  // classify shapes
+  uint32_t numGbufferPasses = mShaderManager->getNumGbufferPasses();
+  std::vector<std::vector<std::shared_ptr<resource::SVShape>>> shapes(
+      numGbufferPasses);
+
+  std::vector<std::vector<uint32_t>> shapeObjectIndex(numGbufferPasses);
+
+  int defaultShadingMode = 0;
+  int transparencyShadingMode = numGbufferPasses > 1 ? 1 : 0;
+
+  for (uint32_t objectIndex = 0; objectIndex < objects.size(); ++objectIndex) {
+    int shadingMode = objects[objectIndex]->getShadingMode();
+    if (static_cast<uint32_t>(shadingMode) >= shapes.size()) {
+      shadingMode = defaultShadingMode;
+    }
+    if (shadingMode == 0 && objects[objectIndex]->getTransparency() != 0) {
+      shadingMode = transparencyShadingMode;
+    }
+    for (auto shape : objects[objectIndex]->getModel()->getShapes()) {
+      int shapeShadingMode = shadingMode;
+      if (shape->material->getOpacity() != 1 && shadingMode == 0) {
+        shapeShadingMode = transparencyShadingMode;
+      }
+      shapes[shapeShadingMode].push_back(shape);
+      shapeObjectIndex[shapeShadingMode].push_back(objectIndex);
+    }
+  }
+
   // load objects to CPU, if not already loaded
   std::vector<std::future<void>> futures;
   for (auto obj : objects) {
@@ -190,6 +218,8 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
         *mObjectBuffers[i],
         *mShaderManager->getShaderConfig()->objectBufferLayout);
   }
+
+  uint32_t gbufferIndex = 0;
 
   auto passes = mShaderManager->getAllPasses();
   vk::Viewport viewport{
@@ -247,29 +277,31 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
       }
     }
 
-    if (objectBinding >= 0) {
-      uint32_t i = 0;
-      for (auto obj : objects) {
-        commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
-                                         pass->getPipelineLayout(), 1,
-                                         mObjectSet[i++].get(), nullptr);
-        auto shapes = obj->getModel()->getShapes();
-        for (auto shape : shapes) {
-          if (materialBinding >= 0) {
-            commandBuffer.bindDescriptorSets(
-                vk::PipelineBindPoint::eGraphics, pass->getPipelineLayout(),
-                materialBinding, shape->material->getDescriptorSet(), nullptr);
-          }
-          commandBuffer.bindVertexBuffers(
-              0, shape->mesh->getVertexBuffer().getVulkanBuffer(),
-              std::vector<vk::DeviceSize>(1, 0));
-          commandBuffer.bindIndexBuffer(
-              shape->mesh->getIndexBuffer().getVulkanBuffer(), 0,
-              vk::IndexType::eUint32);
-          commandBuffer.drawIndexed(shape->mesh->getIndexCount(), 1, 0, 0, 0);
+    if (auto gbufferPass =
+            std::dynamic_pointer_cast<shader::GbufferPassParser>(pass)) {
+      for (uint32_t i = 0; i < shapes[gbufferIndex].size(); ++i) {
+        auto shape = shapes[gbufferIndex][i];
+        uint32_t objectIndex = shapeObjectIndex[gbufferIndex][i];
+        if (objectBinding >= 0) {
+          commandBuffer.bindDescriptorSets(
+              vk::PipelineBindPoint::eGraphics, pass->getPipelineLayout(),
+              objectBinding, mObjectSet[objectIndex].get(), nullptr);
         }
+        if (materialBinding >= 0) {
+          commandBuffer.bindDescriptorSets(
+              vk::PipelineBindPoint::eGraphics, pass->getPipelineLayout(),
+              materialBinding, shape->material->getDescriptorSet(), nullptr);
+        }
+        commandBuffer.bindVertexBuffers(
+            0, shape->mesh->getVertexBuffer().getVulkanBuffer(),
+            std::vector<vk::DeviceSize>(1, 0));
+        commandBuffer.bindIndexBuffer(
+            shape->mesh->getIndexBuffer().getVulkanBuffer(), 0,
+            vk::IndexType::eUint32);
+        commandBuffer.drawIndexed(shape->mesh->getIndexCount(), 1, 0, 0, 0);
       }
-    } else {
+      gbufferIndex++;
+    } else { // TODO: shadow pass
       commandBuffer.draw(3, 1, 0, 0);
     }
     commandBuffer.endRenderPass();

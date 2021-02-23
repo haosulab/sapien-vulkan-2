@@ -19,6 +19,7 @@ public:
     return mDescriptorSet.get();
   }
   virtual void uploadToDevice(core::Context &context) = 0;
+  virtual float getOpacity() const = 0;
   virtual ~SVMaterial() = default;
 };
 
@@ -51,6 +52,7 @@ public:
                    std::shared_ptr<SVTexture> metallicTexture);
 
   virtual void uploadToDevice(core::Context &context) override;
+  inline float getOpacity() const override { return mBuffer.baseColor.a; }
 };
 
 class SVSpecularMaterial : public SVMaterial {
@@ -78,6 +80,7 @@ public:
                    std::shared_ptr<SVTexture> normalTexture);
 
   virtual void uploadToDevice(core::Context &context) override;
+  inline float getOpacity() const override { return mBuffer.diffuse.a; }
 };
 
 } // namespace resource

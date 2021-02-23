@@ -52,6 +52,11 @@ public:
   void updateGlobalModelMatrixRecursive();
   std::vector<class Object *> getObjectsRecursive() const;
 
+  Node(Node const &other) = delete;
+  Node &operator=(Node const &other) = delete;
+  Node(Node &&other) = delete;
+  Node &operator=(Node &&other) = delete;
+
   virtual ~Node() = default;
 };
 
