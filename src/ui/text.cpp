@@ -9,9 +9,9 @@ void InputText::build() {
 }
 
 void InputFloat::build() { ImGui::InputFloat(mLabel.c_str(), &mValue); }
-void InputFloat2::build() { ImGui::InputFloat2(mLabel.c_str(), mValue.data()); }
-void InputFloat3::build() { ImGui::InputFloat3(mLabel.c_str(), mValue.data()); }
-void InputFloat4::build() { ImGui::InputFloat4(mLabel.c_str(), mValue.data()); }
+void InputFloat2::build() { ImGui::InputFloat2(mLabel.c_str(), &mValue[0]); }
+void InputFloat3::build() { ImGui::InputFloat3(mLabel.c_str(), &mValue[0]); }
+void InputFloat4::build() { ImGui::InputFloat4(mLabel.c_str(), &mValue[0]); }
 
 } // namespace ui
 } // namespace svulkan2

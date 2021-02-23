@@ -56,13 +56,15 @@ int main() {
   scene.addObject(model).setTransform(
       scene::Transform{.scale = {0.001, 0.001, 0.001}});
 
-  auto dragon = context.getResourceManager().CreateModelFromFile("../test/assets/scene/dragon/dragon.obj");
+  auto dragon = context.getResourceManager().CreateModelFromFile(
+      "../test/assets/scene/dragon/dragon.obj");
   auto &dragonObj = scene.addObject(dragon);
-  dragonObj.setTransform({.position={0,0.3,0}, .scale={0.3, 0.3, 0.3}});
+  dragonObj.setTransform({.position = {0, 0.3, 0}, .scale = {0.3, 0.3, 0.3}});
   dragonObj.setTransparency(0.5);
 
   auto &dragonObj2 = scene.addObject(dragon);
-  dragonObj2.setTransform({.position={0.1,0.3,0}, .scale={0.3, 0.3, 0.3}});
+  dragonObj2.setTransform(
+      {.position = {0.1, 0.3, 0}, .scale = {0.3, 0.3, 0.3}});
   dragonObj2.setShadingMode(2);
 
   auto &cameraNode = scene.addCamera();
@@ -86,14 +88,27 @@ int main() {
 
   auto uiWindow =
       ui::Widget::Create<ui::Window>()
-          ->Size(400, 400)
+          ->Size({400, 400})
           ->Name("main window")
           ->append(ui::Widget::Create<ui::DisplayText>()->Text("Hello!"))
           ->append(ui::Widget::Create<ui::InputText>()->Label("Input##1"))
           ->append(ui::Widget::Create<ui::InputFloat>()->Label("Input##2"))
           ->append(ui::Widget::Create<ui::InputFloat2>()->Label("Input##3"))
           ->append(ui::Widget::Create<ui::InputFloat3>()->Label("Input##4"))
-          ->append(ui::Widget::Create<ui::InputFloat4>()->Label("Input##5"));
+          ->append(ui::Widget::Create<ui::InputFloat4>()->Label("Input##5"))
+          ->append(ui::Widget::Create<ui::SliderFloat>()
+                       ->Label("SliderFloat")
+                       ->Min(10)
+                       ->Max(20)
+                       ->Value(15))
+          ->append(ui::Widget::Create<ui::SliderAngle>()
+                       ->Label("SliderAngle")
+                       ->Min(1)
+                       ->Max(90)
+                       ->Value(1))
+          ->append(ui::Widget::Create<ui::Checkbox>()
+                       ->Label("Checkbox")
+                       ->Checked(true));
 
   model->loadAsync().get();
   model->getShapes()[0]->material->uploadToDevice(context);
@@ -101,7 +116,7 @@ int main() {
   int count = 0;
   while (!window->isClosed()) {
     count += 1;
-    
+
     float T = std::abs((count % 120 - 60) / 60.f) - 1e-3;
     dragonObj.setTransparency(T);
 

@@ -7,25 +7,39 @@
 namespace svulkan2 {
 namespace ui {
 
+#define UI_CLASS(CLASS) class CLASS : public Widget
+
+#define UI_DECLARE_APPEND(CLASS)                                               \
+public:                                                                        \
+  inline std::shared_ptr<CLASS> append(std::shared_ptr<Widget> child) {        \
+    mChildren.push_back(child);                                                \
+    child->setParent(shared_from_this());                                      \
+    return std::static_pointer_cast<CLASS>(shared_from_this());                \
+  }
+
+#define UI_ATTRIBUTE(CLASS, TYPE, NAME)                                        \
+private:                                                                       \
+  TYPE m##NAME{};                                                              \
+                                                                               \
+public:                                                                        \
+  inline std::shared_ptr<CLASS> NAME(TYPE value) {                             \
+    m##NAME = value;                                                           \
+    return std::static_pointer_cast<CLASS>(shared_from_this());                \
+  }
+
 class Widget : public std::enable_shared_from_this<Widget> {
 protected:
-  std::string mName;
   std::weak_ptr<Widget> mParent;
   std::vector<std::shared_ptr<Widget>> mChildren;
 
 public:
   template <typename T> static std::shared_ptr<T> Create() {
-    static_assert(std::is_convertible<T*, Widget*>(),
+    static_assert(std::is_convertible<T *, Widget *>(),
                   "Only widgets can be created.");
     return std::make_shared<T>();
   }
 
-  std::shared_ptr<Widget> Name(std::string const &name);
-  void setParent(std::shared_ptr<Widget> parent);
-
-  /** add child */
-  // virtual std::shared_ptr<Widget> operator+(std::shared_ptr<Widget> child);
-  virtual std::shared_ptr<Widget> append(std::shared_ptr<Widget> child);
+  void setParent(std::weak_ptr<Widget> parent);
 
   /** build imgui */
   virtual void build() = 0;

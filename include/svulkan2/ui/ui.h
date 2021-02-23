@@ -1,3 +1,5 @@
 #include "widget.h"
 #include "window.h"
 #include "text.h"
+#include "slider.h"
+#include "checkbox.h"
