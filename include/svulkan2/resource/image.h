@@ -45,7 +45,6 @@ public:
 
   /** load the image to host memory */
   std::future<void> loadAsync();
-  void load();
 
   inline core::Image *getDeviceImage() const { return mImage.get(); }
 

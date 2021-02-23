@@ -13,6 +13,7 @@ SVResourceManager::SVResourceManager() {
 std::shared_ptr<SVImage>
 SVResourceManager::CreateImageFromFile(std::string const &filename,
                                        uint32_t mipLevels) {
+  std::lock_guard<std::mutex> lock(mCreateLock);
   std::string path = fs::canonical(filename).string();
   SVImageDescription desc = {.source = SVImageDescription::SourceType::eFILE,
                              .filename = path,
@@ -35,6 +36,7 @@ std::shared_ptr<SVTexture> SVResourceManager::CreateTextureFromFile(
     std::string const &filename, uint32_t mipLevels, vk::Filter magFilter,
     vk::Filter minFilter, vk::SamplerAddressMode addressModeU,
     vk::SamplerAddressMode addressModeV) {
+  std::lock_guard<std::mutex> lock(mCreateLock);
   std::string path = fs::canonical(filename).string();
 
   SVTextureDescription desc = {.source =
@@ -63,6 +65,7 @@ std::shared_ptr<SVTexture> SVResourceManager::CreateTextureFromFile(
 
 std::shared_ptr<SVModel>
 SVResourceManager::CreateModelFromFile(std::string const &filename) {
+  std::lock_guard<std::mutex> lock(mCreateLock);
   std::string path = fs::canonical(filename).string();
 
   ModelDescription desc = {.source = ModelDescription::SourceType::eFILE,
@@ -107,6 +110,7 @@ void SVResourceManager::setVertexLayout(
 }
 
 void SVResourceManager::clearCachedResources() {
+  std::lock_guard<std::mutex> lock(mCreateLock);
   mModelRegistry.clear();
   mTextureRegistry.clear();
   mImageRegistry.clear();

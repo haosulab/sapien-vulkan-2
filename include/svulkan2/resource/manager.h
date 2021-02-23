@@ -22,6 +22,8 @@ class SVResourceManager {
 
   uint32_t mDefaultMipLevels{1};
 
+  std::mutex mCreateLock{};
+
 public:
   SVResourceManager();
   ~SVResourceManager();
