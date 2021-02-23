@@ -55,8 +55,8 @@ target_link_libraries(svulkan2 ${ASSIMP_LIBRARIES} glfw3 dl pthread Vulkan::Vulk
 
 file (GLOB_RECURSE TEST_SRC "test/*.cpp")
 
-add_executable(main app/main.cpp)
-target_link_libraries(main svulkan2 stdc++fs)
+add_executable(svulkan2_main app/main.cpp)
+target_link_libraries(svulkan2_main svulkan2 stdc++fs)
 
-add_executable(test ${TEST_SRC})
-target_link_libraries(test svulkan2 stdc++fs gtest_main)
+add_executable(svulkan2_test ${TEST_SRC})
+target_link_libraries(svulkan2_test svulkan2 stdc++fs gtest_main)
