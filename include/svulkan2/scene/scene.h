@@ -47,7 +47,7 @@ public:
 
   void prepareDeviceResources(core::Context &context);
 
-  inline void setAmbeintLight(glm::vec4 const &color) { mAmbientLight = color; }
+  inline void setAmbientLight(glm::vec4 const &color) { mAmbientLight = color; }
   inline glm::vec4 getAmbeintLight() const { return mAmbientLight; };
 
   std::vector<Object *> getObjects();

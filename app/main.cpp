@@ -49,7 +49,7 @@ int main() {
   auto &dl = scene.addDirectionalLight();
   dl.setDirection({0, -1, -1});
   dl.setColor({1, 1, 1, 1});
-  scene.setAmbeintLight({0.1, 0.1, 0.1, 0});
+  scene.setAmbientLight({0.1, 0.1, 0.1, 0});
 
   auto model = context.getResourceManager().CreateModelFromFile(
       "../test/assets/scene/sponza/sponza.obj");
