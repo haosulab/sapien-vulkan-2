@@ -48,5 +48,15 @@ std::vector<Object *> Node::getObjectsRecursive() const {
   return result;
 }
 
+glm::mat4 Node::computeWorldModelMatrix() const {
+  glm::mat4 localMatrix = glm::translate(glm::mat4(1), mTransform.position) *
+                          glm::toMat4(mTransform.rotation) *
+                          glm::scale(glm::mat4(1), mTransform.scale);
+  if (!mParent) {
+    return localMatrix;
+  }
+  return mParent->computeWorldModelMatrix() * localMatrix;
+}
+
 } // namespace scene
 } // namespace svulkan2

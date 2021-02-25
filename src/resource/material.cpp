@@ -41,6 +41,25 @@ static void updateDescriptorSets(
   device.updateDescriptorSets(writeDescriptorSets, nullptr);
 }
 
+void SVMetallicMaterial::setBaseColor(glm::vec4 baseColor) {
+  mBuffer.baseColor = baseColor;
+}
+glm::vec4 SVMetallicMaterial::getBaseColor() const { return mBuffer.baseColor; }
+void SVMetallicMaterial::setRoughness(float roughness) {
+  mBuffer.roughness = roughness;
+}
+float SVMetallicMaterial::getRoughness() const { return mBuffer.roughness; }
+
+void SVMetallicMaterial::setFresnel(float fresnel) {
+  mBuffer.fresnel = fresnel;
+}
+float SVMetallicMaterial::getFresnel() const { return mBuffer.fresnel; }
+
+void SVMetallicMaterial::setMetallic(float metallic) {
+  mBuffer.metallic = metallic;
+}
+float SVMetallicMaterial::getMetallic() const { return mBuffer.metallic; }
+
 void SVMetallicMaterial::setTextures(
     std::shared_ptr<SVTexture> baseColorTexture,
     std::shared_ptr<SVTexture> roughnessTexture,

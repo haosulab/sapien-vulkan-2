@@ -52,6 +52,9 @@ public:
   void updateGlobalModelMatrixRecursive();
   std::vector<class Object *> getObjectsRecursive() const;
 
+  /** force compute current model matrix */
+  glm::mat4 computeWorldModelMatrix() const;
+
   Node(Node const &other) = delete;
   Node &operator=(Node const &other) = delete;
   Node(Node &&other) = delete;

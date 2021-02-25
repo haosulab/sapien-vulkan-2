@@ -22,11 +22,12 @@ public:
   SVMesh();
 
   void setIndices(std::vector<uint32_t> const &indices);
-  std::vector<uint32_t> const &getIndices(std::vector<uint32_t>) const;
+  std::vector<uint32_t> const &getIndices() const;
 
   void setVertexAttribute(std::string const &name,
                           std::vector<float> const &attrib);
   std::vector<float> const &getVertexAttribute(std::string const &name) const;
+  bool hasVertexAttribute(std::string const &name) const;
 
   void uploadToDevice(core::Context &context);
   void removeFromDevice();

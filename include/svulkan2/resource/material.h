@@ -46,6 +46,18 @@ public:
     mBuffer = {baseColor, fresnel, roughness, metallic, transparency, 0};
   }
 
+  void setBaseColor(glm::vec4 baseColor);
+  glm::vec4 getBaseColor() const;
+
+  void setRoughness(float roughness);
+  float getRoughness() const;
+
+  void setFresnel(float fresnel);
+  float getFresnel() const;
+
+  void setMetallic(float metallic);
+  float getMetallic() const;
+
   void setTextures(std::shared_ptr<SVTexture> baseColorTexture,
                    std::shared_ptr<SVTexture> roughnessTexture,
                    std::shared_ptr<SVTexture> normalTexture,

@@ -26,7 +26,7 @@ void SVMesh::setIndices(std::vector<uint32_t> const &indices) {
   mIndexCount = indices.size();
 }
 
-std::vector<uint32_t> const &SVMesh::getIndices(std::vector<uint32_t>) const {
+std::vector<uint32_t> const &SVMesh::getIndices() const {
   return mIndices;
 }
 
@@ -42,6 +42,10 @@ SVMesh::getVertexAttribute(std::string const &name) const {
     throw std::runtime_error("attribute " + name + " does not exist on vertex");
   }
   return mAttributes.at(name);
+}
+
+bool SVMesh::hasVertexAttribute(std::string const &name) const {
+  return mAttributes.contains(name);
 }
 
 void SVMesh::uploadToDevice(core::Context &context) {
