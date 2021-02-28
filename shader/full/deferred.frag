@@ -2,6 +2,9 @@
 
 layout (constant_id = 0) const int NUM_DIRECTIONAL_LIGHTS = 3;
 layout (constant_id = 1) const int NUM_POINT_LIGHTS = 10;
+layout (constant_id = 2) const int NUM_DIRECTIONAL_LIGHT_SHADOWS = 3;
+layout (constant_id = 3) const int NUM_POINT_LIGHT_SHADOWS = 10;
+layout (constant_id = 4) const int NUM_CUSTOM_LIGHT_SHADOWS = 1;
 
 struct PointLight {
   vec4 position;
@@ -11,11 +14,32 @@ struct DirectionalLight {
   vec4 direction;
   vec4 emission;
 };
+
 layout(set = 0, binding = 0) uniform SceneBuffer {
   vec4 ambientLight;
   DirectionalLight directionalLights[NUM_DIRECTIONAL_LIGHTS > 0 ? NUM_DIRECTIONAL_LIGHTS : 1];
   PointLight pointLights[NUM_POINT_LIGHTS > 0 ? NUM_POINT_LIGHTS : 1];
 } sceneBuffer;
+
+struct LightBuffer {
+  mat4 viewMatrix;
+  mat4 viewMatrixInverse;
+  mat4 projectionMatrix;
+  mat4 projectionMatrixInverse;
+};
+
+layout(set = 0, binding = 1) uniform ShadowBuffer {
+  LightBuffer directionalLightBuffers[NUM_DIRECTIONAL_LIGHT_SHADOWS > 0 ? NUM_DIRECTIONAL_LIGHT_SHADOWS : 1];
+  LightBuffer pointLightBuffers[6 * (NUM_POINT_LIGHT_SHADOWS > 0 ? NUM_POINT_LIGHT_SHADOWS : 1)];
+  LightBuffer customLightBuffers[NUM_CUSTOM_LIGHT_SHADOWS > 0 ? NUM_CUSTOM_LIGHT_SHADOWS : 1];
+} shadowBuffer;
+
+// layout(set = 0, binding = 2) uniform samplerCube samplerPointLightDepths[NUM_POINT_LIGHT_SHADOWS > 0 ? NUM_POINT_LIGHT_SHADOWS : 1];
+// layout(set = 0, binding = 3) uniform sampler2D samplerDirectionalLightDepths[NUM_DIRECTIONAL_LIGHT_SHADOWS > 0 ? NUM_DIRECTIONAL_LIGHT_SHADOWS : 1];
+// layout(set = 0, binding = 4) uniform sampler2D samplerCustomLightDepths[NUM_CUSTOM_LIGHT_SHADOWS > 0 ? NUM_CUSTOM_LIGHT_SHADOWS : 1];
+layout(set = 0, binding = 2) uniform samplerCubeArray samplerPointLightDepths;
+layout(set = 0, binding = 3) uniform sampler2DArray samplerDirectionalLightDepths;
+layout(set = 0, binding = 4) uniform sampler2DArray samplerCustomLightDepths;
 
 layout(set = 1, binding = 0) uniform CameraBuffer {
   mat4 viewMatrix;
@@ -43,7 +67,7 @@ vec3 getBackgroundColor(vec3 texcoord) {
 }
 
 float diffuse(float NoL) {
-  return max(NoL, 0.f) / 3.141592653589793f;
+  return NoL / 3.141592653589793f;
 }
 
 vec3 ggx(float NoL, float NoV, float NoH, float VoH, float roughness, vec3 fresnel) {
@@ -63,6 +87,47 @@ vec3 ggx(float NoL, float NoV, float NoH, float VoH, float roughness, vec3 fresn
   return spec * NoL;
 }
 
+vec3 computeDirectionalLight(int index, vec3 normal, vec3 camDir, vec3 diffuseAlbedo, float roughness, vec3 fresnel) {
+  vec3 lightDir = -normalize((cameraBuffer.viewMatrix *
+                              vec4(sceneBuffer.directionalLights[index].direction.xyz, 0)).xyz);
+
+  vec3 H = lightDir + camDir;
+  float H2 = dot(H, H);
+  H = H2 < 1e-6 ? vec3(0) : normalize(H);
+  float NoH = clamp(dot(normal, H), 1e-6, 1);
+  float VoH = clamp(dot(camDir, H), 1e-6, 1);
+  float NoL = clamp(dot(normal, lightDir), 0, 1);
+  float NoV = clamp(dot(normal, camDir), 1e-6, 1);
+
+  vec3 color = diffuseAlbedo * sceneBuffer.directionalLights[index].emission.rgb * diffuse(NoL);
+  color += sceneBuffer.directionalLights[index].emission.rgb * ggx(NoL, NoV, NoH, VoH, roughness, fresnel);
+  return color;
+}
+
+vec3 computePointLight(int index, vec3 l, vec3 normal, vec3 camDir, vec3 diffuseAlbedo, float roughness, vec3 fresnel) {
+  float d = max(length(l), 0.0001);
+
+  if (length(l) == 0) {
+    return vec3(0.f);
+  }
+
+  vec3 lightDir = normalize(l);
+
+  vec3 H = lightDir + camDir;
+  float H2 = dot(H, H);
+  H = H2 < 1e-6 ? vec3(0) : normalize(H);
+  float NoH = dot(normal, H);
+  float VoH = dot(camDir, H);
+  float NoL = dot(normal, lightDir);
+  float NoV = dot(normal, camDir);
+
+  vec3 color = diffuseAlbedo * sceneBuffer.pointLights[index].emission.rgb * diffuse(NoL) / d / d;
+  color += sceneBuffer.pointLights[index].emission.rgb * ggx(NoL, NoV, NoH, VoH, roughness, fresnel) / d / d;
+  return color;
+}
+
+
+const float eps = 1e-2;
 void main() {
   vec3 albedo = texture(samplerAlbedo, inUV).xyz;
   vec3 frm = texture(samplerSpecular, inUV).xyz;
@@ -70,7 +135,7 @@ void main() {
   float roughness = frm.y;
   float metallic = frm.z;
 
-  vec3 normal = texture(samplerNormal, inUV).xyz * 2 - 1;
+  vec3 normal = normalize(texture(samplerNormal, inUV).xyz * 2 - 1);
   float depth = texture(samplerGbufferDepth, inUV).x;
   vec4 csPosition = cameraBuffer.projectionMatrixInverse * (vec4(inUV * 2 - 1, depth, 1));
   csPosition /= csPosition.w;
@@ -81,47 +146,43 @@ void main() {
   vec3 fresnel = specular * (1 - metallic) + albedo * metallic;
 
   vec3 color = vec3(0.f);
-  for (int i = 0; i < NUM_POINT_LIGHTS; i++) {
+  for (int i = 0; i < NUM_POINT_LIGHT_SHADOWS; ++i) {
     vec3 pos = world2camera(vec4(sceneBuffer.pointLights[i].position.xyz, 1.f)).xyz;
     vec3 l = pos - csPosition.xyz;
-    float d = max(length(l), 0.0001);
 
-    if (length(l) == 0) {
-      continue;
-    }
+    vec3 wsl = vec3(cameraBuffer.viewMatrixInverse * vec4(l - normal * eps, 0));
 
-    vec3 lightDir = normalize(l);
+    mat4 shadowProj = shadowBuffer.pointLightBuffers[6 * i].projectionMatrix;
+    vec3 v = abs(wsl);
+    vec4 p = shadowProj * vec4(0, 0, -max(max(v.x, v.y), v.z), 1);
+    float pixelDepth = p.z / p.w;
+    float shadowDepth = texture(samplerPointLightDepths, vec4(-wsl, i)).x;
 
-    vec3 H = lightDir + camDir;
-    float H2 = dot(H, H);
-    H = H2 < 1e-6 ? vec3(0) : normalize(H);
-    float NoH = dot(normal, H);
-    float VoH = dot(camDir, H);
-    float NoL = dot(normal, lightDir);
-    float NoV = dot(normal, camDir);
-
-    color += diffuseAlbedo * sceneBuffer.pointLights[i].emission.rgb * diffuse(NoL) / d / d;
-    color += sceneBuffer.pointLights[i].emission.rgb * ggx(NoL, NoV, NoH, VoH, roughness, fresnel) / d / d;
+    float visibility = step(pixelDepth - shadowDepth, 0);
+    color += visibility * computePointLight(i, l, normal, camDir, diffuseAlbedo, roughness, fresnel);
   }
 
-  for (int i = 0; i < NUM_DIRECTIONAL_LIGHTS; ++i) {
-    if (length(sceneBuffer.directionalLights[i].direction.xyz) == 0) {
-      continue;
-    }
+  for (int i = NUM_POINT_LIGHT_SHADOWS; i < NUM_POINT_LIGHTS; i++) {
+    vec3 pos = world2camera(vec4(sceneBuffer.pointLights[i].position.xyz, 1.f)).xyz;
+    vec3 l = pos - csPosition.xyz;
+    color += computePointLight(i, l, normal, camDir, diffuseAlbedo, roughness, fresnel);
+  }
 
-    vec3 lightDir = -normalize((cameraBuffer.viewMatrix *
-                                vec4(sceneBuffer.directionalLights[i].direction.xyz, 0)).xyz);
+  for (int i = 0; i < NUM_DIRECTIONAL_LIGHT_SHADOWS; ++i) {
+    mat4 shadowView = shadowBuffer.directionalLightBuffers[i].viewMatrix;
+    mat4 shadowProj = shadowBuffer.directionalLightBuffers[i].projectionMatrix;
 
-    vec3 H = lightDir + camDir;
-    float H2 = dot(H, H);
-    H = H2 < 1e-6 ? vec3(0) : normalize(H);
-    float NoH = dot(normal, H);
-    float VoH = dot(camDir, H);
-    float NoL = dot(normal, lightDir);
-    float NoV = dot(normal, camDir);
+    vec4 ssPosition = shadowView * cameraBuffer.viewMatrixInverse * vec4((csPosition.xyz + normal * eps), 1);
+    vec4 shadowMapCoord = shadowProj * ssPosition;
+    shadowMapCoord /= shadowMapCoord.w;
+    shadowMapCoord.xy = shadowMapCoord.xy * 0.5 + 0.5;
 
-    color += diffuseAlbedo * sceneBuffer.directionalLights[i].emission.rgb * diffuse(NoL);
-    color += sceneBuffer.directionalLights[i].emission.rgb * ggx(NoL, NoV, NoH, VoH, roughness, fresnel);
+    float visibility = step(shadowMapCoord.z - texture(samplerDirectionalLightDepths, vec3(shadowMapCoord.xy, i)).x, 0);
+    color += visibility * computeDirectionalLight(i, normal, camDir, diffuseAlbedo, roughness, fresnel);
+  }
+
+  for (int i = NUM_DIRECTIONAL_LIGHT_SHADOWS; i < NUM_DIRECTIONAL_LIGHTS; ++i) {
+    color += computeDirectionalLight(i, normal, camDir, diffuseAlbedo, roughness, fresnel);
   }
 
   color += sceneBuffer.ambientLight.rgb * albedo;

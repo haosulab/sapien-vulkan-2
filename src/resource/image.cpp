@@ -13,21 +13,23 @@ namespace fs = std::filesystem;
 namespace svulkan2 {
 namespace resource {
 
-std::shared_ptr<SVImage> SVImage::FromData(uint32_t width, uint32_t height,
-                                           uint32_t channels,
-                                           std::vector<uint8_t> const &data,
-                                           uint32_t mipLevels) {
+std::shared_ptr<SVImage>
+SVImage::FromData(uint32_t width, uint32_t height, uint32_t channels,
+                  std::vector<std::vector<uint8_t>> const &data,
+                  uint32_t mipLevels) {
   if (channels != 1 && channels != 4) {
     throw std::runtime_error(
         "failed to create image: image must have 1 or 4 channels");
   }
-  if (width * height * channels != data.size()) {
-    throw std::runtime_error("failed to create image: image dimension does "
-                             "not match image data size");
+  for (auto &d : data) {
+    if (width * height * channels != d.size()) {
+      throw std::runtime_error("failed to create image: image dimension does "
+                               "not match image data size");
+    }
   }
   auto image = std::shared_ptr<SVImage>(new SVImage);
   image->mDescription = {.source = SVImageDescription::SourceType::eCUSTOM,
-                         .filename = {},
+                         .filenames = {},
                          .mipLevels = mipLevels};
   image->mWidth = width;
   image->mHeight = height;
@@ -37,11 +39,47 @@ std::shared_ptr<SVImage> SVImage::FromData(uint32_t width, uint32_t height,
   return image;
 }
 
+std::shared_ptr<SVImage> SVImage::FromData(uint32_t width, uint32_t height,
+                                           uint32_t channels,
+                                           std::vector<uint8_t> const &data,
+                                           uint32_t mipLevels) {
+  return SVImage::FromData(width, height, channels,
+                           std::vector<std::vector<uint8_t>>{data}, mipLevels);
+  // if (channels != 1 && channels != 4) {
+  //   throw std::runtime_error(
+  //       "failed to create image: image must have 1 or 4 channels");
+  // }
+  // if (width * height * channels != data.size()) {
+  //   throw std::runtime_error("failed to create image: image dimension does "
+  //                            "not match image data size");
+  // }
+  // auto image = std::shared_ptr<SVImage>(new SVImage);
+  // image->mDescription = {.source = SVImageDescription::SourceType::eCUSTOM,
+  //                        .filenames = {},
+  //                        .mipLevels = mipLevels};
+  // image->mWidth = width;
+  // image->mHeight = height;
+  // image->mChannels = channels;
+  // image->mData = {data};
+  // image->mLoaded = true;
+  // return image;
+}
+
 std::shared_ptr<SVImage> SVImage::FromFile(std::string const &filename,
                                            uint32_t mipLevels) {
   auto image = std::shared_ptr<SVImage>(new SVImage);
   image->mDescription = {.source = SVImageDescription::SourceType::eFILE,
-                         .filename = filename,
+                         .filenames = {filename},
+                         .mipLevels = mipLevels};
+  return image;
+}
+
+std::shared_ptr<SVImage>
+SVImage::FromFile(std::vector<std::string> const &filenames,
+                  uint32_t mipLevels) {
+  auto image = std::shared_ptr<SVImage>(new SVImage);
+  image->mDescription = {.source = SVImageDescription::SourceType::eFILE,
+                         .filenames = filenames,
                          .mipLevels = mipLevels};
   return image;
 }
@@ -60,8 +98,11 @@ void SVImage::uploadToDevice(core::Context &context) {
       vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst |
           vk::ImageUsageFlagBits::eTransferSrc,
       VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, vk::SampleCountFlagBits::e1,
-      mDescription.mipLevels);
-  mImage->upload(mData.data(), mData.size() * sizeof(uint8_t));
+      mDescription.mipLevels, mData.size());
+  for (uint32_t layer = 0; layer < mData.size(); ++layer) {
+    mImage->upload(mData[layer].data(), mData[layer].size() * sizeof(uint8_t),
+                   layer);
+  }
   mOnDevice = true;
 }
 
@@ -72,7 +113,7 @@ void SVImage::removeFromDevice() {
 
 std::future<void> SVImage::loadAsync() {
   if (mLoaded) {
-    return std::async(std::launch::deferred, [](){});
+    return std::async(std::launch::deferred, []() {});
   }
   return std::async(std::launch::async, [this]() {
     std::lock_guard<std::mutex> lock(mLoadingMutex);
@@ -84,15 +125,25 @@ std::future<void> SVImage::loadAsync() {
           "failed to load image: the image is not specified with a file");
     }
 
-    int width, height, nrChannels;
-    unsigned char *data = stbi_load(mDescription.filename.c_str(), &width,
-                                    &height, &nrChannels, STBI_rgb_alpha);
-    mWidth = width;
-    mHeight = height;
+    mWidth = 0;
+    mHeight = 0;
     mChannels = 4;
-    mData = std::vector(data, data + width * height * 4);
-    stbi_image_free(data);
-    mLoaded = true;
+
+    for (uint32_t i = 0; i < mDescription.filenames.size(); ++i) {
+      int width, height, nrChannels;
+      unsigned char *data = stbi_load(mDescription.filenames[i].c_str(), &width,
+                                      &height, &nrChannels, STBI_rgb_alpha);
+      if (!data || (mWidth != 0 && mWidth != static_cast<uint32_t>(width)) ||
+          (mHeight != 0 && mHeight != static_cast<uint32_t>(height))) {
+        throw std::runtime_error(
+            "image load failed: provided files have different sizes");
+      }
+      mWidth = width;
+      mHeight = height;
+      mData.push_back(std::vector(data, data + width * height * 4));
+      stbi_image_free(data);
+      mLoaded = true;
+    }
   });
 }
 

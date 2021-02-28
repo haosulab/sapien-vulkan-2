@@ -28,9 +28,6 @@ layout(set = 2, binding = 4) uniform sampler2D metallicTexture;
 
 layout (constant_id = 0) const int NUM_DIRECTIONAL_LIGHTS = 3;
 layout (constant_id = 1) const int NUM_POINT_LIGHTS = 10;
-layout (constant_id = 2) const int NUM_DIRECTIONAL_LIGHT_SHADOWS = 3;
-layout (constant_id = 3) const int NUM_POINT_LIGHT_SHADOWS = 10;
-layout (constant_id = 4) const int NUM_CUSTOM_LIGHT_SHADOWS = 1;
 
 struct PointLight {
   vec4 position;
@@ -40,34 +37,11 @@ struct DirectionalLight {
   vec4 direction;
   vec4 emission;
 };
-
 layout(set = 3, binding = 0) uniform SceneBuffer {
   vec4 ambientLight;
   DirectionalLight directionalLights[NUM_DIRECTIONAL_LIGHTS > 0 ? NUM_DIRECTIONAL_LIGHTS : 1];
   PointLight pointLights[NUM_POINT_LIGHTS > 0 ? NUM_POINT_LIGHTS : 1];
 } sceneBuffer;
-
-struct LightBuffer {
-  mat4 viewMatrix;
-  mat4 viewMatrixInverse;
-  mat4 projectionMatrix;
-  mat4 projectionMatrixInverse;
-};
-
-layout(set = 3, binding = 1) uniform ShadowBuffer {
-  LightBuffer directionalLightBuffers[NUM_DIRECTIONAL_LIGHT_SHADOWS > 0 ? NUM_DIRECTIONAL_LIGHT_SHADOWS : 1];
-  LightBuffer pointLightBuffers[6 * (NUM_POINT_LIGHT_SHADOWS > 0 ? NUM_POINT_LIGHT_SHADOWS : 1)];
-  LightBuffer customLightBuffers[NUM_CUSTOM_LIGHT_SHADOWS > 0 ? NUM_CUSTOM_LIGHT_SHADOWS : 1];
-} shadowBuffer;
-
-// layout(set = 3, binding = 2) uniform samplerCube samplerPointLightDepths[NUM_POINT_LIGHT_SHADOWS > 0 ? NUM_POINT_LIGHT_SHADOWS : 1];
-// layout(set = 3, binding = 3) uniform sampler2D samplerDirectionalLightDepths[NUM_DIRECTIONAL_LIGHT_SHADOWS > 0 ? NUM_DIRECTIONAL_LIGHT_SHADOWS : 1];
-// layout(set = 3, binding = 4) uniform sampler2D samplerCustomLightDepths[NUM_CUSTOM_LIGHT_SHADOWS > 0 ? NUM_CUSTOM_LIGHT_SHADOWS : 1];
-
-layout(set = 3, binding = 2) uniform samplerCubeArray samplerPointLightDepths;
-layout(set = 3, binding = 3) uniform sampler2DArray samplerDirectionalLightDepths;
-layout(set = 3, binding = 4) uniform sampler2DArray samplerCustomLightDepths;
-
 
 vec4 world2camera(vec4 pos) {
   return cameraBuffer.viewMatrix * pos;

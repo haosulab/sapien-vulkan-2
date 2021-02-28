@@ -35,6 +35,7 @@ int main() {
   svulkan2::core::Context context(VK_API_VERSION_1_1, true, 5000, 5000, 4);
 
   auto config = std::make_shared<RendererConfig>();
+  // config->shaderDir = "../shader/full_no_shadow";
   config->shaderDir = "../shader/full";
   // config->shaderDir = "../shader/forward";
   config->colorFormat = vk::Format::eR8G8B8A8Unorm;
@@ -44,28 +45,56 @@ int main() {
 
   auto &pointLight = scene.addPointLight();
   pointLight.setTransform({.position = glm::vec4{0, 0.5, 0, 1}});
-  pointLight.setColor({0, 0, 1, 1});
+  pointLight.setColor({1, 0, 0, 1});
+  pointLight.enableShadow(true);
+  pointLight.setShadowParameters(0.05, 5);
+
+  auto &p2 = scene.addPointLight();
+  p2.setTransform({.position = glm::vec4{0.5, 0.5, 0, 1}});
+  p2.setColor({0, 1, 0, 1});
+  p2.enableShadow(true);
+  p2.setShadowParameters(0.05, 5);
+
+  auto &p3 = scene.addPointLight();
+  p3.setTransform({.position = glm::vec4{-0.5, 0.5, 0, 1}});
+  p3.setColor({0, 0, 1, 1});
+  p3.enableShadow(true);
+  p3.setShadowParameters(0.05, 5);
 
   auto &dl = scene.addDirectionalLight();
-  dl.setDirection({0, -1, -1});
+  dl.setTransform({.position = {0, 0, 0}});
+  dl.setDirection({0, -5, -1});
   dl.setColor({1, 1, 1, 1});
-  scene.setAmbientLight({0.1, 0.1, 0.1, 0});
+  dl.enableShadow(true);
+  dl.setShadowParameters(-5, 5, 3);
 
+  // auto &dl2 = scene.addDirectionalLight();
+  // dl2.setTransform({.position = {0, 0, 0}});
+  // dl2.setDirection({1, -1, 0.1});
+  // dl2.setColor({1, 0, 0, 1});
+  // dl2.enableShadow(true);
+  // dl2.setShadowParameters(-5, 5, 3);
+
+  // scene.setAmbientLight({0.3f, 0.3f, 0.3f, 0});
+
+  // auto model = context.getResourceManager().CreateModelFromFile(
+  //     "/home/fx/blender-data/test_shadow.obj");
+  // scene.addObject(model);
   auto model = context.getResourceManager().CreateModelFromFile(
       "../test/assets/scene/sponza/sponza.obj");
   scene.addObject(model).setTransform(
       scene::Transform{.scale = {0.001, 0.001, 0.001}});
 
-  auto dragon = context.getResourceManager().CreateModelFromFile(
-      "../test/assets/scene/dragon/dragon.obj");
-  auto &dragonObj = scene.addObject(dragon);
-  dragonObj.setTransform({.position = {0, 0.3, 0}, .scale = {0.3, 0.3, 0.3}});
-  dragonObj.setTransparency(0.5);
+  // auto dragon = context.getResourceManager().CreateModelFromFile(
+  //     "../test/assets/scene/dragon/dragon.obj");
+  // auto &dragonObj = scene.addObject(dragon);
+  // dragonObj.setTransform({.position = {0, 0.3, 0}, .scale = {0.3, 0.3,
+  // 0.3}}); dragonObj.setTransparency(0.5);
 
-  auto &dragonObj2 = scene.addObject(dragon);
-  dragonObj2.setTransform(
-      {.position = {0.1, 0.3, 0}, .scale = {0.3, 0.3, 0.3}});
-  dragonObj2.setShadingMode(2);
+  // auto &dragonObj2 = scene.addObject(dragon);
+  // dragonObj2.setTransform(
+  //     {.position = {0.1, 0.3, 0}, .scale = {0.3, 0.3, 0.3}});
+  // dragonObj2.setShadingMode(2);
 
   auto &cameraNode = scene.addCamera();
   cameraNode.setPerspectiveParameters(0.05, 10, 1, 4.f / 3);
@@ -110,15 +139,12 @@ int main() {
                        ->Label("Checkbox")
                        ->Checked(true));
 
-  model->loadAsync().get();
-  model->getShapes()[0]->material->uploadToDevice(context);
-
   int count = 0;
   while (!window->isClosed()) {
     count += 1;
 
-    float T = std::abs((count % 120 - 60) / 60.f) - 1e-3;
-    dragonObj.setTransparency(T);
+    // float T = std::abs((count % 120 - 60) / 60.f) - 1e-3;
+    // dragonObj.setTransparency(T);
 
     if (gSwapchainRebuild) {
       gSwapchainRebuild = false;
@@ -189,13 +215,11 @@ int main() {
       window->close();
     }
 
+    float r = 1e-2;
     if (window->isMouseKeyDown(1)) {
       auto [x, y] = window->getMouseDelta();
-      float r = 1e-3;
       controller.rotate(0, -r * y, -r * x);
     }
-
-    constexpr float r = 1e-3;
     if (window->isKeyDown('w')) {
       controller.move(r, 0, 0);
     }

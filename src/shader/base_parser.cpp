@@ -244,6 +244,10 @@ parseBuffer(spirv_cross::Compiler &compiler,
     uint32_t memberSize = compiler.get_declared_struct_member_size(type, i);
     DataType dataType = get_data_type(memberType);
 
+    if (memberOffset + memberSize > layout->size) {
+      layout->size = memberOffset + memberSize;
+    }
+
     if (dataType == eSTRUCT) {
       layout->elements[memberName] = {
           .name = memberName,
@@ -468,21 +472,31 @@ void verifySceneBuffer(std::shared_ptr<StructDataLayout> layout) {
 }
 
 void verifyLightSpaceBuffer(std::shared_ptr<StructDataLayout> layout) {
-  ASSERT(layout->elements.size() == 2, "lightSpace buffer should contain the "
-                                       "following elements: lightViewMatrix, "
-                                       "lightProjectionMatrix.");
+  ASSERT(layout->elements.size() == 4, "Space buffer should contain the "
+                                       "following elements: ViewMatrix, "
+                                       "ProjectionMatrix, ViewMatrixInverse, "
+                                       "ProjectionMatrixInverse");
 
   // required fields
-  ASSERT(CONTAINS(layout->elements, "lightViewMatrix"),
-         "camera buffer requires lightViewMatrix");
-  ASSERT(CONTAINS(layout->elements, "lightProjectionMatrix"),
-         "camera buffer requires lightProjectionMatrix");
+  ASSERT(CONTAINS(layout->elements, "viewMatrix"),
+         "camera buffer requires viewMatrix");
+  ASSERT(CONTAINS(layout->elements, "projectionMatrix"),
+         "camera buffer requires projectionMatrix");
+
+  ASSERT(CONTAINS(layout->elements, "viewMatrixInverse"),
+         "camera buffer requires viewMatrixInverse");
+  ASSERT(CONTAINS(layout->elements, "projectionMatrixInverse"),
+         "camera buffer requires projectionMatrixInverse");
 
   // required types
-  ASSERT(layout->elements["lightViewMatrix"].dtype == eFLOAT44,
-         "camera lightViewMatrix should have type float44");
-  ASSERT(layout->elements["lightProjectionMatrix"].dtype == eFLOAT44,
-         "camera lightProjectionMatrix should have type float44");
+  ASSERT(layout->elements["viewMatrix"].dtype == eFLOAT44,
+         "camera ViewMatrix should have type float44");
+  ASSERT(layout->elements["projectionMatrix"].dtype == eFLOAT44,
+         "camera ProjectionMatrix should have type float44");
+  ASSERT(layout->elements["viewMatrixInverse"].dtype == eFLOAT44,
+         "camera ViewMatrixInverse should have type float44");
+  ASSERT(layout->elements["projectionMatrixInverse"].dtype == eFLOAT44,
+         "camera ProjectionMatrixInverse should have type float44");
 }
 
 std::shared_ptr<StructDataLayout>
@@ -638,6 +652,11 @@ getDescriptorSetDescription(spirv_cross::Compiler &compiler,
       verifyMaterialBuffer(result.buffers[result.bindings[0].arrayIndex]);
       return result;
     }
+    if (name == "LightBuffer") {
+      result.type = UniformBindingType::eLight;
+      verifyLightSpaceBuffer(result.buffers[result.bindings[0].arrayIndex]);
+      return result;
+    }
   }
   throw std::runtime_error(
       "Parse descriptor set failed: cannot recognize this set.");
@@ -657,10 +676,12 @@ void BaseParser::loadGLSLFiles(std::string const &vertFile,
                                          readFile(vertFile));
   log::info("Compiled: " + vertFile);
 
-  log::info("Compiling: " + vertFile);
-  mFragSPVCode = compiler.compileToSpirv(vk::ShaderStageFlagBits::eFragment,
-                                         readFile(fragFile));
-  log::info("Compiled: " + fragFile);
+  if (fragFile.length()) {
+    log::info("Compiling: " + fragFile);
+    mFragSPVCode = compiler.compileToSpirv(vk::ShaderStageFlagBits::eFragment,
+                                           readFile(fragFile));
+    log::info("Compiled: " + fragFile);
+  }
 
   try {
     reflectSPV();
@@ -673,17 +694,21 @@ void BaseParser::loadGLSLFiles(std::string const &vertFile,
 void BaseParser::loadSPVFiles(std::string const &vertFile,
                               std::string const &fragFile) {
   std::vector<char> vertCodeRaw = readFile(vertFile);
-  std::vector<char> fragCodeRaw = readFile(fragFile);
   if (vertCodeRaw.size() / 4 * 4 != vertCodeRaw.size()) {
     throw std::runtime_error("corrupted SPV file: " + vertFile);
   }
-  if (fragCodeRaw.size() / 4 * 4 != fragCodeRaw.size()) {
-    throw std::runtime_error("corrupted SPV file: " + fragFile);
-  }
   std::vector<uint32_t> vertCode(vertCodeRaw.size() / 4);
-  std::vector<uint32_t> fragCode(fragCodeRaw.size() / 4);
   std::memcpy(vertCode.data(), vertCodeRaw.data(), vertCodeRaw.size());
-  std::memcpy(fragCode.data(), fragCodeRaw.data(), fragCodeRaw.size());
+
+  std::vector<uint32_t> fragCode;
+  if (fragFile.length()) {
+    std::vector<char> fragCodeRaw = readFile(fragFile);
+    if (fragCodeRaw.size() / 4 * 4 != fragCodeRaw.size()) {
+      throw std::runtime_error("corrupted SPV file: " + fragFile);
+    }
+    fragCode = std::vector<uint32_t>(fragCodeRaw.size() / 4);
+    std::memcpy(fragCode.data(), fragCodeRaw.data(), fragCodeRaw.size());
+  }
 
   try {
     loadSPVCode(vertCode, fragCode);

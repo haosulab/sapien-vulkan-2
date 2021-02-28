@@ -21,7 +21,7 @@ class Scene {
 
   bool mRequireForceRemove{};
 
-  glm::vec4 mAmbientLight;
+  glm::vec4 mAmbientLight{};
 
 public:
   inline Node &getRootNode() { return *mRootNode; };
@@ -57,9 +57,16 @@ public:
 
   void uploadToDevice(core::Buffer &sceneBuffer,
                       StructDataLayout const &sceneLayout);
+  void
+  uploadShadowToDevice(core::Buffer &shadowBuffer,
+                       std::vector<std::unique_ptr<core::Buffer>> &lightBuffers,
+                       StructDataLayout const &shadowLayout);
 
   /** call exactly once per frame to update the object matrices */
   void updateModelMatrices();
+
+  /** called to order shadow lights before non-shadow lights */
+  void reorderLights();
 };
 
 } // namespace scene

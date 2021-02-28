@@ -33,6 +33,14 @@ void ShaderManager::processShadersInFolder(std::string const &folder) {
 
   std::vector<std::future<void>> futures;
 
+  if (fs::is_regular_file(path / "shadow.vert")) {
+    mShadowEnabled = true;
+    mShadowPass = std::make_shared<ShadowPassParser>();
+    mShadowPass->setName("Shadow");
+    futures.push_back(
+        mShadowPass->loadGLSLFilesAsync((path / "shadow.vert").string(), ""));
+  }
+
   bool hasDeferred = fs::is_regular_file(path / "deferred.vert") &&
                      fs::is_regular_file(path / "deferred.frag");
   mAllPasses = {};
@@ -109,43 +117,41 @@ void ShaderManager::processShadersInFolder(std::string const &folder) {
 
 void ShaderManager::populateShaderConfig() {
   auto allPasses = getAllPasses();
-  DescriptorSetDescription cameraSetDesc;
-  DescriptorSetDescription objectSetDesc;
-  DescriptorSetDescription sceneSetDesc;
-  DescriptorSetDescription lightSetDesc;
   ShaderConfig::MaterialPipeline material =
       ShaderConfig::MaterialPipeline::eUNKNOWN;
-
+  if (mShadowEnabled) {
+    allPasses.push_back(mShadowPass);
+  }
   for (auto &pass : allPasses) {
     auto descs = pass->getDescriptorSetDescriptions();
     for (auto &desc : descs) {
       switch (desc.type) {
       case UniformBindingType::eCamera:
-        if (cameraSetDesc.type == UniformBindingType::eUnknown) {
-          cameraSetDesc = desc;
+        if (mCameraSetDesc.type == UniformBindingType::eUnknown) {
+          mCameraSetDesc = desc;
         } else {
-          cameraSetDesc = cameraSetDesc.merge(desc);
+          mCameraSetDesc = mCameraSetDesc.merge(desc);
         }
         break;
       case UniformBindingType::eObject:
-        if (objectSetDesc.type == UniformBindingType::eUnknown) {
-          objectSetDesc = desc;
+        if (mObjectSetDesc.type == UniformBindingType::eUnknown) {
+          mObjectSetDesc = desc;
         } else {
-          objectSetDesc = objectSetDesc.merge(desc);
+          mObjectSetDesc = mObjectSetDesc.merge(desc);
         }
         break;
       case UniformBindingType::eScene:
-        if (sceneSetDesc.type == UniformBindingType::eUnknown) {
-          sceneSetDesc = desc;
+        if (mSceneSetDesc.type == UniformBindingType::eUnknown) {
+          mSceneSetDesc = desc;
         } else {
-          sceneSetDesc = sceneSetDesc.merge(desc);
+          mSceneSetDesc = mSceneSetDesc.merge(desc);
         }
         break;
       case UniformBindingType::eLight:
-        if (lightSetDesc.type == UniformBindingType::eUnknown) {
-          lightSetDesc = desc;
+        if (mLightSetDesc.type == UniformBindingType::eUnknown) {
+          mLightSetDesc = desc;
         } else {
-          lightSetDesc = lightSetDesc.merge(desc);
+          mLightSetDesc = mLightSetDesc.merge(desc);
         }
         break;
       case UniformBindingType::eMaterial:
@@ -180,12 +186,26 @@ void ShaderManager::populateShaderConfig() {
   }
   mShaderConfig->materialPipeline = material;
   mShaderConfig->cameraBufferLayout =
-      cameraSetDesc.buffers[cameraSetDesc.bindings[0].arrayIndex];
+      mCameraSetDesc.buffers[mCameraSetDesc.bindings.at(0).arrayIndex];
   mShaderConfig->objectBufferLayout =
-      objectSetDesc.buffers[objectSetDesc.bindings[0].arrayIndex];
+      mObjectSetDesc.buffers[mObjectSetDesc.bindings.at(0).arrayIndex];
   mShaderConfig->sceneBufferLayout =
-      sceneSetDesc.buffers[sceneSetDesc.bindings[0].arrayIndex];
-  // TODO: light buffer
+      mSceneSetDesc.buffers[mSceneSetDesc.bindings.at(0).arrayIndex];
+  if (mShadowEnabled) {
+    mShaderConfig->lightBufferLayout =
+        mLightSetDesc.buffers[mLightSetDesc.bindings.at(0).arrayIndex];
+
+    for (auto &binding : mSceneSetDesc.bindings) {
+      if (binding.second.name == "ShadowBuffer") {
+        mShaderConfig->shadowBufferLayout =
+            mSceneSetDesc.buffers[binding.second.arrayIndex];
+        break;
+      }
+    }
+    if (!mShaderConfig->shadowBufferLayout) {
+      throw std::runtime_error("Scene must declare ShadowBuffer");
+    }
+  }
 }
 
 void ShaderManager::prepareRenderTargetFormats() {
@@ -402,10 +422,33 @@ void ShaderManager::createDescriptorSetLayouts(vk::Device device) {
         vk::DescriptorSetLayoutCreateInfo({}, 1, &binding));
   }
   {
-    vk::DescriptorSetLayoutBinding binding(
-        0, vk::DescriptorType::eUniformBuffer, 1,
-        vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment);
+    std::vector<vk::DescriptorSetLayoutBinding> bindings;
+    for (uint32_t bindingIndex = 0;
+         bindingIndex < mSceneSetDesc.bindings.size(); ++bindingIndex) {
+      if (mSceneSetDesc.bindings.at(bindingIndex).type ==
+          vk::DescriptorType::eUniformBuffer) {
+        bindings.push_back({bindingIndex, vk::DescriptorType::eUniformBuffer, 1,
+                            vk::ShaderStageFlagBits::eVertex |
+                                vk::ShaderStageFlagBits::eFragment});
+      } else if (mSceneSetDesc.bindings.at(bindingIndex).type ==
+                 vk::DescriptorType::eCombinedImageSampler) {
+        bindings.push_back({bindingIndex,
+                            vk::DescriptorType::eCombinedImageSampler, 1,
+                            vk::ShaderStageFlagBits::eVertex |
+                                vk::ShaderStageFlagBits::eFragment});
+      } else {
+        throw std::runtime_error("invalid scene descriptor set");
+      }
+    }
     mSceneLayout = device.createDescriptorSetLayoutUnique(
+        vk::DescriptorSetLayoutCreateInfo({}, bindings.size(),
+                                          bindings.data()));
+  }
+  {
+    vk::DescriptorSetLayoutBinding binding(0,
+                                           vk::DescriptorType::eUniformBuffer,
+                                           1, vk::ShaderStageFlagBits::eVertex);
+    mLightLayout = device.createDescriptorSetLayoutUnique(
         vk::DescriptorSetLayoutCreateInfo({}, 1, &binding));
   }
 
@@ -476,6 +519,34 @@ void ShaderManager::createPipelines(
         getColorAttachmentLayoutsForPass(pass),
         getDepthAttachmentLayoutsForPass(pass), descriptorSetLayouts,
         specializationConstantInfo);
+  }
+
+  if (mShadowEnabled) {
+    std::vector<vk::DescriptorSetLayout> descriptorSetLayouts;
+    for (auto type : mShadowPass->getUniformBindingTypes()) {
+      switch (type) {
+      case UniformBindingType::eObject:
+        descriptorSetLayouts.push_back(mObjectLayout.get());
+        break;
+      case UniformBindingType::eLight:
+        descriptorSetLayouts.push_back(mLightLayout.get());
+        break;
+      case UniformBindingType::eMaterial:
+      case UniformBindingType::eCamera:
+      case UniformBindingType::eScene:
+        throw std::runtime_error(
+            "shadow pass may only use object and light buffers");
+
+      default:
+        throw std::runtime_error("ShaderManager::createPipelines: not "
+                                 "implemented uniform binding type");
+      }
+    }
+    mShadowPass->createGraphicsPipeline(
+        device, mRenderConfig->colorFormat, mRenderConfig->depthFormat,
+        mRenderConfig->culling, vk::FrontFace::eCounterClockwise, {},
+        {vk::ImageLayout::eUndefined, vk::ImageLayout::eShaderReadOnlyOptimal},
+        descriptorSetLayouts, specializationConstantInfo);
   }
 }
 

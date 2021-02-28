@@ -12,6 +12,7 @@ struct RendererConfig {
   vk::Format depthFormat{vk::Format::eD32Sfloat}; // D32Sfloat
   vk::CullModeFlags culling{vk::CullModeFlagBits::eBack};
   uint32_t maxNumObjects{1000};
+  uint32_t shadowMapSize{2048};
 };
 
 /** Options configured by the shaders  */
@@ -21,6 +22,8 @@ struct ShaderConfig {
   std::shared_ptr<StructDataLayout> objectBufferLayout;
   std::shared_ptr<StructDataLayout> sceneBufferLayout;
   std::shared_ptr<StructDataLayout> cameraBufferLayout;
+  std::shared_ptr<StructDataLayout> lightBufferLayout;
+  std::shared_ptr<StructDataLayout> shadowBufferLayout;
 };
 
 } // namespace svulkan2

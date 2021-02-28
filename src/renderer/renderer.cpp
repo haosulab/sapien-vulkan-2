@@ -70,6 +70,177 @@ void Renderer::prepareRenderTargets(uint32_t width, uint32_t height) {
   mRenderTargetFinalLayouts = mShaderManager->getRenderTargetFinalLayouts();
 }
 
+void Renderer::prepareShadowRenderTargets() {
+  uint32_t shadowSize = mConfig->shadowMapSize;
+  auto format = mConfig->depthFormat;
+
+  mDirectionalShadowWriteTargets.clear();
+  mPointShadowWriteTargets.clear();
+  mCustomShadowWriteTargets.clear();
+
+  auto commandBuffer = mContext->createCommandBuffer();
+  commandBuffer->begin(vk::CommandBufferBeginInfo(
+      vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
+
+  vk::ComponentMapping componentMapping(
+      vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG,
+      vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA);
+  {
+    uint32_t size = mNumPointLightShadows ? shadowSize : 1;
+    uint32_t num = mNumPointLightShadows ? mNumPointLightShadows : 1;
+    auto pointShadowImage = std::make_shared<core::Image>(
+        *mContext, vk::Extent3D{size, size, 1}, format,
+        vk::ImageUsageFlagBits::eDepthStencilAttachment |
+            vk::ImageUsageFlagBits::eSampled,
+        VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, vk::SampleCountFlagBits::e1,
+        1, 6 * num, vk::ImageTiling::eOptimal,
+        vk::ImageCreateFlagBits::eCubeCompatible);
+
+    // HACK: transition to shader read to stop validation from complaining dummy
+    // texture is not shader read
+    pointShadowImage->transitionLayout(
+        commandBuffer.get(), vk::ImageLayout::eUndefined,
+        vk::ImageLayout::eShaderReadOnlyOptimal, {},
+        vk::AccessFlagBits::eShaderRead,
+        vk::PipelineStageFlagBits::eBottomOfPipe,
+        vk::PipelineStageFlagBits::eFragmentShader);
+
+    vk::ImageViewCreateInfo viewInfo(
+        {}, pointShadowImage->getVulkanImage(), vk::ImageViewType::eCubeArray,
+        format, componentMapping,
+        vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eDepth, 0, 1, 0,
+                                  6 * num));
+    auto imageView = mContext->getDevice().createImageViewUnique(viewInfo);
+    auto sampler = mContext->getDevice().createSamplerUnique(
+        vk::SamplerCreateInfo({}, vk::Filter::eNearest, vk::Filter::eNearest,
+                              vk::SamplerMipmapMode::eNearest,
+                              vk::SamplerAddressMode::eClampToBorder,
+                              vk::SamplerAddressMode::eClampToBorder,
+                              vk::SamplerAddressMode::eClampToBorder, 0.f,
+                              false, 0.f, false, vk::CompareOp::eNever, 0.f,
+                              0.f, vk::BorderColor::eFloatOpaqueWhite));
+    mPointShadowReadTarget = std::make_shared<resource::SVRenderTarget>(
+        "PointShadow", size, size, pointShadowImage, std::move(imageView),
+        std::move(sampler));
+
+    for (uint32_t shadowIndex = 0; shadowIndex < num; ++shadowIndex) {
+      for (uint32_t faceIndex = 0; faceIndex < 6; ++faceIndex) {
+        vk::ImageViewCreateInfo viewInfo(
+            {}, pointShadowImage->getVulkanImage(), vk::ImageViewType::e2D,
+            format, componentMapping,
+            vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eDepth, 0, 1,
+                                      6 * shadowIndex + faceIndex, 1));
+        auto imageView = mContext->getDevice().createImageViewUnique(viewInfo);
+        auto renderTarget = std::make_shared<resource::SVRenderTarget>(
+            "PointShadow", size, size, pointShadowImage, std::move(imageView),
+            vk::UniqueSampler{});
+        mPointShadowWriteTargets.push_back(renderTarget);
+      }
+    }
+  }
+
+  {
+    uint32_t size = mNumDirectionalLightShadows ? shadowSize : 1;
+    uint32_t num =
+        mNumDirectionalLightShadows ? mNumDirectionalLightShadows : 1;
+    auto directionalShadowImage = std::make_shared<core::Image>(
+        *mContext, vk::Extent3D{size, size, 1}, format,
+        vk::ImageUsageFlagBits::eDepthStencilAttachment |
+            vk::ImageUsageFlagBits::eSampled,
+        VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, vk::SampleCountFlagBits::e1,
+        1, num);
+
+    directionalShadowImage->transitionLayout(
+        commandBuffer.get(), vk::ImageLayout::eUndefined,
+        vk::ImageLayout::eShaderReadOnlyOptimal, {},
+        vk::AccessFlagBits::eShaderRead,
+        vk::PipelineStageFlagBits::eBottomOfPipe,
+        vk::PipelineStageFlagBits::eFragmentShader);
+
+    vk::ImageViewCreateInfo viewInfo(
+        {}, directionalShadowImage->getVulkanImage(),
+        vk::ImageViewType::e2DArray, format, componentMapping,
+        vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eDepth, 0, 1, 0,
+                                  num));
+    auto imageView = mContext->getDevice().createImageViewUnique(viewInfo);
+    auto sampler = mContext->getDevice().createSamplerUnique(
+        vk::SamplerCreateInfo({}, vk::Filter::eNearest, vk::Filter::eNearest,
+                              vk::SamplerMipmapMode::eNearest,
+                              vk::SamplerAddressMode::eClampToBorder,
+                              vk::SamplerAddressMode::eClampToBorder,
+                              vk::SamplerAddressMode::eClampToBorder, 0.f,
+                              false, 0.f, false, vk::CompareOp::eNever, 0.f,
+                              0.f, vk::BorderColor::eFloatOpaqueWhite));
+    mDirectionalShadowReadTarget = std::make_shared<resource::SVRenderTarget>(
+        "DirectionalShadow", size, size, directionalShadowImage,
+        std::move(imageView), std::move(sampler));
+
+    for (uint32_t shadowIndex = 0; shadowIndex < num; ++shadowIndex) {
+      vk::ImageViewCreateInfo viewInfo(
+          {}, directionalShadowImage->getVulkanImage(), vk::ImageViewType::e2D,
+          format, componentMapping,
+          vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eDepth, 0, 1,
+                                    shadowIndex, 1));
+      auto imageView = mContext->getDevice().createImageViewUnique(viewInfo);
+      auto renderTarget = std::make_shared<resource::SVRenderTarget>(
+          "DirectionalShadow", size, size, directionalShadowImage,
+          std::move(imageView), vk::UniqueSampler{});
+      mDirectionalShadowWriteTargets.push_back(renderTarget);
+    }
+  }
+
+  {
+    uint32_t size = mNumCustomShadows ? shadowSize : 1;
+    uint32_t num = mNumCustomShadows ? mNumCustomShadows : 1;
+    auto customShadowImage = std::make_shared<core::Image>(
+        *mContext, vk::Extent3D{size, size, 1}, format,
+        vk::ImageUsageFlagBits::eDepthStencilAttachment |
+            vk::ImageUsageFlagBits::eSampled,
+        VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, vk::SampleCountFlagBits::e1,
+        1, num);
+
+    customShadowImage->transitionLayout(
+        commandBuffer.get(), vk::ImageLayout::eUndefined,
+        vk::ImageLayout::eShaderReadOnlyOptimal, {},
+        vk::AccessFlagBits::eShaderRead,
+        vk::PipelineStageFlagBits::eBottomOfPipe,
+        vk::PipelineStageFlagBits::eFragmentShader);
+
+    vk::ImageViewCreateInfo viewInfo(
+        {}, customShadowImage->getVulkanImage(), vk::ImageViewType::e2DArray,
+        format, componentMapping,
+        vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eDepth, 0, 1, 0,
+                                  num));
+    auto imageView = mContext->getDevice().createImageViewUnique(viewInfo);
+    auto sampler = mContext->getDevice().createSamplerUnique(
+        vk::SamplerCreateInfo({}, vk::Filter::eNearest, vk::Filter::eNearest,
+                              vk::SamplerMipmapMode::eNearest,
+                              vk::SamplerAddressMode::eClampToBorder,
+                              vk::SamplerAddressMode::eClampToBorder,
+                              vk::SamplerAddressMode::eClampToBorder, 0.f,
+                              false, 0.f, false, vk::CompareOp::eNever, 0.f,
+                              0.f, vk::BorderColor::eFloatOpaqueWhite));
+    mCustomShadowReadTarget = std::make_shared<resource::SVRenderTarget>(
+        "CustomShadow", size, size, customShadowImage, std::move(imageView),
+        std::move(sampler));
+
+    for (uint32_t shadowIndex = 0; shadowIndex < num; ++shadowIndex) {
+      vk::ImageViewCreateInfo viewInfo(
+          {}, customShadowImage->getVulkanImage(), vk::ImageViewType::e2D,
+          format, componentMapping,
+          vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eDepth, 0, 1,
+                                    shadowIndex, 1));
+      auto imageView = mContext->getDevice().createImageViewUnique(viewInfo);
+      auto renderTarget = std::make_shared<resource::SVRenderTarget>(
+          "CustomShadow", size, size, customShadowImage, std::move(imageView),
+          vk::UniqueSampler{});
+      mCustomShadowWriteTargets.push_back(renderTarget);
+    }
+  }
+  commandBuffer->end();
+  mContext->submitCommandBufferAndWait(commandBuffer.get());
+}
+
 void Renderer::preparePipelines() {
   mShaderManager->createPipelines(*mContext, mSpecializationConstants);
 }
@@ -95,6 +266,26 @@ void Renderer::prepareFramebuffers(uint32_t width, uint32_t height) {
   }
 }
 
+void Renderer::prepareShadowFramebuffers() {
+  mShadowFramebuffers.clear();
+  std::vector<std::shared_ptr<resource::SVRenderTarget>> targets;
+  targets.insert(targets.end(), mDirectionalShadowWriteTargets.begin(),
+                 mDirectionalShadowWriteTargets.begin() +
+                     mNumDirectionalLightShadows);
+  targets.insert(targets.end(), mPointShadowWriteTargets.begin(),
+                 mPointShadowWriteTargets.begin() + mNumPointLightShadows * 6);
+  targets.insert(targets.end(), mCustomShadowWriteTargets.begin(),
+                 mCustomShadowWriteTargets.begin() + mNumCustomShadows);
+  for (auto &target : targets) {
+    vk::ImageView view = target->getImageView();
+    vk::FramebufferCreateInfo info(
+        {}, mShaderManager->getShadowPass()->getRenderPass(), 1, &view,
+        target->getWidth(), target->getHeight(), 1);
+    mShadowFramebuffers.push_back(
+        mContext->getDevice().createFramebufferUnique(info));
+  }
+}
+
 void Renderer::resize(int width, int height) {
   if (width <= 0 || height <= 0) {
     throw std::runtime_error(
@@ -112,9 +303,11 @@ void Renderer::setSpecializationConstantInt(std::string const &name,
       throw std::runtime_error("failed to set specialization constant: the "
                                "same constant can only have a single type");
     }
+  } else {
+    mSpecializationConstants[name].dtype = DataType::eINT;
+    mSpecializationConstantsChanged = true;
   }
   if (mSpecializationConstants[name].intValue != value) {
-    mSpecializationConstants[name].dtype = DataType::eINT;
     mSpecializationConstantsChanged = true;
     mSpecializationConstants[name].intValue = value;
   }
@@ -133,32 +326,184 @@ void Renderer::setSpecializationConstantFloat(std::string const &name,
   mSpecializationConstants[name].floatValue = value;
 }
 
+void Renderer::renderShadows(vk::CommandBuffer commandBuffer,
+                             scene::Scene &scene) {
+  // render shadow passes
+  if (mShaderManager->isShadowEnabled()) {
+    auto objects = scene.getObjects();
+    auto shadowPass = mShaderManager->getShadowPass();
+    auto size = mConfig->shadowMapSize;
+    vk::Viewport viewport{
+        0.f, 0.f, static_cast<float>(size), static_cast<float>(size), 0.f, 1.f};
+    vk::Rect2D scissor{
+        vk::Offset2D{0u, 0u},
+        vk::Extent2D{static_cast<uint32_t>(size), static_cast<uint32_t>(size)}};
+    std::vector<vk::ClearValue> clearValues;
+    clearValues.push_back(vk::ClearDepthStencilValue(1.0f, 0));
+
+    uint32_t shadowIdx = 0;
+    for (uint32_t i = 0; i < mNumDirectionalLightShadows; ++i, ++shadowIdx) {
+      vk::RenderPassBeginInfo renderPassBeginInfo{
+          shadowPass->getRenderPass(), mShadowFramebuffers[shadowIdx].get(),
+          vk::Rect2D({0, 0}, {static_cast<uint32_t>(size),
+                              static_cast<uint32_t>(size)}),
+          static_cast<uint32_t>(clearValues.size()), clearValues.data()};
+      commandBuffer.beginRenderPass(renderPassBeginInfo,
+                                    vk::SubpassContents::eInline);
+      commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics,
+                                 shadowPass->getPipeline());
+      commandBuffer.setViewport(0, viewport);
+      commandBuffer.setScissor(0, scissor);
+
+      int objectBinding = -1;
+      auto types = shadowPass->getUniformBindingTypes();
+      for (uint32_t bindingIdx = 0; bindingIdx < types.size(); ++bindingIdx) {
+        switch (types[bindingIdx]) {
+        case shader::UniformBindingType::eObject:
+          objectBinding = bindingIdx;
+          break;
+        case shader::UniformBindingType::eLight:
+          commandBuffer.bindDescriptorSets(
+              vk::PipelineBindPoint::eGraphics, shadowPass->getPipelineLayout(),
+              bindingIdx, mLightSets[shadowIdx].get(), nullptr);
+          break;
+        default:
+          throw std::runtime_error(
+              "shadow pass may only use object and light buffer");
+        }
+      }
+
+      for (uint32_t objIdx = 0; objIdx < objects.size(); ++objIdx) {
+        for (auto &shape : objects[objIdx]->getModel()->getShapes()) {
+          if (objectBinding >= 0) {
+            commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
+                                             shadowPass->getPipelineLayout(),
+                                             objectBinding,
+                                             mObjectSet[objIdx].get(), nullptr);
+          }
+          commandBuffer.bindVertexBuffers(
+              0, shape->mesh->getVertexBuffer().getVulkanBuffer(),
+              std::vector<vk::DeviceSize>(1, 0));
+          commandBuffer.bindIndexBuffer(
+              shape->mesh->getIndexBuffer().getVulkanBuffer(), 0,
+              vk::IndexType::eUint32);
+          commandBuffer.drawIndexed(shape->mesh->getIndexCount(), 1, 0, 0, 0);
+        }
+      }
+      commandBuffer.endRenderPass();
+    }
+
+    for (uint32_t i = 0; i < mNumPointLightShadows; ++i) {
+      for (uint32_t j = 0; j < 6; ++j, ++shadowIdx) {
+        vk::RenderPassBeginInfo renderPassBeginInfo{
+            shadowPass->getRenderPass(), mShadowFramebuffers[shadowIdx].get(),
+            vk::Rect2D({0, 0}, {static_cast<uint32_t>(size),
+                                static_cast<uint32_t>(size)}),
+            static_cast<uint32_t>(clearValues.size()), clearValues.data()};
+        commandBuffer.beginRenderPass(renderPassBeginInfo,
+                                      vk::SubpassContents::eInline);
+        commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics,
+                                   shadowPass->getPipeline());
+        commandBuffer.setViewport(0, viewport);
+        commandBuffer.setScissor(0, scissor);
+
+        int objectBinding = -1;
+        auto types = shadowPass->getUniformBindingTypes();
+        for (uint32_t bindingIdx = 0; bindingIdx < types.size(); ++bindingIdx) {
+          switch (types[bindingIdx]) {
+          case shader::UniformBindingType::eObject:
+            objectBinding = bindingIdx;
+            break;
+          case shader::UniformBindingType::eLight:
+            commandBuffer.bindDescriptorSets(
+                vk::PipelineBindPoint::eGraphics,
+                shadowPass->getPipelineLayout(), bindingIdx,
+                mLightSets[shadowIdx].get(), nullptr);
+            break;
+          default:
+            throw std::runtime_error(
+                "shadow pass may only use object and light buffer");
+          }
+        }
+
+        for (uint32_t objIdx = 0; objIdx < objects.size(); ++objIdx) {
+          for (auto &shape : objects[objIdx]->getModel()->getShapes()) {
+            if (objectBinding >= 0) {
+              commandBuffer.bindDescriptorSets(
+                  vk::PipelineBindPoint::eGraphics,
+                  shadowPass->getPipelineLayout(), objectBinding,
+                  mObjectSet[objIdx].get(), nullptr);
+            }
+            commandBuffer.bindVertexBuffers(
+                0, shape->mesh->getVertexBuffer().getVulkanBuffer(),
+                std::vector<vk::DeviceSize>(1, 0));
+            commandBuffer.bindIndexBuffer(
+                shape->mesh->getIndexBuffer().getVulkanBuffer(), 0,
+                vk::IndexType::eUint32);
+            commandBuffer.drawIndexed(shape->mesh->getIndexCount(), 1, 0, 0, 0);
+          }
+        }
+        commandBuffer.endRenderPass();
+      }
+    }
+  }
+}
+
 void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
                       scene::Camera &camera) {
   if (mWidth <= 0 || mHeight <= 0) {
     throw std::runtime_error(
         "failed to render: resize must be called before rendering.");
   }
-  int numPointLights = scene.getPointLights().size();
-  int numDirectionalLights = scene.getDirectionalLights().size();
+  auto pointLights = scene.getPointLights();
+  auto directionalLights = scene.getDirectionalLights();
+  int numPointLights = pointLights.size();
+  int numDirectionalLights = directionalLights.size();
+
+  mNumPointLightShadows = 0;
+  mNumDirectionalLightShadows = 0;
+
+  for (auto l : pointLights) {
+    if (l->isShadowEnabled()) {
+      mNumPointLightShadows += 1;
+    }
+  }
+  for (auto l : directionalLights) {
+    if (l->isShadowEnabled()) {
+      mNumDirectionalLightShadows += 1;
+    }
+  }
+
   setSpecializationConstantInt("NUM_POINT_LIGHTS", numPointLights);
   setSpecializationConstantInt("NUM_DIRECTIONAL_LIGHTS", numDirectionalLights);
+  setSpecializationConstantInt("NUM_POINT_LIGHT_SHADOWS",
+                               mNumPointLightShadows);
+  setSpecializationConstantInt("NUM_DIRECTIONAL_LIGHT_SHADOWS",
+                               mNumDirectionalLightShadows);
+  setSpecializationConstantInt("NUM_CUSTOM_LIGHT_SHADOWS", mNumCustomShadows);
 
   if (mRequiresRebuild || mSpecializationConstantsChanged) {
-    prepareRenderTargets(mWidth, mHeight);
     preparePipelines();
+    prepareRenderTargets(mWidth, mHeight);
+    if (mShaderManager->isShadowEnabled()) {
+      prepareShadowRenderTargets();
+      prepareShadowFramebuffers();
+    }
     prepareFramebuffers(mWidth, mHeight);
     prepareInputTextureDescriptorSets();
     mSpecializationConstantsChanged = false;
     mRequiresRebuild = false;
+
+    if (mShaderManager->isShadowEnabled()) {
+      prepareLightBuffers();
+    }
+    prepareSceneBuffer();
+    prepareCameaBuffer();
   }
 
   scene.updateModelMatrices();
-
   auto objects = scene.getObjects();
   prepareObjectBuffers(objects.size());
-  prepareSceneBuffer();
-  prepareCameaBuffer();
 
   // classify shapes
   uint32_t numGbufferPasses = mShaderManager->getNumGbufferPasses();
@@ -212,6 +557,12 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
   scene.uploadToDevice(*mSceneBuffer,
                        *mShaderManager->getShaderConfig()->sceneBufferLayout);
 
+  if (mShaderManager->isShadowEnabled()) {
+    scene.uploadShadowToDevice(
+        *mShadowBuffer, mLightBuffers,
+        *mShaderManager->getShaderConfig()->shadowBufferLayout);
+  }
+
   // update objects
   for (uint32_t i = 0; i < objects.size(); ++i) {
     objects[i]->uploadToDevice(
@@ -219,8 +570,9 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
         *mShaderManager->getShaderConfig()->objectBufferLayout);
   }
 
-  uint32_t gbufferIndex = 0;
+  renderShadows(commandBuffer, scene);
 
+  uint32_t gbufferIndex = 0;
   auto passes = mShaderManager->getAllPasses();
   vk::Viewport viewport{
       0.f, 0.f, static_cast<float>(mWidth), static_cast<float>(mHeight),
@@ -301,7 +653,7 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
         commandBuffer.drawIndexed(shape->mesh->getIndexCount(), 1, 0, 0, 0);
       }
       gbufferIndex++;
-    } else { // TODO: shadow pass
+    } else {
       commandBuffer.draw(3, 1, 0, 0);
     }
     commandBuffer.endRenderPass();
@@ -382,19 +734,58 @@ void Renderer::display(vk::CommandBuffer commandBuffer,
 }
 
 void Renderer::prepareSceneBuffer() {
-  if (!mSceneBuffer) {
-    mSceneBuffer = mContext->getAllocator().allocateUniformBuffer(
-        mShaderManager->getShaderConfig()->sceneBufferLayout->size);
-    auto layout = mShaderManager->getSceneDescriptorSetLayout();
-    mSceneSet = std::move(
-        mContext->getDevice()
-            .allocateDescriptorSetsUnique(vk::DescriptorSetAllocateInfo(
-                mDescriptorPool.get(), 1, &layout))
-            .front());
-    updateDescriptorSets(mContext->getDevice(), mSceneSet.get(),
-                         {{vk::DescriptorType::eUniformBuffer,
-                           mSceneBuffer->getVulkanBuffer(), nullptr}},
-                         {}, 0);
+  if (mShaderManager->isShadowEnabled()) {
+    mShadowBuffer = mContext->getAllocator().allocateUniformBuffer(
+        mShaderManager->getShaderConfig()->shadowBufferLayout->size);
+  }
+  mSceneBuffer = mContext->getAllocator().allocateUniformBuffer(
+      mShaderManager->getShaderConfig()->sceneBufferLayout->size);
+  auto layout = mShaderManager->getSceneDescriptorSetLayout();
+  mSceneSet =
+      std::move(mContext->getDevice()
+                    .allocateDescriptorSetsUnique(vk::DescriptorSetAllocateInfo(
+                        mDescriptorPool.get(), 1, &layout))
+                    .front());
+  auto &setDesc = mShaderManager->getSceneSetDesc();
+  for (uint32_t bindingIndex = 0; bindingIndex < setDesc.bindings.size();
+       ++bindingIndex) {
+    auto binding = setDesc.bindings.at(bindingIndex);
+    if (binding.name == "SceneBuffer") {
+      updateDescriptorSets(mContext->getDevice(), mSceneSet.get(),
+                           {{vk::DescriptorType::eUniformBuffer,
+                             mSceneBuffer->getVulkanBuffer(), nullptr}},
+                           {}, bindingIndex);
+    } else if (binding.name == "ShadowBuffer") {
+      updateDescriptorSets(mContext->getDevice(), mSceneSet.get(),
+                           {{vk::DescriptorType::eUniformBuffer,
+                             mShadowBuffer->getVulkanBuffer(), nullptr}},
+                           {}, bindingIndex);
+    } else if (binding.name == "samplerPointLightDepths") {
+      // TODO: handle empty case
+      // if (mNumPointLightShadows) {
+      updateDescriptorSets(mContext->getDevice(), mSceneSet.get(), {},
+                           {{mPointShadowReadTarget->getImageView(),
+                             mPointShadowReadTarget->getSampler()}},
+                           bindingIndex);
+      // }
+    } else if (binding.name == "samplerDirectionalLightDepths") {
+      // if (mNumDirectionalLightShadows) {
+      updateDescriptorSets(mContext->getDevice(), mSceneSet.get(), {},
+                           {{mDirectionalShadowReadTarget->getImageView(),
+                             mDirectionalShadowReadTarget->getSampler()}},
+                           bindingIndex);
+      // }
+    } else if (binding.name == "samplerCustomLightDepths") {
+      // if (mNumCustomShadows) {
+      updateDescriptorSets(mContext->getDevice(), mSceneSet.get(), {},
+                           {{mCustomShadowReadTarget->getImageView(),
+                             mCustomShadowReadTarget->getSampler()}},
+                           bindingIndex);
+      // }
+    } else {
+      throw std::runtime_error("unrecognized uniform binding in scene \"" +
+                               binding.name + "\"");
+    }
   }
 }
 
@@ -421,6 +812,35 @@ void Renderer::prepareObjectBuffers(uint32_t numObjects) {
                            mObjectBuffers[i]->getVulkanBuffer(), nullptr}},
                          {}, 0);
     mObjectSet.push_back(std::move(objectSet));
+  }
+}
+
+void Renderer::prepareLightBuffers() {
+  auto lightBufferLayout = mShaderManager->getShaderConfig()->lightBufferLayout;
+  uint32_t numShadows = mNumPointLightShadows * 6 +
+                        mNumDirectionalLightShadows + mNumCustomShadows;
+  // too many shadow sets
+  if (numShadows * 2 < mLightSets.size()) {
+    uint32_t newSize = numShadows;
+    mLightSets.resize(newSize);
+    mLightBuffers.resize(newSize);
+  }
+
+  // too few shadow sets
+  for (uint32_t i = mLightSets.size(); i < numShadows; ++i) {
+    auto layout = mShaderManager->getLightDescriptorSetLayout();
+    mLightBuffers.push_back(mContext->getAllocator().allocateUniformBuffer(
+        mShaderManager->getShaderConfig()->lightBufferLayout->size));
+    auto shadowSet = std::move(
+        mContext->getDevice()
+            .allocateDescriptorSetsUnique(vk::DescriptorSetAllocateInfo(
+                mDescriptorPool.get(), 1, &layout))
+            .front());
+    mLightSets.push_back(std::move(shadowSet));
+    updateDescriptorSets(mContext->getDevice(), mLightSets.back().get(),
+                         {{vk::DescriptorType::eUniformBuffer,
+                           mLightBuffers.back()->getVulkanBuffer(), nullptr}},
+                         {}, 0);
   }
 }
 
@@ -455,20 +875,20 @@ void Renderer::prepareInputTextureDescriptorSets() {
 }
 
 void Renderer::prepareCameaBuffer() {
-  if (!mCameraBuffer) {
-    mCameraBuffer = mContext->getAllocator().allocateUniformBuffer(
-        mShaderManager->getShaderConfig()->cameraBufferLayout->size);
-    auto layout = mShaderManager->getCameraDescriptorSetLayout();
-    mCameraSet = std::move(
-        mContext->getDevice()
-            .allocateDescriptorSetsUnique(vk::DescriptorSetAllocateInfo(
-                mDescriptorPool.get(), 1, &layout))
-            .front());
-    updateDescriptorSets(mContext->getDevice(), mCameraSet.get(),
-                         {{vk::DescriptorType::eUniformBuffer,
-                           mCameraBuffer->getVulkanBuffer(), nullptr}},
-                         {}, 0);
-  }
+  // if (!mCameraBuffer) {
+  mCameraBuffer = mContext->getAllocator().allocateUniformBuffer(
+      mShaderManager->getShaderConfig()->cameraBufferLayout->size);
+  auto layout = mShaderManager->getCameraDescriptorSetLayout();
+  mCameraSet =
+      std::move(mContext->getDevice()
+                    .allocateDescriptorSetsUnique(vk::DescriptorSetAllocateInfo(
+                        mDescriptorPool.get(), 1, &layout))
+                    .front());
+  updateDescriptorSets(mContext->getDevice(), mCameraSet.get(),
+                       {{vk::DescriptorType::eUniformBuffer,
+                         mCameraBuffer->getVulkanBuffer(), nullptr}},
+                       {}, 0);
+  // }
 }
 
 } // namespace renderer

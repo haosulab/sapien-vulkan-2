@@ -3,6 +3,7 @@
 #include "svulkan2/core/context.h"
 #include "svulkan2/shader/deferred.h"
 #include "svulkan2/shader/gbuffer.h"
+#include "svulkan2/shader/shadow.h"
 #include <map>
 #include <memory>
 #include <string>
@@ -16,6 +17,7 @@ class ShaderManager {
   std::shared_ptr<RendererConfig> mRenderConfig;
   std::shared_ptr<ShaderConfig> mShaderConfig;
 
+  std::shared_ptr<ShadowPassParser> mShadowPass{};
   std::vector<std::shared_ptr<BaseParser>> mAllPasses;
   std::map<std::weak_ptr<BaseParser>, unsigned int, std::owner_less<>>
       mPassIndex;
@@ -24,13 +26,20 @@ class ShaderManager {
       mTextureOperationTable;
   std::unordered_map<std::string, vk::Format> mRenderTargetFormats;
 
+  DescriptorSetDescription mCameraSetDesc;
+  DescriptorSetDescription mObjectSetDesc;
+  DescriptorSetDescription mSceneSetDesc;
+  DescriptorSetDescription mLightSetDesc;
+
   vk::UniqueDescriptorSetLayout mSceneLayout;
   vk::UniqueDescriptorSetLayout mCameraLayout;
   vk::UniqueDescriptorSetLayout mObjectLayout;
+  vk::UniqueDescriptorSetLayout mLightLayout;
 
   std::vector<vk::UniqueDescriptorSetLayout> mInputTextureLayouts;
 
-  uint32_t mNumGbufferPasses;
+  uint32_t mNumGbufferPasses{};
+  bool mShadowEnabled{};
 
 public:
   ShaderManager(std::shared_ptr<RendererConfig> config = nullptr);
@@ -48,6 +57,22 @@ public:
   inline vk::DescriptorSetLayout getObjectDescriptorSetLayout() const {
     return mObjectLayout.get();
   }
+  inline vk::DescriptorSetLayout getLightDescriptorSetLayout() const {
+    return mLightLayout.get();
+  }
+
+  inline DescriptorSetDescription const &getCameraSetDesc() const {
+    return mCameraSetDesc;
+  }
+  inline DescriptorSetDescription const &getObjectSetDesc() const {
+    return mObjectSetDesc;
+  }
+  inline DescriptorSetDescription const &getSceneSetDesc() const {
+    return mSceneSetDesc;
+  }
+  inline DescriptorSetDescription const &getLightSetDesc() const {
+    return mLightSetDesc;
+  }
 
   std::vector<vk::DescriptorSetLayout> getInputTextureLayouts() const;
 
@@ -55,6 +80,9 @@ public:
                        std::map<std::string, SpecializationConstantValue> const
                            &specializationConstantInfo);
   std::vector<std::shared_ptr<BaseParser>> getAllPasses() const;
+  inline std::shared_ptr<BaseParser> getShadowPass() const {
+    return mShadowPass;
+  };
 
   inline std::unordered_map<std::string, vk::Format>
   getRenderTargetFormats() const {
@@ -67,6 +95,8 @@ public:
   inline std::shared_ptr<ShaderConfig> getShaderConfig() const {
     return mShaderConfig;
   }
+
+  bool isShadowEnabled() const { return mShadowEnabled; }
 
 private:
   void processShadersInFolder(std::string const &folder);

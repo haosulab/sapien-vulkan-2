@@ -17,7 +17,7 @@ class SVRenderTarget {
   uint32_t mWidth{};
   uint32_t mHeight{};
 
-  std::unique_ptr<core::Image> mImage{};
+  std::shared_ptr<core::Image> mImage{};
   vk::UniqueImageView mImageView;
   vk::UniqueSampler mSampler;
 
@@ -26,6 +26,10 @@ class SVRenderTarget {
 public:
   SVRenderTarget(std::string const &name, uint32_t width, uint32_t height,
                  vk::Format format);
+
+  SVRenderTarget(std::string const &name, uint32_t width, uint32_t height,
+                 std::shared_ptr<core::Image> image,
+                 vk::UniqueImageView imageView, vk::UniqueSampler sampler);
 
   void createDeviceResources(core::Context &context);
   template <typename T> std::vector<T> download() {

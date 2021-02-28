@@ -16,7 +16,7 @@ SVResourceManager::CreateImageFromFile(std::string const &filename,
   std::lock_guard<std::mutex> lock(mCreateLock);
   std::string path = fs::canonical(filename).string();
   SVImageDescription desc = {.source = SVImageDescription::SourceType::eFILE,
-                             .filename = path,
+                             .filenames = {path},
                              .mipLevels = mipLevels};
 
   auto it = mImageRegistry.find(path);

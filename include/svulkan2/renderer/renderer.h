@@ -17,9 +17,33 @@ class Renderer {
   std::unique_ptr<shader::ShaderManager> mShaderManager;
   std::unordered_map<std::string, std::shared_ptr<resource::SVRenderTarget>>
       mRenderTargets;
+
+  // shadow targets ================================
+  uint32_t mNumPointLightShadows{};
+  uint32_t mNumDirectionalLightShadows{};
+  uint32_t mNumCustomShadows{};
+  std::shared_ptr<resource::SVRenderTarget> mDirectionalShadowReadTarget;
+  std::vector<std::shared_ptr<resource::SVRenderTarget>>
+  mDirectionalShadowWriteTargets;
+
+  std::shared_ptr<resource::SVRenderTarget> mPointShadowReadTarget;
+  std::vector<std::shared_ptr<resource::SVRenderTarget>>
+      mPointShadowWriteTargets;
+
+  std::shared_ptr<resource::SVRenderTarget> mCustomShadowReadTarget;
+  std::vector<std::shared_ptr<resource::SVRenderTarget>>
+      mCustomShadowWriteTargets;
+
+  std::vector<vk::UniqueDescriptorSet> mLightSets;
+  std::vector<std::unique_ptr<core::Buffer>> mLightBuffers;
+
+  std::unique_ptr<core::Buffer> mShadowBuffer;
+  // ================================================
+
   std::unordered_map<std::string, vk::ImageLayout> mRenderTargetFinalLayouts;
 
   std::vector<vk::UniqueFramebuffer> mFramebuffers;
+  std::vector<vk::UniqueFramebuffer> mShadowFramebuffers;
 
   int mWidth{};
   int mHeight{};
@@ -76,13 +100,20 @@ public:
 
 private:
   void prepareRenderTargets(uint32_t width, uint32_t height);
+  void prepareShadowRenderTargets();
   void preparePipelines();
   void prepareFramebuffers(uint32_t width, uint32_t height);
+  void prepareShadowFramebuffers();
 
   void prepareSceneBuffer();
   void prepareObjectBuffers(uint32_t numObjects);
   void prepareCameaBuffer();
+  void prepareLightBuffers();
+
+
   void prepareInputTextureDescriptorSets();
+
+  void renderShadows(vk::CommandBuffer commandBuffer, scene::Scene &scene);
 };
 
 } // namespace renderer

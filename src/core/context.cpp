@@ -164,6 +164,7 @@ void Context::createDevice() {
   std::vector<const char *> deviceExtensions{};
   vk::PhysicalDeviceFeatures features;
   features.independentBlend = true;
+  features.imageCubeArray = true;
 
 #ifdef CUDA_INTEROP
   deviceExtensions.push_back(VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME);

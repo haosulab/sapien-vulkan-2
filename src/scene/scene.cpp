@@ -14,6 +14,13 @@ struct DirectionalLightData {
   glm::vec4 color;
 };
 
+struct LightBufferData {
+  glm::mat4 viewMatrix;
+  glm::mat4 viewMatrixInverse;
+  glm::mat4 projectionMatrix;
+  glm::mat4 projectionMatrixInverse;
+};
+
 Scene::Scene() {
   mNodes.push_back(std::make_unique<Node>());
   mRootNode = mNodes.back().get();
@@ -169,6 +176,7 @@ void Scene::updateModelMatrices() {
 
 void Scene::uploadToDevice(core::Buffer &sceneBuffer,
                            StructDataLayout const &sceneLayout) {
+  reorderLights();
   auto pointLights = getPointLights();
   auto directionalLights = getDirectionalLights();
   std::vector<PointLightData> pointLightData;
@@ -183,7 +191,7 @@ void Scene::uploadToDevice(core::Buffer &sceneBuffer,
   for (auto light : directionalLights) {
     directionalLightData.push_back(
         {.direction =
-             light->getTransform().worldModelMatrix * glm::vec4(1, 0, 0, 0),
+             light->getTransform().worldModelMatrix * glm::vec4(0, 0, -1, 0),
          .color = light->getColor()});
   }
 
@@ -191,18 +199,23 @@ void Scene::uploadToDevice(core::Buffer &sceneBuffer,
                      sceneLayout.elements.at("ambientLight").offset);
   uint32_t numPointLights = mPointLights.size();
   uint32_t numDirectionalLights = mDirectionalLights.size();
-  if (sceneLayout.elements.at("pointLights").arrayDim < mPointLights.size()) {
+  uint32_t maxNumPointLights =
+      sceneLayout.elements.at("pointLights").size /
+      sceneLayout.elements.at("pointLights").member->size;
+  uint32_t maxNumDirectionalLights =
+      sceneLayout.elements.at("directionalLights").size /
+      sceneLayout.elements.at("directionalLights").member->size;
+
+  if (maxNumPointLights < mPointLights.size()) {
     log::warn("The scene contains more point lights than the maximum number of "
               "point lights in the shader. Truncated.");
-    numPointLights = sceneLayout.elements.at("pointLights").arrayDim;
+    numPointLights = maxNumPointLights;
   }
-  if (sceneLayout.elements.at("directionalLights").arrayDim <
-      mDirectionalLights.size()) {
+  if (maxNumDirectionalLights < mDirectionalLights.size()) {
     log::warn(
         "The scene contains more directional lights than the maximum number of "
         "directional lights in the shader. Truncated.");
-    numDirectionalLights =
-        sceneLayout.elements.at("directionalLights").arrayDim;
+    numDirectionalLights = maxNumDirectionalLights;
   }
   sceneBuffer.upload(pointLightData.data(),
                      numPointLights * sizeof(PointLightData),
@@ -210,6 +223,106 @@ void Scene::uploadToDevice(core::Buffer &sceneBuffer,
   sceneBuffer.upload(directionalLightData.data(),
                      numDirectionalLights * sizeof(PointLightData),
                      sceneLayout.elements.at("directionalLights").offset);
+}
+
+void Scene::uploadShadowToDevice(
+    core::Buffer &shadowBuffer,
+    std::vector<std::unique_ptr<core::Buffer>> &lightBuffers,
+    StructDataLayout const &shadowLayout) {
+
+  uint32_t maxNumDirectionalLightShadows =
+      shadowLayout.elements.at("directionalLightBuffers").size /
+      shadowLayout.elements.at("directionalLightBuffers").member->size;
+  uint32_t maxNumPointLightShadows =
+      shadowLayout.elements.at("pointLightBuffers").size /
+      shadowLayout.elements.at("pointLightBuffers").member->size / 6;
+  // uint32_t maxNumCustomLightShadows =
+  //     shadowLayout.elements.at("customLightBuffers").size /
+  //     shadowLayout.elements.at("customLightBuffers").member->size;
+
+  uint32_t lightBufferIndex = 0;
+  {
+    std::vector<LightBufferData> directionalLightShadowData;
+    uint32_t numDirectionalLightShadows = 0;
+    for (auto &l : getDirectionalLights()) {
+      if (l->isShadowEnabled()) {
+        if (numDirectionalLightShadows >= maxNumDirectionalLightShadows) {
+          throw std::runtime_error("The scene contains too many directional "
+                                   "lights that cast shadows.");
+          // log::warn("The scene contains too many directional lights that cast
+          // "
+          //           "shadows. "
+          //           "Truncated.");
+          break;
+        }
+        numDirectionalLightShadows++;
+
+        auto modelMat = l->getTransform().worldModelMatrix;
+        auto projMat = l->getShadowProjectionMatrix();
+        directionalLightShadowData.push_back({
+            .viewMatrix = glm::affineInverse(modelMat),
+            .viewMatrixInverse = modelMat,
+            .projectionMatrix = projMat,
+            .projectionMatrixInverse = glm::inverse(projMat),
+        });
+        lightBuffers[lightBufferIndex++]->upload(
+            &directionalLightShadowData.back(), sizeof(LightBufferData));
+      } else {
+        break;
+      }
+    }
+    shadowBuffer.upload(
+        directionalLightShadowData.data(),
+        directionalLightShadowData.size() * sizeof(LightBufferData),
+        shadowLayout.elements.at("directionalLightBuffers").offset);
+  }
+
+  {
+    std::vector<LightBufferData> pointLightShadowData;
+    uint32_t numPointLightShadows = 0;
+    for (auto &l : getPointLights()) {
+      if (l->isShadowEnabled()) {
+        if (numPointLightShadows >= maxNumPointLightShadows) {
+          throw std::runtime_error("The scene contains too many point "
+                                   "lights that cast shadows.");
+          // log::warn(
+          //     "The scene contains too many point lights that cast shadows. "
+          //     "Truncated.");
+          break;
+        }
+        numPointLightShadows++;
+        auto modelMats = PointLight::getModelMatrices(
+            glm::vec3(l->getTransform().worldModelMatrix[3]));
+        auto projMat = l->getShadowProjectionMatrix();
+        for (uint32_t i = 0; i < 6; ++i) {
+          pointLightShadowData.push_back({
+              .viewMatrix = glm::affineInverse(modelMats[i]),
+              .viewMatrixInverse = modelMats[i],
+              .projectionMatrix = projMat,
+              .projectionMatrixInverse = glm::inverse(projMat),
+          });
+          lightBuffers[lightBufferIndex++]->upload(&pointLightShadowData.back(),
+                                                   sizeof(LightBufferData));
+        }
+      } else {
+        break;
+      }
+    }
+    shadowBuffer.upload(pointLightShadowData.data(),
+                        pointLightShadowData.size() * sizeof(LightBufferData),
+                        shadowLayout.elements.at("pointLightBuffers").offset);
+  }
+  // TODO: custom shadow
+}
+
+void Scene::reorderLights() {
+  std::sort(mPointLights.begin(), mPointLights.end(), [](auto &l1, auto &l2) {
+    return l1->isShadowEnabled() && !l2->isShadowEnabled();
+  });
+  std::sort(mDirectionalLights.begin(), mDirectionalLights.end(),
+            [](auto &l1, auto &l2) {
+              return l1->isShadowEnabled() && !l2->isShadowEnabled();
+            });
 }
 
 } // namespace scene

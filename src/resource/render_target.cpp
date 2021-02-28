@@ -8,6 +8,15 @@ SVRenderTarget::SVRenderTarget(std::string const &name, uint32_t width,
                                uint32_t height, vk::Format format)
     : mName(name), mFormat(format), mWidth(width), mHeight(height) {}
 
+SVRenderTarget::SVRenderTarget(std::string const &name, uint32_t width,
+                               uint32_t height,
+                               std::shared_ptr<core::Image> image,
+                               vk::UniqueImageView imageView,
+                               vk::UniqueSampler sampler)
+    : mName(name), mFormat(image->getFormat()), mWidth(width), mHeight(height),
+      mImage(image), mImageView(std::move(imageView)),
+      mSampler(std::move(sampler)) {}
+
 void SVRenderTarget::createDeviceResources(core::Context &context) {
   bool isDepth = false;
   vk::ImageUsageFlags usage;
@@ -29,7 +38,7 @@ void SVRenderTarget::createDeviceResources(core::Context &context) {
         "R32G32B32A32Uint, D32Sfloat, D24UnormS8Uint");
   }
 
-  mImage = std::make_unique<core::Image>(
+  mImage = std::make_shared<core::Image>(
       context, vk::Extent3D{mWidth, mHeight, 1}, mFormat, usage,
       VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, vk::SampleCountFlagBits::e1,
       1);

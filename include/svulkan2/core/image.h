@@ -50,12 +50,12 @@ private:
   vk::Image mImage;
   VmaAllocation mAllocation;
 
-  bool mMapped{};
-  void *mMappedData;
+  // bool mMapped{};
+  // void *mMappedData;
 
   vk::ImageLayout mCurrentLayout;
 
-  void generateMipmaps(vk::CommandBuffer cb);
+  void generateMipmaps(vk::CommandBuffer cb, uint32_t arrayLayer = 0);
 
 public:
   Image(Context &context, vk::Extent3D extent, vk::Format format,
@@ -74,39 +74,52 @@ public:
 
   vk::Image getVulkanImage() const { return mImage; }
 
-  void *map();
-  void unmap();
+  // void *map();
+  // void unmap();
 
-  void upload(void const *data, size_t size);
-  template <typename DataType> void upload(std::vector<DataType> const &data) {
-    upload(data.data(), data.size() * sizeof(DataType));
+  void upload(void const *data, size_t size, uint32_t arrayLayer = 0);
+  template <typename DataType>
+  void upload(std::vector<DataType> const &data, uint32_t arrayLayer = 0) {
+    upload(data.data(), data.size() * sizeof(DataType), arrayLayer);
   }
 
   void download(void *data, size_t size, vk::Offset3D offset,
-                vk::Extent3D extent);
-  void download(void *data, size_t size);
-  void downloadPixel(void *data, size_t pixelSize, vk::Offset3D offset);
+                vk::Extent3D extent, uint32_t arrayLayer = 0);
+  void download(void *data, size_t size, uint32_t arrayLayer = 0);
+  void downloadPixel(void *data, size_t pixelSize, vk::Offset3D offset,
+                     uint32_t arrayLayer = 0);
 
   template <typename DataType>
-  std::vector<DataType> download(vk::Offset3D offset, vk::Extent3D extent) {
+  std::vector<DataType> download(vk::Offset3D offset, vk::Extent3D extent,
+                                 uint32_t arrayLayer = 0) {
     static_assert(sizeof(DataType) == 1 ||
                   sizeof(DataType) == 4); // only support char, int or float
     size_t size = findSizeFromFormat(mFormat) * extent.width * extent.height *
                   extent.depth;
     std::vector<DataType> data(size / sizeof(DataType));
-    download(data.data(), size, offset, extent);
+    download(data.data(), size, offset, extent, arrayLayer);
     return data;
   }
-  template <typename DataType> std::vector<DataType> download() {
-    return download<DataType>({0, 0, 0}, mExtent);
+  template <typename DataType>
+  std::vector<DataType> download(uint32_t arrayLayer = 0) {
+    return download<DataType>({0, 0, 0}, mExtent, arrayLayer);
   }
   template <typename DataType>
-  std::vector<DataType> downloadPixel(vk::Offset3D offset) {
-    return download<DataType>(offset, {1, 1, 1});
+  std::vector<DataType> downloadPixel(vk::Offset3D offset,
+                                      uint32_t arrayLayer = 0) {
+    return download<DataType>(offset, {1, 1, 1}, arrayLayer);
   }
 
   /** call to tell this image its current layout, call before download */
   void setCurrentLayout(vk::ImageLayout layout) { mCurrentLayout = layout; };
+
+  void transitionLayout(vk::CommandBuffer commandBuffer,
+                        vk::ImageLayout oldImageLayout,
+                        vk::ImageLayout newImageLayout,
+                        vk::AccessFlags sourceAccessMask,
+                        vk::AccessFlags destAccessMask,
+                        vk::PipelineStageFlags sourceStage,
+                        vk::PipelineStageFlags destStage, uint32_t arrayLayer);
 
   void transitionLayout(vk::CommandBuffer commandBuffer,
                         vk::ImageLayout oldImageLayout,

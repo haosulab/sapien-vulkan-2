@@ -67,27 +67,26 @@ Image::~Image() {
                   mAllocation);
 }
 
-void *Image::map() {
-  if (!mMapped) {
-    auto result = vmaMapMemory(mContext->getAllocator().getVmaAllocator(),
-                               mAllocation, &mMappedData);
-    if (result != VK_SUCCESS) {
-      log::critical("unable to map memory");
-      abort();
-    }
-  }
-  return mMappedData;
-}
+// void *Image::map() {
+//   if (!mMapped) {
+//     auto result = vmaMapMemory(mContext->getAllocator().getVmaAllocator(),
+//                                mAllocation, &mMappedData);
+//     if (result != VK_SUCCESS) {
+//       log::critical("unable to map memory");
+//       abort();
+//     }
+//   }
+//   return mMappedData;
+// }
 
-void Image::unmap() {
-  if (mMapped) {
-    vmaUnmapMemory(mContext->getAllocator().getVmaAllocator(), mAllocation);
-    mMapped = false;
-  }
-}
+// void Image::unmap() {
+//   if (mMapped) {
+//     vmaUnmapMemory(mContext->getAllocator().getVmaAllocator(), mAllocation);
+//     mMapped = false;
+//   }
+// }
 
-void Image::upload(void const *data, size_t size) {
-  // TODO: handle the host visible case
+void Image::upload(void const *data, size_t size, uint32_t arrayLayer) {
   size_t imageSize = mExtent.width * mExtent.height * mExtent.depth *
                      findSizeFromFormat(mFormat);
   if (size != imageSize) {
@@ -100,7 +99,8 @@ void Image::upload(void const *data, size_t size) {
 
   vk::BufferImageCopy copyRegion(
       0, mExtent.width, mExtent.height,
-      vk::ImageSubresourceLayers(findAspectBitsFromFormat(mFormat), 0, 0, 1),
+      vk::ImageSubresourceLayers(findAspectBitsFromFormat(mFormat), 0,
+                                 arrayLayer, 1),
       vk::Offset3D(0, 0, 0), mExtent);
 
   auto cb = mContext->createCommandBuffer();
@@ -109,7 +109,7 @@ void Image::upload(void const *data, size_t size) {
                    vk::ImageLayout::eTransferDstOptimal, {},
                    vk::AccessFlagBits::eTransferWrite,
                    vk::PipelineStageFlagBits::eTopOfPipe,
-                   vk::PipelineStageFlagBits::eTransfer);
+                   vk::PipelineStageFlagBits::eTransfer, arrayLayer);
   cb->copyBufferToImage(stagingBuffer->getVulkanBuffer(), mImage,
                         vk::ImageLayout::eTransferDstOptimal, copyRegion);
   generateMipmaps(cb.get());
@@ -117,15 +117,13 @@ void Image::upload(void const *data, size_t size) {
   mContext->submitCommandBufferAndWait(cb.get());
 }
 
-void Image::generateMipmaps(vk::CommandBuffer cb) {
-  // auto cb = mContext->createCommandBuffer();
-
+void Image::generateMipmaps(vk::CommandBuffer cb, uint32_t arrayLayer) {
   vk::ImageMemoryBarrier barrier;
   barrier.setImage(mImage);
   barrier.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED);
   barrier.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED);
   barrier.subresourceRange.setAspectMask(vk::ImageAspectFlagBits::eColor);
-  barrier.subresourceRange.setBaseArrayLayer(0);
+  barrier.subresourceRange.setBaseArrayLayer(arrayLayer);
   barrier.subresourceRange.setLayerCount(1);
   barrier.subresourceRange.setLevelCount(1);
 
@@ -181,7 +179,7 @@ void Image::generateMipmaps(vk::CommandBuffer cb) {
 }
 
 void Image::download(void *data, size_t size, vk::Offset3D offset,
-                     vk::Extent3D extent) {
+                     vk::Extent3D extent, uint32_t arrayLayer) {
   size_t imageSize =
       extent.width * extent.height * extent.depth * findSizeFromFormat(mFormat);
   if (size != imageSize) {
@@ -232,43 +230,60 @@ void Image::download(void *data, size_t size, vk::Offset3D offset,
     throw std::runtime_error("failed to download image: invalid layout.");
   }
 
-  if (!mHostCoherent) {
-    auto stagingBuffer = mContext->getAllocator().allocateStagingBuffer(size);
-    auto cb = mContext->createCommandBuffer();
-    cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
-    if (mCurrentLayout != vk::ImageLayout::eTransferSrcOptimal) {
-      transitionLayout(cb.get(), sourceLayout,
-                       vk::ImageLayout::eTransferSrcOptimal, sourceAccessFlag,
-                       vk::AccessFlagBits::eTransferRead, sourceStage,
-                       vk::PipelineStageFlagBits::eTransfer);
-    }
-    vk::BufferImageCopy copyRegion(0, mExtent.width, mExtent.height,
-                                   {aspect, 0, 0, 1}, offset, extent);
-    cb->copyImageToBuffer(mImage, vk::ImageLayout::eTransferSrcOptimal,
-                          stagingBuffer->getVulkanBuffer(), copyRegion);
-    cb->end();
-    mContext->submitCommandBufferAndWait(cb.get());
-    setCurrentLayout(vk::ImageLayout::eTransferSrcOptimal);
-
-    std::memcpy(data, stagingBuffer->map(), size);
-    stagingBuffer->unmap();
-  } else {
-    vk::ImageSubresource subResource(aspect, 0, 0);
-    vk::SubresourceLayout subresourceLayout =
-        mContext->getDevice().getImageSubresourceLayout(mImage, subResource);
-    std::memcpy(data,
-                static_cast<char const *>(map()) + subresourceLayout.offset,
-                size);
-    unmap();
+  // if (!mHostCoherent) {
+  auto stagingBuffer = mContext->getAllocator().allocateStagingBuffer(size);
+  auto cb = mContext->createCommandBuffer();
+  cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+  if (mCurrentLayout != vk::ImageLayout::eTransferSrcOptimal) {
+    transitionLayout(cb.get(), sourceLayout,
+                     vk::ImageLayout::eTransferSrcOptimal, sourceAccessFlag,
+                     vk::AccessFlagBits::eTransferRead, sourceStage,
+                     vk::PipelineStageFlagBits::eTransfer);
   }
+  vk::BufferImageCopy copyRegion(0, mExtent.width, mExtent.height,
+                                 {aspect, 0, 0, 1}, offset, extent);
+  cb->copyImageToBuffer(mImage, vk::ImageLayout::eTransferSrcOptimal,
+                        stagingBuffer->getVulkanBuffer(), copyRegion);
+  cb->end();
+  mContext->submitCommandBufferAndWait(cb.get());
+  setCurrentLayout(vk::ImageLayout::eTransferSrcOptimal);
+
+  std::memcpy(data, stagingBuffer->map(), size);
+  stagingBuffer->unmap();
+  // }
+  // else {
+  //   vk::ImageSubresource subResource(aspect, 0, 0);
+  //   vk::SubresourceLayout subresourceLayout =
+  //       mContext->getDevice().getImageSubresourceLayout(mImage, subResource);
+  //   std::memcpy(data,
+  //               static_cast<char const *>(map()) + subresourceLayout.offset,
+  //               size);
+  //   unmap();
+  // }
 }
 
-void Image::download(void *data, size_t size) {
-  download(data, size, {0, 0, 0}, mExtent);
+void Image::download(void *data, size_t size, uint32_t arrayLayer) {
+  download(data, size, {0, 0, 0}, mExtent, arrayLayer);
 }
 
-void Image::downloadPixel(void *data, size_t pixelSize, vk::Offset3D offset) {
-  download(data, pixelSize, offset, {1, 1, 1});
+void Image::downloadPixel(void *data, size_t pixelSize, vk::Offset3D offset,
+                          uint32_t arrayLayer) {
+  download(data, pixelSize, offset, {1, 1, 1}, arrayLayer);
+}
+
+void Image::transitionLayout(
+    vk::CommandBuffer commandBuffer, vk::ImageLayout oldImageLayout,
+    vk::ImageLayout newImageLayout, vk::AccessFlags sourceAccessMask,
+    vk::AccessFlags destAccessMask, vk::PipelineStageFlags sourceStage,
+    vk::PipelineStageFlags destStage, uint32_t arrayLayer) {
+  vk::ImageSubresourceRange imageSubresourceRange(
+      findAspectBitsFromFormat(mFormat), 0, mMipLevels, arrayLayer, 1);
+  vk::ImageMemoryBarrier barrier(
+      sourceAccessMask, destAccessMask, oldImageLayout, newImageLayout,
+      VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, mImage,
+      imageSubresourceRange);
+  commandBuffer.pipelineBarrier(sourceStage, destStage, {}, nullptr, nullptr,
+                                barrier);
 }
 
 void Image::transitionLayout(vk::CommandBuffer commandBuffer,

@@ -1,4 +1,4 @@
-#include "svulkan2/shader/shadowmap.h"
+#include "svulkan2/shader/shadow.h"
 #include "svulkan2/common/log.h"
 
 namespace svulkan2 {
@@ -6,17 +6,42 @@ namespace shader {
 
 void ShadowPassParser::reflectSPV() {
   spirv_cross::Compiler vertComp(mVertSPVCode);
+  std::vector<DescriptorSetDescription> vertDesc;
   try {
     mVertexInputLayout = parseVertexInput(vertComp);
-    // mLightSpaceBufferLayout = parseLightSpaceBuffer(vertComp, 0, 0);
-    // mObjectBufferLayout = parseObjectBuffer(vertComp, 0, 1);
+    for (uint32_t i = 0; i < 4; ++i) {
+      vertDesc.push_back(getDescriptorSetDescription(vertComp, i));
+    }
   } catch (std::runtime_error const &err) {
     throw std::runtime_error("[vert]" + std::string(err.what()));
   }
+
+  for (uint32_t i = 0, stop = false; i < 4; ++i) {
+    if (vertDesc[i].type == UniformBindingType::eNone) {
+      stop = true;
+      continue;
+    }
+    if (stop == true) {
+      throw std::runtime_error("shadow: descriptor sets should use "
+                               "consecutive integers starting from 0");
+    }
+    mDescriptorSetDescriptions.push_back(vertDesc[i]);
+  }
+  validate();
 }
 
 void ShadowPassParser::validate() const {
-  // Is this needed any more?
+  for (auto &desc : mDescriptorSetDescriptions) {
+    if (desc.type != UniformBindingType::eObject &&
+        desc.type != UniformBindingType::eLight) {
+      throw std::runtime_error(
+          "shadow: only object and light buffers are allowed in a shadow pass");
+    }
+  }
+}
+
+std::optional<std::string> ShadowPassParser::getDepthRenderTargetName() const {
+  return "ShadowDepth";
 }
 
 vk::PipelineLayout ShadowPassParser::createPipelineLayout(
@@ -148,7 +173,11 @@ vk::Pipeline ShadowPassParser::createGraphicsPipeline(
 
 std::vector<UniformBindingType>
 ShadowPassParser::getUniformBindingTypes() const {
-  return {UniformBindingType::eLight, UniformBindingType::eObject};
+  std::vector<UniformBindingType> result;
+  for (auto &desc : mDescriptorSetDescriptions) {
+    result.push_back(desc.type);
+  }
+  return result;
 }
 
 } // namespace shader
