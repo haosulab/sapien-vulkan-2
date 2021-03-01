@@ -135,7 +135,7 @@ void SVImage::uploadToDevice(core::Context &context) {
         mDescription.mipLevels, mFloatData.size());
     for (uint32_t layer = 0; layer < mFloatData.size(); ++layer) {
       mImage->upload(mFloatData[layer].data(),
-                     mFloatData[layer].size() * sizeof(uint8_t), layer);
+                     mFloatData[layer].size() * sizeof(float), layer);
     }
   }
   mOnDevice = true;

@@ -22,6 +22,9 @@ inline size_t findSizeFromFormat(vk::Format format) {
   if (format == vk::Format::eR32G32B32A32Uint) {
     return 16;
   }
+  if (format == vk::Format::eR32Sfloat) {
+    return 4;
+  }
   if (format == vk::Format::eR32G32B32A32Sfloat) {
     return 16;
   }
