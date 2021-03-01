@@ -6,6 +6,25 @@
 namespace svulkan2 {
 namespace scene {
 
+class DirectionalLight : public Node {
+  glm::vec4 mColor{0, 0, 0, 1};
+  bool mCastShadow{};
+  float mShadowNear{0};
+  float mShadowFar{10};
+  float mShadowScaling{10};
+
+public:
+  DirectionalLight(std::string const &name = "");
+  inline void setColor(glm::vec4 const &color) { mColor = color; }
+  inline glm::vec4 getColor() const { return mColor; }
+  void enableShadow(bool enable);
+  inline bool isShadowEnabled() const { return mCastShadow; }
+  void setShadowParameters(float near, float far, float scaling);
+  void setDirection(glm::vec3 const &dir);
+
+  glm::mat4 getShadowProjectionMatrix() const;
+};
+
 class PointLight : public Node {
   glm::vec4 mColor{0, 0, 0, 1};
   bool mCastShadow{};
@@ -24,23 +43,17 @@ public:
   glm::mat4 getShadowProjectionMatrix() const;
 };
 
-class DirectionalLight : public Node {
-  glm::vec4 mColor{0, 0, 0, 1};
-  bool mCastShadow{};
-  float mShadowNear{0};
-  float mShadowFar{10};
-  float mShadowScaling{10};
+class CustomLight : public Node {
+  glm::mat4 mProjectionMatrix{1};
 
 public:
-  DirectionalLight(std::string const &name = "");
-  inline void setColor(glm::vec4 const &color) { mColor = color; }
-  inline glm::vec4 getColor() const { return mColor; }
-  void enableShadow(bool enable);
-  inline bool isShadowEnabled() const { return mCastShadow; }
-  void setShadowParameters(float near, float far, float scaling);
-  void setDirection(glm::vec3 const &dir);
-
-  glm::mat4 getShadowProjectionMatrix() const;
+  CustomLight(std::string const &name = "");
+  inline void setShadowProjectionMatrix(glm::mat4 const &mat) {
+    mProjectionMatrix = mat;
+  }
+  inline glm::mat4 getShadowProjectionMatrix() const {
+    return mProjectionMatrix;
+  };
 };
 
 } // namespace scene

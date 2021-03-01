@@ -92,6 +92,18 @@ DirectionalLight &Scene::addDirectionalLight(Node &parent) {
   return result;
 }
 
+CustomLight &Scene::addCustomLight() { return addCustomLight(getRootNode()); }
+CustomLight &Scene::addCustomLight(Node &parent) {
+  forceRemove();
+  auto customLight = std::make_unique<CustomLight>();
+  auto &result = *customLight;
+  mCustomLights.push_back(std::move(customLight));
+  mCustomLights.back()->setScene(this);
+  mCustomLights.back()->setParent(parent);
+  parent.addChild(*mCustomLights.back());
+  return result;
+}
+
 void Scene::removeNode(Node &node) {
   mRequireForceRemove = true;
   node.markRemoved();
@@ -140,6 +152,12 @@ void Scene::forceRemove() {
                      }),
       mDirectionalLights.end());
 
+  mCustomLights.erase(std::remove_if(mCustomLights.begin(), mCustomLights.end(),
+                                     [](std::unique_ptr<CustomLight> &node) {
+                                       return node->isMarkedRemoved();
+                                     }),
+                      mCustomLights.end());
+
   mRequireForceRemove = false;
 }
 
@@ -165,6 +183,15 @@ std::vector<DirectionalLight *> Scene::getDirectionalLights() {
   forceRemove();
   std::vector<DirectionalLight *> result;
   for (auto &light : mDirectionalLights) {
+    result.push_back(light.get());
+  }
+  return result;
+}
+
+std::vector<CustomLight *> Scene::getCustomLights() {
+  forceRemove();
+  std::vector<CustomLight *> result;
+  for (auto &light : mCustomLights) {
     result.push_back(light.get());
   }
   return result;
@@ -236,9 +263,9 @@ void Scene::uploadShadowToDevice(
   uint32_t maxNumPointLightShadows =
       shadowLayout.elements.at("pointLightBuffers").size /
       shadowLayout.elements.at("pointLightBuffers").member->size / 6;
-  // uint32_t maxNumCustomLightShadows =
-  //     shadowLayout.elements.at("customLightBuffers").size /
-  //     shadowLayout.elements.at("customLightBuffers").member->size;
+  uint32_t maxNumCustomLightShadows =
+      shadowLayout.elements.at("customLightBuffers").size /
+      shadowLayout.elements.at("customLightBuffers").member->size;
 
   uint32_t lightBufferIndex = 0;
   {
@@ -249,10 +276,6 @@ void Scene::uploadShadowToDevice(
         if (numDirectionalLightShadows >= maxNumDirectionalLightShadows) {
           throw std::runtime_error("The scene contains too many directional "
                                    "lights that cast shadows.");
-          // log::warn("The scene contains too many directional lights that cast
-          // "
-          //           "shadows. "
-          //           "Truncated.");
           break;
         }
         numDirectionalLightShadows++;
@@ -312,7 +335,30 @@ void Scene::uploadShadowToDevice(
                         pointLightShadowData.size() * sizeof(LightBufferData),
                         shadowLayout.elements.at("pointLightBuffers").offset);
   }
-  // TODO: custom shadow
+  {
+    std::vector<LightBufferData> customLightShadowData;
+    uint32_t numCustomLightShadows = 0;
+    for (auto &l : getCustomLights()) {
+      if (numCustomLightShadows >= maxNumCustomLightShadows) {
+        throw std::runtime_error("The scene contains too many custom lights.");
+      }
+      numCustomLightShadows++;
+      auto modelMat = l->getTransform().worldModelMatrix;
+      auto projMat = l->getShadowProjectionMatrix();
+
+      customLightShadowData.push_back({
+          .viewMatrix = glm::affineInverse(modelMat),
+          .viewMatrixInverse = modelMat,
+          .projectionMatrix = projMat,
+          .projectionMatrixInverse = glm::inverse(projMat),
+      });
+      lightBuffers[lightBufferIndex++]->upload(&customLightShadowData.back(),
+                                               sizeof(LightBufferData));
+    }
+    shadowBuffer.upload(customLightShadowData.data(),
+                        customLightShadowData.size() * sizeof(LightBufferData),
+                        shadowLayout.elements.at("customLightBuffers").offset);
+  }
 }
 
 void Scene::reorderLights() {

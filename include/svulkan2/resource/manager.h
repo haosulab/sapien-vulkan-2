@@ -13,6 +13,8 @@ class SVResourceManager {
       mTextureRegistry;
   std::unordered_map<std::string, std::vector<std::shared_ptr<SVImage>>>
       mImageRegistry;
+  std::unordered_map<std::string, std::shared_ptr<SVTexture>>
+      mRandomTextureRegistry;
 
   ShaderConfig::MaterialPipeline mMaterialPipeline{
       ShaderConfig::MaterialPipeline::eUNKNOWN};
@@ -37,6 +39,8 @@ public:
       vk::Filter minFilter = vk::Filter::eLinear,
       vk::SamplerAddressMode addressModeU = vk::SamplerAddressMode::eRepeat,
       vk::SamplerAddressMode addressModeV = vk::SamplerAddressMode::eRepeat);
+
+  std::shared_ptr<SVTexture> CreateRandomTexture(std::string const &name);
 
   inline std::shared_ptr<SVTexture> getDefaultTexture() const {
     return mDefaultTexture;

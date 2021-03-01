@@ -6,13 +6,14 @@ namespace svulkan2 {
 namespace resource {
 
 struct SVImageDescription {
-  enum SourceType { eFILE, eCUSTOM } source;
-  std::vector<std::string> filenames;
-  uint32_t mipLevels;
+  enum SourceType { eFILE, eCUSTOM } source{eCUSTOM};
+  enum Format { eUINT8, eFLOAT } format{eUINT8};
+  std::vector<std::string> filenames{};
+  uint32_t mipLevels{1};
 
   inline bool operator==(SVImageDescription const &other) const {
     return source == other.source && filenames == other.filenames &&
-           mipLevels == other.mipLevels;
+           mipLevels == other.mipLevels && format == other.format;
   }
 };
 
@@ -25,6 +26,7 @@ class SVImage {
   uint32_t mChannels{};
 
   std::vector<std::vector<uint8_t>> mData;
+  std::vector<std::vector<float>> mFloatData;
   /** the image is on the host */
   bool mLoaded{};
   bool mOnDevice{};
@@ -36,11 +38,19 @@ public:
                                            uint32_t channels,
                                            std::vector<uint8_t> const &data,
                                            uint32_t mipLevels = 1);
-
   static std::shared_ptr<SVImage>
   FromData(uint32_t width, uint32_t height, uint32_t channels,
            std::vector<std::vector<uint8_t>> const &data,
            uint32_t mipLevels = 1);
+
+  static std::shared_ptr<SVImage> FromData(uint32_t width, uint32_t height,
+                                           uint32_t channels,
+                                           std::vector<float> const &data,
+                                           uint32_t mipLevels = 1);
+  static std::shared_ptr<SVImage>
+  FromData(uint32_t width, uint32_t height, uint32_t channels,
+           std::vector<std::vector<float>> const &data, uint32_t mipLevels = 1);
+
   static std::shared_ptr<SVImage> FromFile(std::string const &filename,
                                            uint32_t mipLevels = 1);
   static std::shared_ptr<SVImage>

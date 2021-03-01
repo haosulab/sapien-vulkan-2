@@ -341,8 +341,10 @@ void Renderer::renderShadows(vk::CommandBuffer commandBuffer,
     std::vector<vk::ClearValue> clearValues;
     clearValues.push_back(vk::ClearDepthStencilValue(1.0f, 0));
 
-    uint32_t shadowIdx = 0;
-    for (uint32_t i = 0; i < mNumDirectionalLightShadows; ++i, ++shadowIdx) {
+    for (uint32_t shadowIdx = 0;
+         shadowIdx < mNumDirectionalLightShadows + 6 * mNumPointLightShadows +
+                         mNumCustomShadows;
+         ++shadowIdx) {
       vk::RenderPassBeginInfo renderPassBeginInfo{
           shadowPass->getRenderPass(), mShadowFramebuffers[shadowIdx].get(),
           vk::Rect2D({0, 0}, {static_cast<uint32_t>(size),
@@ -392,60 +394,6 @@ void Renderer::renderShadows(vk::CommandBuffer commandBuffer,
       }
       commandBuffer.endRenderPass();
     }
-
-    for (uint32_t i = 0; i < mNumPointLightShadows; ++i) {
-      for (uint32_t j = 0; j < 6; ++j, ++shadowIdx) {
-        vk::RenderPassBeginInfo renderPassBeginInfo{
-            shadowPass->getRenderPass(), mShadowFramebuffers[shadowIdx].get(),
-            vk::Rect2D({0, 0}, {static_cast<uint32_t>(size),
-                                static_cast<uint32_t>(size)}),
-            static_cast<uint32_t>(clearValues.size()), clearValues.data()};
-        commandBuffer.beginRenderPass(renderPassBeginInfo,
-                                      vk::SubpassContents::eInline);
-        commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics,
-                                   shadowPass->getPipeline());
-        commandBuffer.setViewport(0, viewport);
-        commandBuffer.setScissor(0, scissor);
-
-        int objectBinding = -1;
-        auto types = shadowPass->getUniformBindingTypes();
-        for (uint32_t bindingIdx = 0; bindingIdx < types.size(); ++bindingIdx) {
-          switch (types[bindingIdx]) {
-          case shader::UniformBindingType::eObject:
-            objectBinding = bindingIdx;
-            break;
-          case shader::UniformBindingType::eLight:
-            commandBuffer.bindDescriptorSets(
-                vk::PipelineBindPoint::eGraphics,
-                shadowPass->getPipelineLayout(), bindingIdx,
-                mLightSets[shadowIdx].get(), nullptr);
-            break;
-          default:
-            throw std::runtime_error(
-                "shadow pass may only use object and light buffer");
-          }
-        }
-
-        for (uint32_t objIdx = 0; objIdx < objects.size(); ++objIdx) {
-          for (auto &shape : objects[objIdx]->getModel()->getShapes()) {
-            if (objectBinding >= 0) {
-              commandBuffer.bindDescriptorSets(
-                  vk::PipelineBindPoint::eGraphics,
-                  shadowPass->getPipelineLayout(), objectBinding,
-                  mObjectSet[objIdx].get(), nullptr);
-            }
-            commandBuffer.bindVertexBuffers(
-                0, shape->mesh->getVertexBuffer().getVulkanBuffer(),
-                std::vector<vk::DeviceSize>(1, 0));
-            commandBuffer.bindIndexBuffer(
-                shape->mesh->getIndexBuffer().getVulkanBuffer(), 0,
-                vk::IndexType::eUint32);
-            commandBuffer.drawIndexed(shape->mesh->getIndexCount(), 1, 0, 0, 0);
-          }
-        }
-        commandBuffer.endRenderPass();
-      }
-    }
   }
 }
 
@@ -462,6 +410,7 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
 
   mNumPointLightShadows = 0;
   mNumDirectionalLightShadows = 0;
+  mNumCustomShadows = scene.getCustomLights().size();
 
   for (auto l : pointLights) {
     if (l->isShadowEnabled()) {
@@ -471,6 +420,17 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
   for (auto l : directionalLights) {
     if (l->isShadowEnabled()) {
       mNumDirectionalLightShadows += 1;
+    }
+  }
+
+  {
+    // load custom textures
+    std::vector<std::future<void>> futures;
+    for (auto t : mCustomTextures) {
+      futures.push_back(t.second->loadAsync());
+    }
+    for (auto &f : futures) {
+      f.get();
     }
   }
 
@@ -534,12 +494,14 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
   }
 
   // load objects to CPU, if not already loaded
-  std::vector<std::future<void>> futures;
-  for (auto obj : objects) {
-    futures.push_back(obj->getModel()->loadAsync());
-  }
-  for (auto &f : futures) {
-    f.get();
+  {
+    std::vector<std::future<void>> futures;
+    for (auto obj : objects) {
+      futures.push_back(obj->getModel()->loadAsync());
+    }
+    for (auto &f : futures) {
+      f.get();
+    }
   }
 
   // upload objects to GPU, if not up-to-date
@@ -761,27 +723,42 @@ void Renderer::prepareSceneBuffer() {
                              mShadowBuffer->getVulkanBuffer(), nullptr}},
                            {}, bindingIndex);
     } else if (binding.name == "samplerPointLightDepths") {
-      // TODO: handle empty case
-      // if (mNumPointLightShadows) {
       updateDescriptorSets(mContext->getDevice(), mSceneSet.get(), {},
                            {{mPointShadowReadTarget->getImageView(),
                              mPointShadowReadTarget->getSampler()}},
                            bindingIndex);
-      // }
     } else if (binding.name == "samplerDirectionalLightDepths") {
-      // if (mNumDirectionalLightShadows) {
       updateDescriptorSets(mContext->getDevice(), mSceneSet.get(), {},
                            {{mDirectionalShadowReadTarget->getImageView(),
                              mDirectionalShadowReadTarget->getSampler()}},
                            bindingIndex);
-      // }
     } else if (binding.name == "samplerCustomLightDepths") {
-      // if (mNumCustomShadows) {
       updateDescriptorSets(mContext->getDevice(), mSceneSet.get(), {},
                            {{mCustomShadowReadTarget->getImageView(),
                              mCustomShadowReadTarget->getSampler()}},
                            bindingIndex);
-      // }
+    } else if (binding.type == vk::DescriptorType::eCombinedImageSampler &&
+               binding.name.starts_with("sampler")) {
+      std::string customTextureName = binding.name.substr(7);
+      if (customTextureName.starts_with("Random")) {
+        auto randomTex = mContext->getResourceManager().CreateRandomTexture(
+            customTextureName);
+        randomTex->uploadToDevice(*mContext);
+        updateDescriptorSets(
+            mContext->getDevice(), mSceneSet.get(), {},
+            {{randomTex->getImageView(), randomTex->getSampler()}},
+            bindingIndex);
+      } else if (mCustomTextures.contains(customTextureName)) {
+        mCustomTextures[customTextureName]->uploadToDevice(*mContext);
+        updateDescriptorSets(
+            mContext->getDevice(), mSceneSet.get(), {},
+            {{mCustomTextures[customTextureName]->getImageView(),
+              mCustomTextures[customTextureName]->getSampler()}},
+            bindingIndex);
+      } else {
+        throw std::runtime_error("custom sampler \"" + customTextureName +
+                                 "\" is not set in the renderer");
+      }
     } else {
       throw std::runtime_error("unrecognized uniform binding in scene \"" +
                                binding.name + "\"");
@@ -861,13 +838,26 @@ void Renderer::prepareInputTextureDescriptorSets() {
       std::vector<std::tuple<vk::ImageView, vk::Sampler>> textureData;
       auto names = passes[i]->getInputTextureNames();
       for (auto name : names) {
-        // TODO: allow custom textures
-        textureData.push_back({mRenderTargets[name]->getImageView(),
-                               mRenderTargets[name]->getSampler()});
+        if (mRenderTargets.contains(name)) {
+          textureData.push_back({mRenderTargets[name]->getImageView(),
+                                 mRenderTargets[name]->getSampler()});
+        } else if (name.starts_with("Random")) {
+          auto randomTex =
+              mContext->getResourceManager().CreateRandomTexture(name);
+          randomTex->uploadToDevice(*mContext);
+          textureData.push_back(
+              {randomTex->getImageView(), randomTex->getSampler()});
+        } else if (mCustomTextures.contains(name)) {
+          mCustomTextures[name]->uploadToDevice(*mContext);
+          textureData.push_back({mCustomTextures[name]->getImageView(),
+                                 mCustomTextures[name]->getSampler()});
+        } else {
+          throw std::runtime_error("custom sampler \"" + name +
+                                   "\" is not set in the renderer");
+        }
       }
       updateDescriptorSets(mContext->getDevice(),
                            mInputTextureSets.back().get(), {}, textureData, 0);
-
     } else {
       mInputTextureSets.push_back({});
     }
@@ -875,7 +865,6 @@ void Renderer::prepareInputTextureDescriptorSets() {
 }
 
 void Renderer::prepareCameaBuffer() {
-  // if (!mCameraBuffer) {
   mCameraBuffer = mContext->getAllocator().allocateUniformBuffer(
       mShaderManager->getShaderConfig()->cameraBufferLayout->size);
   auto layout = mShaderManager->getCameraDescriptorSetLayout();
@@ -888,7 +877,11 @@ void Renderer::prepareCameaBuffer() {
                        {{vk::DescriptorType::eUniformBuffer,
                          mCameraBuffer->getVulkanBuffer(), nullptr}},
                        {}, 0);
-  // }
+}
+
+void Renderer::setCustomTexture(std::string const &name,
+                                std::shared_ptr<resource::SVTexture> texture) {
+  mCustomTextures[name] = texture;
 }
 
 } // namespace renderer

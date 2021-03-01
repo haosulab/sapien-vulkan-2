@@ -40,11 +40,13 @@ DescriptorSetDescription::merge(DescriptorSetDescription const &other) const {
       if (binding.type == vk::DescriptorType::eUniformBuffer) {
         newBuffers.push_back(other.buffers[binding.arrayIndex]);
         newBindings[bindingIndex] = {
+            .name = binding.name,
             .type = vk::DescriptorType::eUniformBuffer,
             .arrayIndex = static_cast<uint32_t>(newBuffers.size() - 1)};
       } else if (binding.type == vk::DescriptorType::eCombinedImageSampler) {
         newSamplers.push_back(other.samplers[binding.arrayIndex]);
         newBindings[bindingIndex] = {
+            .name = binding.name,
             .type = vk::DescriptorType::eCombinedImageSampler,
             .arrayIndex = static_cast<uint32_t>(newSamplers.size() - 1)};
       } else {

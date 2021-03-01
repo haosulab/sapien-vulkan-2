@@ -82,5 +82,7 @@ glm::mat4 DirectionalLight::getShadowProjectionMatrix() const {
   return mat;
 }
 
+CustomLight::CustomLight(std::string const &name) : Node(name) {}
+
 } // namespace scene
 } // namespace svulkan2

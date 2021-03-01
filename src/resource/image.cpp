@@ -29,6 +29,7 @@ SVImage::FromData(uint32_t width, uint32_t height, uint32_t channels,
   }
   auto image = std::shared_ptr<SVImage>(new SVImage);
   image->mDescription = {.source = SVImageDescription::SourceType::eCUSTOM,
+                         .format = SVImageDescription::Format::eUINT8,
                          .filenames = {},
                          .mipLevels = mipLevels};
   image->mWidth = width;
@@ -39,30 +40,47 @@ SVImage::FromData(uint32_t width, uint32_t height, uint32_t channels,
   return image;
 }
 
+std::shared_ptr<SVImage>
+SVImage::FromData(uint32_t width, uint32_t height, uint32_t channels,
+                  std::vector<std::vector<float>> const &data,
+                  uint32_t mipLevels) {
+  if (channels != 1 && channels != 4) {
+    throw std::runtime_error(
+        "failed to create image: image must have 1 or 4 channels");
+  }
+  for (auto &d : data) {
+    if (width * height * channels != d.size()) {
+      throw std::runtime_error("failed to create image: image dimension does "
+                               "not match image data size");
+    }
+  }
+  auto image = std::shared_ptr<SVImage>(new SVImage);
+  image->mDescription = {.source = SVImageDescription::SourceType::eCUSTOM,
+                         .format = SVImageDescription::Format::eFLOAT,
+                         .filenames = {},
+                         .mipLevels = mipLevels};
+  image->mWidth = width;
+  image->mHeight = height;
+  image->mChannels = channels;
+  image->mFloatData = data;
+  image->mLoaded = true;
+  return image;
+}
+
 std::shared_ptr<SVImage> SVImage::FromData(uint32_t width, uint32_t height,
                                            uint32_t channels,
                                            std::vector<uint8_t> const &data,
                                            uint32_t mipLevels) {
   return SVImage::FromData(width, height, channels,
                            std::vector<std::vector<uint8_t>>{data}, mipLevels);
-  // if (channels != 1 && channels != 4) {
-  //   throw std::runtime_error(
-  //       "failed to create image: image must have 1 or 4 channels");
-  // }
-  // if (width * height * channels != data.size()) {
-  //   throw std::runtime_error("failed to create image: image dimension does "
-  //                            "not match image data size");
-  // }
-  // auto image = std::shared_ptr<SVImage>(new SVImage);
-  // image->mDescription = {.source = SVImageDescription::SourceType::eCUSTOM,
-  //                        .filenames = {},
-  //                        .mipLevels = mipLevels};
-  // image->mWidth = width;
-  // image->mHeight = height;
-  // image->mChannels = channels;
-  // image->mData = {data};
-  // image->mLoaded = true;
-  // return image;
+}
+
+std::shared_ptr<SVImage> SVImage::FromData(uint32_t width, uint32_t height,
+                                           uint32_t channels,
+                                           std::vector<float> const &data,
+                                           uint32_t mipLevels) {
+  return SVImage::FromData(width, height, channels,
+                           std::vector<std::vector<float>>{data}, mipLevels);
 }
 
 std::shared_ptr<SVImage> SVImage::FromFile(std::string const &filename,
@@ -92,16 +110,33 @@ void SVImage::uploadToDevice(core::Context &context) {
     throw std::runtime_error(
         "failed to upload to device: image does not exist in memory");
   }
-  mImage = std::make_unique<core::Image>(
-      context, vk::Extent3D{mWidth, mHeight, 1},
-      mChannels == 4 ? vk::Format::eR8G8B8A8Unorm : vk::Format::eR8Unorm,
-      vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst |
-          vk::ImageUsageFlagBits::eTransferSrc,
-      VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, vk::SampleCountFlagBits::e1,
-      mDescription.mipLevels, mData.size());
-  for (uint32_t layer = 0; layer < mData.size(); ++layer) {
-    mImage->upload(mData[layer].data(), mData[layer].size() * sizeof(uint8_t),
-                   layer);
+  if (mDescription.format == SVImageDescription::Format::eUINT8) {
+    mImage = std::make_unique<core::Image>(
+        context, vk::Extent3D{mWidth, mHeight, 1},
+        mChannels == 4 ? vk::Format::eR8G8B8A8Unorm : vk::Format::eR8Unorm,
+        vk::ImageUsageFlagBits::eSampled |
+            vk::ImageUsageFlagBits::eTransferDst |
+            vk::ImageUsageFlagBits::eTransferSrc,
+        VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, vk::SampleCountFlagBits::e1,
+        mDescription.mipLevels, mData.size());
+    for (uint32_t layer = 0; layer < mData.size(); ++layer) {
+      mImage->upload(mData[layer].data(), mData[layer].size() * sizeof(uint8_t),
+                     layer);
+    }
+  } else {
+    mImage = std::make_unique<core::Image>(
+        context, vk::Extent3D{mWidth, mHeight, 1},
+        mChannels == 4 ? vk::Format::eR32G32B32A32Sfloat
+                       : vk::Format::eR32Sfloat,
+        vk::ImageUsageFlagBits::eSampled |
+            vk::ImageUsageFlagBits::eTransferDst |
+            vk::ImageUsageFlagBits::eTransferSrc,
+        VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, vk::SampleCountFlagBits::e1,
+        mDescription.mipLevels, mFloatData.size());
+    for (uint32_t layer = 0; layer < mFloatData.size(); ++layer) {
+      mImage->upload(mFloatData[layer].data(),
+                     mFloatData[layer].size() * sizeof(uint8_t), layer);
+    }
   }
   mOnDevice = true;
 }
@@ -140,7 +175,17 @@ std::future<void> SVImage::loadAsync() {
       }
       mWidth = width;
       mHeight = height;
-      mData.push_back(std::vector(data, data + width * height * 4));
+      std::vector<uint8_t> dataVector(data, data + width * height * 4);
+      if (mDescription.format == SVImageDescription::Format::eUINT8) {
+        mData.push_back(dataVector);
+      } else {
+        std::vector<float> floatDataVector;
+        floatDataVector.reserve(dataVector.size());
+        for (uint8_t x : dataVector) {
+          floatDataVector.push_back(x);
+        }
+        mFloatData.push_back(floatDataVector);
+      }
       stbi_image_free(data);
       mLoaded = true;
     }

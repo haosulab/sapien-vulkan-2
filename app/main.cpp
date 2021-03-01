@@ -101,6 +101,14 @@ int main() {
   FPSCameraController controller(cameraNode, {0, 0, -1}, {0, 1, 0});
   controller.setXYZ(0, 0.5, 0);
 
+  auto &customLight = scene.addCustomLight(cameraNode);
+  customLight.setTransform({.position = {0.1, 0, 0}});
+  customLight.setShadowProjectionMatrix(glm::perspective(0.7f, 1.f, 0.1f, 5.f));
+
+  renderer.setCustomTexture("LightMap",
+                            context.getResourceManager().CreateTextureFromFile(
+                                "../test/assets/image/flashlight.jpg", 1));
+
   renderer.resize(800, 600);
 
   auto window = context.createWindow(800, 600);

@@ -1,5 +1,6 @@
 #include "svulkan2/resource/manager.h"
 #include <filesystem>
+#include <random>
 
 namespace fs = std::filesystem;
 
@@ -7,7 +8,8 @@ namespace svulkan2 {
 namespace resource {
 
 SVResourceManager::SVResourceManager() {
-  mDefaultTexture = SVTexture::FromData(1, 1, 4, {255, 255, 255, 255});
+  mDefaultTexture =
+      SVTexture::FromData(1, 1, 4, std::vector<uint8_t>{255, 255, 255, 255});
 }
 
 std::shared_ptr<SVImage>
@@ -61,6 +63,57 @@ std::shared_ptr<SVTexture> SVResourceManager::CreateTextureFromFile(
   tex->setManager(this);
   mTextureRegistry[path].push_back(tex);
   return tex;
+}
+
+// TODO: test this function
+std::shared_ptr<SVTexture>
+SVResourceManager::CreateRandomTexture(std::string const &name) {
+  if (mRandomTextureRegistry.contains(name)) {
+    return mRandomTextureRegistry[name];
+  }
+
+  if (!name.starts_with("Random")) {
+    throw std::runtime_error("random texture name must starts with \"Random\"");
+  }
+  std::string n = name.substr(6);
+  auto idx = n.find('x');
+  if (idx == n.npos) {
+    throw std::runtime_error("random texture name must starts with \"Random\"");
+  }
+  std::string firstNum = n.substr(0, idx);
+
+  n = n.substr(idx + 1);
+  idx = n.find('_');
+  std::string secondNum = n;
+  std::string seedNum = "0";
+  if (idx != n.npos) {
+    secondNum = n.substr(0, idx);
+    seedNum = n.substr(idx + 1);
+  }
+  try {
+    int width = std::stoi(firstNum);
+    int height = std::stoi(secondNum);
+    int seed = std::stoi(seedNum);
+    if (width < 0 || height < 0) {
+      throw std::runtime_error(
+          "random texture creation failed: invalid width, height, or seed.");
+    }
+    auto real_rand = std::bind(std::uniform_real_distribution<float>(0, 1),
+                               std::mt19937(seed));
+
+    std::vector<float> data;
+    data.reserve(width * height);
+    for (int i = 0; i < width * height; ++i) {
+      data.push_back(real_rand());
+    }
+
+    mRandomTextureRegistry[name] = SVTexture::FromData(width, height, 1, data);
+    return mRandomTextureRegistry[name];
+
+  } catch (std::invalid_argument const &) {
+    throw std::runtime_error(
+        "random texture creation failed: invalid width, height, or seed.");
+  }
 }
 
 std::shared_ptr<SVModel>

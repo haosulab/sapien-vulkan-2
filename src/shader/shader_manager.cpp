@@ -74,6 +74,18 @@ void ShaderManager::processShadersInFolder(std::string const &folder) {
     futures.push_back(gbufferPass->loadGLSLFilesAsync(vsFile, fsFile));
   }
 
+  {
+    std::string vsFile = (path / "ao.vert").string();
+    std::string fsFile = (path / "ao.frag").string();
+    if (fs::is_regular_file(vsFile) && fs::is_regular_file(fsFile)) {
+      auto aoPass = std::make_shared<DeferredPassParser>();
+      aoPass->setName("AO");
+      mAllPasses.push_back(aoPass);
+      mPassIndex[aoPass] = mAllPasses.size() - 1;
+      futures.push_back(aoPass->loadGLSLFilesAsync(vsFile, fsFile));
+    }
+  }
+
   // load deferred pass
   std::string vsFile = (path / "deferred.vert").string();
   std::string fsFile = (path / "deferred.frag").string();

@@ -24,7 +24,7 @@ class Renderer {
   uint32_t mNumCustomShadows{};
   std::shared_ptr<resource::SVRenderTarget> mDirectionalShadowReadTarget;
   std::vector<std::shared_ptr<resource::SVRenderTarget>>
-  mDirectionalShadowWriteTargets;
+      mDirectionalShadowWriteTargets;
 
   std::shared_ptr<resource::SVRenderTarget> mPointShadowReadTarget;
   std::vector<std::shared_ptr<resource::SVRenderTarget>>
@@ -44,6 +44,8 @@ class Renderer {
 
   std::vector<vk::UniqueFramebuffer> mFramebuffers;
   std::vector<vk::UniqueFramebuffer> mShadowFramebuffers;
+
+  std::map<std::string, std::shared_ptr<resource::SVTexture>> mCustomTextures;
 
   int mWidth{};
   int mHeight{};
@@ -93,6 +95,9 @@ public:
     return {data, std::array<uint32_t, 3>{height, width, channels}};
   }
 
+  void setCustomTexture(std::string const &name,
+                        std::shared_ptr<resource::SVTexture> texture);
+
   Renderer(Renderer const &other) = delete;
   Renderer &operator=(Renderer const &other) = delete;
   Renderer(Renderer &&other) = default;
@@ -109,7 +114,6 @@ private:
   void prepareObjectBuffers(uint32_t numObjects);
   void prepareCameaBuffer();
   void prepareLightBuffers();
-
 
   void prepareInputTextureDescriptorSets();
 

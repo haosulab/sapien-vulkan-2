@@ -29,6 +29,27 @@ SVTexture::FromData(uint32_t width, uint32_t height, uint32_t channels,
                     vk::SamplerAddressMode addressModeV) {
   auto texture = std::shared_ptr<SVTexture>(new SVTexture);
   texture->mDescription = {.source = SVTextureDescription::SourceType::eCUSTOM,
+                           .format = SVTextureDescription::Format::eUINT8,
+                           .filename = {},
+                           .mipLevels = mipLevels,
+                           .magFilter = magFilter,
+                           .minFilter = minFilter,
+                           .addressModeU = addressModeU,
+                           .addressModeV = addressModeV};
+  texture->mImage = SVImage::FromData(width, height, channels, data, mipLevels);
+  texture->mLoaded = true;
+  return texture;
+}
+
+std::shared_ptr<SVTexture>
+SVTexture::FromData(uint32_t width, uint32_t height, uint32_t channels,
+                    std::vector<float> const &data, uint32_t mipLevels,
+                    vk::Filter magFilter, vk::Filter minFilter,
+                    vk::SamplerAddressMode addressModeU,
+                    vk::SamplerAddressMode addressModeV) {
+  auto texture = std::shared_ptr<SVTexture>(new SVTexture);
+  texture->mDescription = {.source = SVTextureDescription::SourceType::eCUSTOM,
+                           .format = SVTextureDescription::Format::eFLOAT,
                            .filename = {},
                            .mipLevels = mipLevels,
                            .magFilter = magFilter,

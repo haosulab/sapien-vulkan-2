@@ -34,12 +34,10 @@ layout(set = 0, binding = 1) uniform ShadowBuffer {
   LightBuffer customLightBuffers[NUM_CUSTOM_LIGHT_SHADOWS > 0 ? NUM_CUSTOM_LIGHT_SHADOWS : 1];
 } shadowBuffer;
 
-// layout(set = 0, binding = 2) uniform samplerCube samplerPointLightDepths[NUM_POINT_LIGHT_SHADOWS > 0 ? NUM_POINT_LIGHT_SHADOWS : 1];
-// layout(set = 0, binding = 3) uniform sampler2D samplerDirectionalLightDepths[NUM_DIRECTIONAL_LIGHT_SHADOWS > 0 ? NUM_DIRECTIONAL_LIGHT_SHADOWS : 1];
-// layout(set = 0, binding = 4) uniform sampler2D samplerCustomLightDepths[NUM_CUSTOM_LIGHT_SHADOWS > 0 ? NUM_CUSTOM_LIGHT_SHADOWS : 1];
 layout(set = 0, binding = 2) uniform samplerCubeArray samplerPointLightDepths;
 layout(set = 0, binding = 3) uniform sampler2DArray samplerDirectionalLightDepths;
 layout(set = 0, binding = 4) uniform sampler2DArray samplerCustomLightDepths;
+layout(set = 0, binding = 5) uniform sampler2D samplerLightMap;
 
 layout(set = 1, binding = 0) uniform CameraBuffer {
   mat4 viewMatrix;
@@ -104,7 +102,7 @@ vec3 computeDirectionalLight(int index, vec3 normal, vec3 camDir, vec3 diffuseAl
   return color;
 }
 
-vec3 computePointLight(int index, vec3 l, vec3 normal, vec3 camDir, vec3 diffuseAlbedo, float roughness, vec3 fresnel) {
+vec3 computePointLight(vec3 emission, vec3 l, vec3 normal, vec3 camDir, vec3 diffuseAlbedo, float roughness, vec3 fresnel) {
   float d = max(length(l), 0.0001);
 
   if (length(l) == 0) {
@@ -121,8 +119,8 @@ vec3 computePointLight(int index, vec3 l, vec3 normal, vec3 camDir, vec3 diffuse
   float NoL = dot(normal, lightDir);
   float NoV = dot(normal, camDir);
 
-  vec3 color = diffuseAlbedo * sceneBuffer.pointLights[index].emission.rgb * diffuse(NoL) / d / d;
-  color += sceneBuffer.pointLights[index].emission.rgb * ggx(NoL, NoV, NoH, VoH, roughness, fresnel) / d / d;
+  vec3 color = diffuseAlbedo * emission * diffuse(NoL) / d / d;
+  color += emission * ggx(NoL, NoV, NoH, VoH, roughness, fresnel) / d / d;
   return color;
 }
 
@@ -159,13 +157,17 @@ void main() {
     float shadowDepth = texture(samplerPointLightDepths, vec4(-wsl, i)).x;
 
     float visibility = step(pixelDepth - shadowDepth, 0);
-    color += visibility * computePointLight(i, l, normal, camDir, diffuseAlbedo, roughness, fresnel);
+    color += visibility * computePointLight(
+        sceneBuffer.pointLights[i].emission.rgb,
+        l, normal, camDir, diffuseAlbedo, roughness, fresnel);
   }
 
   for (int i = NUM_POINT_LIGHT_SHADOWS; i < NUM_POINT_LIGHTS; i++) {
     vec3 pos = world2camera(vec4(sceneBuffer.pointLights[i].position.xyz, 1.f)).xyz;
     vec3 l = pos - csPosition.xyz;
-    color += computePointLight(i, l, normal, camDir, diffuseAlbedo, roughness, fresnel);
+    color += computePointLight(
+        sceneBuffer.pointLights[i].emission.rgb,
+        l, normal, camDir, diffuseAlbedo, roughness, fresnel);
   }
 
   for (int i = 0; i < NUM_DIRECTIONAL_LIGHT_SHADOWS; ++i) {
@@ -183,6 +185,28 @@ void main() {
 
   for (int i = NUM_DIRECTIONAL_LIGHT_SHADOWS; i < NUM_DIRECTIONAL_LIGHTS; ++i) {
     color += computeDirectionalLight(i, normal, camDir, diffuseAlbedo, roughness, fresnel);
+  }
+
+  for (int i = 0; i < NUM_CUSTOM_LIGHT_SHADOWS; ++i) {
+    mat4 shadowView = shadowBuffer.customLightBuffers[i].viewMatrix;
+    mat4 shadowProj = shadowBuffer.customLightBuffers[i].projectionMatrix;
+
+    vec4 ssPosition = shadowView * cameraBuffer.viewMatrixInverse * vec4((csPosition.xyz + normal * eps), 1);
+    vec4 shadowMapCoord = shadowProj * ssPosition;
+    shadowMapCoord /= shadowMapCoord.w;
+    shadowMapCoord.xy = shadowMapCoord.xy * 0.5 + 0.5;
+
+    float visibility = step(shadowMapCoord.z - texture(samplerCustomLightDepths, vec3(shadowMapCoord.xy, i)).x, 0);
+    visibility *= pow(texture(samplerLightMap, shadowMapCoord.xy).x, 2.2);  // un-gamma
+    visibility *= step(shadowMapCoord.x, 1) * step(0, shadowMapCoord.x) * step(shadowMapCoord.y, 1) * step(0, shadowMapCoord.y);
+
+    vec4 lightWPos = shadowBuffer.customLightBuffers[i].viewMatrixInverse * vec4(0,0,0,1);
+    vec4 lightCPos = cameraBuffer.viewMatrix * lightWPos;
+    vec3 l = (lightCPos.xyz - csPosition.xyz);
+        
+    // visibility *= step(pow(shadowMapCoord.x - 0.5, 2) + pow(shadowMapCoord.y - 0.5, 2), 0.25);
+
+    color += visibility * computePointLight(vec3(1.f), l, normal, camDir, diffuseAlbedo, roughness, fresnel);
   }
 
   color += sceneBuffer.ambientLight.rgb * albedo;

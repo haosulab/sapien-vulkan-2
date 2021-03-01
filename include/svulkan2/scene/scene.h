@@ -15,9 +15,9 @@ class Scene {
   std::vector<std::unique_ptr<Camera>> mCameras{};
   std::vector<std::unique_ptr<PointLight>> mPointLights{};
   std::vector<std::unique_ptr<DirectionalLight>> mDirectionalLights{};
+  std::vector<std::unique_ptr<CustomLight>> mCustomLights{};
 
   Node *mRootNode{nullptr};
-  // std::shared_ptr<resource::SVScene> mScene;
 
   bool mRequireForceRemove{};
 
@@ -41,6 +41,9 @@ public:
   DirectionalLight &addDirectionalLight();
   DirectionalLight &addDirectionalLight(Node &parent);
 
+  CustomLight &addCustomLight();
+  CustomLight &addCustomLight(Node &parent);
+
   void removeNode(Node &node);
   void clearNodes();
   void forceRemove();
@@ -53,6 +56,7 @@ public:
   std::vector<Object *> getObjects();
   std::vector<PointLight *> getPointLights();
   std::vector<DirectionalLight *> getDirectionalLights();
+  std::vector<CustomLight *> getCustomLights();
   Scene();
 
   void uploadToDevice(core::Buffer &sceneBuffer,
