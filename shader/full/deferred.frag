@@ -52,9 +52,49 @@ layout(set = 2, binding = 2) uniform sampler2D samplerSpecular;
 layout(set = 2, binding = 3) uniform sampler2D samplerNormal;
 layout(set = 2, binding = 4) uniform sampler2D samplerGbufferDepth;
 layout(set = 2, binding = 5) uniform sampler2D samplerCustom;
+layout(set = 2, binding = 6) uniform sampler2D samplerAOMap;
 
 layout(location = 0) in vec2 inUV;
 layout(location = 0) out vec4 outLighting;
+
+// float blur9(sampler2D image, vec2 uv, vec2 resolution, vec2 direction) {
+//   float color = 0.0;
+//   vec2 off1 = vec2(1.3846153846) * direction;
+//   vec2 off2 = vec2(3.2307692308) * direction;
+//   color += texture(image, uv).x * 0.2270270270;
+//   color += texture(image, uv + (off1 / resolution)).x * 0.3162162162;
+//   color += texture(image, uv - (off1 / resolution)).x * 0.3162162162;
+//   color += texture(image, uv + (off2 / resolution)).x * 0.0702702703;
+//   color += texture(image, uv - (off2 / resolution)).x * 0.0702702703;
+//   return color;
+// }
+
+
+// float getAO(vec2 uv, vec2 resolution) {
+//   const float pi = 3.1415926535;
+//   const int directions = 4;
+//   float color = 0.0;
+//   for (int i = 0; i < directions; ++i) {
+//     vec2 dir = vec2(cos(pi * i / directions), sin(pi * i / directions));
+//     color += blur9(samplerAOMap, uv, resolution, dir);
+//   }
+//   color /= directions;
+//   return color;
+// }
+
+float getAO(vec2 uv, vec2 resolution) {
+  vec2 texelSize = 1.0 / resolution;
+  float result = 0.0;
+  for (int x = -2; x <= 2; ++x) 
+  {
+    for (int y = -2; y <= 2; ++y) 
+    {
+      vec2 offset = vec2(float(x), float(y)) * texelSize;
+      result += texture(samplerAOMap, uv + offset).r;
+    }
+  }
+  return result / 25;
+}
 
 vec4 world2camera(vec4 pos) {
   return cameraBuffer.viewMatrix * pos;
@@ -209,7 +249,11 @@ void main() {
     color += visibility * computePointLight(vec3(1.f), l, normal, camDir, diffuseAlbedo, roughness, fresnel);
   }
 
-  color += sceneBuffer.ambientLight.rgb * albedo;
+  vec2 resolution = vec2(textureSize(samplerGbufferDepth, 0));
+  float ao = getAO(inUV, resolution);
+
+  color += sceneBuffer.ambientLight.rgb * albedo * ao;
+  // color = vec3(ao);
 
   if (depth == 1) {
     outLighting = vec4(getBackgroundColor((cameraBuffer.viewMatrixInverse * csPosition).xyz), 1.f);

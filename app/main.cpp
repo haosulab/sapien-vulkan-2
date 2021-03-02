@@ -43,23 +43,23 @@ int main() {
 
   svulkan2::scene::Scene scene;
 
-  auto &pointLight = scene.addPointLight();
-  pointLight.setTransform({.position = glm::vec4{0, 0.5, 0, 1}});
-  pointLight.setColor({1, 0, 0, 1});
-  pointLight.enableShadow(true);
-  pointLight.setShadowParameters(0.05, 5);
+  // auto &pointLight = scene.addPointLight();
+  // pointLight.setTransform({.position = glm::vec4{0, 0.5, 0, 1}});
+  // pointLight.setColor({1, 0, 0, 1});
+  // pointLight.enableShadow(true);
+  // pointLight.setShadowParameters(0.05, 5);
 
-  auto &p2 = scene.addPointLight();
-  p2.setTransform({.position = glm::vec4{0.5, 0.5, 0, 1}});
-  p2.setColor({0, 1, 0, 1});
-  p2.enableShadow(true);
-  p2.setShadowParameters(0.05, 5);
+  // auto &p2 = scene.addPointLight();
+  // p2.setTransform({.position = glm::vec4{0.5, 0.5, 0, 1}});
+  // p2.setColor({0, 1, 0, 1});
+  // p2.enableShadow(true);
+  // p2.setShadowParameters(0.05, 5);
 
-  auto &p3 = scene.addPointLight();
-  p3.setTransform({.position = glm::vec4{-0.5, 0.5, 0, 1}});
-  p3.setColor({0, 0, 1, 1});
-  p3.enableShadow(true);
-  p3.setShadowParameters(0.05, 5);
+  // auto &p3 = scene.addPointLight();
+  // p3.setTransform({.position = glm::vec4{-0.5, 0.5, 0, 1}});
+  // p3.setColor({0, 0, 1, 1});
+  // p3.enableShadow(true);
+  // p3.setShadowParameters(0.05, 5);
 
   auto &dl = scene.addDirectionalLight();
   dl.setTransform({.position = {0, 0, 0}});
@@ -75,7 +75,7 @@ int main() {
   // dl2.enableShadow(true);
   // dl2.setShadowParameters(-5, 5, 3);
 
-  // scene.setAmbientLight({0.3f, 0.3f, 0.3f, 0});
+  scene.setAmbientLight({0.7f, 0.7f, 0.7f, 0});
 
   // auto model = context.getResourceManager().CreateModelFromFile(
   //     "/home/fx/blender-data/test_shadow.obj");
@@ -85,16 +85,6 @@ int main() {
   scene.addObject(model).setTransform(
       scene::Transform{.scale = {0.001, 0.001, 0.001}});
 
-  // auto dragon = context.getResourceManager().CreateModelFromFile(
-  //     "../test/assets/scene/dragon/dragon.obj");
-  // auto &dragonObj = scene.addObject(dragon);
-  // dragonObj.setTransform({.position = {0, 0.3, 0}, .scale = {0.3, 0.3,
-  // 0.3}}); dragonObj.setTransparency(0.5);
-
-  // auto &dragonObj2 = scene.addObject(dragon);
-  // dragonObj2.setTransform(
-  //     {.position = {0.1, 0.3, 0}, .scale = {0.3, 0.3, 0.3}});
-  // dragonObj2.setShadingMode(2);
 
   auto &cameraNode = scene.addCamera();
   cameraNode.setPerspectiveParameters(0.05, 10, 1, 4.f / 3);
