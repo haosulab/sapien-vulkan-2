@@ -48,7 +48,7 @@ std::future<void> SVModel::loadAsync() {
   }
   if (!mManager) {
     throw std::runtime_error(
-        "loading failed: resource manager is required for model loading");
+        "loading failed: resource manager is required for model loading.");
   }
 
   return std::async(std::launch::async, [this]() {

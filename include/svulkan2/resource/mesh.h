@@ -37,6 +37,12 @@ public:
   inline core::Buffer &getVertexBuffer() const { return *mVertexBuffer; }
   inline core::Buffer &getIndexBuffer() const { return *mIndexBuffer; }
   inline uint32_t getIndexCount() const { return mIndexCount; }
+
+  void exportToFile(std::string const &filename) const;
+
+  static std::shared_ptr<SVMesh> createUVSphere(int segments, int rings);
+  static std::shared_ptr<SVMesh> createCapsule(float radius, float halfLength,
+                                               int segments, int halfRings);
 };
 } // namespace resource
 } // namespace svulkan2

@@ -43,11 +43,11 @@ int main() {
 
   svulkan2::scene::Scene scene;
 
-  // auto &pointLight = scene.addPointLight();
-  // pointLight.setTransform({.position = glm::vec4{0, 0.5, 0, 1}});
-  // pointLight.setColor({1, 0, 0, 1});
-  // pointLight.enableShadow(true);
-  // pointLight.setShadowParameters(0.05, 5);
+  auto &pointLight = scene.addPointLight();
+  pointLight.setTransform({.position = glm::vec4{0, 0.5, 0, 1}});
+  pointLight.setColor({1, 0, 0, 1});
+  pointLight.enableShadow(true);
+  pointLight.setShadowParameters(0.05, 5);
 
   // auto &p2 = scene.addPointLight();
   // p2.setTransform({.position = glm::vec4{0.5, 0.5, 0, 1}});
@@ -77,14 +77,25 @@ int main() {
 
   scene.setAmbientLight({0.7f, 0.7f, 0.7f, 0});
 
-  // auto model = context.getResourceManager().CreateModelFromFile(
-  //     "/home/fx/blender-data/test_shadow.obj");
-  // scene.addObject(model);
+  auto material =
+      std::make_shared<resource::SVMetallicMaterial>(glm::vec4{1, 1, 1, 1});
+  auto shape = std::make_shared<resource::SVShape>();
+  shape->mesh = resource::SVMesh::createCapsule(0.1, 0.2, 32, 8);
+  shape->material = material;
+  shape->mesh->exportToFile("capsule.obj");
+  auto sphere = resource::SVModel::FromData({{shape}});
+  scene.addObject(sphere).setTransform(
+      {.position = {0, 0.25, 0}, .scale = {0.1, 0.1, 0.1}});
+
   auto model = context.getResourceManager().CreateModelFromFile(
       "../test/assets/scene/sponza/sponza.obj");
   scene.addObject(model).setTransform(
       scene::Transform{.scale = {0.001, 0.001, 0.001}});
 
+  // auto dragon = context.getResourceManager().CreateModelFromFile(
+  //     "../test/assets/scene/dragon/dragon.obj");
+  // scene.addObject(dragon).setTransform(
+  //     scene::Transform{.position = {0, 0.1, 0}, .scale = {0.3, 0.3, 0.3}});
 
   auto &cameraNode = scene.addCamera();
   cameraNode.setPerspectiveParameters(0.05, 10, 1, 4.f / 3);

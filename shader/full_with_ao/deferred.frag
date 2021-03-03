@@ -52,9 +52,24 @@ layout(set = 2, binding = 2) uniform sampler2D samplerSpecular;
 layout(set = 2, binding = 3) uniform sampler2D samplerNormal;
 layout(set = 2, binding = 4) uniform sampler2D samplerGbufferDepth;
 layout(set = 2, binding = 5) uniform sampler2D samplerCustom;
+layout(set = 2, binding = 6) uniform sampler2D samplerAOMap;
 
 layout(location = 0) in vec2 inUV;
 layout(location = 0) out vec4 outLighting;
+
+float getAO(vec2 uv, vec2 resolution) {
+  vec2 texelSize = 1.0 / resolution;
+  float result = 0.0;
+  for (int x = -2; x <= 2; ++x) 
+  {
+    for (int y = -2; y <= 2; ++y) 
+    {
+      vec2 offset = vec2(float(x), float(y)) * texelSize;
+      result += texture(samplerAOMap, uv + offset).r;
+    }
+  }
+  return result / 25;
+}
 
 vec4 world2camera(vec4 pos) {
   return cameraBuffer.viewMatrix * pos;
@@ -209,7 +224,11 @@ void main() {
     color += visibility * computePointLight(vec3(1.f), l, normal, camDir, diffuseAlbedo, roughness, fresnel);
   }
 
-  color += sceneBuffer.ambientLight.rgb * albedo;
+  vec2 resolution = vec2(textureSize(samplerGbufferDepth, 0));
+  float ao = getAO(inUV, resolution);
+
+  color += sceneBuffer.ambientLight.rgb * albedo * ao;
+  color = vec3(ao);
 
   if (depth == 1) {
     outLighting = vec4(getBackgroundColor((cameraBuffer.viewMatrixInverse * csPosition).xyz), 1.f);

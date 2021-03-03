@@ -1,4 +1,5 @@
 #include "svulkan2/resource/mesh.h"
+#include "svulkan2/common/assimp.h"
 #include "svulkan2/common/log.h"
 #include "svulkan2/core/context.h"
 #include <memory>
@@ -26,9 +27,7 @@ void SVMesh::setIndices(std::vector<uint32_t> const &indices) {
   mIndexCount = indices.size();
 }
 
-std::vector<uint32_t> const &SVMesh::getIndices() const {
-  return mIndices;
-}
+std::vector<uint32_t> const &SVMesh::getIndices() const { return mIndices; }
 
 void SVMesh::setVertexAttribute(std::string const &name,
                                 std::vector<float> const &attrib) {
@@ -119,6 +118,209 @@ void SVMesh::removeFromDevice() {
   mOnDevice = false;
   mVertexBuffer.reset();
   mIndexBuffer.reset();
+}
+
+void SVMesh::exportToFile(std::string const &filename) const {
+  exportTriangleMesh(
+      filename,
+      mAttributes.contains("position") ? mAttributes.at("position")
+                                       : std::vector<float>{},
+      mIndices,
+      mAttributes.contains("normal") ? mAttributes.at("normal")
+                                     : std::vector<float>{},
+      mAttributes.contains("uv") ? mAttributes.at("uv") : std::vector<float>{});
+}
+
+std::shared_ptr<SVMesh> SVMesh::createUVSphere(int segments, int rings) {
+  std::vector<glm::vec3> vertices;
+  std::vector<glm::vec2> uvs;
+  std::vector<glm::ivec3> indices;
+
+  for (int s = 0; s < segments; ++s) {
+    vertices.push_back({1.f, 0.f, 0.f});
+    uvs.push_back({(0.5f + s) / segments, 1.f});
+  }
+  for (int r = 1; r < rings; ++r) {
+    float theta = glm::pi<float>() * r / rings;
+    float x = glm::cos(theta);
+    float yz = glm::sin(theta);
+    for (int s = 0; s < segments + 1; ++s) {
+      float phi = glm::pi<float>() * s * 2 / segments;
+      float y = yz * glm::cos(phi);
+      float z = yz * glm::sin(phi);
+      vertices.push_back({x, y, z});
+      uvs.push_back({static_cast<float>(s) / segments,
+                     1.f - static_cast<float>(r) / rings});
+    }
+  }
+  for (int s = 0; s < segments; ++s) {
+    vertices.push_back({-1.f, 0.f, 0.f});
+    uvs.push_back({(0.5f + s) / segments, 0.f});
+  }
+
+  for (int s = 0; s < segments; ++s) {
+    indices.push_back({s, s + segments, s + segments + 1});
+  }
+
+  for (int r = 0; r < rings - 2; ++r) {
+    for (int s = 0; s < segments; ++s) {
+      indices.push_back({
+          segments + (segments + 1) * r + s,
+          segments + (segments + 1) * (r + 1) + s,
+          segments + (segments + 1) * (r + 1) + s + 1,
+      });
+      indices.push_back({segments + (segments + 1) * r + s,
+                         segments + (segments + 1) * (r + 1) + s + 1,
+                         segments + (segments + 1) * r + s + 1});
+    }
+  }
+  for (int s = 0; s < segments; ++s) {
+    indices.push_back({segments + (segments + 1) * (rings - 2) + s,
+                       segments + (segments + 1) * (rings - 1) + s,
+                       segments + (segments + 1) * (rings - 2) + s + 1});
+  }
+
+  auto mesh = std::make_shared<SVMesh>();
+  std::vector<uint32_t> indices_;
+  indices_.reserve(3 * indices.size());
+  std::vector<float> vertices_;
+  vertices_.reserve(3 * vertices.size());
+  std::vector<float> uvs_;
+  uvs_.reserve(2 * uvs.size());
+  for (auto &index : indices) {
+    indices_.push_back(index.x);
+    indices_.push_back(index.y);
+    indices_.push_back(index.z);
+    assert(static_cast<uint32_t>(index.x) < vertices.size() &&
+           static_cast<uint32_t>(index.y) < vertices.size() &&
+           static_cast<uint32_t>(index.z) < vertices.size());
+  }
+  for (auto &vertex : vertices) {
+    vertices_.push_back(vertex.x);
+    vertices_.push_back(vertex.y);
+    vertices_.push_back(vertex.z);
+  }
+  for (auto &uv : uvs) {
+    uvs_.push_back(uv.x);
+    uvs_.push_back(uv.y);
+  }
+  mesh->setIndices(indices_);
+  mesh->setVertexAttribute("position", vertices_);
+  mesh->setVertexAttribute("normal", vertices_);
+  mesh->setVertexAttribute("uv", uvs_);
+
+  return mesh;
+}
+
+std::shared_ptr<SVMesh> SVMesh::createCapsule(float radius, float halfLength,
+                                              int segments, int halfRings) {
+  std::vector<glm::vec3> vertices;
+  std::vector<glm::vec3> normals;
+  std::vector<glm::vec2> uvs;
+  std::vector<glm::ivec3> indices;
+
+  for (int s = 0; s < segments; ++s) {
+    vertices.push_back({radius + halfLength, 0.f, 0.f});
+    normals.push_back({1.f, 0.f, 0.f});
+    uvs.push_back({(0.5f + s) / segments, 1.f});
+  }
+  int rings = 2 * halfRings;
+  for (int r = 1; r <= halfRings; ++r) {
+    float theta = glm::pi<float>() * r / rings;
+    float x = glm::cos(theta);
+    float yz = glm::sin(theta);
+    for (int s = 0; s < segments + 1; ++s) {
+      float phi = glm::pi<float>() * s * 2 / segments;
+      float y = yz * glm::cos(phi);
+      float z = yz * glm::sin(phi);
+      vertices.push_back(glm::vec3{x, y, z} * radius +
+                         glm::vec3{halfLength, 0, 0});
+      normals.push_back({x, y, z});
+      uvs.push_back({static_cast<float>(s) / segments,
+                     1.f - 0.5f * static_cast<float>(r) / rings});
+    }
+  }
+  for (int r = halfRings; r < rings; ++r) {
+    float theta = glm::pi<float>() * r / rings;
+    float x = glm::cos(theta);
+    float yz = glm::sin(theta);
+    for (int s = 0; s < segments + 1; ++s) {
+      float phi = glm::pi<float>() * s * 2 / segments;
+      float y = yz * glm::cos(phi);
+      float z = yz * glm::sin(phi);
+      vertices.push_back(glm::vec3{x, y, z} * radius -
+                         glm::vec3{halfLength, 0, 0});
+      normals.push_back({x, y, z});
+      uvs.push_back({static_cast<float>(s) / segments,
+                     0.5f - 0.5f * static_cast<float>(r) / rings});
+    }
+  }
+
+  for (int s = 0; s < segments; ++s) {
+    vertices.push_back({-radius - halfLength, 0.f, 0.f});
+    normals.push_back({-1.f, 0.f, 0.f});
+    uvs.push_back({(0.5f + s) / segments, 0.f});
+  }
+
+  for (int s = 0; s < segments; ++s) {
+    indices.push_back({s, s + segments, s + segments + 1});
+  }
+
+  for (int r = 0; r < rings - 1; ++r) {
+    for (int s = 0; s < segments; ++s) {
+      indices.push_back({
+          segments + (segments + 1) * r + s,
+          segments + (segments + 1) * (r + 1) + s,
+          segments + (segments + 1) * (r + 1) + s + 1,
+      });
+      indices.push_back({segments + (segments + 1) * r + s,
+                         segments + (segments + 1) * (r + 1) + s + 1,
+                         segments + (segments + 1) * r + s + 1});
+    }
+  }
+  for (int s = 0; s < segments; ++s) {
+    indices.push_back({segments + (segments + 1) * (rings - 1) + s,
+                       segments + (segments + 1) * (rings) + s,
+                       segments + (segments + 1) * (rings - 1) + s + 1});
+  }
+
+  auto mesh = std::make_shared<SVMesh>();
+  std::vector<uint32_t> indices_;
+  indices_.reserve(3 * indices.size());
+  std::vector<float> vertices_;
+  vertices_.reserve(3 * vertices.size());
+  std::vector<float> normals_;
+  normals_.reserve(3 * normals.size());
+  std::vector<float> uvs_;
+  uvs_.reserve(2 * uvs.size());
+  for (auto &index : indices) {
+    indices_.push_back(index.x);
+    indices_.push_back(index.y);
+    indices_.push_back(index.z);
+    assert(static_cast<uint32_t>(index.x) < vertices.size() &&
+           static_cast<uint32_t>(index.y) < vertices.size() &&
+           static_cast<uint32_t>(index.z) < vertices.size());
+  }
+  for (auto &vertex : vertices) {
+    vertices_.push_back(vertex.x);
+    vertices_.push_back(vertex.y);
+    vertices_.push_back(vertex.z);
+  }
+  for (auto &normal : normals) {
+    normals_.push_back(normal.x);
+    normals_.push_back(normal.y);
+    normals_.push_back(normal.z);
+  }
+  for (auto &uv : uvs) {
+    uvs_.push_back(uv.x);
+    uvs_.push_back(uv.y);
+  }
+  mesh->setIndices(indices_);
+  mesh->setVertexAttribute("position", vertices_);
+  mesh->setVertexAttribute("normal", normals_);
+  mesh->setVertexAttribute("uv", uvs_);
+
+  return mesh;
 }
 
 } // namespace resource
