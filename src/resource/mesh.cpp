@@ -441,5 +441,29 @@ std::shared_ptr<SVMesh> SVMesh::CreateCube() {
   return makeMesh(vertices, indices, normals, uvs);
 }
 
+std::shared_ptr<SVMesh> SVMesh::CreateYZPlane() {
+  std::vector<glm::vec3> vertices;
+  std::vector<glm::vec3> normals;
+  std::vector<glm::vec2> uvs;
+  std::vector<glm::ivec3> indices;
+
+  vertices.push_back({0.f, 1.f, 1.f});
+  vertices.push_back({0.f, -1.f, 1.f});
+  vertices.push_back({0.f, -1.f, -1.f});
+  vertices.push_back({0.f, 1.f, -1.f});
+  for (int i = 0; i < 4; ++i) {
+    normals.push_back({1.f, 0.f, 0.f});
+  }
+  uvs.push_back({0.f, 1.f});
+  uvs.push_back({0.f, 0.f});
+  uvs.push_back({1.f, 0.f});
+  uvs.push_back({1.f, 1.f});
+
+  indices.push_back({0, 1, 2});
+  indices.push_back({0, 2, 3});
+
+  return makeMesh(vertices, indices, normals, uvs);
+}
+
 } // namespace resource
 } // namespace svulkan2

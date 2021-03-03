@@ -45,6 +45,7 @@ public:
                                                int segments, int halfRings);
   static std::shared_ptr<SVMesh> CreateCone(int segments);
   static std::shared_ptr<SVMesh> CreateCube();
+  static std::shared_ptr<SVMesh> CreateYZPlane();
 };
 } // namespace resource
 } // namespace svulkan2
