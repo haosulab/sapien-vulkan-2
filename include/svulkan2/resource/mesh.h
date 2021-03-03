@@ -43,6 +43,8 @@ public:
   static std::shared_ptr<SVMesh> createUVSphere(int segments, int rings);
   static std::shared_ptr<SVMesh> createCapsule(float radius, float halfLength,
                                                int segments, int halfRings);
+  static std::shared_ptr<SVMesh> createCone(int segments);
+  static std::shared_ptr<SVMesh> createCube();
 };
 } // namespace resource
 } // namespace svulkan2

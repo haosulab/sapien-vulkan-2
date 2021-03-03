@@ -80,9 +80,12 @@ int main() {
   auto material =
       std::make_shared<resource::SVMetallicMaterial>(glm::vec4{1, 1, 1, 1});
   auto shape = std::make_shared<resource::SVShape>();
-  shape->mesh = resource::SVMesh::createCapsule(0.1, 0.2, 32, 8);
+  // shape->mesh = resource::SVMesh::createCapsule(0.1, 0.2, 32, 8);
+  // shape->mesh = resource::SVMesh::createUVSphere(32, 16);
+  // shape->mesh = resource::SVMesh::createCone(32);
+  shape->mesh = resource::SVMesh::createCube();
   shape->material = material;
-  shape->mesh->exportToFile("capsule.obj");
+  shape->mesh->exportToFile("cube.obj");
   auto sphere = resource::SVModel::FromData({{shape}});
   scene.addObject(sphere).setTransform(
       {.position = {0, 0.25, 0}, .scale = {0.1, 0.1, 0.1}});

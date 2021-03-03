@@ -131,6 +131,49 @@ void SVMesh::exportToFile(std::string const &filename) const {
       mAttributes.contains("uv") ? mAttributes.at("uv") : std::vector<float>{});
 }
 
+static std::shared_ptr<SVMesh> makeMesh(std::vector<glm::vec3> const &vertices,
+                                        std::vector<glm::ivec3> const &indices,
+                                        std::vector<glm::vec3> const &normals,
+                                        std::vector<glm::vec2> const &uvs) {
+  auto mesh = std::make_shared<SVMesh>();
+  std::vector<uint32_t> indices_;
+  indices_.reserve(3 * indices.size());
+  std::vector<float> vertices_;
+  vertices_.reserve(3 * vertices.size());
+  std::vector<float> normals_;
+  normals_.reserve(3 * normals.size());
+  std::vector<float> uvs_;
+  uvs_.reserve(2 * uvs.size());
+  for (auto &index : indices) {
+    indices_.push_back(index.x);
+    indices_.push_back(index.y);
+    indices_.push_back(index.z);
+    assert(static_cast<uint32_t>(index.x) < vertices.size() &&
+           static_cast<uint32_t>(index.y) < vertices.size() &&
+           static_cast<uint32_t>(index.z) < vertices.size());
+  }
+  for (auto &vertex : vertices) {
+    vertices_.push_back(vertex.x);
+    vertices_.push_back(vertex.y);
+    vertices_.push_back(vertex.z);
+  }
+  for (auto &normal : normals) {
+    normals_.push_back(normal.x);
+    normals_.push_back(normal.y);
+    normals_.push_back(normal.z);
+  }
+  for (auto &uv : uvs) {
+    uvs_.push_back(uv.x);
+    uvs_.push_back(uv.y);
+  }
+  mesh->setIndices(indices_);
+  mesh->setVertexAttribute("position", vertices_);
+  mesh->setVertexAttribute("normal", normals_);
+  mesh->setVertexAttribute("uv", uvs_);
+
+  return mesh;
+}
+
 std::shared_ptr<SVMesh> SVMesh::createUVSphere(int segments, int rings) {
   std::vector<glm::vec3> vertices;
   std::vector<glm::vec2> uvs;
@@ -180,36 +223,7 @@ std::shared_ptr<SVMesh> SVMesh::createUVSphere(int segments, int rings) {
                        segments + (segments + 1) * (rings - 2) + s + 1});
   }
 
-  auto mesh = std::make_shared<SVMesh>();
-  std::vector<uint32_t> indices_;
-  indices_.reserve(3 * indices.size());
-  std::vector<float> vertices_;
-  vertices_.reserve(3 * vertices.size());
-  std::vector<float> uvs_;
-  uvs_.reserve(2 * uvs.size());
-  for (auto &index : indices) {
-    indices_.push_back(index.x);
-    indices_.push_back(index.y);
-    indices_.push_back(index.z);
-    assert(static_cast<uint32_t>(index.x) < vertices.size() &&
-           static_cast<uint32_t>(index.y) < vertices.size() &&
-           static_cast<uint32_t>(index.z) < vertices.size());
-  }
-  for (auto &vertex : vertices) {
-    vertices_.push_back(vertex.x);
-    vertices_.push_back(vertex.y);
-    vertices_.push_back(vertex.z);
-  }
-  for (auto &uv : uvs) {
-    uvs_.push_back(uv.x);
-    uvs_.push_back(uv.y);
-  }
-  mesh->setIndices(indices_);
-  mesh->setVertexAttribute("position", vertices_);
-  mesh->setVertexAttribute("normal", vertices_);
-  mesh->setVertexAttribute("uv", uvs_);
-
-  return mesh;
+  return makeMesh(vertices, indices, vertices, uvs);
 }
 
 std::shared_ptr<SVMesh> SVMesh::createCapsule(float radius, float halfLength,
@@ -284,43 +298,147 @@ std::shared_ptr<SVMesh> SVMesh::createCapsule(float radius, float halfLength,
                        segments + (segments + 1) * (rings - 1) + s + 1});
   }
 
-  auto mesh = std::make_shared<SVMesh>();
-  std::vector<uint32_t> indices_;
-  indices_.reserve(3 * indices.size());
-  std::vector<float> vertices_;
-  vertices_.reserve(3 * vertices.size());
-  std::vector<float> normals_;
-  normals_.reserve(3 * normals.size());
-  std::vector<float> uvs_;
-  uvs_.reserve(2 * uvs.size());
-  for (auto &index : indices) {
-    indices_.push_back(index.x);
-    indices_.push_back(index.y);
-    indices_.push_back(index.z);
-    assert(static_cast<uint32_t>(index.x) < vertices.size() &&
-           static_cast<uint32_t>(index.y) < vertices.size() &&
-           static_cast<uint32_t>(index.z) < vertices.size());
-  }
-  for (auto &vertex : vertices) {
-    vertices_.push_back(vertex.x);
-    vertices_.push_back(vertex.y);
-    vertices_.push_back(vertex.z);
-  }
-  for (auto &normal : normals) {
-    normals_.push_back(normal.x);
-    normals_.push_back(normal.y);
-    normals_.push_back(normal.z);
-  }
-  for (auto &uv : uvs) {
-    uvs_.push_back(uv.x);
-    uvs_.push_back(uv.y);
-  }
-  mesh->setIndices(indices_);
-  mesh->setVertexAttribute("position", vertices_);
-  mesh->setVertexAttribute("normal", normals_);
-  mesh->setVertexAttribute("uv", uvs_);
+  return makeMesh(vertices, indices, normals, uvs);
+}
 
-  return mesh;
+std::shared_ptr<SVMesh> SVMesh::createCone(int segments) {
+  std::vector<glm::vec3> vertices;
+  std::vector<glm::vec3> normals;
+  std::vector<glm::vec2> uvs;
+  std::vector<glm::ivec3> indices;
+
+  float s22 = glm::sqrt(2.f) / 2.f;
+  for (int s = 0; s < segments; ++s) {
+    vertices.push_back({1, 0, 0});
+    float theta = glm::pi<float>() * 2.f * (s + 0.5f) / segments;
+    normals.push_back({s22 * glm::cos(theta), s22 * glm::sin(theta), s22});
+    uvs.push_back({0.25f, 0.5f});
+  }
+  for (int s = 0; s < segments; ++s) {
+    float theta = glm::pi<float>() * 2.f * s / segments;
+    vertices.push_back({0.f, glm::cos(theta), glm::sin(theta)});
+    normals.push_back({s22 * glm::cos(theta), s22 * glm::sin(theta), s22});
+    uvs.push_back({glm::cos(theta) * 0.25 + 0.25, glm::sin(theta) * 0.5 + 0.5});
+  }
+  for (int s = 0; s < segments; ++s) {
+    float theta = glm::pi<float>() * 2.f * s / segments;
+    vertices.push_back({0.f, glm::cos(theta), glm::sin(theta)});
+    normals.push_back({-1.f, 0.f, 0.f});
+    uvs.push_back({glm::cos(theta) * 0.25 + 0.75, glm::sin(theta) * 0.5 + 0.5});
+  }
+  vertices.push_back({0.f, 0.f, 0.f});
+  normals.push_back({-1.f, 0.f, 0.f});
+  uvs.push_back({0.75f, 0.5f});
+
+  for (int s = 0; s < segments; ++s) {
+    indices.push_back({s, s + segments, segments + (s + 1) % segments});
+  }
+  for (int s = 0; s < segments; ++s) {
+    indices.push_back(
+        {segments * 2 + (s + 1) % segments, segments * 2 + s, segments * 3});
+  }
+
+  return makeMesh(vertices, indices, normals, uvs);
+}
+
+std::shared_ptr<SVMesh> SVMesh::createCube() {
+  std::vector<glm::vec3> vertices;
+  std::vector<glm::vec3> normals;
+  std::vector<glm::vec2> uvs;
+  std::vector<glm::ivec3> indices;
+
+  // +Z
+  vertices.push_back({-1.f, 1.f, 1.f});
+  vertices.push_back({-1.f, -1.f, 1.f});
+  vertices.push_back({1.f, -1.f, 1.f});
+  vertices.push_back({1.f, 1.f, 1.f});
+  for (int i = 0; i < 4; ++i) {
+    normals.push_back({0.f, 0.f, 1.f});
+  }
+  uvs.push_back({1.f / 4.f, 2.f / 3.f});
+  uvs.push_back({1.f / 4.f, 1.f / 3.f});
+  uvs.push_back({2.f / 4.f, 1.f / 3.f});
+  uvs.push_back({2.f / 4.f, 2.f / 3.f});
+
+  // -Z
+  vertices.push_back({1.f, 1.f, -1.f});
+  vertices.push_back({1.f, -1.f, -1.f});
+  vertices.push_back({-1.f, -1.f, -1.f});
+  vertices.push_back({-1.f, 1.f, -1.f});
+  for (int i = 0; i < 4; ++i) {
+    normals.push_back({0.f, 0.f, -1.f});
+  }
+  uvs.push_back({3.f / 4.f, 2.f / 3.f});
+  uvs.push_back({3.f / 4.f, 1.f / 3.f});
+  uvs.push_back({4.f / 4.f, 1.f / 3.f});
+  uvs.push_back({4.f / 4.f, 2.f / 3.f});
+
+  // +X
+  vertices.push_back({1.f, 1.f, 1.f});
+  vertices.push_back({1.f, -1.f, 1.f});
+  vertices.push_back({1.f, -1.f, -1.f});
+  vertices.push_back({1.f, 1.f, -1.f});
+  for (int i = 0; i < 4; ++i) {
+    normals.push_back({1.f, 0.f, 0.f});
+  }
+  uvs.push_back({2.f / 4.f, 2.f / 3.f});
+  uvs.push_back({2.f / 4.f, 1.f / 3.f});
+  uvs.push_back({3.f / 4.f, 1.f / 3.f});
+  uvs.push_back({3.f / 4.f, 2.f / 3.f});
+
+  // -X
+  vertices.push_back({-1.f, 1.f, -1.f});
+  vertices.push_back({-1.f, -1.f, -1.f});
+  vertices.push_back({-1.f, -1.f, 1.f});
+  vertices.push_back({-1.f, 1.f, 1.f});
+  for (int i = 0; i < 4; ++i) {
+    normals.push_back({-1.f, 0.f, 0.f});
+  }
+  uvs.push_back({0.f / 4.f, 2.f / 3.f});
+  uvs.push_back({0.f / 4.f, 1.f / 3.f});
+  uvs.push_back({1.f / 4.f, 1.f / 3.f});
+  uvs.push_back({1.f / 4.f, 2.f / 3.f});
+
+  // +Y
+  vertices.push_back({-1.f, 1.f, -1.f});
+  vertices.push_back({-1.f, 1.f, 1.f});
+  vertices.push_back({1.f, 1.f, 1.f});
+  vertices.push_back({1.f, 1.f, -1.f});
+  for (int i = 0; i < 4; ++i) {
+    normals.push_back({0.f, 1.f, 0.f});
+  }
+  uvs.push_back({1.f / 4.f, 3.f / 3.f});
+  uvs.push_back({1.f / 4.f, 2.f / 3.f});
+  uvs.push_back({2.f / 4.f, 2.f / 3.f});
+  uvs.push_back({2.f / 4.f, 3.f / 3.f});
+
+  // -Y
+  vertices.push_back({-1.f, -1.f, 1.f});
+  vertices.push_back({-1.f, -1.f, -1.f});
+  vertices.push_back({1.f, -1.f, -1.f});
+  vertices.push_back({1.f, -1.f, 1.f});
+  for (int i = 0; i < 4; ++i) {
+    normals.push_back({0.f, -1.f, 0.f});
+  }
+  uvs.push_back({1.f / 4.f, 1.f / 3.f});
+  uvs.push_back({1.f / 4.f, 0.f / 3.f});
+  uvs.push_back({2.f / 4.f, 0.f / 3.f});
+  uvs.push_back({2.f / 4.f, 1.f / 3.f});
+
+  indices.push_back({0, 1, 2});
+  indices.push_back({0, 2, 3});
+  indices.push_back({4, 5, 6});
+  indices.push_back({4, 6, 7});
+  indices.push_back({8, 9, 10});
+  indices.push_back({8, 10, 11});
+  indices.push_back({12, 13, 14});
+  indices.push_back({12, 14, 15});
+  indices.push_back({16, 17, 18});
+  indices.push_back({16, 18, 19});
+  indices.push_back({20, 21, 22});
+  indices.push_back({20, 22, 23});
+
+  return makeMesh(vertices, indices, normals, uvs);
 }
 
 } // namespace resource
