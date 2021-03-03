@@ -22,6 +22,10 @@ static void strided_memcpy(void *target, void *source, size_t chunk_size,
 SVMesh::SVMesh() {}
 
 void SVMesh::setIndices(std::vector<uint32_t> const &indices) {
+  if (indices.size() % 3 != 0) {
+    throw std::runtime_error(
+        "set indices failed: provided number is not a multiple of 3");
+  }
   mDirty = true;
   mIndices = indices;
   mIndexCount = indices.size();
@@ -463,6 +467,14 @@ std::shared_ptr<SVMesh> SVMesh::CreateYZPlane() {
   indices.push_back({0, 2, 3});
 
   return makeMesh(vertices, indices, normals, uvs);
+}
+
+std::shared_ptr<SVMesh> SVMesh::Create(std::vector<float> const &position,
+                                       std::vector<uint32_t> const &index) {
+  auto mesh = std::make_shared<SVMesh>();
+  mesh->setIndices(index);
+  mesh->setVertexAttribute("position", position);
+  return mesh;
 }
 
 } // namespace resource
