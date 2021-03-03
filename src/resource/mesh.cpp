@@ -174,7 +174,7 @@ static std::shared_ptr<SVMesh> makeMesh(std::vector<glm::vec3> const &vertices,
   return mesh;
 }
 
-std::shared_ptr<SVMesh> SVMesh::createUVSphere(int segments, int rings) {
+std::shared_ptr<SVMesh> SVMesh::CreateUVSphere(int segments, int rings) {
   std::vector<glm::vec3> vertices;
   std::vector<glm::vec2> uvs;
   std::vector<glm::ivec3> indices;
@@ -226,7 +226,7 @@ std::shared_ptr<SVMesh> SVMesh::createUVSphere(int segments, int rings) {
   return makeMesh(vertices, indices, vertices, uvs);
 }
 
-std::shared_ptr<SVMesh> SVMesh::createCapsule(float radius, float halfLength,
+std::shared_ptr<SVMesh> SVMesh::CreateCapsule(float radius, float halfLength,
                                               int segments, int halfRings) {
   std::vector<glm::vec3> vertices;
   std::vector<glm::vec3> normals;
@@ -301,7 +301,7 @@ std::shared_ptr<SVMesh> SVMesh::createCapsule(float radius, float halfLength,
   return makeMesh(vertices, indices, normals, uvs);
 }
 
-std::shared_ptr<SVMesh> SVMesh::createCone(int segments) {
+std::shared_ptr<SVMesh> SVMesh::CreateCone(int segments) {
   std::vector<glm::vec3> vertices;
   std::vector<glm::vec3> normals;
   std::vector<glm::vec2> uvs;
@@ -341,7 +341,7 @@ std::shared_ptr<SVMesh> SVMesh::createCone(int segments) {
   return makeMesh(vertices, indices, normals, uvs);
 }
 
-std::shared_ptr<SVMesh> SVMesh::createCube() {
+std::shared_ptr<SVMesh> SVMesh::CreateCube() {
   std::vector<glm::vec3> vertices;
   std::vector<glm::vec3> normals;
   std::vector<glm::vec2> uvs;

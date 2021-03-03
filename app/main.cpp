@@ -83,7 +83,7 @@ int main() {
   // shape->mesh = resource::SVMesh::createCapsule(0.1, 0.2, 32, 8);
   // shape->mesh = resource::SVMesh::createUVSphere(32, 16);
   // shape->mesh = resource::SVMesh::createCone(32);
-  shape->mesh = resource::SVMesh::createCube();
+  shape->mesh = resource::SVMesh::CreateCube();
   shape->material = material;
   shape->mesh->exportToFile("cube.obj");
   auto sphere = resource::SVModel::FromData({{shape}});

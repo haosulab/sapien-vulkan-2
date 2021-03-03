@@ -40,11 +40,11 @@ public:
 
   void exportToFile(std::string const &filename) const;
 
-  static std::shared_ptr<SVMesh> createUVSphere(int segments, int rings);
-  static std::shared_ptr<SVMesh> createCapsule(float radius, float halfLength,
+  static std::shared_ptr<SVMesh> CreateUVSphere(int segments, int rings);
+  static std::shared_ptr<SVMesh> CreateCapsule(float radius, float halfLength,
                                                int segments, int halfRings);
-  static std::shared_ptr<SVMesh> createCone(int segments);
-  static std::shared_ptr<SVMesh> createCube();
+  static std::shared_ptr<SVMesh> CreateCone(int segments);
+  static std::shared_ptr<SVMesh> CreateCube();
 };
 } // namespace resource
 } // namespace svulkan2
