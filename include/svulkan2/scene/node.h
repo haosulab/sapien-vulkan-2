@@ -48,6 +48,13 @@ public:
   void setTransform(Transform const &transform);
   inline Transform const &getTransform() const { return mTransform; }
 
+  void setPosition(glm::vec3 const &pos);
+  void setRotation(glm::quat const &rot);
+  void setScale(glm::vec3 const &scale);
+  inline glm::vec3 getPosition() const { return mTransform.position; }
+  inline glm::quat getRotation() const { return mTransform.rotation; }
+  inline glm::vec3 getScale() const { return mTransform.scale; }
+
   /** called before rendering to update the cached model matrix */
   void updateGlobalModelMatrixRecursive();
   std::vector<class Object *> getObjectsRecursive() const;
