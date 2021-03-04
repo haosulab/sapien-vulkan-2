@@ -1,4 +1,3 @@
-#pragma once
 #include "svulkan2/resource/shape.h"
 
 namespace svulkan2 {
