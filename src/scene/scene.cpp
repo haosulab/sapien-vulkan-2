@@ -170,6 +170,15 @@ std::vector<Object *> Scene::getObjects() {
   return result;
 }
 
+std::vector<Camera *> Scene::getCameras() {
+  forceRemove();
+  std::vector<Camera *> result;
+  for (auto &obj : mCameras) {
+    result.push_back(obj.get());
+  }
+  return result;
+}
+
 std::vector<PointLight *> Scene::getPointLights() {
   forceRemove();
   std::vector<PointLight *> result;

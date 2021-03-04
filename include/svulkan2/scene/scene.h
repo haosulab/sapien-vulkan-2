@@ -54,6 +54,7 @@ public:
   inline glm::vec4 getAmbientLight() const { return mAmbientLight; };
 
   std::vector<Object *> getObjects();
+  std::vector<Camera *> getCameras();
   std::vector<PointLight *> getPointLights();
   std::vector<DirectionalLight *> getDirectionalLights();
   std::vector<CustomLight *> getCustomLights();
