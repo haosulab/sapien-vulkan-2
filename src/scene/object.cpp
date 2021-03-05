@@ -41,6 +41,10 @@ void Object::uploadToDevice(core::Buffer &objectBuffer,
   objectBuffer.upload(buffer);
 }
 
+void Object::setSegmentation(glm::uvec4 const &segmentation) {
+  mSegmentation = segmentation;
+}
+
 void Object::setCustomDataFloat(std::string const &name, float x) {
   mCustomData[name] = {.dtype = DataType::eFLOAT, .floatValue = x};
 }

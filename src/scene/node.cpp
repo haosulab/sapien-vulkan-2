@@ -21,7 +21,9 @@ void Node::setTransform(Transform const &transform) { mTransform = transform; }
 
 void Node::setPosition(glm::vec3 const &pos) { mTransform.position = pos; }
 void Node::setRotation(glm::quat const &rot) { mTransform.rotation = rot; }
-void Node::setScale(glm::vec3 const &scale) { mTransform.scale = scale; }
+void Node::setScale(glm::vec3 const &scale) {
+  mTransform.scale = scale;
+}
 
 void Node::updateGlobalModelMatrixRecursive() {
   glm::mat4 localMatrix = glm::translate(glm::mat4(1), mTransform.position) *
