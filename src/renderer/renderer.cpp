@@ -483,8 +483,14 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
     if (shadingMode == 0 && objects[objectIndex]->getTransparency() != 0) {
       shadingMode = transparencyShadingMode;
     }
+    if (objects[objectIndex]->getTransparency() >= 1) {
+      continue;
+    }
     for (auto shape : objects[objectIndex]->getModel()->getShapes()) {
       int shapeShadingMode = shadingMode;
+      if (shape->material->getOpacity() == 0) {
+        continue;
+      }
       if (shape->material->getOpacity() != 1 && shadingMode == 0) {
         shapeShadingMode = transparencyShadingMode;
       }
