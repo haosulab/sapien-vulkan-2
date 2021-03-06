@@ -29,9 +29,7 @@ public:
 
 UI_CLASS(InputFloat) {
   UI_ATTRIBUTE(InputFloat, std::string, Label);
-
-protected:
-  float mValue{};
+  UI_ATTRIBUTE(InputFloat, float, Value);
 
 public:
   inline float get() const { return mValue; }
@@ -40,9 +38,7 @@ public:
 
 UI_CLASS(InputFloat2) {
   UI_ATTRIBUTE(InputFloat2, std::string, Label);
-
-protected:
-  glm::vec2 mValue{};
+  UI_ATTRIBUTE(InputFloat, glm::vec2, Value);
 
 public:
   inline glm::vec2 get() const { return mValue; }
@@ -51,9 +47,7 @@ public:
 
 UI_CLASS(InputFloat3) {
   UI_ATTRIBUTE(InputFloat3, std::string, Label);
-
-protected:
-  glm::vec3 mValue{};
+  UI_ATTRIBUTE(InputFloat, glm::vec3, Value);
 
 public:
   inline glm::vec3 get() const { return mValue; }
@@ -62,9 +56,7 @@ public:
 
 UI_CLASS(InputFloat4) {
   UI_ATTRIBUTE(InputFloat4, std::string, Label);
-
-protected:
-  glm::vec4 mValue{};
+  UI_ATTRIBUTE(InputFloat, glm::vec4, Value);
 
 public:
   inline glm::vec4 get() const { return mValue; }

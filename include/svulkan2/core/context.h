@@ -71,9 +71,6 @@ public:
   std::unique_ptr<renderer::GuiWindow> createWindow(uint32_t width,
                                                     uint32_t height);
 
-  std::shared_ptr<resource::SVTexture>
-  createTexture(std::string const &filename);
-
   std::shared_ptr<resource::SVMetallicMaterial>
   createMetallicMaterial(glm::vec4 baseColor, float fresnel, float roughness,
                          float metallic, float transparency);

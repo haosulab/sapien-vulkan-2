@@ -290,12 +290,6 @@ std::unique_ptr<renderer::GuiWindow> Context::createWindow(uint32_t width,
       std::vector<vk::PresentModeKHR>{vk::PresentModeKHR::eFifo}, 2);
 };
 
-std::shared_ptr<resource::SVTexture>
-Context::createTexture(std::string const &filename) {
-  return mResourceManager->CreateTextureFromFile(
-      filename, mResourceManager->getDefaultMipLevels());
-}
-
 std::shared_ptr<resource::SVMetallicMaterial>
 Context::createMetallicMaterial(glm::vec4 baseColor, float fresnel,
                                 float roughness, float metallic,
