@@ -6,7 +6,7 @@ namespace ui {
 
 UI_CLASS(Window) {
   UI_DECLARE_APPEND(Window);
-  UI_ATTRIBUTE(Window, std::string, Name);
+  UI_ATTRIBUTE(Window, std::string, Label);
   UI_ATTRIBUTE(Window, ImVec2, Pos);
   UI_ATTRIBUTE(Window, ImVec2, Size);
   void build() override;

@@ -17,7 +17,7 @@ DescriptorSetDescription::merge(DescriptorSetDescription const &other) const {
   std::map<uint32_t, Binding> newBindings = bindings;
 
   for (auto &[bindingIndex, binding] : other.bindings) {
-    if (bindings.contains(bindingIndex)) {
+    if (bindings.find(bindingIndex) != bindings.end()) {
       if (binding.type == vk::DescriptorType::eUniformBuffer) {
         if (*other.buffers[binding.arrayIndex] !=
             *buffers[bindings.at(bindingIndex).arrayIndex]) {
@@ -618,7 +618,7 @@ getDescriptorSetDescription(spirv_cross::Compiler &compiler,
     result.type = UniformBindingType::eNone;
     return result;
   }
-  if (!result.bindings.contains(0)) {
+  if (result.bindings.find(0) == result.bindings.end()) {
     throw std::runtime_error("All descriptor set must have binding=0, this is "
                              "used to identify its type.");
   }

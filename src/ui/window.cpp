@@ -6,7 +6,7 @@ namespace ui {
 void Window::build() {
   ImGui::SetNextWindowPos(mPos, ImGuiCond_Once);
   ImGui::SetNextWindowSize(mSize, ImGuiCond_Once);
-  ImGui::Begin(mName.c_str());
+  ImGui::Begin(mLabel.c_str());
   for (auto c : mChildren) {
     c->build();
   }

@@ -117,9 +117,17 @@ public:
   ImVec2 mMouseDelta{0, 0};
   ImVec2 mMouseWheelDelta{0, 0};
 
-  bool isKeyDown(char key);
+  bool isKeyDown(std::string const &key);
+  bool isKeyPressed(std::string const &key);
 
-  bool isKeyPressed(char key);
+  bool isShiftDown();
+  bool isCtrlDown();
+  bool isAltDown();
+  bool isSuperDown();
+
+  // bool isKeyDown(char key);
+
+  // bool isKeyPressed(char key);
 
   ImVec2 getMouseDelta();
 

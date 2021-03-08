@@ -136,4 +136,8 @@ bool StructDataLayout::operator==(StructDataLayout const &other) const {
   return size == other.size && elements == other.elements;
 }
 
+bool StructDataLayout::operator!=(StructDataLayout const &other) const {
+  return !(*this == other);
+}
+
 }; // namespace svulkan2

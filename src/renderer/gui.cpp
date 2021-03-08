@@ -40,13 +40,6 @@ static vk::UniqueRenderPass createImguiRenderPass(vk::Device device,
   return device.createRenderPassUnique(info);
 }
 
-// static vk::UniqueFramebuffer
-// createImguiFramebuffer(vk::Device device, vk::RenderPass renderPass,
-//                        vk::ImageView view, uint32_t width, uint32_t height) {
-//   vk::FramebufferCreateInfo info({}, renderPass, 1, &view, width, height, 1);
-//   return device.createFramebufferUnique(info);
-// }
-
 GuiWindow::GuiWindow(core::Context &context,
                      std::vector<vk::Format> const &requestFormats,
                      vk::ColorSpaceKHR requestColorSpace, uint32_t width,
@@ -373,31 +366,75 @@ GuiWindow::~GuiWindow() {
   close();
   glfwDestroyWindow(mWindow);
 }
-bool GuiWindow::isKeyDown(char key) {
-  if (ImGui::GetIO().WantTextInput || ImGui::GetIO().WantCaptureKeyboard) {
-    return false;
+
+static int findKeyCode(std::string const &key) {
+  static std::unordered_map<std::string, int> keyMap = {
+      {"a", ImGui::GetKeyIndex(ImGuiKey_A)},
+      {"b", ImGui::GetKeyIndex(ImGuiKey_A) + 1},
+      {"c", ImGui::GetKeyIndex(ImGuiKey_A) + 2},
+      {"d", ImGui::GetKeyIndex(ImGuiKey_A) + 3},
+      {"e", ImGui::GetKeyIndex(ImGuiKey_A) + 4},
+      {"f", ImGui::GetKeyIndex(ImGuiKey_A) + 5},
+      {"g", ImGui::GetKeyIndex(ImGuiKey_A) + 6},
+      {"h", ImGui::GetKeyIndex(ImGuiKey_A) + 7},
+      {"i", ImGui::GetKeyIndex(ImGuiKey_A) + 8},
+      {"j", ImGui::GetKeyIndex(ImGuiKey_A) + 9},
+      {"k", ImGui::GetKeyIndex(ImGuiKey_A) + 10},
+      {"l", ImGui::GetKeyIndex(ImGuiKey_A) + 11},
+      {"m", ImGui::GetKeyIndex(ImGuiKey_A) + 12},
+      {"n", ImGui::GetKeyIndex(ImGuiKey_A) + 13},
+      {"o", ImGui::GetKeyIndex(ImGuiKey_A) + 14},
+      {"p", ImGui::GetKeyIndex(ImGuiKey_A) + 15},
+      {"q", ImGui::GetKeyIndex(ImGuiKey_A) + 16},
+      {"r", ImGui::GetKeyIndex(ImGuiKey_A) + 17},
+      {"s", ImGui::GetKeyIndex(ImGuiKey_A) + 18},
+      {"t", ImGui::GetKeyIndex(ImGuiKey_A) + 19},
+      {"u", ImGui::GetKeyIndex(ImGuiKey_A) + 20},
+      {"v", ImGui::GetKeyIndex(ImGuiKey_A) + 21},
+      {"w", ImGui::GetKeyIndex(ImGuiKey_A) + 22},
+      {"x", ImGui::GetKeyIndex(ImGuiKey_A) + 23},
+      {"y", ImGui::GetKeyIndex(ImGuiKey_A) + 24},
+      {"z", ImGui::GetKeyIndex(ImGuiKey_A) + 25},
+      {" ", ImGui::GetKeyIndex(ImGuiKey_Space)},
+      {"space", ImGui::GetKeyIndex(ImGuiKey_Space)},
+      {"tab", ImGui::GetKeyIndex(ImGuiKey_Tab)},
+      {"enter", ImGui::GetKeyIndex(ImGuiKey_Enter)},
+      {"insert", ImGui::GetKeyIndex(ImGuiKey_Insert)},
+      {"home", ImGui::GetKeyIndex(ImGuiKey_Home)},
+      {"delete", ImGui::GetKeyIndex(ImGuiKey_Delete)},
+      {"end", ImGui::GetKeyIndex(ImGuiKey_End)},
+      {"pageup", ImGui::GetKeyIndex(ImGuiKey_PageUp)},
+      {"pagedown", ImGui::GetKeyIndex(ImGuiKey_PageDown)},
+      {"up", ImGui::GetKeyIndex(ImGuiKey_UpArrow)},
+      {"down", ImGui::GetKeyIndex(ImGuiKey_DownArrow)},
+      {"left", ImGui::GetKeyIndex(ImGuiKey_LeftArrow)},
+      {"right", ImGui::GetKeyIndex(ImGuiKey_RightArrow)}};
+  if (keyMap.find(key) == keyMap.end()) {
+    throw std::runtime_error("unknown key " + key);
   }
-  if (key >= 'a' && key <= 'z') {
-    return ImGui::IsKeyDown(ImGui::GetKeyIndex(ImGuiKey_A) + key - 'a');
-  }
-  if (key == ' ') {
-    return ImGui::IsKeyDown(ImGui::GetKeyIndex(ImGuiKey_Space));
-  }
-  return false;
+  return keyMap.at(key);
 }
 
-bool GuiWindow::isKeyPressed(char key) {
+bool GuiWindow::isKeyDown(std::string const &key) {
+  int code = findKeyCode(key);
   if (ImGui::GetIO().WantTextInput || ImGui::GetIO().WantCaptureKeyboard) {
     return false;
   }
-  if (key >= 'a' && key <= 'z') {
-    return ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_A) + key - 'a');
-  }
-  if (key == ' ') {
-    return ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Space));
-  }
-  return false;
+  return ImGui::IsKeyDown(code);
 }
+
+bool GuiWindow::isKeyPressed(std::string const &key) {
+  int code = findKeyCode(key);
+  if (ImGui::GetIO().WantTextInput || ImGui::GetIO().WantCaptureKeyboard) {
+    return false;
+  }
+  return ImGui::IsKeyPressed(code);
+}
+
+bool GuiWindow::isShiftDown() { return ImGui::GetIO().KeyShift; }
+bool GuiWindow::isCtrlDown() { return ImGui::GetIO().KeyCtrl; }
+bool GuiWindow::isAltDown() { return ImGui::GetIO().KeyAlt; }
+bool GuiWindow::isSuperDown() { return ImGui::GetIO().KeySuper; }
 
 ImVec2 GuiWindow::getMouseDelta() {
   mMouseDelta.x = std::clamp(mMouseDelta.x, -100.f, 100.f);

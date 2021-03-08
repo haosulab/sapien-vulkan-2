@@ -41,6 +41,8 @@ public:
 
   void setParent(std::weak_ptr<Widget> parent);
 
+  void remove();
+
   /** build imgui */
   virtual void build() = 0;
 

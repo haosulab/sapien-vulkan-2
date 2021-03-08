@@ -189,6 +189,7 @@ struct StructDataLayout {
   std::vector<StructDataLayout::Element const *> getElementsSorted() const;
 
   bool operator==(StructDataLayout const &other) const;
+  bool operator!=(StructDataLayout const &other) const;
 };
 
 }; // namespace svulkan2

@@ -298,7 +298,7 @@ void Renderer::resize(int width, int height) {
 
 void Renderer::setSpecializationConstantInt(std::string const &name,
                                             int value) {
-  if (mSpecializationConstants.contains(name)) {
+  if (mSpecializationConstants.find(name) != mSpecializationConstants.end()) {
     if (mSpecializationConstants[name].dtype != DataType::eINT) {
       throw std::runtime_error("failed to set specialization constant: the "
                                "same constant can only have a single type");
@@ -315,7 +315,7 @@ void Renderer::setSpecializationConstantInt(std::string const &name,
 
 void Renderer::setSpecializationConstantFloat(std::string const &name,
                                               float value) {
-  if (mSpecializationConstants.contains(name)) {
+  if (mSpecializationConstants.find(name) != mSpecializationConstants.end()) {
     if (mSpecializationConstants[name].dtype != DataType::eFLOAT) {
       throw std::runtime_error("failed to set specialization constant: the "
                                "same constant can only have a single type");
@@ -631,12 +631,33 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
   }
 }
 
+std::vector<std::string> Renderer::getDisplayTargetNames() const {
+  std::vector<std::string> result;
+  auto renderTargetFormats = mShaderManager->getRenderTargetFormats();
+  for (auto &[name, format] : renderTargetFormats) {
+    if (format == vk::Format::eR8G8B8A8Unorm ||
+        format == vk::Format::eR32G32B32A32Sfloat) {
+      result.push_back(name);
+    }
+  }
+  return result;
+}
+
+std::vector<std::string> Renderer::getRenderTargetNames() const {
+  std::vector<std::string> result;
+  auto renderTargetFormats = mShaderManager->getRenderTargetFormats();
+  for (auto &[name, format] : renderTargetFormats) {
+    result.push_back(name);
+  }
+  return result;
+}
+
 void Renderer::display(vk::CommandBuffer commandBuffer,
                        std::string const &renderTargetName,
                        vk::Image backBuffer, vk::Format format, uint32_t width,
                        uint32_t height) {
   auto &renderTarget = mRenderTargets.at(renderTargetName);
-  auto targetFormat = renderTarget->getImage().getFormat();
+  auto targetFormat = renderTarget->getFormat();
   if (targetFormat != vk::Format::eR8G8B8A8Unorm &&
       targetFormat != vk::Format::eR32G32B32A32Sfloat) {
     throw std::runtime_error(
@@ -744,9 +765,9 @@ void Renderer::prepareSceneBuffer() {
                              mCustomShadowReadTarget->getSampler()}},
                            bindingIndex);
     } else if (binding.type == vk::DescriptorType::eCombinedImageSampler &&
-               binding.name.starts_with("sampler")) {
+               binding.name.substr(0, 7) == "sampler") {
       std::string customTextureName = binding.name.substr(7);
-      if (customTextureName.starts_with("Random")) {
+      if (customTextureName.substr(0, 6) == "Random") {
         auto randomTex = mContext->getResourceManager().CreateRandomTexture(
             customTextureName);
         randomTex->uploadToDevice(*mContext);
@@ -754,7 +775,8 @@ void Renderer::prepareSceneBuffer() {
             mContext->getDevice(), mSceneSet.get(), {},
             {{randomTex->getImageView(), randomTex->getSampler()}},
             bindingIndex);
-      } else if (mCustomTextures.contains(customTextureName)) {
+      } else if (mCustomTextures.find(customTextureName) !=
+                 mCustomTextures.end()) {
         mCustomTextures[customTextureName]->uploadToDevice(*mContext);
         updateDescriptorSets(
             mContext->getDevice(), mSceneSet.get(), {},
@@ -844,16 +866,16 @@ void Renderer::prepareInputTextureDescriptorSets() {
       std::vector<std::tuple<vk::ImageView, vk::Sampler>> textureData;
       auto names = passes[i]->getInputTextureNames();
       for (auto name : names) {
-        if (mRenderTargets.contains(name)) {
+        if (mRenderTargets.find(name) != mRenderTargets.end()) {
           textureData.push_back({mRenderTargets[name]->getImageView(),
                                  mRenderTargets[name]->getSampler()});
-        } else if (name.starts_with("Random")) {
+        } else if (name.substr(0, 6) == "Random") {
           auto randomTex =
               mContext->getResourceManager().CreateRandomTexture(name);
           randomTex->uploadToDevice(*mContext);
           textureData.push_back(
               {randomTex->getImageView(), randomTex->getSampler()});
-        } else if (mCustomTextures.contains(name)) {
+        } else if (mCustomTextures.find(name) != mCustomTextures.end()) {
           mCustomTextures[name]->uploadToDevice(*mContext);
           textureData.push_back({mCustomTextures[name]->getImageView(),
                                  mCustomTextures[name]->getSampler()});
@@ -888,6 +910,11 @@ void Renderer::prepareCameaBuffer() {
 void Renderer::setCustomTexture(std::string const &name,
                                 std::shared_ptr<resource::SVTexture> texture) {
   mCustomTextures[name] = texture;
+}
+
+std::shared_ptr<resource::SVRenderTarget>
+Renderer::getRenderTarget(std::string const &name) const {
+  return mRenderTargets.at(name);
 }
 
 } // namespace renderer

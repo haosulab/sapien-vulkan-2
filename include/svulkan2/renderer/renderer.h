@@ -76,6 +76,8 @@ public:
   void render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
               scene::Camera &camera);
 
+  std::vector<std::string> getDisplayTargetNames() const;
+  std::vector<std::string> getRenderTargetNames() const;
   void display(vk::CommandBuffer commandBuffer,
                std::string const &renderTargetName, vk::Image backBuffer,
                vk::Format format, uint32_t width, uint32_t height);
@@ -94,6 +96,33 @@ public:
     }
     return {data, std::array<uint32_t, 3>{height, width, channels}};
   }
+
+  template <typename T>
+  std::tuple<std::vector<T>, std::array<uint32_t, 3>>
+  downloadRegion(std::string const &targetName, vk::Offset2D offset,
+                 vk::Extent2D extent) {
+    auto target = mRenderTargets.at(targetName);
+    uint32_t width = target->getWidth();
+    uint32_t height = target->getHeight();
+    if (offset.x < 0 || offset.y < 0 || offset.x + extent.width >= width ||
+        offset.y + extent.height >= height) {
+      throw std::runtime_error(
+          "failed to download region: offset or extent is out of bound");
+    }
+    std::vector<T> data = target->getImage().download<T>(
+        vk::Offset3D{offset.x, offset.y, 0},
+        vk::Extent3D{extent.width, extent.height, 1});
+    uint32_t channels = data.size() / (extent.width * extent.height);
+    if (extent.width * extent.height * channels != data.size()) {
+      throw std::runtime_error(
+          "failed to download region: internal format error");
+    }
+    return {data,
+            std::array<uint32_t, 3>{extent.height, extent.width, channels}};
+  }
+
+  std::shared_ptr<resource::SVRenderTarget>
+  getRenderTarget(std::string const &name) const;
 
   void setCustomTexture(std::string const &name,
                         std::shared_ptr<resource::SVTexture> texture);

@@ -12,7 +12,7 @@ UI_CLASS(Checkbox) {
                Callback);
 
 public:
-  inline float get() const { return mChecked; }
+  inline bool get() const { return mChecked; }
 
   void build() override;
 };

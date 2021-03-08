@@ -86,7 +86,8 @@ std::shared_ptr<SVImage> SVImage::FromData(uint32_t width, uint32_t height,
 std::shared_ptr<SVImage> SVImage::FromFile(std::string const &filename,
                                            uint32_t mipLevels) {
   auto image = std::shared_ptr<SVImage>(new SVImage);
-  image->mDescription = {.source = SVImageDescription::SourceType::eFILE,
+  image->mDescription =
+      SVImageDescription{.source = SVImageDescription::SourceType::eFILE,
                          .filenames = {filename},
                          .mipLevels = mipLevels};
   return image;
@@ -96,7 +97,8 @@ std::shared_ptr<SVImage>
 SVImage::FromFile(std::vector<std::string> const &filenames,
                   uint32_t mipLevels) {
   auto image = std::shared_ptr<SVImage>(new SVImage);
-  image->mDescription = {.source = SVImageDescription::SourceType::eFILE,
+  image->mDescription =
+      SVImageDescription{.source = SVImageDescription::SourceType::eFILE,
                          .filenames = filenames,
                          .mipLevels = mipLevels};
   return image;

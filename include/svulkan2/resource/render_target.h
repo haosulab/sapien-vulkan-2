@@ -42,6 +42,7 @@ public:
   inline core::Image &getImage() const { return *mImage; }
   inline vk::ImageView getImageView() const { return mImageView.get(); };
   inline vk::Sampler getSampler() const { return mSampler.get(); };
+  inline vk::Format getFormat() { return mFormat; };
 };
 
 } // namespace resource

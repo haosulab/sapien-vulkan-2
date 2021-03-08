@@ -68,11 +68,11 @@ std::shared_ptr<SVTexture> SVResourceManager::CreateTextureFromFile(
 // TODO: test this function
 std::shared_ptr<SVTexture>
 SVResourceManager::CreateRandomTexture(std::string const &name) {
-  if (mRandomTextureRegistry.contains(name)) {
+  if (mRandomTextureRegistry.find(name) != mRandomTextureRegistry.end()) {
     return mRandomTextureRegistry[name];
   }
 
-  if (!name.starts_with("Random")) {
+  if (name.substr(0, 6) != "Random") {
     throw std::runtime_error("random texture name must starts with \"Random\"");
   }
   std::string n = name.substr(6);

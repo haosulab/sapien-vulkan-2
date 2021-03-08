@@ -20,6 +20,9 @@ static vk::ImageAspectFlags findAspectBitsFromFormat(vk::Format format) {
   if (format == vk::Format::eR8G8B8A8Unorm) {
     return vk::ImageAspectFlagBits::eColor;
   }
+  if (format == vk::Format::eR32G32B32A32Uint) {
+    return vk::ImageAspectFlagBits::eColor;
+  }
   if (format == vk::Format::eR32G32B32A32Sfloat) {
     return vk::ImageAspectFlagBits::eColor;
   }

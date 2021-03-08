@@ -148,7 +148,8 @@ vk::Pipeline GbufferPassParser::createGraphicsPipeline(
   if (elems.size()) {
     specializationData.resize(elems.size());
     for (uint32_t i = 0; i < elems.size(); ++i) {
-      if (specializationConstantInfo.contains(elems[i].name) &&
+      if (specializationConstantInfo.find(elems[i].name) !=
+              specializationConstantInfo.end() &&
           elems[i].dtype !=
               specializationConstantInfo.at(elems[i].name).dtype) {
         throw std::runtime_error("Type mismatch on specialization constant " +
@@ -156,13 +157,15 @@ vk::Pipeline GbufferPassParser::createGraphicsPipeline(
       }
       if (elems[i].dtype == eINT) {
         entries.emplace_back(elems[i].id, i * sizeof(int), sizeof(int));
-        int v = specializationConstantInfo.contains(elems[i].name)
+        int v = specializationConstantInfo.find(elems[i].name) !=
+                        specializationConstantInfo.end()
                     ? specializationConstantInfo.at(elems[i].name).intValue
                     : elems[i].intValue;
         std::memcpy(specializationData.data() + i, &v, sizeof(int));
       } else if (elems[i].dtype == eFLOAT) {
         entries.emplace_back(elems[i].id, i * sizeof(float), sizeof(float));
-        float v = specializationConstantInfo.contains(elems[i].name)
+        float v = specializationConstantInfo.find(elems[i].name) !=
+                          specializationConstantInfo.end()
                       ? specializationConstantInfo.at(elems[i].name).floatValue
                       : elems[i].floatValue;
         std::memcpy(specializationData.data() + i, &v, sizeof(float));

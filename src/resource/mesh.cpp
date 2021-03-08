@@ -41,14 +41,14 @@ void SVMesh::setVertexAttribute(std::string const &name,
 
 std::vector<float> const &
 SVMesh::getVertexAttribute(std::string const &name) const {
-  if (!mAttributes.contains(name)) {
+  if (mAttributes.find(name) == mAttributes.end()) {
     throw std::runtime_error("attribute " + name + " does not exist on vertex");
   }
   return mAttributes.at(name);
 }
 
 bool SVMesh::hasVertexAttribute(std::string const &name) const {
-  return mAttributes.contains(name);
+  return mAttributes.find(name) != mAttributes.end();
 }
 
 void SVMesh::uploadToDevice(core::Context &context) {
@@ -127,12 +127,14 @@ void SVMesh::removeFromDevice() {
 void SVMesh::exportToFile(std::string const &filename) const {
   exportTriangleMesh(
       filename,
-      mAttributes.contains("position") ? mAttributes.at("position")
-                                       : std::vector<float>{},
+      mAttributes.find("position") != mAttributes.end()
+          ? mAttributes.at("position")
+          : std::vector<float>{},
       mIndices,
-      mAttributes.contains("normal") ? mAttributes.at("normal")
-                                     : std::vector<float>{},
-      mAttributes.contains("uv") ? mAttributes.at("uv") : std::vector<float>{});
+      mAttributes.find("normal") != mAttributes.end() ? mAttributes.at("normal")
+                                                      : std::vector<float>{},
+      mAttributes.find("uv") != mAttributes.end() ? mAttributes.at("uv")
+                                                  : std::vector<float>{});
 }
 
 static std::shared_ptr<SVMesh> makeMesh(std::vector<glm::vec3> const &vertices,
