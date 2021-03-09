@@ -306,8 +306,8 @@ Context::createSpecularMaterial(glm::vec4 diffuse, glm::vec4 specular,
 }
 
 std::shared_ptr<resource::SVModel> Context::createModel(
-    std::vector<std::shared_ptr<resource::SVMesh>> meshes,
-    std::vector<std::shared_ptr<resource::SVMaterial>> materials) {
+    std::vector<std::shared_ptr<resource::SVMesh>> const& meshes,
+    std::vector<std::shared_ptr<resource::SVMaterial>> const &materials) {
   if (meshes.size() != materials.size()) {
     throw std::runtime_error(
         "create model failed: meshes and materials must have the same size.");

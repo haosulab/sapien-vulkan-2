@@ -85,6 +85,11 @@ public:
   inline vk::ImageView getImageView() const { return mImageView.get(); }
   inline vk::Sampler getSampler() const { return mSampler.get(); }
 
+  SVTexture(SVTexture const &other) = delete;
+  SVTexture &operator=(SVTexture const &other) = delete;
+  SVTexture(SVTexture &&other) = delete;
+  SVTexture &operator=(SVTexture &&other) = delete;
+
 private:
   SVTexture() = default;
 };

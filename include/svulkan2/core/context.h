@@ -80,8 +80,8 @@ public:
                          float transparency);
 
   std::shared_ptr<resource::SVModel>
-  createModel(std::vector<std::shared_ptr<resource::SVMesh>> meshes,
-              std::vector<std::shared_ptr<resource::SVMaterial>> materials);
+  createModel(std::vector<std::shared_ptr<resource::SVMesh>> const &meshes,
+              std::vector<std::shared_ptr<resource::SVMaterial>> const &materials);
 
   std::shared_ptr<resource::SVMesh>
   createTriangleMesh(std::vector<glm::vec3> const &vertices,

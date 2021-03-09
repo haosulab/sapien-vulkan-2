@@ -58,7 +58,12 @@ public:
   std::vector<PointLight *> getPointLights();
   std::vector<DirectionalLight *> getDirectionalLights();
   std::vector<CustomLight *> getCustomLights();
+
   Scene();
+  Scene(Scene const &other) = delete;
+  Scene &operator=(Scene const &other) = delete;
+  Scene(Scene &&other) = default;
+  Scene &operator=(Scene &&other) = default;
 
   void uploadToDevice(core::Buffer &sceneBuffer,
                       StructDataLayout const &sceneLayout);
