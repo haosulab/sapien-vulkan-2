@@ -42,6 +42,7 @@ public:
   void removeChild(Node &child);
   void clearChild();
 
+  void markRemovedRecursive();
   inline void markRemoved() { mRemoved = true; }
   inline bool isMarkedRemoved() { return mRemoved; };
 

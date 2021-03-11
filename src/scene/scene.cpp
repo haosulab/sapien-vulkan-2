@@ -106,11 +106,8 @@ CustomLight &Scene::addCustomLight(Node &parent) {
 
 void Scene::removeNode(Node &node) {
   mRequireForceRemove = true;
-  node.markRemoved();
+  node.markRemovedRecursive();
   node.getParent().removeChild(node);
-  for (Node *c : node.getChildren()) {
-    node.getParent().addChild(*c);
-  }
 }
 
 void Scene::clearNodes() {
