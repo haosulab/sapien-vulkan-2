@@ -166,8 +166,7 @@ vk::Pipeline ShadowPassParser::createGraphicsPipeline(
       createPipelineLayout(device, descriptorSetLayouts), renderPass);
   mPipeline = device
                   .createGraphicsPipelineUnique(pipelineCache.get(),
-                                                graphicsPipelineCreateInfo)
-                  .value;
+                                                graphicsPipelineCreateInfo);
   return mPipeline.get();
 }
 

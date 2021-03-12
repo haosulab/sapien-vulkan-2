@@ -104,7 +104,7 @@ public:
 
   ~GuiWindow();
 
-  void updateSize(uint32_t w, uint32_t h);
+  bool updateSize(uint32_t w, uint32_t h);
 
   inline GLFWwindow *getGLFWWindow() const { return mWindow; }
 
@@ -149,7 +149,7 @@ private:
   void createGlfwWindow(uint32_t width, uint32_t height);
 
   /** Called when the window is resized to recreate the sawpchain */
-  void recreateSwapchain(uint32_t w, uint32_t h);
+  bool recreateSwapchain(uint32_t w, uint32_t h);
 
   /** Called after swapchain recreation to update ImGui related resources */
   void recreateImguiResources();

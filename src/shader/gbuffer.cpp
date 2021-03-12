@@ -275,10 +275,8 @@ vk::Pipeline GbufferPassParser::createGraphicsPipeline(
       &pipelineMultisampleStateCreateInfo, &pipelineDepthStencilStateCreateInfo,
       &pipelineColorBlendStateCreateInfo, &pipelineDynamicStateCreateInfo,
       createPipelineLayout(device, descriptorSetLayouts), renderPass);
-  mPipeline = device
-                  .createGraphicsPipelineUnique(pipelineCache.get(),
-                                                graphicsPipelineCreateInfo)
-                  .value;
+  mPipeline = device.createGraphicsPipelineUnique(pipelineCache.get(),
+                                                  graphicsPipelineCreateInfo);
   return mPipeline.get();
 }
 

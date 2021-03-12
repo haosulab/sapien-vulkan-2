@@ -26,21 +26,21 @@ struct SVTextureDescription {
 };
 
 class SVTexture {
-  SVTextureDescription mDescription;
-  std::shared_ptr<SVImage> mImage;
+  SVTextureDescription mDescription{};
+  std::shared_ptr<SVImage> mImage{};
 
   bool mOnDevice{};
-  vk::UniqueImageView mImageView;
-  vk::UniqueSampler mSampler;
+  vk::UniqueImageView mImageView{};
+  vk::UniqueSampler mSampler{};
 
   bool mLoaded{};
 
   /** When manager is not null, it is used to avoid loading duplicated
    * subresources
    */
-  class SVResourceManager *mManager;
+  class SVResourceManager *mManager{};
 
-  std::mutex mLoadingMutex;
+  std::mutex mLoadingMutex{};
 
 public:
   static std::shared_ptr<SVTexture> FromFile(
@@ -89,9 +89,7 @@ public:
   SVTexture &operator=(SVTexture const &other) = delete;
   SVTexture(SVTexture &&other) = delete;
   SVTexture &operator=(SVTexture &&other) = delete;
-
-private:
-  SVTexture() = default;
+  inline SVTexture() {}
 };
 
 } // namespace resource

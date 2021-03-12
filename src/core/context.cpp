@@ -287,7 +287,7 @@ std::unique_ptr<renderer::GuiWindow> Context::createWindow(uint32_t width,
           vk::Format::eB8G8R8A8Unorm, vk::Format::eR8G8B8A8Unorm,
           vk::Format::eB8G8R8Unorm, vk::Format::eR8G8B8Unorm},
       vk::ColorSpaceKHR::eSrgbNonlinear, width, height,
-      std::vector<vk::PresentModeKHR>{vk::PresentModeKHR::eFifo}, 2);
+      std::vector<vk::PresentModeKHR>{vk::PresentModeKHR::eMailbox}, 2);
 };
 
 std::shared_ptr<resource::SVMetallicMaterial>

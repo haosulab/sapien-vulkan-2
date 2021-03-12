@@ -258,15 +258,26 @@ void GuiWindow::selectPresentMode(
   mPresentMode = vk::PresentModeKHR::eFifo; // always available
 }
 
-void GuiWindow::updateSize(uint32_t w, uint32_t h) {
-  recreateSwapchain(w, h);
+bool GuiWindow::updateSize(uint32_t w, uint32_t h) {
+  if (!recreateSwapchain(w, h)) {
+    return false;
+  }
   recreateImguiResources();
   mContext->getDevice().waitIdle();
+  return true;
 }
 
-void GuiWindow::recreateSwapchain(uint32_t w, uint32_t h) {
+bool GuiWindow::recreateSwapchain(uint32_t w, uint32_t h) {
   if (mMinImageCount == 0) {
     throw std::runtime_error("Invalid min image count specified");
+  }
+
+  auto device = mContext->getDevice();
+  auto cap =
+      mContext->getPhysicalDevice().getSurfaceCapabilitiesKHR(mSurface.get());
+  if (cap.minImageExtent.width > w || cap.maxImageExtent.width < w ||
+      cap.minImageExtent.height > h || cap.maxImageExtent.height < h) {
+    return false;
   }
 
   vk::SwapchainCreateInfoKHR info({}, mSurface.get(), mMinImageCount,
@@ -278,14 +289,13 @@ void GuiWindow::recreateSwapchain(uint32_t w, uint32_t h) {
                                   vk::SurfaceTransformFlagBitsKHR::eIdentity,
                                   vk::CompositeAlphaFlagBitsKHR::eOpaque,
                                   mPresentMode, VK_TRUE, mSwapchain.get());
-  auto device = mContext->getDevice();
-  auto cap =
-      mContext->getPhysicalDevice().getSurfaceCapabilitiesKHR(mSurface.get());
+
   if (info.minImageCount < cap.minImageCount) {
     info.minImageCount = cap.minImageCount;
   } else if (cap.maxImageCount != 0 && info.minImageCount > cap.maxImageCount) {
     info.minImageCount = cap.maxImageCount;
   }
+
   if (cap.currentExtent.width != 0xffffffff) {
     mWidth = info.imageExtent.width = cap.currentExtent.width;
     mHeight = info.imageExtent.height = cap.currentExtent.height;
@@ -315,6 +325,7 @@ void GuiWindow::recreateSwapchain(uint32_t w, uint32_t h) {
         {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}};
     mFrames[i].mBackbufferView = device.createImageViewUnique(info);
   }
+  return true;
 }
 
 void GuiWindow::recreateImguiResources() {
