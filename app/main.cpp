@@ -130,7 +130,7 @@ int main() {
   auto uiWindow =
       ui::Widget::Create<ui::Window>()
           ->Size({400, 400})
-          ->Name("main window")
+          ->Label("main window")
           ->append(ui::Widget::Create<ui::DisplayText>()->Text("Hello!"))
           ->append(ui::Widget::Create<ui::InputText>()->Label("Input##1"))
           ->append(ui::Widget::Create<ui::InputFloat>()->Label("Input##2"))
@@ -223,7 +223,7 @@ int main() {
     if (gClosed) {
       window->close();
     }
-    if (window->isKeyDown('q')) {
+    if (window->isKeyDown("q")) {
       window->close();
     }
 
@@ -232,16 +232,16 @@ int main() {
       auto [x, y] = window->getMouseDelta();
       controller.rotate(0, -r * y, -r * x);
     }
-    if (window->isKeyDown('w')) {
+    if (window->isKeyDown("w")) {
       controller.move(r, 0, 0);
     }
-    if (window->isKeyDown('s')) {
+    if (window->isKeyDown("s")) {
       controller.move(-r, 0, 0);
     }
-    if (window->isKeyDown('a')) {
+    if (window->isKeyDown("a")) {
       controller.move(0, r, 0);
     }
-    if (window->isKeyDown('d')) {
+    if (window->isKeyDown("d")) {
       controller.move(0, -r, 0);
     }
   }

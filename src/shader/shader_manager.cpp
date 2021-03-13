@@ -281,34 +281,34 @@ void ShaderManager::prepareRenderTargetOperationTable() {
     }
   }
 
-  // std::stringstream ss;
-  // ss << "Operation Table" << std::endl;
-  // ss << std::setw(20) << ""
-  //    << " ";
-  // for (auto pass : getAllPasses()) {
-  //   ss << std::setw(15) << pass->getName() << " ";
-  // }
-  // ss << std::endl;
-  // for (auto &[tex, ops] : mTextureOperationTable) {
-  //   ss << std::setw(20) << tex << " ";
-  //   for (auto &op : ops) {
-  //     if (op == RenderTargetOperation::eNoOp) {
-  //       ss << std::setw(15) << "N"
-  //          << " ";
-  //     } else if (op == RenderTargetOperation::eRead) {
-  //       ss << std::setw(15) << "R"
-  //          << " ";
-  //     } else if (op == RenderTargetOperation::eColorWrite) {
-  //       ss << std::setw(15) << "W"
-  //          << " ";
-  //     } else if (op == RenderTargetOperation::eDepthWrite) {
-  //       ss << std::setw(15) << "D"
-  //          << " ";
-  //     }
-  //   }
-  //   ss << std::endl;
-  // }
-  // log::info(ss.str());
+  std::stringstream ss;
+  ss << "Operation Table" << std::endl;
+  ss << std::setw(20) << ""
+     << " ";
+  for (auto pass : getAllPasses()) {
+    ss << std::setw(15) << pass->getName() << " ";
+  }
+  ss << std::endl;
+  for (auto &[tex, ops] : mTextureOperationTable) {
+    ss << std::setw(20) << tex << " ";
+    for (auto &op : ops) {
+      if (op == RenderTargetOperation::eNoOp) {
+        ss << std::setw(15) << "N"
+           << " ";
+      } else if (op == RenderTargetOperation::eRead) {
+        ss << std::setw(15) << "R"
+           << " ";
+      } else if (op == RenderTargetOperation::eColorWrite) {
+        ss << std::setw(15) << "W"
+           << " ";
+      } else if (op == RenderTargetOperation::eDepthWrite) {
+        ss << std::setw(15) << "D"
+           << " ";
+      }
+    }
+    ss << std::endl;
+  }
+  log::info(ss.str());
 }
 
 RenderTargetOperation

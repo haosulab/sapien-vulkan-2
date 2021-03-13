@@ -15,5 +15,7 @@ void Widget::remove() {
   }
 }
 
+void Widget::removeChildren() { mChildren.clear(); }
+
 } // namespace ui
 } // namespace svulkan2

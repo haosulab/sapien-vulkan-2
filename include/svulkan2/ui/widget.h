@@ -42,6 +42,10 @@ public:
   void setParent(std::weak_ptr<Widget> parent);
 
   void remove();
+  void removeChildren();
+  inline std::vector<std::shared_ptr<Widget>> getChildren() const {
+    return mChildren;
+  };
 
   /** build imgui */
   virtual void build() = 0;
