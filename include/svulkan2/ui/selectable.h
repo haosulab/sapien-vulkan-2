@@ -12,7 +12,6 @@ UI_CLASS(Selectable) {
                Callback);
 
 public:
-  inline bool getSelected() const { return mSelected; }
   void build() override;
 };
 

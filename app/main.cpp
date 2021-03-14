@@ -178,6 +178,33 @@ int main() {
     }
 
     ImGui::NewFrame();
+    // float scaling = ImGui::GetWindowDpiScale();
+    // // log::info("Window DPI scale: {}", scaling);
+    // applyStyle(1.f);
+
+
+    ImGuiWindowFlags flags = ImGuiWindowFlags_MenuBar;
+    flags |= ImGuiWindowFlags_NoDocking;
+    ImGuiViewport *viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->Pos);
+    ImGui::SetNextWindowSize(viewport->Size);
+    ImGui::SetNextWindowViewport(viewport->ID);
+    ImGui::SetNextWindowBgAlpha(0.f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
+             ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+    flags |=
+        ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+    ImGui::Begin("DockSpace Demo", 0, flags);
+    ImGui::PopStyleVar();
+
+    ImGui::DockSpace(ImGui::GetID("Dockspace"), ImVec2(0, 0),
+                     ImGuiDockNodeFlags_PassthruCentralNode |
+                         ImGuiDockNodeFlags_NoDockingInCentralNode);
+    ImGui::End();
+    ImGui::PopStyleVar();
 
     uiWindow->build();
     ImGui::ShowDemoWindow();

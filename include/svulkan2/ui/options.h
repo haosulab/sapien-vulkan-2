@@ -14,7 +14,6 @@ UI_CLASS(Options) {
   UI_ATTRIBUTE(Options, std::string, Style);
 
 public:
-  int getIndex();
   std::string get();
 
   void build() override;

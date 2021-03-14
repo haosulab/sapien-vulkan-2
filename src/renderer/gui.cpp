@@ -145,7 +145,7 @@ static void applyStyle() {
   colors[ImGuiCol_CheckMark] = ImVec4(1.000f, 1.000f, 1.000f, 1.000f);
   colors[ImGuiCol_SliderGrab] = ImVec4(0.391f, 0.391f, 0.391f, 1.000f);
   colors[ImGuiCol_SliderGrabActive] = ImVec4(1.000f, 0.391f, 0.000f, 1.000f);
-  colors[ImGuiCol_Button] = ImVec4(1.000f, 1.000f, 1.000f, 0.000f);
+  colors[ImGuiCol_Button] = ImVec4(1.000f, 1.000f, 1.000f, 0.100f);
   colors[ImGuiCol_ButtonHovered] = ImVec4(1.000f, 1.000f, 1.000f, 0.156f);
   colors[ImGuiCol_ButtonActive] = ImVec4(1.000f, 1.000f, 1.000f, 0.391f);
   colors[ImGuiCol_Header] = ImVec4(0.313f, 0.313f, 0.313f, 0.800f);
@@ -162,9 +162,8 @@ static void applyStyle() {
   colors[ImGuiCol_TabActive] = ImVec4(0.195f, 0.195f, 0.195f, 1.000f);
   colors[ImGuiCol_TabUnfocused] = ImVec4(0.098f, 0.098f, 0.098f, 1.000f);
   colors[ImGuiCol_TabUnfocusedActive] = ImVec4(0.195f, 0.195f, 0.195f, 1.000f);
-  // colors[ImGuiCol_DockingPreview]         = ImVec4(1.000f, 0.391f, 0.000f,
-  // 0.781f); colors[ImGuiCol_DockingEmptyBg]         = ImVec4(0.180f, 0.180f,
-  // 0.180f, 1.000f);
+  colors[ImGuiCol_DockingPreview] = ImVec4(1.000f, 0.391f, 0.000f, 0.781f);
+  colors[ImGuiCol_DockingEmptyBg] = ImVec4(0.180f, 0.180f, 0.180f, 1.000f);
   colors[ImGuiCol_PlotLines] = ImVec4(0.469f, 0.469f, 0.469f, 1.000f);
   colors[ImGuiCol_PlotLinesHovered] = ImVec4(1.000f, 0.391f, 0.000f, 1.000f);
   colors[ImGuiCol_PlotHistogram] = ImVec4(0.586f, 0.586f, 0.586f, 1.000f);
@@ -188,13 +187,6 @@ static void applyStyle() {
   style.TabBorderSize = 1.0f;
   style.TabRounding = 0.0f;
   style.WindowRounding = 4.0f;
-
-  auto &io = ImGui::GetIO();
-  auto font = io.Fonts->AddFontFromMemoryCompressedBase85TTF(
-      roboto_compressed_data_base85, 15.f);
-  if (font != nullptr) {
-    io.FontDefault = font;
-  }
 }
 
 void GuiWindow::initImgui() {
@@ -222,10 +214,33 @@ void GuiWindow::initImgui() {
 
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
-  // ImGuiIO &io = ImGui::GetIO();
-  // (void)io;
+
   applyStyle();
-  // ImGui::StyleColorsDark();
+  auto &io = ImGui::GetIO();
+
+  {
+    float scale = 0.f;
+    int monitorCount = 0;
+    auto monitors = glfwGetMonitors(&monitorCount);
+    for (int i = 0; i < monitorCount; ++i) {
+      float xscale = 0.f;
+      float yscale = 0.f;
+      glfwGetMonitorContentScale(monitors[i], &xscale, &yscale);
+      scale = std::max(yscale, std::max(xscale, scale));
+    }
+    if (scale < 0.1f) {
+      scale = 1.f;
+    }
+    log::info("Largest monitor DPI scale: {}", scale);
+    ImGui::GetStyle().ScaleAllSizes(1.f);
+    auto font = io.Fonts->AddFontFromMemoryCompressedBase85TTF(
+        roboto_compressed_data_base85, std::round(15.f * scale));
+    if (font != nullptr) {
+      io.FontDefault = font;
+    }
+  }
+
+  io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
   ImGui_ImplGlfw_InitForVulkan(mWindow, true);
   ImGui_ImplVulkan_InitInfo initInfo = {};

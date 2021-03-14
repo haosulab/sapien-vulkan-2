@@ -3,12 +3,6 @@
 namespace svulkan2 {
 namespace ui {
 
-int Options::getIndex() {
-  if (mIndex < 0 || static_cast<uint32_t>(mIndex) >= mItems.size()) {
-    mIndex = 0;
-  }
-  return mIndex;
-}
 std::string Options::get() {
   if (mIndex < 0 || static_cast<uint32_t>(mIndex) >= mItems.size()) {
     mIndex = 0;
@@ -39,9 +33,11 @@ void Options::build() {
           }
         }
       }
+      ImGui::EndCombo();
     }
   } else {
-    throw std::runtime_error("\"radio\" or \"select\" style must be specified for UI options.");
+    throw std::runtime_error(
+        "\"radio\" or \"select\" style must be specified for UI options.");
   }
 }
 

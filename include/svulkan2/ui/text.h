@@ -12,6 +12,7 @@ UI_CLASS(DisplayText) {
 
 UI_CLASS(InputText) {
   UI_ATTRIBUTE(InputText, std::string, Label);
+  UI_ATTRIBUTE(InputText, bool, ReadOnly);
 
 protected:
   std::vector<char> mBuffer{std::vector<char>(100, 0)};
@@ -30,6 +31,7 @@ public:
 UI_CLASS(InputFloat) {
   UI_ATTRIBUTE(InputFloat, std::string, Label);
   UI_ATTRIBUTE(InputFloat, float, Value);
+  UI_ATTRIBUTE(InputText, bool, ReadOnly);
 
 public:
   inline float get() const { return mValue; }
@@ -39,6 +41,7 @@ public:
 UI_CLASS(InputFloat2) {
   UI_ATTRIBUTE(InputFloat2, std::string, Label);
   UI_ATTRIBUTE(InputFloat, glm::vec2, Value);
+  UI_ATTRIBUTE(InputText, bool, ReadOnly);
 
 public:
   inline glm::vec2 get() const { return mValue; }
@@ -48,6 +51,7 @@ public:
 UI_CLASS(InputFloat3) {
   UI_ATTRIBUTE(InputFloat3, std::string, Label);
   UI_ATTRIBUTE(InputFloat, glm::vec3, Value);
+  UI_ATTRIBUTE(InputText, bool, ReadOnly);
 
 public:
   inline glm::vec3 get() const { return mValue; }
@@ -57,6 +61,7 @@ public:
 UI_CLASS(InputFloat4) {
   UI_ATTRIBUTE(InputFloat4, std::string, Label);
   UI_ATTRIBUTE(InputFloat, glm::vec4, Value);
+  UI_ATTRIBUTE(InputText, bool, ReadOnly);
 
 public:
   inline glm::vec4 get() const { return mValue; }

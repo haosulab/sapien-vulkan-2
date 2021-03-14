@@ -1,6 +1,7 @@
 #include "button.h"
 #include "checkbox.h"
 #include "options.h"
+#include "sameline.h"
 #include "section.h"
 #include "selectable.h"
 #include "slider.h"
