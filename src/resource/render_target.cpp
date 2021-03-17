@@ -55,9 +55,9 @@ void SVRenderTarget::createDeviceResources(core::Context &context) {
   mImageView = context.getDevice().createImageViewUnique(info);
   mSampler = context.getDevice().createSamplerUnique(vk::SamplerCreateInfo(
       {}, vk::Filter::eNearest, vk::Filter::eNearest,
-      vk::SamplerMipmapMode::eNearest, vk::SamplerAddressMode::eClampToBorder,
-      vk::SamplerAddressMode::eClampToBorder,
-      vk::SamplerAddressMode::eClampToBorder, 0.f, false, 0.f, false,
+      vk::SamplerMipmapMode::eNearest, vk::SamplerAddressMode::eClampToEdge,
+      vk::SamplerAddressMode::eClampToEdge,
+      vk::SamplerAddressMode::eClampToEdge, 0.f, false, 0.f, false,
       vk::CompareOp::eNever, 0.f, 0.f, vk::BorderColor::eFloatOpaqueBlack));
 }
 

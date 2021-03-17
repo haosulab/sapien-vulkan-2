@@ -44,6 +44,8 @@ layout(set = 1, binding = 0) uniform CameraBuffer {
   mat4 projectionMatrix;
   mat4 viewMatrixInverse;
   mat4 projectionMatrixInverse;
+  float width;
+  float height;
 } cameraBuffer;
 
 layout(set = 2, binding = 0) uniform sampler2D samplerAlbedo;

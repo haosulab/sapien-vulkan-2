@@ -7,6 +7,16 @@ layout(set = 0, binding = 3) uniform sampler2D samplerGbufferDepth;
 layout(set = 0, binding = 4) uniform sampler2D samplerGbuffer1Depth;
 layout(set = 0, binding = 5) uniform sampler2D samplerGbuffer2Depth;
 
+layout(set = 1, binding = 0) uniform CameraBuffer {
+  mat4 viewMatrix;
+  mat4 projectionMatrix;
+  mat4 viewMatrixInverse;
+  mat4 projectionMatrixInverse;
+  float width;
+  float height;
+} cameraBuffer;
+
+
 layout(location = 0) in vec2 inUV;
 layout(location = 0) out vec4 outColor;
 

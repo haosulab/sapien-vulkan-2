@@ -31,16 +31,14 @@ public:
   static std::shared_ptr<SVModel>
   FromData(std::vector<std::shared_ptr<SVShape>> shapes);
 
-  inline std::vector<std::shared_ptr<SVShape>> const &getShapes() const {
-    return mShapes;
-  }
+  /** get shapes. model will load if it is not loaded. */
+  std::vector<std::shared_ptr<SVShape>> const &getShapes();
 
   /** Determine whether this model is loaded. If a model is specified by a file,
    *  it is not loaded into shapes by default
    */
   inline bool isLoaded() const { return mLoaded; }
 
-  // void load();
   std::future<void> loadAsync();
 
   inline ModelDescription const &getDescription() const { return mDescription; }

@@ -54,8 +54,8 @@ Context::~Context() {}
 
 void Context::createInstance() {
   if (mPresent) {
-    log::info("Initializing GLFW");
     glfwInit();
+    log::info("GLFW initialized.");
     glfwSetErrorCallback(glfwErrorCallback);
   }
 
@@ -102,10 +102,38 @@ void Context::createInstance() {
   vk::InstanceCreateInfo createInfo(
       {}, &appInfo, enabledLayers.size(), enabledLayers.data(),
       instanceExtensions.size(), instanceExtensions.data());
-  mInstance = vk::createInstanceUnique(createInfo);
+  mVulkanAvailable = false;
+  try {
+    mInstance = vk::createInstanceUnique(createInfo);
+    mVulkanAvailable = true;
+    log::info("Vulkan instance initialized");
+  } catch (vk::OutOfHostMemoryError const &err) {
+    throw err;
+  } catch (vk::OutOfDeviceMemoryError const &err) {
+    throw err;
+  } catch (vk::InitializationFailedError const &err) {
+    log::error("Vulkan initialization failed. You may not use the renderer to "
+               "render, however, CPU resources will be still available.");
+  } catch (vk::LayerNotPresentError const &err) {
+    log::error(
+        "Some required Vulkan layer is not present. You may not use the "
+        "renderer to render, however, CPU resources will be still available.");
+  } catch (vk::ExtensionNotPresentError const &err) {
+    log::error(
+        "Some required Vulkan extension is not present. You may not use the "
+        "renderer to render, however, CPU resources will be still available.");
+  } catch (vk::IncompatibleDriverError const &err) {
+    log::error(
+        "Vulkan is incompatible with your driver. You may not use the renderer "
+        "to render, however, CPU resources will be still available.");
+  }
 }
 
 void Context::pickSuitableGpuAndQueueFamilyIndex() {
+  if (!mVulkanAvailable) {
+    return;
+  }
+
   GLFWwindow *window;
   VkSurfaceKHR tmpSurface;
   if (mPresent) {
@@ -158,6 +186,10 @@ void Context::pickSuitableGpuAndQueueFamilyIndex() {
 }
 
 void Context::createDevice() {
+  if (!mVulkanAvailable) {
+    return;
+  }
+
   float queuePriority = 0.0f;
   vk::DeviceQueueCreateInfo deviceQueueCreateInfo({}, mQueueFamilyIndex, 1,
                                                   &queuePriority);
@@ -182,6 +214,10 @@ void Context::createDevice() {
 }
 
 void Context::createMemoryAllocator() {
+  if (!mVulkanAvailable) {
+    return;
+  }
+
   VmaAllocatorCreateInfo allocatorInfo = {};
   allocatorInfo.vulkanApiVersion = mApiVersion;
   allocatorInfo.physicalDevice = mPhysicalDevice;
@@ -191,11 +227,19 @@ void Context::createMemoryAllocator() {
 }
 
 void Context::createCommandPool() {
+  if (!mVulkanAvailable) {
+    return;
+  }
+
   mCommandPool = mDevice->createCommandPoolUnique(vk::CommandPoolCreateInfo(
       vk::CommandPoolCreateFlagBits::eResetCommandBuffer, mQueueFamilyIndex));
 }
 
 void Context::createDescriptorPool() {
+  if (!mVulkanAvailable) {
+    return;
+  }
+
   vk::DescriptorPoolSize pool_sizes[] = {
       {vk::DescriptorType::eCombinedImageSampler, mMaxNumTextures},
       {vk::DescriptorType::eUniformBuffer, mMaxNumMaterials}};
@@ -236,6 +280,10 @@ void Context::createDescriptorPool() {
 
 vk::UniqueCommandBuffer
 Context::createCommandBuffer(vk::CommandBufferLevel level) const {
+  if (!mVulkanAvailable) {
+    throw std::runtime_error("Vulkan is not initialized");
+  }
+
   return std::move(
       mDevice->allocateCommandBuffersUnique({mCommandPool.get(), level, 1})
           .front());
@@ -246,7 +294,10 @@ void Context::submitCommandBufferAndWait(
   auto fence = mDevice->createFenceUnique({});
   getQueue().submit(vk::SubmitInfo(0, nullptr, nullptr, 1, &commandBuffer),
                     fence.get());
-  mDevice->waitForFences(fence.get(), VK_TRUE, UINT64_MAX);
+  auto result = mDevice->waitForFences(fence.get(), VK_TRUE, UINT64_MAX);
+  if (result != vk::Result::eSuccess) {
+    throw std::runtime_error("failed to wait for fence");
+  }
 }
 
 vk::UniqueFence
@@ -263,16 +314,27 @@ Context::submitCommandBuffer(vk::CommandBuffer commandBuffer) const {
   getQueue().submit(vk::SubmitInfo(0, nullptr, nullptr, 1, &commandBuffer),
                     fence.get());
   return std::async(std::launch::async, [fence = std::move(fence), this]() {
-    mDevice->waitForFences(fence.get(), VK_TRUE, UINT64_MAX);
+    auto result = mDevice->waitForFences(fence.get(), VK_TRUE, UINT64_MAX);
+    if (result != vk::Result::eSuccess) {
+      throw std::runtime_error("failed to wait for fence");
+    }
   });
 }
 
 vk::Queue Context::getQueue() const {
+  if (!mVulkanAvailable) {
+    throw std::runtime_error("Vulkan is not initialized");
+  }
+
   return mDevice->getQueue(mQueueFamilyIndex, 0);
 }
 
 std::unique_ptr<renderer::GuiWindow> Context::createWindow(uint32_t width,
                                                            uint32_t height) {
+  if (!mVulkanAvailable) {
+    throw std::runtime_error("Vulkan is not initialized");
+  }
+
   if (!mPresent) {
     throw std::runtime_error(
         "Create window failed: context is not created with present support");
@@ -306,7 +368,7 @@ Context::createSpecularMaterial(glm::vec4 diffuse, glm::vec4 specular,
 }
 
 std::shared_ptr<resource::SVModel> Context::createModel(
-    std::vector<std::shared_ptr<resource::SVMesh>> const& meshes,
+    std::vector<std::shared_ptr<resource::SVMesh>> const &meshes,
     std::vector<std::shared_ptr<resource::SVMaterial>> const &materials) {
   if (meshes.size() != materials.size()) {
     throw std::runtime_error(

@@ -27,23 +27,31 @@ Scene::Scene() {
   mRootNode->setScene(this);
 }
 
-Node &Scene::addNode(Node &parent) {
+Node &Scene::addNode(Node &parent, Transform const &transform) {
   forceRemove();
   mNodes.push_back(std::make_unique<Node>());
   mNodes.back()->setScene(this);
   mNodes.back()->setParent(parent);
   parent.addChild(*mNodes.back());
+
+  // update global matrix now, so the next call to update the scene
+  // will update the current matrix into the previous matrix
+  mNodes.back()->setTransform(transform);
+  mNodes.back()->updateGlobalModelMatrixRecursive();
   return *mNodes.back();
 }
 
-Node &Scene::addNode() { return addNode(getRootNode()); }
-
-Object &Scene::addObject(std::shared_ptr<resource::SVModel> model) {
-  return addObject(getRootNode(), model);
+Node &Scene::addNode(Transform const &transform) {
+  return addNode(getRootNode(), transform);
 }
 
-Object &Scene::addObject(Node &parent,
-                         std::shared_ptr<resource::SVModel> model) {
+Object &Scene::addObject(std::shared_ptr<resource::SVModel> model,
+                         Transform const &transform) {
+  return addObject(getRootNode(), model, transform);
+}
+
+Object &Scene::addObject(Node &parent, std::shared_ptr<resource::SVModel> model,
+                         Transform const &transform) {
   forceRemove();
   auto obj = std::make_unique<Object>(model);
   auto &result = *obj;
@@ -51,17 +59,25 @@ Object &Scene::addObject(Node &parent,
   mObjects.back()->setScene(this);
   mObjects.back()->setParent(parent);
   parent.addChild(*mObjects.back());
+
+  mObjects.back()->setTransform(transform);
+  mObjects.back()->updateGlobalModelMatrixRecursive();
   return result;
 }
 
-Camera &Scene::addCamera() { return addCamera(getRootNode()); }
-Camera &Scene::addCamera(Node &parent) {
+Camera &Scene::addCamera(Transform const &transform) {
+  return addCamera(getRootNode(), transform);
+}
+Camera &Scene::addCamera(Node &parent, Transform const &transform) {
   forceRemove();
   auto cam = std::make_unique<Camera>();
   auto &result = *cam;
   mCameras.push_back(std::move(cam));
   mCameras.back()->setScene(this);
   mCameras.back()->setParent(parent);
+
+  mCameras.back()->setTransform(transform);
+  mCameras.back()->updateGlobalModelMatrixRecursive();
   parent.addChild(*mCameras.back());
   return result;
 }

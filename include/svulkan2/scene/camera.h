@@ -32,8 +32,8 @@ public:
   inline float getOrthographicScaling() { return mScaling; }
   inline float isOrthographic() { return mIsOrtho; }
 
-  void uploadToDevice(core::Buffer &cameraBuffer,
-                      StructDataLayout const &cameraLayout);
+  void uploadToDevice(core::Buffer &cameraBuffer, uint32_t width,
+                      uint32_t height, StructDataLayout const &cameraLayout);
 
   inline glm::mat4 getProjectionMatrix() const { return mProjectionMatrix; }
 };

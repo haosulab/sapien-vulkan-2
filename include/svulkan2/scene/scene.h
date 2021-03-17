@@ -26,14 +26,16 @@ class Scene {
 public:
   inline Node &getRootNode() { return *mRootNode; };
 
-  Node &addNode();
-  Node &addNode(Node &parent);
+  Node &addNode(Transform const &transform = {});
+  Node &addNode(Node &parent, Transform const &transform = {});
 
-  Object &addObject(std::shared_ptr<resource::SVModel> model);
-  Object &addObject(Node &parent, std::shared_ptr<resource::SVModel> model);
+  Object &addObject(std::shared_ptr<resource::SVModel> model,
+                    Transform const &transform = {});
+  Object &addObject(Node &parent, std::shared_ptr<resource::SVModel> model,
+                    Transform const &transform = {});
 
-  Camera &addCamera();
-  Camera &addCamera(Node &parent);
+  Camera &addCamera(Transform const &transform = {});
+  Camera &addCamera(Node &parent, Transform const &transform = {});
 
   PointLight &addPointLight();
   PointLight &addPointLight(Node &parent);
@@ -72,7 +74,9 @@ public:
                        std::vector<std::unique_ptr<core::Buffer>> &lightBuffers,
                        StructDataLayout const &shadowLayout);
 
-  /** call exactly once per frame to update the object matrices */
+  /** call exactly once per time frame to update the object matrices
+   *  this function also copies current matrices into the previous matrices
+   */
   void updateModelMatrices();
 
   /** called to order shadow lights before non-shadow lights */

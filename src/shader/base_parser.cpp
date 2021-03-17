@@ -302,12 +302,6 @@ std::shared_ptr<StructDataLayout> parseBuffer(spirv_cross::Compiler &compiler,
 }
 
 void verifyCameraBuffer(std::shared_ptr<StructDataLayout> layout) {
-  ASSERT(layout->elements.size() == 4 || layout->elements.size() == 6,
-         "camera buffer should contain the following elements: viewMatrix, "
-         "viewMatrixInverse, projectionMatrix, projectionMatrixInverse. If "
-         "motion blur or optical flow is required, the following elements are "
-         "supported: prevViewMatrix, prevViewMatrixInverse");
-
   // required fields
   ASSERT(CONTAINS(layout->elements, "viewMatrix"),
          "camera buffer requires viewMatrix");
@@ -317,12 +311,6 @@ void verifyCameraBuffer(std::shared_ptr<StructDataLayout> layout) {
          "camera buffer requires projectionMatrix");
   ASSERT(CONTAINS(layout->elements, "projectionMatrixInverse"),
          "camera buffer requires projectionMatrixInverse");
-  if (layout->elements.size() == 6) {
-    ASSERT(CONTAINS(layout->elements, "prevViewMatrix"),
-           "camera buffer needs variable prevViewMatrix");
-    ASSERT(CONTAINS(layout->elements, "prevViewMatrixInverse"),
-           "camera buffer needs variable prevViewMatrixInverse");
-  }
 
   // required types
   ASSERT(layout->elements["viewMatrix"].dtype == eFLOAT44,
@@ -333,11 +321,21 @@ void verifyCameraBuffer(std::shared_ptr<StructDataLayout> layout) {
          "camera projectionMatrix should have type float44");
   ASSERT(layout->elements["projectionMatrixInverse"].dtype == eFLOAT44,
          "camera projectionMatrixInverse should have type float44");
-  if (layout->elements.size() == 6) {
+  if (CONTAINS(layout->elements, "prevViewMatrix")) {
     ASSERT(layout->elements["prevViewMatrix"].dtype == eFLOAT44,
            "camera prevViewMatrix should have type float44");
+  }
+  if (CONTAINS(layout->elements, "prevViewMatrixInverse")) {
     ASSERT(layout->elements["prevViewMatrixInverse"].dtype == eFLOAT44,
            "camera prevViewMatrixInverse should have type float44");
+  }
+  if (CONTAINS(layout->elements, "width")) {
+    ASSERT(layout->elements["width"].dtype == eFLOAT,
+           "camera width should have type float");
+  }
+  if (CONTAINS(layout->elements, "height")) {
+    ASSERT(layout->elements["height"].dtype == eFLOAT,
+           "camera height should have type float");
   }
 }
 

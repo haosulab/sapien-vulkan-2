@@ -5,6 +5,8 @@ layout(set = 0, binding = 0) uniform CameraBuffer {
   mat4 projectionMatrix;
   mat4 viewMatrixInverse;
   mat4 projectionMatrixInverse;
+  float width;
+  float height;
 } cameraBuffer;
 
 layout(set = 1, binding = 0) uniform ObjectBuffer {

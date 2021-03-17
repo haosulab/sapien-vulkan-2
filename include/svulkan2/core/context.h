@@ -10,6 +10,7 @@ namespace core {
 
 class Context {
   uint32_t mApiVersion;
+  bool mVulkanAvailable;
   bool mPresent;
 
   vk::UniqueInstance mInstance;
@@ -36,6 +37,9 @@ public:
           uint32_t maxNumMaterials = 5000, uint32_t maxNumTextures = 5000,
           uint32_t defaultMipLevels = 1);
   ~Context();
+
+  inline bool isVulkanAvailable() const { return mVulkanAvailable; }
+  inline bool isPresentAvailable() const { return mPresent; }
 
   vk::Queue getQueue() const;
   inline class Allocator &getAllocator() { return *mAllocator; }
@@ -79,9 +83,9 @@ public:
   createSpecularMaterial(glm::vec4 diffuse, glm::vec4 specular,
                          float transparency);
 
-  std::shared_ptr<resource::SVModel>
-  createModel(std::vector<std::shared_ptr<resource::SVMesh>> const &meshes,
-              std::vector<std::shared_ptr<resource::SVMaterial>> const &materials);
+  std::shared_ptr<resource::SVModel> createModel(
+      std::vector<std::shared_ptr<resource::SVMesh>> const &meshes,
+      std::vector<std::shared_ptr<resource::SVMaterial>> const &materials);
 
   std::shared_ptr<resource::SVMesh>
   createTriangleMesh(std::vector<glm::vec3> const &vertices,

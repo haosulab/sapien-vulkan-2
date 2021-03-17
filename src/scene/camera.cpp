@@ -49,7 +49,8 @@ void Camera::setOrthographicParameters(float near, float far, float aspect,
   mProjectionMatrix[1][1] *= -1;
 }
 
-void Camera::uploadToDevice(core::Buffer &cameraBuffer,
+void Camera::uploadToDevice(core::Buffer &cameraBuffer, uint32_t width,
+                            uint32_t height,
                             StructDataLayout const &cameraLayout) {
   std::vector<char> mBuffer(cameraLayout.size);
 
@@ -71,10 +72,29 @@ void Camera::uploadToDevice(core::Buffer &cameraBuffer,
   if (it != cameraLayout.elements.end()) {
     auto prevViewMatrix = glm::affineInverse(mTransform.prevWorldModelMatrix);
     std::memcpy(mBuffer.data() + it->second.offset, &prevViewMatrix[0][0], 64);
+  }
+
+  it = cameraLayout.elements.find("prevViewMatrixInverse");
+  if (it != cameraLayout.elements.end()) {
     std::memcpy(mBuffer.data() +
                     cameraLayout.elements.at("prevViewMatrixInverse").offset,
                 &mTransform.prevWorldModelMatrix[0][0], 64);
   }
+
+  it = cameraLayout.elements.find("width");
+  if (it != cameraLayout.elements.end()) {
+    float fwidth = static_cast<float>(width);
+    std::memcpy(mBuffer.data() + cameraLayout.elements.at("width").offset,
+                &fwidth, sizeof(float));
+  }
+
+  it = cameraLayout.elements.find("height");
+  if (it != cameraLayout.elements.end()) {
+    float fheight = static_cast<float>(height);
+    std::memcpy(mBuffer.data() + cameraLayout.elements.at("height").offset,
+                &fheight, sizeof(float));
+  }
+
   cameraBuffer.upload<char>(mBuffer);
 }
 

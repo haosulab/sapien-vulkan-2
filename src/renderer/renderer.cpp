@@ -42,6 +42,10 @@ static void updateDescriptorSets(
 Renderer::Renderer(core::Context &context,
                    std::shared_ptr<RendererConfig> config)
     : mContext(&context), mConfig(config) {
+  if (!mContext->isVulkanAvailable()) {
+    return;
+  }
+
   mShaderManager = std::make_unique<shader::ShaderManager>(config);
 
   mContext->getResourceManager().setMaterialPipelineType(
@@ -61,6 +65,10 @@ Renderer::Renderer(core::Context &context,
 }
 
 void Renderer::prepareRenderTargets(uint32_t width, uint32_t height) {
+  if (!mContext->isVulkanAvailable()) {
+    return;
+  }
+
   auto renderTargetFormats = mShaderManager->getRenderTargetFormats();
   for (auto &[name, format] : renderTargetFormats) {
     mRenderTargets[name] =
@@ -71,6 +79,10 @@ void Renderer::prepareRenderTargets(uint32_t width, uint32_t height) {
 }
 
 void Renderer::prepareShadowRenderTargets() {
+  if (!mContext->isVulkanAvailable()) {
+    return;
+  }
+
   uint32_t shadowSize = mConfig->shadowMapSize;
   auto format = mConfig->depthFormat;
 
@@ -242,10 +254,16 @@ void Renderer::prepareShadowRenderTargets() {
 }
 
 void Renderer::preparePipelines() {
+  if (!mContext->isVulkanAvailable()) {
+    return;
+  }
   mShaderManager->createPipelines(*mContext, mSpecializationConstants);
 }
 
 void Renderer::prepareFramebuffers(uint32_t width, uint32_t height) {
+  if (!mContext->isVulkanAvailable()) {
+    return;
+  }
   mFramebuffers.clear();
   auto parsers = mShaderManager->getAllPasses();
   for (uint32_t i = 0; i < parsers.size(); ++i) {
@@ -267,6 +285,9 @@ void Renderer::prepareFramebuffers(uint32_t width, uint32_t height) {
 }
 
 void Renderer::prepareShadowFramebuffers() {
+  if (!mContext->isVulkanAvailable()) {
+    return;
+  }
   mShadowFramebuffers.clear();
   std::vector<std::shared_ptr<resource::SVRenderTarget>> targets;
   targets.insert(targets.end(), mDirectionalShadowWriteTargets.begin(),
@@ -287,6 +308,9 @@ void Renderer::prepareShadowFramebuffers() {
 }
 
 void Renderer::resize(int width, int height) {
+  if (!mContext->isVulkanAvailable()) {
+    return;
+  }
   if (width <= 0 || height <= 0) {
     throw std::runtime_error(
         "failed to resize: width and height must be positive.");
@@ -298,6 +322,9 @@ void Renderer::resize(int width, int height) {
 
 void Renderer::setSpecializationConstantInt(std::string const &name,
                                             int value) {
+  if (!mContext->isVulkanAvailable()) {
+    return;
+  }
   if (mSpecializationConstants.find(name) != mSpecializationConstants.end()) {
     if (mSpecializationConstants[name].dtype != DataType::eINT) {
       throw std::runtime_error("failed to set specialization constant: the "
@@ -315,6 +342,9 @@ void Renderer::setSpecializationConstantInt(std::string const &name,
 
 void Renderer::setSpecializationConstantFloat(std::string const &name,
                                               float value) {
+  if (!mContext->isVulkanAvailable()) {
+    return;
+  }
   if (mSpecializationConstants.find(name) != mSpecializationConstants.end()) {
     if (mSpecializationConstants[name].dtype != DataType::eFLOAT) {
       throw std::runtime_error("failed to set specialization constant: the "
@@ -328,6 +358,9 @@ void Renderer::setSpecializationConstantFloat(std::string const &name,
 
 void Renderer::renderShadows(vk::CommandBuffer commandBuffer,
                              scene::Scene &scene) {
+  if (!mContext->isVulkanAvailable()) {
+    return;
+  }
   // render shadow passes
   if (mShaderManager->isShadowEnabled()) {
     auto objects = scene.getObjects();
@@ -399,6 +432,9 @@ void Renderer::renderShadows(vk::CommandBuffer commandBuffer,
 
 void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
                       scene::Camera &camera) {
+  if (!mContext->isVulkanAvailable()) {
+    return;
+  }
   if (mWidth <= 0 || mHeight <= 0) {
     throw std::runtime_error(
         "failed to render: resize must be called before rendering.");
@@ -461,7 +497,6 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
     prepareCameaBuffer();
   }
 
-  scene.updateModelMatrices();
   auto objects = scene.getObjects();
   prepareObjectBuffers(objects.size());
 
@@ -519,7 +554,7 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
   }
 
   // update camera
-  camera.uploadToDevice(*mCameraBuffer,
+  camera.uploadToDevice(*mCameraBuffer, mWidth, mHeight,
                         *mShaderManager->getShaderConfig()->cameraBufferLayout);
   // update scene
   scene.uploadToDevice(*mSceneBuffer,
@@ -632,6 +667,9 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
 }
 
 std::vector<std::string> Renderer::getDisplayTargetNames() const {
+  if (!mContext->isVulkanAvailable()) {
+    return {};
+  }
   std::vector<std::string> result;
   auto renderTargetFormats = mShaderManager->getRenderTargetFormats();
   for (auto &[name, format] : renderTargetFormats) {
@@ -644,6 +682,10 @@ std::vector<std::string> Renderer::getDisplayTargetNames() const {
 }
 
 std::vector<std::string> Renderer::getRenderTargetNames() const {
+  if (!mContext->isVulkanAvailable()) {
+    return {};
+  }
+
   std::vector<std::string> result;
   auto renderTargetFormats = mShaderManager->getRenderTargetFormats();
   for (auto &[name, format] : renderTargetFormats) {
@@ -656,6 +698,10 @@ void Renderer::display(vk::CommandBuffer commandBuffer,
                        std::string const &renderTargetName,
                        vk::Image backBuffer, vk::Format format, uint32_t width,
                        uint32_t height) {
+  if (!mContext->isPresentAvailable()) {
+    throw std::runtime_error("Display failed: present is not enabled.");
+  }
+
   auto &renderTarget = mRenderTargets.at(renderTargetName);
   auto targetFormat = renderTarget->getFormat();
   if (targetFormat != vk::Format::eR8G8B8A8Unorm &&

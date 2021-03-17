@@ -36,8 +36,9 @@ int main() {
 
   auto config = std::make_shared<RendererConfig>();
   // config->shaderDir = "../shader/full_no_shadow";
-  config->shaderDir = "../shader/full";
+  // config->shaderDir = "../shader/full";
   // config->shaderDir = "../shader/forward";
+  config->shaderDir = "../shader/full2";
   config->colorFormat = vk::Format::eR8G8B8A8Unorm;
   renderer::Renderer renderer(context, config);
 
@@ -83,15 +84,16 @@ int main() {
   // shape->mesh = resource::SVMesh::createCapsule(0.1, 0.2, 32, 8);
   // shape->mesh = resource::SVMesh::createUVSphere(32, 16);
   // shape->mesh = resource::SVMesh::createCone(32);
-  shape->mesh = resource::SVMesh::CreateCube();
-  shape->material = material;
-  shape->mesh->exportToFile("cube.obj");
-  auto sphere = resource::SVModel::FromData({{shape}});
-  scene.addObject(sphere).setTransform(
-      {.position = {0, 0.25, 0}, .scale = {0.1, 0.1, 0.1}});
+
+  // shape->mesh = resource::SVMesh::CreateCube();
+  // shape->material = material;
+  // shape->mesh->exportToFile("cube.obj");
+  // auto sphere = resource::SVModel::FromData({{shape}});
+  // scene.addObject(sphere).setTransform(
+  //     {.position = {0, 0.25, 0}, .scale = {0.1, 0.1, 0.1}});
 
   auto model = context.getResourceManager().CreateModelFromFile(
-      "../test/assets/scene/sponza/sponza.obj");
+      "../test/assets/scene/sponza/sponza2.obj");
   scene.addObject(model).setTransform(
       scene::Transform{.scale = {0.001, 0.001, 0.001}});
 
@@ -105,13 +107,13 @@ int main() {
   FPSCameraController controller(cameraNode, {0, 0, -1}, {0, 1, 0});
   controller.setXYZ(0, 0.5, 0);
 
-  auto &customLight = scene.addCustomLight(cameraNode);
-  customLight.setTransform({.position = {0.1, 0, 0}});
-  customLight.setShadowProjectionMatrix(glm::perspective(0.7f, 1.f, 0.1f, 5.f));
+  // auto &customLight = scene.addCustomLight(cameraNode);
+  // customLight.setTransform({.position = {0.1, 0, 0}});
+  // customLight.setShadowProjectionMatrix(glm::perspective(0.7f, 1.f, 0.1f, 5.f));
 
-  renderer.setCustomTexture("LightMap",
-                            context.getResourceManager().CreateTextureFromFile(
-                                "../test/assets/image/flashlight.jpg", 1));
+  // renderer.setCustomTexture("LightMap",
+  //                           context.getResourceManager().CreateTextureFromFile(
+  //                               "../test/assets/image/flashlight.jpg", 1));
 
   renderer.resize(800, 600);
 
@@ -182,7 +184,6 @@ int main() {
     // // log::info("Window DPI scale: {}", scaling);
     // applyStyle(1.f);
 
-
     ImGuiWindowFlags flags = ImGuiWindowFlags_MenuBar;
     flags |= ImGuiWindowFlags_NoDocking;
     ImGuiViewport *viewport = ImGui::GetMainViewport();
@@ -213,15 +214,20 @@ int main() {
 
     // wait for previous frame to finish
     {
-      context.getDevice().waitForFences(sceneRenderFence.get(), VK_TRUE,
-                                        UINT64_MAX);
+      if (context.getDevice().waitForFences(sceneRenderFence.get(), VK_TRUE,
+                                            UINT64_MAX) !=
+          vk::Result::eSuccess) {
+        throw std::runtime_error("Failed on wait for fence.");
+      }
       context.getDevice().resetFences(sceneRenderFence.get());
     }
+
+    scene.updateModelMatrices();
     // draw
     {
       commandBuffer->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
       renderer.render(commandBuffer.get(), scene, cameraNode);
-      renderer.display(commandBuffer.get(), "Color", window->getBackbuffer(),
+      renderer.display(commandBuffer.get(), "ColorSSR", window->getBackbuffer(),
                        window->getBackBufferFormat(), window->getWidth(),
                        window->getHeight());
       commandBuffer->end();

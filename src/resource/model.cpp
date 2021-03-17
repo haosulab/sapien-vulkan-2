@@ -38,6 +38,11 @@ SVModel::FromData(std::vector<std::shared_ptr<SVShape>> shapes) {
   return model;
 }
 
+std::vector<std::shared_ptr<SVShape>> const &SVModel::getShapes() {
+  loadAsync().get();
+  return mShapes;
+}
+
 std::future<void> SVModel::loadAsync() {
   if (mLoaded) {
     return std::async(std::launch::deferred, []() {});
