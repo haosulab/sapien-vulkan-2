@@ -1,8 +1,8 @@
 #include "svulkan2/core/context.h"
 #include "svulkan2/common/log.h"
 #include <GLFW/glfw3.h>
-
 #include "svulkan2/core/allocator.h"
+#include <easy/profiler.h>
 
 namespace svulkan2 {
 namespace core {
@@ -40,6 +40,7 @@ Context::Context(uint32_t apiVersion, bool present, uint32_t maxNumMaterials,
                  uint32_t maxNumTextures, uint32_t defaultMipLevels)
     : mApiVersion(apiVersion), mPresent(present),
       mMaxNumMaterials(maxNumMaterials), mMaxNumTextures(maxNumTextures) {
+  profiler::startListen();
   createInstance();
   pickSuitableGpuAndQueueFamilyIndex();
   createDevice();
@@ -171,6 +172,8 @@ void Context::pickSuitableGpuAndQueueFamilyIndex() {
       continue;
     }
     pickedDevice = device;
+    auto properties = device.getProperties();
+    log::info("Vulkan picked device: {}", properties.deviceName);
     break;
   }
   if (!pickedDevice) {

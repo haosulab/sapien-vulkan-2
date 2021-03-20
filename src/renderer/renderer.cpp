@@ -1,4 +1,5 @@
 #include "svulkan2/renderer/renderer.h"
+#include <easy/profiler.h>
 
 namespace svulkan2 {
 namespace renderer {
@@ -57,11 +58,14 @@ Renderer::Renderer(core::Context &context,
   vk::DescriptorPoolSize pool_sizes[] = {
       {vk::DescriptorType::eCombinedImageSampler,
        100}, // render targets and input textures TODO: configure instead of 100
-      {vk::DescriptorType::eUniformBuffer, config->maxNumObjects}};
+  };
   auto info = vk::DescriptorPoolCreateInfo(
-      vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
-      100 + config->maxNumObjects, 2, pool_sizes);
+      vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, 100, 1, pool_sizes);
   mDescriptorPool = mContext->getDevice().createDescriptorPoolUnique(info);
+
+  mObjectPool = std::make_unique<core::DynamicDescriptorPool>(
+      *mContext, std::vector<vk::DescriptorPoolSize>{
+                     {vk::DescriptorType::eUniformBuffer, 1000}});
 }
 
 void Renderer::prepareRenderTargets(uint32_t width, uint32_t height) {
@@ -432,6 +436,8 @@ void Renderer::renderShadows(vk::CommandBuffer commandBuffer,
 
 void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
                       scene::Camera &camera) {
+  EASY_FUNCTION();
+
   if (!mContext->isVulkanAvailable()) {
     return;
   }
@@ -479,6 +485,7 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
   setSpecializationConstantInt("NUM_CUSTOM_LIGHT_SHADOWS", mNumCustomShadows);
 
   if (mRequiresRebuild || mSpecializationConstantsChanged) {
+    EASY_BLOCK("Rebuilding Pipeline");
     preparePipelines();
     prepareRenderTargets(mWidth, mHeight);
     if (mShaderManager->isShadowEnabled()) {
@@ -497,6 +504,7 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
     prepareCameaBuffer();
   }
 
+  EASY_BLOCK("Prepare objects");
   auto objects = scene.getObjects();
   prepareObjectBuffers(objects.size());
 
@@ -533,9 +541,11 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
       shapeObjectIndex[shapeShadingMode].push_back(objectIndex);
     }
   }
+  EASY_END_BLOCK;
 
   // load objects to CPU, if not already loaded
   {
+    EASY_BLOCK("Load objects to CPU");
     std::vector<std::future<void>> futures;
     for (auto obj : objects) {
       futures.push_back(obj->getModel()->loadAsync());
@@ -545,35 +555,49 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
     }
   }
 
-  // upload objects to GPU, if not up-to-date
-  for (auto obj : objects) {
-    for (auto shape : obj->getModel()->getShapes()) {
-      shape->material->uploadToDevice(*mContext);
-      shape->mesh->uploadToDevice(*mContext);
+  {
+    EASY_BLOCK("Upload objects to GPU");
+    // upload objects to GPU, if not up-to-date
+    for (auto obj : objects) {
+      for (auto shape : obj->getModel()->getShapes()) {
+        shape->material->uploadToDevice(*mContext);
+        shape->mesh->uploadToDevice(*mContext);
+      }
     }
   }
 
-  // update camera
-  camera.uploadToDevice(*mCameraBuffer, mWidth, mHeight,
-                        *mShaderManager->getShaderConfig()->cameraBufferLayout);
-  // update scene
-  scene.uploadToDevice(*mSceneBuffer,
-                       *mShaderManager->getShaderConfig()->sceneBufferLayout);
+  {
+    EASY_BLOCK("Update camera & scene");
+    // update camera
+    camera.uploadToDevice(
+        *mCameraBuffer, mWidth, mHeight,
+        *mShaderManager->getShaderConfig()->cameraBufferLayout);
 
-  if (mShaderManager->isShadowEnabled()) {
-    scene.uploadShadowToDevice(
-        *mShadowBuffer, mLightBuffers,
-        *mShaderManager->getShaderConfig()->shadowBufferLayout);
+    // update scene
+    scene.uploadToDevice(*mSceneBuffer,
+                         *mShaderManager->getShaderConfig()->sceneBufferLayout);
+
+    if (mShaderManager->isShadowEnabled()) {
+      scene.uploadShadowToDevice(
+          *mShadowBuffer, mLightBuffers,
+          *mShaderManager->getShaderConfig()->shadowBufferLayout);
+    }
   }
 
-  // update objects
-  for (uint32_t i = 0; i < objects.size(); ++i) {
-    objects[i]->uploadToDevice(
-        *mObjectBuffers[i],
-        *mShaderManager->getShaderConfig()->objectBufferLayout);
+  {
+    EASY_BLOCK("Update objects");
+    // update objects
+    for (uint32_t i = 0; i < objects.size(); ++i) {
+      objects[i]->uploadToDevice(
+          *mObjectBuffers[i],
+          *mShaderManager->getShaderConfig()->objectBufferLayout);
+    }
   }
 
-  renderShadows(commandBuffer, scene);
+  {
+    EASY_BLOCK("Record shadow draw calls");
+    renderShadows(commandBuffer, scene);
+  }
 
   uint32_t gbufferIndex = 0;
   auto passes = mShaderManager->getAllPasses();
@@ -584,6 +608,8 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
                      vk::Extent2D{static_cast<uint32_t>(mWidth),
                                   static_cast<uint32_t>(mHeight)}};
   for (uint32_t pass_index = 0; pass_index < passes.size(); ++pass_index) {
+    EASY_BLOCK("Record render pass" + std::to_string(pass_index));
+
     auto pass = passes[pass_index];
     std::vector<vk::ClearValue> clearValues(
         pass->getTextureOutputLayout()->elements.size(),
@@ -853,11 +879,7 @@ void Renderer::prepareObjectBuffers(uint32_t numObjects) {
     auto layout = mShaderManager->getObjectDescriptorSetLayout();
     mObjectBuffers.push_back(mContext->getAllocator().allocateUniformBuffer(
         mShaderManager->getShaderConfig()->objectBufferLayout->size));
-    auto objectSet = std::move(
-        mContext->getDevice()
-            .allocateDescriptorSetsUnique(vk::DescriptorSetAllocateInfo(
-                mDescriptorPool.get(), 1, &layout))
-            .front());
+    auto objectSet = mObjectPool->allocateSet(layout);
     updateDescriptorSets(mContext->getDevice(), objectSet.get(),
                          {{vk::DescriptorType::eUniformBuffer,
                            mObjectBuffers[i]->getVulkanBuffer(), nullptr}},

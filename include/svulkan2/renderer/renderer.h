@@ -1,5 +1,6 @@
 #pragma once
 #include "svulkan2/core/context.h"
+#include "svulkan2/core/descriptor_pool.h"
 #include "svulkan2/resource/render_target.h"
 #include "svulkan2/scene/scene.h"
 #include "svulkan2/shader/shader_manager.h"
@@ -13,6 +14,7 @@ class Renderer {
   std::shared_ptr<RendererConfig> mConfig;
 
   vk::UniqueDescriptorPool mDescriptorPool;
+  std::unique_ptr<core::DynamicDescriptorPool> mObjectPool;
 
   std::unique_ptr<shader::ShaderManager> mShaderManager;
   std::unordered_map<std::string, std::shared_ptr<resource::SVRenderTarget>>
