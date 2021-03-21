@@ -1,4 +1,5 @@
 #include "svulkan2/common/assimp.h"
+#include <vector>
 
 namespace svulkan2 {
 
