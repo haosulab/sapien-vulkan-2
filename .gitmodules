@@ -16,3 +16,6 @@
 [submodule "3rd_party/ImGuizmo"]
 	path = 3rd_party/ImGuizmo
 	url = https://github.com/CedricGuillemet/ImGuizmo.git
+[submodule "3rd_party/easy_profiler"]
+	path = 3rd_party/easy_profiler
+	url = git@github.com:yse/easy_profiler.git

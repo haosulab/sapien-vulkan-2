@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
 project(sapienvulkan2 LANGUAGES CXX)
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS_DEBUG "-o0 -g3 -Wall -Wnon-virtual-dtor -Wno-deprecated-declarations")
 set(CMAKE_CXX_FLAGS_RELEASE "-o3 -g0 -Wall -Wnon-virtual-dtor -Wno-deprecated-declarations")
 
@@ -13,6 +13,11 @@ else ()
   message("-- RELEASE Build")
   set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS_RELEASE})
   add_definitions(-DNDEBUG)
+endif ()
+
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+  set(MACOS TRUE)
+  link_directories(/usr/local/lib/)
 endif ()
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -44,8 +49,9 @@ if (${SVULKAN2_CUDA_INTEROP})
   include_directories(${CUDA_TOOLKIT_INCLUDE})
 endif()
 
-find_package(easy_profiler REQUIRED)
 if (${SVULKAN2_PROFILE})
+  include_directories("3rd_party/easy_profiler")
+  add_subdirectory("3rd_party/easy_profiler")
   set(EASY_PROFILER_LIBRARIES "easy_profiler")
   add_definitions(-DBUILD_WITH_EASY_PROFILER)
 endif()
@@ -57,13 +63,22 @@ file(GLOB GUI_SRC "3rd_party/imgui/*.cpp"
   "3rd_party/imgui/backends/imgui_impl_vulkan.cpp" )
 
 add_library(svulkan2 STATIC ${RENDER_SRC} ${GUI_SRC})
+
 target_link_libraries(svulkan2 ${ASSIMP_LIBRARIES} glfw3 dl pthread Vulkan::Vulkan spdlog
     glslang SPIRV spirv-cross-cpp ${CUDA_LIBRARIES} ${EASY_PROFILER_LIBRARIES})
 
 file (GLOB_RECURSE TEST_SRC "test/*.cpp")
 
 add_executable(svulkan2_main app/main.cpp)
-target_link_libraries(svulkan2_main svulkan2 stdc++fs)
+if (MACOS)
+  target_link_libraries(svulkan2_main svulkan2 "-framework Cocoa -framework IOKit")
+else ()
+  target_link_libraries(svulkan2_main svulkan2 stdc++fs)
+endif ()
 
 add_executable(svulkan2_test ${TEST_SRC})
-target_link_libraries(svulkan2_test svulkan2 stdc++fs gtest_main)
+if (MACOS)
+  target_link_libraries(svulkan2_test svulkan2 gtest_main "-framework Cocoa -framework IOKit")
+else ()
+  target_link_libraries(svulkan2_test svulkan2 gtest_main stdc++fs)
+endif ()

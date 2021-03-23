@@ -32,7 +32,8 @@ using namespace svulkan2;
 int main() {
   svulkan2::log::getLogger()->set_level(spdlog::level::info);
 
-  svulkan2::core::Context context(VK_API_VERSION_1_1, true, 5000, 5000, 4);
+  svulkan2::core::Context context(
+      VK_API_VERSION_1_1, true, 5000, 5000, 4);
 
   auto config = std::make_shared<RendererConfig>();
   // config->shaderDir = "../shader/full_no_shadow";
@@ -115,9 +116,13 @@ int main() {
   //                           context.getResourceManager().CreateTextureFromFile(
   //                               "../test/assets/image/flashlight.jpg", 1));
 
-  renderer.resize(800, 600);
+  auto window = context.createWindow(1600, 1200);
 
-  auto window = context.createWindow(800, 600);
+  int width, height;
+  glfwGetFramebufferSize(window->getGLFWWindow(), &width, &height);
+
+  renderer.resize(width, height);
+
   window->initImgui();
   context.getDevice().waitIdle();
   vk::UniqueSemaphore sceneRenderSemaphore =
@@ -126,7 +131,7 @@ int main() {
       {vk::FenceCreateFlagBits::eSignaled});
   auto commandBuffer = context.createCommandBuffer();
 
-  glfwSetWindowSizeCallback(window->getGLFWWindow(), glfw_resize_callback);
+  glfwSetFramebufferSizeCallback(window->getGLFWWindow(), glfw_resize_callback);
   glfwSetWindowCloseCallback(window->getGLFWWindow(), window_close_callback);
 
   auto uiWindow =
