@@ -29,6 +29,8 @@ set(SVULKAN2_PROFILE FALSE CACHE BOOL "Profile with easy_profiler")
 set(SVULKAN2_BUILD_TEST TRUE CACHE BOOL "Build sapien-vulkan-2 unit test")
 set(SVULKAN2_CUDA_INTEROP FALSE CACHE BOOL "Allow CUDA to use Vulkan buffer")
 
+set(BUILD_SHARED_LIBS OFF)
+
 include_directories("include")
 include_directories("3rd_party/glslang")
 include_directories("3rd_party/SPIRV-Cross")
