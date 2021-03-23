@@ -395,7 +395,7 @@ bool GuiWindow::recreateSwapchain(uint32_t w, uint32_t h) {
     mHeight = info.imageExtent.height = cap.currentExtent.height;
   } else {
     mWidth = w;
-    mWidth = h;
+    mHeight = h;
   }
   mSwapchain = device.createSwapchainKHRUnique(info);
   auto images = device.getSwapchainImagesKHR(mSwapchain.get());
