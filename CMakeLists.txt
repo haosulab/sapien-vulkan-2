@@ -15,6 +15,11 @@ else ()
   add_definitions(-DNDEBUG)
 endif ()
 
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+  set(MACOS TRUE)
+  link_directories(/usr/local/lib/)
+endif ()
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 find_package(assimp REQUIRED)
 find_package(Vulkan REQUIRED)
@@ -57,13 +62,22 @@ file(GLOB GUI_SRC "3rd_party/imgui/*.cpp"
   "3rd_party/imgui/backends/imgui_impl_vulkan.cpp" )
 
 add_library(svulkan2 STATIC ${RENDER_SRC} ${GUI_SRC})
+
 target_link_libraries(svulkan2 ${ASSIMP_LIBRARIES} glfw3 dl pthread Vulkan::Vulkan spdlog
     glslang SPIRV spirv-cross-cpp ${CUDA_LIBRARIES} ${EASY_PROFILER_LIBRARIES})
 
 file (GLOB_RECURSE TEST_SRC "test/*.cpp")
 
 add_executable(svulkan2_main app/main.cpp)
-target_link_libraries(svulkan2_main svulkan2 stdc++fs)
+if (MACOS)
+  target_link_libraries(svulkan2_main svulkan2 "-framework Cocoa -framework IOKit")
+else ()
+  target_link_libraries(svulkan2_main svulkan2 stdc++fs)
+endif ()
 
 add_executable(svulkan2_test ${TEST_SRC})
-target_link_libraries(svulkan2_test svulkan2 stdc++fs gtest_main)
+if (MACOS)
+  target_link_libraries(svulkan2_test svulkan2 gtest_main "-framework Cocoa -framework IOKit")
+else ()
+  target_link_libraries(svulkan2_test svulkan2 gtest_main stdc++fs)
+endif ()
