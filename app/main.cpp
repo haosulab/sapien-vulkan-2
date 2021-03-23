@@ -227,7 +227,7 @@ int main() {
     {
       commandBuffer->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
       renderer.render(commandBuffer.get(), scene, cameraNode);
-      renderer.display(commandBuffer.get(), "ColorSSR", window->getBackbuffer(),
+      renderer.display(commandBuffer.get(), "Color", window->getBackbuffer(),
                        window->getBackBufferFormat(), window->getWidth(),
                        window->getHeight());
       commandBuffer->end();

@@ -65,7 +65,7 @@ vec4 world2camera(vec4 pos) {
 }
 
 vec3 getBackgroundColor(vec3 texcoord) {
-  return vec3(0,0,0);
+  return vec3(0.89411765, 0.83137255, 0.72156863) - 0.2;
 }
 
 float diffuse(float NoL) {
@@ -211,7 +211,7 @@ void main() {
     color += visibility * computePointLight(vec3(1.f), l, normal, camDir, diffuseAlbedo, roughness, fresnel);
   }
 
-  color += sceneBuffer.ambientLight.rgb * albedo;
+  color += sceneBuffer.ambientLight.rgb * diffuseAlbedo;
 
   if (depth == 1) {
     outLighting = vec4(getBackgroundColor((cameraBuffer.viewMatrixInverse * csPosition).xyz), 1.f);

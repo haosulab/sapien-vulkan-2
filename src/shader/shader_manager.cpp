@@ -359,6 +359,8 @@ ShaderManager::getColorAttachmentLayoutsForPass(
     auto nextOp = getNextOperation(texName, pass);
     if (prevOp == RenderTargetOperation::eNoOp) {
       result[i].first = vk::ImageLayout::eUndefined;
+    } else if (prevOp == RenderTargetOperation::eRead) {
+      result[i].first = vk::ImageLayout::eShaderReadOnlyOptimal;
     } else {
       result[i].first = vk::ImageLayout::eColorAttachmentOptimal;
     }

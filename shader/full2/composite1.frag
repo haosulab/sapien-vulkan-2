@@ -1,63 +1,25 @@
-// https://tuxedolabs.blogspot.com/2018/05/bokeh-depth-of-field-in-single-pass.html
 #version 450
 
-layout(set = 0, binding = 0) uniform CameraBuffer {
-  mat4 viewMatrix;
-  mat4 projectionMatrix;
-  mat4 viewMatrixInverse;
-  mat4 projectionMatrixInverse;
-  mat4 prevViewMatrix;
-  mat4 prevViewMatrixInverse;
-  float width;
-  float height;
-} cameraBuffer;
+layout(set = 0, binding = 0) uniform sampler2D samplerLightingSSR;
 
-layout(set = 1, binding = 0) uniform sampler2D samplerColor; //Image to be processed
-layout(set = 1, binding = 1) uniform sampler2D samplerDepthLinear; //Linear depth, where 1.0 == far plane
+layout (location = 0) in vec2 inUV;
+layout (location = 0) out vec4 outLightingSSRBlur;
 
-layout(location = 0) in vec2 inUV;
-layout(location = 0) out vec4 outColorDof;
-
-const float GOLDEN_ANGLE = 2.39996323;
-const float MAX_BLUR_SIZE = 20.0;
-const float RAD_SCALE = 0.5; // Smaller = nicer blur, larger = faster
-const float FAR = 10.;
-
-float getBlurSize(float depth, float focusPoint, float focusScale) {
- float coc = clamp((1.0 / focusPoint - 1.0 / depth)*focusScale, -1.0, 1.0);
- return abs(coc) * MAX_BLUR_SIZE;
-}
-
-vec3 depthOfField(vec2 pixelSize, vec2 texCoord, float focusPoint, float focusScale) {
-  float centerDepth = texture(samplerDepthLinear, texCoord).r * FAR;
-  float centerSize = getBlurSize(centerDepth, focusPoint, focusScale);
-  vec3 color = texture(samplerColor, texCoord).rgb;
-  float tot = 1.0;
-
-  float radius = RAD_SCALE;
-  for (float ang = 0.0; radius<MAX_BLUR_SIZE; ang += GOLDEN_ANGLE) {
-    vec2 tc = texCoord + vec2(cos(ang), sin(ang)) * pixelSize * radius;
-
-    vec3 sampleColor = texture(samplerColor, tc).rgb;
-
-    float sampleDepth = texture(samplerDepthLinear, tc).r * FAR;
-    float sampleSize = getBlurSize(sampleDepth, focusPoint, focusScale);
-    if (sampleDepth > centerDepth) {
-      sampleSize = clamp(sampleSize, 0.0, centerSize*2.0);
-    }
-
-    float m = smoothstep(radius-0.5, radius+0.5, sampleSize);
-    color += mix(color/tot, sampleColor, m);
-    tot += 1.0;
-    radius += RAD_SCALE/radius;
-  }
-  color /= tot;
-  return color;
-}
+const float RADIUS = 3;
 
 void main() {
-  vec2 pixelSize = vec2(1./cameraBuffer.width, 1./cameraBuffer.height);
-  vec3 color = depthOfField(pixelSize, inUV, 0.5, 0.1);
-  outColorDof = vec4(color, 1.);
-  // outColorDof = vec4(1);
+  vec2 resolution = textureSize(samplerLightingSSR, 0);
+  float windowSize = RADIUS * 2 + 1;
+  float samples = windowSize * windowSize;
+
+  vec4 color = vec4(0);
+
+  for (float ry = -RADIUS; ry <= RADIUS; ry += 1) {
+    for (float rx = -RADIUS; rx <= RADIUS; rx += 1)
+    {
+    	color += texture(samplerLightingSSR, inUV + vec2(rx,ry)/resolution);
+    }
+  }
+  color /= samples;
+  outLightingSSRBlur = color;
 }

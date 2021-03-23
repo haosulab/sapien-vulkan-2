@@ -217,7 +217,7 @@ void main() {
     color += computeDirectionalLight(i, normal, camDir, diffuseAlbedo, roughness, fresnel);
   }
 
-  color += sceneBuffer.ambientLight.rgb * albedo.rgb;
+  color += sceneBuffer.ambientLight.rgb * diffuseAlbedo;
 
   outLighting1 = vec4(color, albedo.a);
 }

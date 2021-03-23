@@ -1,21 +1,10 @@
 #version 450
 
-layout(set = 0, binding = 0) uniform sampler2D samplerLighting;
-layout(set = 0, binding = 1) uniform sampler2D samplerLighting1;
-layout(set = 0, binding = 2) uniform sampler2D samplerAlbedo2;
+layout(set = 0, binding = 0) uniform sampler2D samplerAlbedo;
+layout(set = 0, binding = 1) uniform sampler2D samplerSpecular;
+layout(set = 0, binding = 2) uniform sampler2D samplerNormal;
 layout(set = 0, binding = 3) uniform sampler2D samplerGbufferDepth;
-layout(set = 0, binding = 4) uniform sampler2D samplerGbuffer1Depth;
-layout(set = 0, binding = 5) uniform sampler2D samplerGbuffer2Depth;
-layout(set = 0, binding = 6) uniform usampler2D samplerSegmentation0;
-layout(set = 0, binding = 7) uniform usampler2D samplerSegmentation1;
-layout(set = 0, binding = 8) uniform sampler2D samplerMotionDirection;
-
-layout(location = 0) in vec2 inUV;
-layout(location = 0) out vec4 outColor;
-layout(location = 1) out vec4 outDepthLinear;
-layout(location = 2) out uvec4 outSegmentation;
-layout(location = 3) out vec4 outSegmentationView0;
-layout(location = 4) out vec4 outSegmentationView1;
+layout(set = 0, binding = 4) uniform sampler2D samplerLighting;
 
 layout(set = 1, binding = 0) uniform CameraBuffer {
   mat4 viewMatrix;
@@ -28,108 +17,152 @@ layout(set = 1, binding = 0) uniform CameraBuffer {
   float height;
 } cameraBuffer;
 
-vec4 colors[60] = {
-  vec4(0.8,  0.4,  0.4 , 1 ),
-  vec4(0.8,  0.41, 0.24, 1 ),
-  vec4(0.8,  0.75, 0.32, 1 ),
-  vec4(0.6,  0.8,  0.4 , 1 ),
-  vec4(0.35, 0.8,  0.24, 1 ),
-  vec4(0.32, 0.8,  0.51, 1 ),
-  vec4(0.4,  0.8,  0.8 , 1 ),
-  vec4(0.24, 0.63, 0.8 , 1 ),
-  vec4(0.32, 0.37, 0.8 , 1 ),
-  vec4(0.6,  0.4,  0.8 , 1 ),
-  vec4(0.69, 0.24, 0.8 , 1 ),
-  vec4(0.8,  0.32, 0.61, 1 ),
-  vec4(0.8,  0.32, 0.32, 1 ),
-  vec4(0.8,  0.64, 0.4 , 1 ),
-  vec4(0.8,  0.74, 0.24, 1 ),
-  vec4(0.56, 0.8,  0.32, 1 ),
-  vec4(0.4,  0.8,  0.44, 1 ),
-  vec4(0.24, 0.8,  0.46, 1 ),
-  vec4(0.32, 0.8,  0.8 , 1 ),
-  vec4(0.4,  0.56, 0.8 , 1 ),
-  vec4(0.24, 0.3,  0.8 , 1 ),
-  vec4(0.56, 0.32, 0.8 , 1 ),
-  vec4(0.8,  0.4,  0.76, 1 ),
-  vec4(0.8,  0.24, 0.58, 1 ),
-  vec4(0.8,  0.24, 0.24, 1 ),
-  vec4(0.8,  0.61, 0.32, 1 ),
-  vec4(0.72, 0.8,  0.4 , 1 ),
-  vec4(0.52, 0.8,  0.24, 1 ),
-  vec4(0.32, 0.8,  0.37, 1 ),
-  vec4(0.4,  0.8,  0.68, 1 ),
-  vec4(0.24, 0.8,  0.8 , 1 ),
-  vec4(0.32, 0.51, 0.8 , 1 ),
-  vec4(0.48, 0.4,  0.8 , 1 ),
-  vec4(0.52, 0.24, 0.8 , 1 ),
-  vec4(0.8,  0.32, 0.75, 1 ),
-  vec4(0.8,  0.4,  0.52, 1 ),
-  vec4(0.8,  0.52, 0.4 , 1 ),
-  vec4(0.8,  0.58, 0.24, 1 ),
-  vec4(0.7,  0.8,  0.32, 1 ),
-  vec4(0.48, 0.8,  0.4 , 1 ),
-  vec4(0.24, 0.8,  0.3 , 1 ),
-  vec4(0.32, 0.8,  0.66, 1 ),
-  vec4(0.4,  0.68, 0.8 , 1 ),
-  vec4(0.24, 0.46, 0.8 , 1 ),
-  vec4(0.42, 0.32, 0.8 , 1 ),
-  vec4(0.72, 0.4,  0.8 , 1 ),
-  vec4(0.8,  0.24, 0.74, 1 ),
-  vec4(0.8,  0.32, 0.46, 1 ),
-  vec4(0.8,  0.46, 0.32, 1 ),
-  vec4(0.8,  0.76, 0.4 , 1 ),
-  vec4(0.69, 0.8,  0.24, 1 ),
-  vec4(0.42, 0.8,  0.32, 1 ),
-  vec4(0.4,  0.8,  0.56, 1 ),
-  vec4(0.24, 0.8,  0.63, 1 ),
-  vec4(0.32, 0.66, 0.8 , 1 ),
-  vec4(0.4,  0.44, 0.8 , 1 ),
-  vec4(0.35, 0.24, 0.8 , 1 ),
-  vec4(0.7,  0.32, 0.8 , 1 ),
-  vec4(0.8,  0.4,  0.64, 1 ),
-  vec4(0.8,  0.24, 0.41, 1 )
-};
+layout (location = 0) in vec2 inUV;
+layout (location = 0) out vec4 outLightingSSR;
 
 
-const float N_MOTION_BLUR_SAMPLES = 10.;
+// Consts should help improve performance
+const float rayStep = 0.01;
+const float minRayStep = 0.1;
+const float maxSteps = 60;
+const float searchDist = 5;
+const float searchDistInv = 0.2;
+const int numBinarySearchSteps = 10;
+const float maxThickness = 2e-3;
 
-void main() {
-  float d0 = texture(samplerGbufferDepth, inUV).x;
-  float d1 = texture(samplerGbuffer1Depth, inUV).x;
-  float d2 = texture(samplerGbuffer2Depth, inUV).x;
+const float reflectionSpecularFalloffExponent = 3;
 
-  vec2 dir = texture(samplerMotionDirection, inUV).xy;
+const vec3 Scale = vec3(.8, .8, .8);
+const float K = 19.19;
+vec3 hash(vec3 a)
+{
+  a = fract(a * Scale);
+  a += dot(a, a.yxz + K);
+  return fract((a.xxy + a.yxx)*a.zyx);
+}
 
-  // apply motion blur
-  vec4 outColor0 = vec4(0.);
-  for (float i = 0; i < N_MOTION_BLUR_SAMPLES; ++i) {
-    outColor0 += texture(samplerLighting, inUV + dir * ((i + 0.5) / N_MOTION_BLUR_SAMPLES - 0.5));
+vec3 BinarySearch(vec3 dir, inout vec3 hitCoord, out float dDepth, out float thickness)
+{
+  float depth;
+  vec3 searchCoord = hitCoord;
+
+  for(int i = 0; i < numBinarySearchSteps; i++)
+  {
+    vec4 projectedCoord = cameraBuffer.projectionMatrix * vec4(searchCoord, 1.0);
+    projectedCoord.xy /= projectedCoord.w;
+    projectedCoord.xy = projectedCoord.xy * 0.5 + 0.5;
+
+    depth = texture(samplerGbufferDepth, projectedCoord.xy).x;
+    vec4 p = cameraBuffer.projectionMatrixInverse * (vec4(0, 0, depth, 1));
+    depth = p.z / p.w;
+
+    dDepth = searchCoord.z - depth;
+
+    if(dDepth > 0.0) {
+      searchCoord += dir;
+      thickness = dDepth;
+    } else {
+      hitCoord = searchCoord;
+    }
+
+    dir *= 0.5;
+    searchCoord -= dir;
   }
-  outColor0 /= N_MOTION_BLUR_SAMPLES;
 
-  // vec4 outColor0 = texture(samplerLighting, inUV);
-  vec4 outColor1 = texture(samplerLighting1, inUV);
-  vec4 outColor2 = texture(samplerAlbedo2, inUV);
+  vec4 projectedCoord = cameraBuffer.projectionMatrix * vec4(hitCoord, 1.0);
+  projectedCoord.xy /= projectedCoord.w;
+  projectedCoord.xy = projectedCoord.xy * 0.5 + 0.5;
 
-  // depth composite for 0 and 2
-  float factor = step(d0, d2);
-  outColor0 = outColor0 * factor + outColor2 * (1 - factor);
+  return vec3(projectedCoord.xy, depth);
+}
 
-  // blend for 02 and 1
-  vec3 blend = outColor1.a * outColor1.rgb + (1 - outColor1.a) * outColor0.rgb;
-  factor = step(min(d0, d2), d1);
-  outColor = vec4((1 - factor)* blend + factor * outColor0.rgb, 1.f);
 
-  outColor = pow(outColor, vec4(1/2.2, 1/2.2, 1/2.2, 1));
+vec4 RayCast(vec3 dir, inout vec3 hitCoord, out float dDepth)
+{
+  dir *= rayStep;
 
-  vec4 csPosition = cameraBuffer.projectionMatrixInverse * (vec4(inUV * 2 - 1, min(d0, d1), 1));
-  outDepthLinear = vec4(vec3(clamp(-csPosition.z / csPosition.w / 10., 0, 1)), 1.);
+  float depth;
+  float thickness = 0.;
 
-  uvec4 seg0 = texture(samplerSegmentation0, inUV);
-  uvec4 seg1 = texture(samplerSegmentation1, inUV);
-  outSegmentation = d0 < d1 ? seg0 : seg1;
+  for(int i = 0; i < maxSteps; i++)
+  {
+    hitCoord += dir;
 
-  outSegmentationView0 = mix(vec4(0,0,0,1), colors[outSegmentation.x % 60], sign(outSegmentation.x));
-  outSegmentationView1 = mix(vec4(0,0,0,1), colors[outSegmentation.y % 60], sign(outSegmentation.y));
+    vec4 projectedCoord = cameraBuffer.projectionMatrix * vec4(hitCoord, 1.0);
+    projectedCoord.xy /= projectedCoord.w;
+    projectedCoord.xy = projectedCoord.xy * 0.5 + 0.5;
+
+    depth = texture(samplerGbufferDepth, projectedCoord.xy).x;
+    vec4 p = cameraBuffer.projectionMatrixInverse * (vec4(0, 0, depth, 1));
+    depth = p.z / p.w;
+
+    dDepth = hitCoord.z - depth;
+
+    if(dDepth < 0.0) {
+      vec4 result = vec4(BinarySearch(dir, hitCoord, dDepth, thickness), 1.0);
+      if (thickness > maxThickness) {
+        return vec4(0.0, 0.0, 0.0, 0.0);
+      }
+      return result;
+    }
+    thickness = dDepth;
+  }
+
+  return vec4(0.0, 0.0, 0.0, 0.0);
+}
+
+
+void main()
+{
+  // Samples
+  // float specular = texture(samplerSpecular, inUV).x;
+
+  vec3 albedo = texture(samplerAlbedo, inUV).xyz;
+  vec3 frm = texture(samplerSpecular, inUV).xyz;
+  float specular = frm.x;
+  float roughness = frm.y;
+  float metallic = frm.z;
+  vec3 fresnel = specular * (1 - metallic) + albedo * metallic;
+
+  // outLightingSSR = texture(samplerLighting, inUV);
+  if(fresnel.x < 0.1 && fresnel.y < 0.1 && fresnel.z < 0.1)
+  {
+    outLightingSSR = vec4(0.);
+    return;
+  }
+
+  vec3 viewNormal = texture(samplerNormal, inUV).xyz * 2 - 1;
+
+  float depth = texture(samplerGbufferDepth, inUV).x;
+
+  vec4 csPosition = cameraBuffer.projectionMatrixInverse * (vec4(inUV * 2 - 1, depth, 1));
+  vec3 viewPos = csPosition.xyz / csPosition.w;
+
+  // vec3 viewPos = texture(samplerPosition, inUV).xyz;
+
+  // Reflection vector
+  vec3 reflected = normalize(reflect(normalize(viewPos), normalize(viewNormal)));
+
+  // Ray cast
+  vec3 hitPos = viewPos + 1e-3 * viewNormal;
+  float dDepth;
+
+  // // Jitter based on specular value
+  // vec3 jitter = mix(vec3(0.0), vec3(hash(vec3(inUV * 2 - 1, depth))), specular);
+
+  vec4 coords = RayCast(reflected * max(minRayStep, -viewPos.z), hitPos, dDepth);
+
+  // Implementing blur near edges
+  vec2 dCoords = smoothstep(0.2, 0.6, abs(vec2(0.5, 0.5) - coords.xy));
+
+
+  // Discarding samples where the reflected ray goes off screen
+  float screenEdgefactor = clamp(1.0 - (dCoords.x + dCoords.y), 0.0, 1.0);
+
+  vec3 alpha = pow(fresnel, vec3(reflectionSpecularFalloffExponent)) *
+               screenEdgefactor * clamp(-reflected.z, 0.0, 1.0) *
+               clamp((searchDist - length(viewPos - hitPos)) * searchDistInv, 0.0, 1.0);
+
+  // Get color
+  outLightingSSR = vec4(texture(samplerLighting, coords.xy).rgb, alpha);
 }
