@@ -59,8 +59,10 @@ void GuiWindow::newFrame() {
   auto result = mContext->getDevice().acquireNextImageKHR(
       mSwapchain.get(), UINT64_MAX,
       mFrameSemaphores[mSemaphoreIndex].mImageAcquiredSemaphore.get(), {});
-  if (result.result != vk::Result::eSuccess) {
-    log::error("Acquire image failed");
+  if (result.result == vk::Result::eSuboptimalKHR) {
+    log::info("Suboptimal image acquired");
+  } else if (result.result != vk::Result::eSuccess) {
+    throw std::runtime_error("Acquire image failed");
   }
   mFrameIndex = result.value;
 
@@ -371,6 +373,9 @@ bool GuiWindow::recreateSwapchain(uint32_t w, uint32_t h) {
       mContext->getPhysicalDevice().getSurfaceCapabilitiesKHR(mSurface.get());
   if (cap.minImageExtent.width > w || cap.maxImageExtent.width < w ||
       cap.minImageExtent.height > h || cap.maxImageExtent.height < h) {
+    log::warn("requested: {}, {}; available {}-{}, {}-{}", w, h,
+              cap.minImageExtent.width, cap.maxImageExtent.width,
+              cap.minImageExtent.height, cap.maxImageExtent.height);
     return false;
   }
 

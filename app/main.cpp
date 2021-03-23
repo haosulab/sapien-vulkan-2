@@ -12,14 +12,10 @@
 #include <stb_image_write.h>
 
 static bool gSwapchainRebuild = true;
-static int gSwapchainResizeWidth = 800;
-static int gSwapchainResizeHeight = 600;
 static bool gClosed = false;
 
 static void glfw_resize_callback(GLFWwindow *, int w, int h) {
   gSwapchainRebuild = true;
-  gSwapchainResizeWidth = w;
-  gSwapchainResizeHeight = h;
 }
 
 static void window_close_callback(GLFWwindow *window) {
@@ -32,8 +28,7 @@ using namespace svulkan2;
 int main() {
   svulkan2::log::getLogger()->set_level(spdlog::level::info);
 
-  svulkan2::core::Context context(
-      VK_API_VERSION_1_1, true, 5000, 5000, 4);
+  svulkan2::core::Context context(VK_API_VERSION_1_1, true, 5000, 5000, 4);
 
   auto config = std::make_shared<RendererConfig>();
   // config->shaderDir = "../shader/full_no_shadow";
@@ -110,18 +105,17 @@ int main() {
 
   // auto &customLight = scene.addCustomLight(cameraNode);
   // customLight.setTransform({.position = {0.1, 0, 0}});
-  // customLight.setShadowProjectionMatrix(glm::perspective(0.7f, 1.f, 0.1f, 5.f));
+  // customLight.setShadowProjectionMatrix(glm::perspective(0.7f, 1.f,
+  // 0.1f, 5.f));
 
   // renderer.setCustomTexture("LightMap",
   //                           context.getResourceManager().CreateTextureFromFile(
   //                               "../test/assets/image/flashlight.jpg", 1));
 
   auto window = context.createWindow(1600, 1200);
-
-  int width, height;
-  glfwGetFramebufferSize(window->getGLFWWindow(), &width, &height);
-
-  renderer.resize(width, height);
+  // glfwGetFramebufferSize(window->getGLFWWindow(), &gSwapchainResizeWidth,
+  //                        &gSwapchainResizeHeight);
+  // renderer.resize(gSwapchainResizeWidth, gSwapchainResizeHeight);
 
   window->initImgui();
   context.getDevice().waitIdle();
@@ -161,15 +155,15 @@ int main() {
   int count = 0;
   while (!window->isClosed()) {
     count += 1;
-
-    // float T = std::abs((count % 120 - 60) / 60.f) - 1e-3;
-    // dragonObj.setTransparency(T);
-
     if (gSwapchainRebuild) {
-      gSwapchainRebuild = false;
       context.getDevice().waitIdle();
-      window->updateSize(gSwapchainResizeWidth, gSwapchainResizeHeight);
-      renderer.resize(window->getWidth(), window->getHeight());
+      int width, height;
+      glfwGetFramebufferSize(window->getGLFWWindow(), &width, &height);
+      if (!window->updateSize(width, height)) {
+        continue;
+      }
+      gSwapchainRebuild = false;
+      renderer.resize(width, height);
       context.getDevice().waitIdle();
       cameraNode.setPerspectiveParameters(
           0.05, 10, 1,
@@ -254,6 +248,8 @@ int main() {
                                     sceneRenderFence.get());
     } catch (vk::OutOfDateKHRError &e) {
       gSwapchainRebuild = true;
+      context.getDevice().waitIdle();
+      continue;
     }
     // required since we only use 1 set of uniform buffers
     context.getDevice().waitIdle();

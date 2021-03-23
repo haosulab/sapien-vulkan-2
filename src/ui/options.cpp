@@ -1,4 +1,5 @@
 #include "svulkan2/ui/options.h"
+#include <stdexcept>
 
 namespace svulkan2 {
 namespace ui {
