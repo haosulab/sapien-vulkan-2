@@ -92,8 +92,16 @@ void Context::createInstance() {
       const char **glfwExtensions =
           glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
       if (!glfwExtensions) {
-        throw std::runtime_error(
-            "createInstance: Vulkan does not support GLFW extensions");
+        int glfwExtensionsErrCode = glfwGetError(NULL);
+        if (glfwExtensionsErrCode == GLFW_NOT_INITIALIZED) {
+          throw std::runtime_error(
+              "createInstance: GLFW has not initialized");
+        } else if (glfwExtensionsErrCode == GLFW_API_UNAVAILABLE) {
+          throw std::runtime_error(
+              "createInstance: Vulkan is not available on the machine");
+        } else throw std::runtime_error(
+              "createInstance: No Vulkan extensions found for window "
+              "surface creation (hint: set VK_ICD_FILENAMES to `locate icd.json`).");
       }
       for (uint32_t i = 0; i < glfwExtensionCount; ++i) {
         instanceExtensions.push_back(glfwExtensions[i]);

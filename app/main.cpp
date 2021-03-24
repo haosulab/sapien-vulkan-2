@@ -15,6 +15,8 @@ static bool gSwapchainRebuild = true;
 static int gSwapchainResizeWidth = 800;
 static int gSwapchainResizeHeight = 600;
 static bool gClosed = false;
+const std::string srcBase =
+    "/Users/jet/cwd/sources/sapien_compile/SAPIEN/3rd_party/sapien-vulkan-2/";
 
 static void glfw_resize_callback(GLFWwindow *, int w, int h) {
   gSwapchainRebuild = true;
@@ -39,7 +41,7 @@ int main() {
   // config->shaderDir = "../shader/full_no_shadow";
   // config->shaderDir = "../shader/full";
   // config->shaderDir = "../shader/forward";
-  config->shaderDir = "../shader/full2";
+  config->shaderDir = srcBase + "shader/full2";
   config->colorFormat = vk::Format::eR8G8B8A8Unorm;
   renderer::Renderer renderer(context, config);
 
@@ -94,7 +96,7 @@ int main() {
   //     {.position = {0, 0.25, 0}, .scale = {0.1, 0.1, 0.1}});
 
   auto model = context.getResourceManager().CreateModelFromFile(
-      "../test/assets/scene/sponza/sponza2.obj");
+      srcBase + "test/assets/scene/sponza/sponza2.obj");
   scene.addObject(model).setTransform(
       scene::Transform{.scale = {0.001, 0.001, 0.001}});
 
