@@ -665,7 +665,7 @@ getDescriptorSetDescription(spirv_cross::Compiler &compiler,
 std::future<void> BaseParser::loadGLSLFilesAsync(std::string const &vertFile,
                                                  std::string const &fragFile) {
   return std::async(std::launch::async,
-                    [=, this]() { loadGLSLFiles(vertFile, fragFile); });
+                    [=]() { loadGLSLFiles(vertFile, fragFile); });
 }
 
 void BaseParser::loadGLSLFiles(std::string const &vertFile,
