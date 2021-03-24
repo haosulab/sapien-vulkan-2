@@ -11,7 +11,8 @@ inline void unsetBit(int &number, int bit) { number &= ~(1 << bit); }
 
 class SVMaterial {
 protected:
-  bool mDirty{true};
+  bool mRequiresBufferUpload{true};
+  bool mRequiresTextureUpload{true};
   vk::UniqueDescriptorSet mDescriptorSet;
 
 public:

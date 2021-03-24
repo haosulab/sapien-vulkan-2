@@ -42,20 +42,24 @@ static void updateDescriptorSets(
 }
 
 void SVMetallicMaterial::setBaseColor(glm::vec4 baseColor) {
+  mRequiresBufferUpload = true;
   mBuffer.baseColor = baseColor;
 }
 glm::vec4 SVMetallicMaterial::getBaseColor() const { return mBuffer.baseColor; }
 void SVMetallicMaterial::setRoughness(float roughness) {
+  mRequiresBufferUpload = true;
   mBuffer.roughness = roughness;
 }
 float SVMetallicMaterial::getRoughness() const { return mBuffer.roughness; }
 
 void SVMetallicMaterial::setFresnel(float fresnel) {
+  mRequiresBufferUpload = true;
   mBuffer.fresnel = fresnel;
 }
 float SVMetallicMaterial::getFresnel() const { return mBuffer.fresnel; }
 
 void SVMetallicMaterial::setMetallic(float metallic) {
+  mRequiresBufferUpload = true;
   mBuffer.metallic = metallic;
 }
 float SVMetallicMaterial::getMetallic() const { return mBuffer.metallic; }
@@ -65,7 +69,7 @@ void SVMetallicMaterial::setTextures(
     std::shared_ptr<SVTexture> roughnessTexture,
     std::shared_ptr<SVTexture> normalTexture,
     std::shared_ptr<SVTexture> metallicTexture) {
-  mDirty = true;
+  mRequiresTextureUpload = true;
 
   mBaseColorTexture = baseColorTexture;
   mRoughnessTexture = roughnessTexture;
@@ -100,7 +104,7 @@ void SVMetallicMaterial::setTextures(
 void SVSpecularMaterial::setTextures(std::shared_ptr<SVTexture> diffuseTexture,
                                      std::shared_ptr<SVTexture> specularTexture,
                                      std::shared_ptr<SVTexture> normalTexture) {
-  mDirty = true;
+  mRequiresTextureUpload = true;
   mDiffuseTexture = diffuseTexture;
   mSpecularTexture = specularTexture;
   mNormalTexture = normalTexture;
@@ -125,9 +129,6 @@ void SVSpecularMaterial::setTextures(std::shared_ptr<SVTexture> diffuseTexture,
 }
 
 void SVMetallicMaterial::uploadToDevice(core::Context &context) {
-  if (!mDirty) {
-    return;
-  }
   if (!mDeviceBuffer) {
     mDeviceBuffer = context.getAllocator().allocateUniformBuffer(
         sizeof(SVMetallicMaterial::Buffer));
@@ -138,56 +139,60 @@ void SVMetallicMaterial::uploadToDevice(core::Context &context) {
                 context.getDescriptorPool(), 1, &layout))
             .front());
   }
-  auto defaultTexture = context.getResourceManager().getDefaultTexture();
-  std::vector<std::tuple<vk::ImageView, vk::Sampler>> textures;
-  if (mBaseColorTexture) {
-    mBaseColorTexture->uploadToDevice(context);
-    textures.push_back(
-        {mBaseColorTexture->getImageView(), mBaseColorTexture->getSampler()});
-  } else {
-    defaultTexture->uploadToDevice(context);
-    textures.push_back(
-        {defaultTexture->getImageView(), defaultTexture->getSampler()});
+
+  if (mRequiresBufferUpload) {
+    mDeviceBuffer->upload(mBuffer);
+    mRequiresBufferUpload = false;
   }
-  if (mNormalTexture) {
-    mNormalTexture->uploadToDevice(context);
-    textures.push_back(
-        {mNormalTexture->getImageView(), mNormalTexture->getSampler()});
-  } else {
-    defaultTexture->uploadToDevice(context);
-    textures.push_back(
-        {defaultTexture->getImageView(), defaultTexture->getSampler()});
+
+  if (mRequiresTextureUpload) {
+    auto defaultTexture = context.getResourceManager().getDefaultTexture();
+    std::vector<std::tuple<vk::ImageView, vk::Sampler>> textures;
+    if (mBaseColorTexture) {
+      mBaseColorTexture->uploadToDevice(context);
+      textures.push_back(
+          {mBaseColorTexture->getImageView(), mBaseColorTexture->getSampler()});
+    } else {
+      defaultTexture->uploadToDevice(context);
+      textures.push_back(
+          {defaultTexture->getImageView(), defaultTexture->getSampler()});
+    }
+    if (mNormalTexture) {
+      mNormalTexture->uploadToDevice(context);
+      textures.push_back(
+          {mNormalTexture->getImageView(), mNormalTexture->getSampler()});
+    } else {
+      defaultTexture->uploadToDevice(context);
+      textures.push_back(
+          {defaultTexture->getImageView(), defaultTexture->getSampler()});
+    }
+    if (mRoughnessTexture) {
+      mRoughnessTexture->uploadToDevice(context);
+      textures.push_back(
+          {mRoughnessTexture->getImageView(), mRoughnessTexture->getSampler()});
+    } else {
+      defaultTexture->uploadToDevice(context);
+      textures.push_back(
+          {defaultTexture->getImageView(), defaultTexture->getSampler()});
+    }
+    if (mMetallicTexture) {
+      mMetallicTexture->uploadToDevice(context);
+      textures.push_back(
+          {mMetallicTexture->getImageView(), mMetallicTexture->getSampler()});
+    } else {
+      defaultTexture->uploadToDevice(context);
+      textures.push_back(
+          {defaultTexture->getImageView(), defaultTexture->getSampler()});
+    }
+    updateDescriptorSets(context.getDevice(), mDescriptorSet.get(),
+                         {{vk::DescriptorType::eUniformBuffer,
+                           mDeviceBuffer->getVulkanBuffer(), nullptr}},
+                         textures, 0);
+    mRequiresTextureUpload = false;
   }
-  if (mRoughnessTexture) {
-    mRoughnessTexture->uploadToDevice(context);
-    textures.push_back(
-        {mRoughnessTexture->getImageView(), mRoughnessTexture->getSampler()});
-  } else {
-    defaultTexture->uploadToDevice(context);
-    textures.push_back(
-        {defaultTexture->getImageView(), defaultTexture->getSampler()});
-  }
-  if (mMetallicTexture) {
-    mMetallicTexture->uploadToDevice(context);
-    textures.push_back(
-        {mMetallicTexture->getImageView(), mMetallicTexture->getSampler()});
-  } else {
-    defaultTexture->uploadToDevice(context);
-    textures.push_back(
-        {defaultTexture->getImageView(), defaultTexture->getSampler()});
-  }
-  mDeviceBuffer->upload(mBuffer);
-  updateDescriptorSets(context.getDevice(), mDescriptorSet.get(),
-                       {{vk::DescriptorType::eUniformBuffer,
-                         mDeviceBuffer->getVulkanBuffer(), nullptr}},
-                       textures, 0);
-  mDirty = false;
 }
 
 void SVSpecularMaterial::uploadToDevice(core::Context &context) {
-  if (!mDirty) {
-    return;
-  }
   if (!mDeviceBuffer) {
     mDeviceBuffer = context.getAllocator().allocateUniformBuffer(
         sizeof(SVSpecularMaterial::Buffer));
@@ -198,46 +203,52 @@ void SVSpecularMaterial::uploadToDevice(core::Context &context) {
                 context.getDescriptorPool(), 1, &layout))
             .front());
   }
-  auto defaultTexture = context.getResourceManager().getDefaultTexture();
-  std::vector<std::tuple<vk::ImageView, vk::Sampler>> textures;
-  if (mDiffuseTexture) {
-    mDiffuseTexture->uploadToDevice(context);
-    textures.push_back(
-        {mDiffuseTexture->getImageView(), mDiffuseTexture->getSampler()});
-  } else {
-    defaultTexture->uploadToDevice(context);
-    textures.push_back(
-        {defaultTexture->getImageView(), defaultTexture->getSampler()});
-  }
-  if (mNormalTexture) {
-    mNormalTexture->uploadToDevice(context);
-    textures.push_back(
-        {mNormalTexture->getImageView(), mNormalTexture->getSampler()});
-  } else {
-    defaultTexture->uploadToDevice(context);
-    textures.push_back(
-        {defaultTexture->getImageView(), defaultTexture->getSampler()});
-  }
-  if (mSpecularTexture) {
-    mSpecularTexture->uploadToDevice(context);
-    textures.push_back(
-        {mSpecularTexture->getImageView(), mSpecularTexture->getSampler()});
-  } else {
-    defaultTexture->uploadToDevice(context);
-    textures.push_back(
-        {defaultTexture->getImageView(), defaultTexture->getSampler()});
+
+  if (mRequiresBufferUpload) {
+    mDeviceBuffer->upload(mBuffer);
+    mRequiresBufferUpload = false;
   }
 
-  mDeviceBuffer->upload(mBuffer);
-  updateDescriptorSets(context.getDevice(), mDescriptorSet.get(),
-                       {{vk::DescriptorType::eUniformBuffer,
-                         mDeviceBuffer->getVulkanBuffer(), nullptr}},
-                       {}, 0);
-  updateDescriptorSets(context.getDevice(), mDescriptorSet.get(),
-                       {{vk::DescriptorType::eUniformBuffer,
-                         mDeviceBuffer->getVulkanBuffer(), nullptr}},
-                       textures, 0);
-  mDirty = false;
+  if (mRequiresTextureUpload) {
+    auto defaultTexture = context.getResourceManager().getDefaultTexture();
+    std::vector<std::tuple<vk::ImageView, vk::Sampler>> textures;
+    if (mDiffuseTexture) {
+      mDiffuseTexture->uploadToDevice(context);
+      textures.push_back(
+          {mDiffuseTexture->getImageView(), mDiffuseTexture->getSampler()});
+    } else {
+      defaultTexture->uploadToDevice(context);
+      textures.push_back(
+          {defaultTexture->getImageView(), defaultTexture->getSampler()});
+    }
+    if (mNormalTexture) {
+      mNormalTexture->uploadToDevice(context);
+      textures.push_back(
+          {mNormalTexture->getImageView(), mNormalTexture->getSampler()});
+    } else {
+      defaultTexture->uploadToDevice(context);
+      textures.push_back(
+          {defaultTexture->getImageView(), defaultTexture->getSampler()});
+    }
+    if (mSpecularTexture) {
+      mSpecularTexture->uploadToDevice(context);
+      textures.push_back(
+          {mSpecularTexture->getImageView(), mSpecularTexture->getSampler()});
+    } else {
+      defaultTexture->uploadToDevice(context);
+      textures.push_back(
+          {defaultTexture->getImageView(), defaultTexture->getSampler()});
+    }
+    updateDescriptorSets(context.getDevice(), mDescriptorSet.get(),
+                         {{vk::DescriptorType::eUniformBuffer,
+                           mDeviceBuffer->getVulkanBuffer(), nullptr}},
+                         {}, 0);
+    updateDescriptorSets(context.getDevice(), mDescriptorSet.get(),
+                         {{vk::DescriptorType::eUniformBuffer,
+                           mDeviceBuffer->getVulkanBuffer(), nullptr}},
+                         textures, 0);
+    mRequiresTextureUpload = false;
+  }
 }
 
 } // namespace resource
