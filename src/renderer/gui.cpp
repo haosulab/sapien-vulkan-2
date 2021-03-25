@@ -228,6 +228,7 @@ void GuiWindow::initImgui() {
       float xscale = 0.f;
       float yscale = 0.f;
       glfwGetMonitorContentScale(monitors[i], &xscale, &yscale);
+      log::info("Monitor {} scale: {}", i, xscale);
       assert(xscale == yscale);  // this should always be true
       mContentScale = std::max(yscale, std::max(xscale, mContentScale));
     }
@@ -237,7 +238,7 @@ void GuiWindow::initImgui() {
     log::info("Largest monitor DPI scale: {}", mContentScale);
     ImGui::GetStyle().ScaleAllSizes(mContentScale);
     auto font = io.Fonts->AddFontFromMemoryCompressedBase85TTF(
-        roboto_compressed_data_base85, std::round(15.f));
+        roboto_compressed_data_base85, std::round(17.f));
     if (font != nullptr) {
       io.FontDefault = font;
     }
