@@ -13,8 +13,8 @@
 
 static bool gSwapchainRebuild = true;
 static bool gClosed = false;
-const std::string srcBase =
-    "/Users/jet/cwd/sources/sapien_compile/SAPIEN/3rd_party/sapien-vulkan-2/";
+static std::string srcBase = ""
+    ;
 
 static void glfw_resize_callback(GLFWwindow *, int w, int h) {
   gSwapchainRebuild = true;
@@ -31,6 +31,11 @@ int main() {
   svulkan2::log::getLogger()->set_level(spdlog::level::info);
 
   svulkan2::core::Context context(VK_API_VERSION_1_1, true, 5000, 5000, 4);
+
+  if (srcBase.length() == 0) {
+    std::cout << "Using default srcBase" << std::endl;
+    srcBase = "../";
+  }
 
   auto config = std::make_shared<RendererConfig>();
   // config->shaderDir = "../shader/full_no_shadow";

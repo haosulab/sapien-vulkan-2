@@ -486,7 +486,11 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
 
   if (mRequiresRebuild || mSpecializationConstantsChanged) {
     EASY_BLOCK("Rebuilding Pipeline");
-    preparePipelines();
+    static bool first = true;
+
+    // FIXME: temp hack for macOS crash
+    if (first)
+      preparePipelines();
     prepareRenderTargets(mWidth, mHeight);
     if (mShaderManager->isShadowEnabled()) {
       prepareShadowRenderTargets();
@@ -502,6 +506,8 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
     }
     prepareSceneBuffer();
     prepareCameaBuffer();
+
+    first = false;
   }
 
   EASY_BLOCK("Prepare objects");
