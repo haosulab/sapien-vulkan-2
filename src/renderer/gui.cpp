@@ -60,7 +60,7 @@ void GuiWindow::newFrame() {
       mSwapchain.get(), UINT64_MAX,
       mFrameSemaphores[mSemaphoreIndex].mImageAcquiredSemaphore.get(), {});
   if (result.result == vk::Result::eSuboptimalKHR) {
-    log::info("Suboptimal image acquired");
+    throw vk::OutOfDateKHRError("Suboptimal");
   } else if (result.result != vk::Result::eSuccess) {
     throw std::runtime_error("Acquire image failed");
   }
