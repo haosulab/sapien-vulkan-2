@@ -37,6 +37,8 @@ class GuiWindow {
   core::Context *mContext;
   uint32_t mMinImageCount;
 
+  float mContentScale{0.f};
+
   uint32_t mWidth{0};
   uint32_t mHeight{0};
   vk::SurfaceFormatKHR mSurfaceFormat{};
@@ -61,13 +63,14 @@ class GuiWindow {
   bool mClosed{};
 
 public:
-  inline vk::SwapchainKHR getSwapchain() const { return mSwapchain.get(); }
-  inline vk::Format getBackBufferFormat() const {
+  [[nodiscard]] inline vk::SwapchainKHR getSwapchain() const { return mSwapchain.get(); }
+  [[nodiscard]] inline vk::Format getBackBufferFormat() const {
     return mSurfaceFormat.format;
   }
-  inline uint32_t getWidth() const { return mWidth; }
-  inline uint32_t getHeight() const { return mHeight; }
-  inline uint32_t getFrameIndex() const { return mFrameIndex; }
+  [[nodiscard]] inline uint32_t getWidth() const { return mWidth; }
+  [[nodiscard]] inline uint32_t getHeight() const { return mHeight; }
+  [[nodiscard]] inline uint32_t getFrameIndex() const { return mFrameIndex; }
+  [[nodiscard]] inline float getContentScale() const { return mContentScale; }
 
 public:
   /** Acquire new frame, poll events, call ImGui NewFrame */
