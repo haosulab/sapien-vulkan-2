@@ -113,9 +113,36 @@ vk::RenderPass GbufferPassParser::createRenderPass(
       {}, vk::PipelineBindPoint::eGraphics, 0, nullptr, colorAttachments.size(),
       colorAttachments.data(), nullptr, &depthAttachment);
 
+  // ensure previous writes are done
+  // TODO: compute a better dependency
+  std::array<vk::SubpassDependency, 2> deps{
+      vk::SubpassDependency(
+          VK_SUBPASS_EXTERNAL, 0,
+          vk::PipelineStageFlagBits::eColorAttachmentOutput |
+              vk::PipelineStageFlagBits::eEarlyFragmentTests |
+              vk::PipelineStageFlagBits::eLateFragmentTests,
+          vk::PipelineStageFlagBits::eFragmentShader |
+              vk::PipelineStageFlagBits::eColorAttachmentOutput,
+          vk::AccessFlagBits::eColorAttachmentWrite |
+              vk::AccessFlagBits::eDepthStencilAttachmentWrite,
+          vk::AccessFlagBits::eShaderRead |
+              vk::AccessFlagBits::eColorAttachmentWrite),
+      vk::SubpassDependency(
+          0, VK_SUBPASS_EXTERNAL,
+          vk::PipelineStageFlagBits::eColorAttachmentOutput |
+              vk::PipelineStageFlagBits::eEarlyFragmentTests |
+              vk::PipelineStageFlagBits::eLateFragmentTests,
+          vk::PipelineStageFlagBits::eFragmentShader |
+              vk::PipelineStageFlagBits::eColorAttachmentOutput,
+          vk::AccessFlagBits::eColorAttachmentWrite |
+              vk::AccessFlagBits::eDepthStencilAttachmentWrite,
+          vk::AccessFlagBits::eShaderRead |
+              vk::AccessFlagBits::eColorAttachmentWrite),
+  };
+
   mRenderPass = device.createRenderPassUnique(vk::RenderPassCreateInfo(
       {}, attachmentDescriptions.size(), attachmentDescriptions.data(), 1,
-      &subpassDescription));
+      &subpassDescription, 2, deps.data()));
 
   return mRenderPass.get();
 }

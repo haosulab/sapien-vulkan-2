@@ -253,7 +253,17 @@ void Image::download(void *data, size_t size, vk::Offset3D offset,
   cb->copyImageToBuffer(mImage, vk::ImageLayout::eTransferSrcOptimal,
                         stagingBuffer->getVulkanBuffer(), copyRegion);
   cb->end();
-  mContext->submitCommandBufferAndWait(cb.get());
+
+  auto fence = mContext->getDevice().createFenceUnique({});
+  vk::PipelineStageFlags waitStage =
+      vk::PipelineStageFlagBits::eTransfer;
+  mContext->getQueue().submit(
+      vk::SubmitInfo(0, nullptr, &waitStage, 1, &cb.get()), fence.get());
+  auto result = mContext->getDevice().waitForFences(fence.get(), VK_TRUE, UINT64_MAX);
+  if (result != vk::Result::eSuccess) {
+    throw std::runtime_error("failed to wait for fence");
+  }
+
   setCurrentLayout(vk::ImageLayout::eTransferSrcOptimal);
 
   std::memcpy(data, stagingBuffer->map(), size);
