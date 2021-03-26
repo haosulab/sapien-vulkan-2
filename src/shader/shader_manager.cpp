@@ -466,27 +466,29 @@ void ShaderManager::createDescriptorSetLayouts(vk::Device device) {
         vk::DescriptorSetLayoutCreateInfo({}, 1, &binding));
   }
 
-  mInputTextureLayouts.clear();
-  auto parsers = getAllPasses();
-  for (auto &p : parsers) {
-    auto types = p->getUniformBindingTypes();
-    vk::UniqueDescriptorSetLayout layout{};
-    for (auto type : types) {
-      if (type == shader::UniformBindingType::eTextures) {
-        std::vector<vk::DescriptorSetLayoutBinding> bindings;
-        auto texs = p->getInputTextureNames();
-        for (uint32_t i = 0; i < texs.size(); ++i) {
-          bindings.push_back(vk::DescriptorSetLayoutBinding(
-              i, vk::DescriptorType::eCombinedImageSampler, 1,
-              vk::ShaderStageFlagBits::eFragment));
+  {
+    mInputTextureLayouts.clear();
+    auto parsers = getAllPasses();
+    for (auto &p : parsers) {
+      auto types = p->getUniformBindingTypes();
+      vk::UniqueDescriptorSetLayout layout{};
+      for (auto type : types) {
+        if (type == shader::UniformBindingType::eTextures) {
+          std::vector<vk::DescriptorSetLayoutBinding> bindings;
+          auto texs = p->getInputTextureNames();
+          for (uint32_t i = 0; i < texs.size(); ++i) {
+            bindings.push_back(vk::DescriptorSetLayoutBinding(
+                i, vk::DescriptorType::eCombinedImageSampler, 1,
+                vk::ShaderStageFlagBits::eFragment));
+          }
+          layout = device.createDescriptorSetLayoutUnique(
+              vk::DescriptorSetLayoutCreateInfo({}, bindings.size(),
+                                                bindings.data()));
+          break;
         }
-        layout = device.createDescriptorSetLayoutUnique(
-            vk::DescriptorSetLayoutCreateInfo({}, bindings.size(),
-                                              bindings.data()));
-        break;
       }
+      mInputTextureLayouts.push_back(std::move(layout));
     }
-    mInputTextureLayouts.push_back(std::move(layout));
   }
 }
 
@@ -495,7 +497,11 @@ void ShaderManager::createPipelines(
     std::map<std::string, SpecializationConstantValue> const
         &specializationConstantInfo) {
   auto device = context.getDevice();
-  createDescriptorSetLayouts(device);
+
+  if (not mDescriptorSetLayoutsCreated) {
+    createDescriptorSetLayouts(device);
+    mDescriptorSetLayoutsCreated = true;
+  }
 
   auto passes = getAllPasses();
   for (uint32_t passIdx = 0; passIdx < passes.size(); ++passIdx) {

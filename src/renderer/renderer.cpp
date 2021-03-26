@@ -487,11 +487,7 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
   if (mRequiresRebuild || mSpecializationConstantsChanged) {
     EASY_BLOCK("Rebuilding Pipeline");
 
-    // FIXME: temp hack for macOS crash
-    if (not mPipelineInitialized) {
-      preparePipelines();
-      mPipelineInitialized = true;
-    }
+    preparePipelines();
     prepareRenderTargets(mWidth, mHeight);
     if (mShaderManager->isShadowEnabled()) {
       prepareShadowRenderTargets();

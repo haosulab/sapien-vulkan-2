@@ -52,7 +52,6 @@ class Renderer {
   int mWidth{};
   int mHeight{};
   bool mRequiresRebuild{true};
-  bool mPipelineInitialized{false};
 
   std::unique_ptr<core::Buffer> mSceneBuffer;
   std::unique_ptr<core::Buffer> mCameraBuffer;

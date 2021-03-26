@@ -31,6 +31,8 @@ class ShaderManager {
   DescriptorSetDescription mSceneSetDesc;
   DescriptorSetDescription mLightSetDesc;
 
+  bool mDescriptorSetLayoutsCreated{false};
+
   vk::UniqueDescriptorSetLayout mSceneLayout;
   vk::UniqueDescriptorSetLayout mCameraLayout;
   vk::UniqueDescriptorSetLayout mObjectLayout;
