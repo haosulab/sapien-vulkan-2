@@ -23,6 +23,9 @@ class Scene {
 
   glm::vec4 mAmbientLight{};
 
+  /** when anything is added or removed, the version changes */
+  uint64_t mVersion{1l};
+
 public:
   inline Node &getRootNode() { return *mRootNode; };
 
@@ -81,6 +84,10 @@ public:
 
   /** called to order shadow lights before non-shadow lights */
   void reorderLights();
+
+  uint64_t getVersion() const { return mVersion; }
+private:
+  void updateVersion() { mVersion++; }
 };
 
 } // namespace scene

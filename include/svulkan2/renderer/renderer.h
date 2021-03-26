@@ -67,6 +67,10 @@ class Renderer {
   std::map<std::string, shader::SpecializationConstantValue>
       mSpecializationConstants;
 
+  bool mRequiresRecord{false};
+  uint64_t mLastVersion{0};
+  scene::Scene *mScene{nullptr};
+
 public:
   Renderer(core::Context &context, std::shared_ptr<RendererConfig> config);
 
@@ -75,14 +79,28 @@ public:
 
   void resize(int width, int height);
 
-  void render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
-              scene::Camera &camera);
+  // void render(vk::CommandBuffer commandBuffer, scene::Camera &camera);
+
+  void render(scene::Camera &camera,
+              std::vector<vk::Semaphore> const &waitSemaphores,
+              std::vector<vk::PipelineStageFlags> const &waitStages,
+              std::vector<vk::Semaphore> const &signalSemaphores,
+              vk::Fence fence);
+
+  void display(std::string const &renderTargetName, vk::Image backBuffer,
+               vk::Format format, uint32_t width, uint32_t height,
+               std::vector<vk::Semaphore> const &waitSemaphores,
+               std::vector<vk::PipelineStageFlags> const &waitStages,
+               std::vector<vk::Semaphore> const &signalSemaphores,
+               vk::Fence fence);
+
+  void setScene(scene::Scene &scene) {
+    mScene = &scene;
+    mRequiresRecord = false;
+  }
 
   std::vector<std::string> getDisplayTargetNames() const;
   std::vector<std::string> getRenderTargetNames() const;
-  void display(vk::CommandBuffer commandBuffer,
-               std::string const &renderTargetName, vk::Image backBuffer,
-               vk::Format format, uint32_t width, uint32_t height);
 
   template <typename T>
   std::tuple<std::vector<T>, std::array<uint32_t, 3>>
@@ -148,7 +166,10 @@ private:
 
   void prepareInputTextureDescriptorSets();
 
-  void renderShadows(vk::CommandBuffer commandBuffer, scene::Scene &scene);
+  vk::UniqueCommandBuffer mShadowCommandBuffer{};
+  vk::UniqueCommandBuffer mRenderCommandBuffer{};
+  vk::UniqueCommandBuffer mDisplayCommandBuffer{};
+  void recordShadows(scene::Scene &scene);
 };
 
 } // namespace renderer

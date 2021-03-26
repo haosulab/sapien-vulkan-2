@@ -28,6 +28,7 @@ Scene::Scene() {
 }
 
 Node &Scene::addNode(Node &parent, Transform const &transform) {
+  updateVersion();
   forceRemove();
   mNodes.push_back(std::make_unique<Node>());
   mNodes.back()->setScene(this);
@@ -52,6 +53,7 @@ Object &Scene::addObject(std::shared_ptr<resource::SVModel> model,
 
 Object &Scene::addObject(Node &parent, std::shared_ptr<resource::SVModel> model,
                          Transform const &transform) {
+  updateVersion();
   forceRemove();
   auto obj = std::make_unique<Object>(model);
   auto &result = *obj;
@@ -69,6 +71,7 @@ Camera &Scene::addCamera(Transform const &transform) {
   return addCamera(getRootNode(), transform);
 }
 Camera &Scene::addCamera(Node &parent, Transform const &transform) {
+  updateVersion();
   forceRemove();
   auto cam = std::make_unique<Camera>();
   auto &result = *cam;
@@ -84,6 +87,7 @@ Camera &Scene::addCamera(Node &parent, Transform const &transform) {
 
 PointLight &Scene::addPointLight() { return addPointLight(getRootNode()); }
 PointLight &Scene::addPointLight(Node &parent) {
+  updateVersion();
   forceRemove();
   auto pointLight = std::make_unique<PointLight>();
   auto &result = *pointLight;
@@ -98,6 +102,7 @@ DirectionalLight &Scene::addDirectionalLight() {
   return addDirectionalLight(getRootNode());
 }
 DirectionalLight &Scene::addDirectionalLight(Node &parent) {
+  updateVersion();
   forceRemove();
   auto directionalLight = std::make_unique<DirectionalLight>();
   auto &result = *directionalLight;
@@ -110,6 +115,7 @@ DirectionalLight &Scene::addDirectionalLight(Node &parent) {
 
 CustomLight &Scene::addCustomLight() { return addCustomLight(getRootNode()); }
 CustomLight &Scene::addCustomLight(Node &parent) {
+  updateVersion();
   forceRemove();
   auto customLight = std::make_unique<CustomLight>();
   auto &result = *customLight;
@@ -121,12 +127,14 @@ CustomLight &Scene::addCustomLight(Node &parent) {
 }
 
 void Scene::removeNode(Node &node) {
+  updateVersion();
   mRequireForceRemove = true;
   node.markRemovedRecursive();
   node.getParent().removeChild(node);
 }
 
 void Scene::clearNodes() {
+  updateVersion();
   mNodes.resize(1);
   mObjects.clear();
   mCameras.clear();
@@ -384,6 +392,7 @@ void Scene::uploadShadowToDevice(
 }
 
 void Scene::reorderLights() {
+  updateVersion();
   std::sort(mPointLights.begin(), mPointLights.end(), [](auto &l1, auto &l2) {
     return l1->isShadowEnabled() && !l2->isShadowEnabled();
   });

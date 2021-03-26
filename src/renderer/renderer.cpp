@@ -360,8 +360,10 @@ void Renderer::setSpecializationConstantFloat(std::string const &name,
   mSpecializationConstants[name].floatValue = value;
 }
 
-void Renderer::renderShadows(vk::CommandBuffer commandBuffer,
-                             scene::Scene &scene) {
+void Renderer::recordShadows(scene::Scene &scene) {
+  mShadowCommandBuffer =
+      mContext->createCommandBuffer(vk::CommandBufferLevel::ePrimary);
+  mShadowCommandBuffer->begin(vk::CommandBufferBeginInfo({}, {}));
   if (!mContext->isVulkanAvailable()) {
     return;
   }
@@ -387,12 +389,12 @@ void Renderer::renderShadows(vk::CommandBuffer commandBuffer,
           vk::Rect2D({0, 0}, {static_cast<uint32_t>(size),
                               static_cast<uint32_t>(size)}),
           static_cast<uint32_t>(clearValues.size()), clearValues.data()};
-      commandBuffer.beginRenderPass(renderPassBeginInfo,
-                                    vk::SubpassContents::eInline);
-      commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics,
-                                 shadowPass->getPipeline());
-      commandBuffer.setViewport(0, viewport);
-      commandBuffer.setScissor(0, scissor);
+      mShadowCommandBuffer->beginRenderPass(renderPassBeginInfo,
+                                            vk::SubpassContents::eInline);
+      mShadowCommandBuffer->bindPipeline(vk::PipelineBindPoint::eGraphics,
+                                         shadowPass->getPipeline());
+      mShadowCommandBuffer->setViewport(0, viewport);
+      mShadowCommandBuffer->setScissor(0, scissor);
 
       int objectBinding = -1;
       auto types = shadowPass->getUniformBindingTypes();
@@ -402,7 +404,7 @@ void Renderer::renderShadows(vk::CommandBuffer commandBuffer,
           objectBinding = bindingIdx;
           break;
         case shader::UniformBindingType::eLight:
-          commandBuffer.bindDescriptorSets(
+          mShadowCommandBuffer->bindDescriptorSets(
               vk::PipelineBindPoint::eGraphics, shadowPass->getPipelineLayout(),
               bindingIdx, mLightSets[shadowIdx].get(), nullptr);
           break;
@@ -415,28 +417,40 @@ void Renderer::renderShadows(vk::CommandBuffer commandBuffer,
       for (uint32_t objIdx = 0; objIdx < objects.size(); ++objIdx) {
         for (auto &shape : objects[objIdx]->getModel()->getShapes()) {
           if (objectBinding >= 0) {
-            commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
-                                             shadowPass->getPipelineLayout(),
-                                             objectBinding,
-                                             mObjectSet[objIdx].get(), nullptr);
+            mShadowCommandBuffer->bindDescriptorSets(
+                vk::PipelineBindPoint::eGraphics,
+                shadowPass->getPipelineLayout(), objectBinding,
+                mObjectSet[objIdx].get(), nullptr);
           }
-          commandBuffer.bindVertexBuffers(
+          mShadowCommandBuffer->bindVertexBuffers(
               0, shape->mesh->getVertexBuffer().getVulkanBuffer(),
               std::vector<vk::DeviceSize>(1, 0));
-          commandBuffer.bindIndexBuffer(
+          mShadowCommandBuffer->bindIndexBuffer(
               shape->mesh->getIndexBuffer().getVulkanBuffer(), 0,
               vk::IndexType::eUint32);
-          commandBuffer.drawIndexed(shape->mesh->getIndexCount(), 1, 0, 0, 0);
+          mShadowCommandBuffer->drawIndexed(shape->mesh->getIndexCount(), 1, 0,
+                                            0, 0);
         }
       }
-      commandBuffer.endRenderPass();
+      mShadowCommandBuffer->endRenderPass();
     }
   }
+  mShadowCommandBuffer->end();
 }
 
-void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
-                      scene::Camera &camera) {
-  EASY_FUNCTION();
+void Renderer::render(scene::Camera &camera,
+                      std::vector<vk::Semaphore> const &waitSemaphores,
+                      std::vector<vk::PipelineStageFlags> const &waitStages,
+                      std::vector<vk::Semaphore> const &signalSemaphores,
+                      vk::Fence fence) {
+  if (!mScene) {
+    throw std::runtime_error("setScene must be called before rendering");
+  }
+
+  EASY_BLOCK("Record & Submit");
+  if (mLastVersion != mScene->getVersion()) {
+    mRequiresRecord = true;
+  }
 
   if (!mContext->isVulkanAvailable()) {
     return;
@@ -445,14 +459,14 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
     throw std::runtime_error(
         "failed to render: resize must be called before rendering.");
   }
-  auto pointLights = scene.getPointLights();
-  auto directionalLights = scene.getDirectionalLights();
+  auto pointLights = mScene->getPointLights();
+  auto directionalLights = mScene->getDirectionalLights();
   int numPointLights = pointLights.size();
   int numDirectionalLights = directionalLights.size();
 
   mNumPointLightShadows = 0;
   mNumDirectionalLightShadows = 0;
-  mNumCustomShadows = scene.getCustomLights().size();
+  mNumCustomShadows = mScene->getCustomLights().size();
 
   for (auto l : pointLights) {
     if (l->isShadowEnabled()) {
@@ -486,6 +500,7 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
 
   if (mRequiresRebuild || mSpecializationConstantsChanged) {
     EASY_BLOCK("Rebuilding Pipeline");
+    mRequiresRecord = true;
 
     preparePipelines();
     prepareRenderTargets(mWidth, mHeight);
@@ -506,7 +521,7 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
   }
 
   EASY_BLOCK("Prepare objects");
-  auto objects = scene.getObjects();
+  auto objects = mScene->getObjects();
   prepareObjectBuffers(objects.size());
 
   // classify shapes
@@ -575,11 +590,11 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
         *mShaderManager->getShaderConfig()->cameraBufferLayout);
 
     // update scene
-    scene.uploadToDevice(*mSceneBuffer,
-                         *mShaderManager->getShaderConfig()->sceneBufferLayout);
+    mScene->uploadToDevice(
+        *mSceneBuffer, *mShaderManager->getShaderConfig()->sceneBufferLayout);
 
     if (mShaderManager->isShadowEnabled()) {
-      scene.uploadShadowToDevice(
+      mScene->uploadShadowToDevice(
           *mShadowBuffer, mLightBuffers,
           *mShaderManager->getShaderConfig()->shadowBufferLayout);
     }
@@ -597,8 +612,16 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
 
   {
     EASY_BLOCK("Record shadow draw calls");
-    renderShadows(commandBuffer, scene);
+    if (mRequiresRecord) {
+      recordShadows(*mScene);
+    }
   }
+
+  if (!mRenderCommandBuffer) {
+    mRenderCommandBuffer = mContext->createCommandBuffer();
+  }
+
+  mRenderCommandBuffer->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
 
   uint32_t gbufferIndex = 0;
   auto passes = mShaderManager->getAllPasses();
@@ -621,12 +644,12 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
         vk::Rect2D({0, 0}, {static_cast<uint32_t>(mWidth),
                             static_cast<uint32_t>(mHeight)}),
         static_cast<uint32_t>(clearValues.size()), clearValues.data()};
-    commandBuffer.beginRenderPass(renderPassBeginInfo,
-                                  vk::SubpassContents::eInline);
-    commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics,
-                               pass->getPipeline());
-    commandBuffer.setViewport(0, viewport);
-    commandBuffer.setScissor(0, scissor);
+    mRenderCommandBuffer->beginRenderPass(renderPassBeginInfo,
+                                          vk::SubpassContents::eInline);
+    mRenderCommandBuffer->bindPipeline(vk::PipelineBindPoint::eGraphics,
+                                       pass->getPipeline());
+    mRenderCommandBuffer->setViewport(0, viewport);
+    mRenderCommandBuffer->setScissor(0, scissor);
 
     int objectBinding = -1;
     int materialBinding = -1;
@@ -634,17 +657,17 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
     for (uint32_t i = 0; i < types.size(); ++i) {
       switch (types[i]) {
       case shader::UniformBindingType::eCamera:
-        commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
-                                         pass->getPipelineLayout(), i,
-                                         mCameraSet.get(), nullptr);
+        mRenderCommandBuffer->bindDescriptorSets(
+            vk::PipelineBindPoint::eGraphics, pass->getPipelineLayout(), i,
+            mCameraSet.get(), nullptr);
         break;
       case shader::UniformBindingType::eScene:
-        commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
-                                         pass->getPipelineLayout(), i,
-                                         mSceneSet.get(), nullptr);
+        mRenderCommandBuffer->bindDescriptorSets(
+            vk::PipelineBindPoint::eGraphics, pass->getPipelineLayout(), i,
+            mSceneSet.get(), nullptr);
         break;
       case shader::UniformBindingType::eTextures:
-        commandBuffer.bindDescriptorSets(
+        mRenderCommandBuffer->bindDescriptorSets(
             vk::PipelineBindPoint::eGraphics, pass->getPipelineLayout(), i,
             mInputTextureSets[pass_index].get(), nullptr);
         break;
@@ -665,32 +688,43 @@ void Renderer::render(vk::CommandBuffer commandBuffer, scene::Scene &scene,
         auto shape = shapes[gbufferIndex][i];
         uint32_t objectIndex = shapeObjectIndex[gbufferIndex][i];
         if (objectBinding >= 0) {
-          commandBuffer.bindDescriptorSets(
+          mRenderCommandBuffer->bindDescriptorSets(
               vk::PipelineBindPoint::eGraphics, pass->getPipelineLayout(),
               objectBinding, mObjectSet[objectIndex].get(), nullptr);
         }
         if (materialBinding >= 0) {
-          commandBuffer.bindDescriptorSets(
+          mRenderCommandBuffer->bindDescriptorSets(
               vk::PipelineBindPoint::eGraphics, pass->getPipelineLayout(),
               materialBinding, shape->material->getDescriptorSet(), nullptr);
         }
-        commandBuffer.bindVertexBuffers(
+        mRenderCommandBuffer->bindVertexBuffers(
             0, shape->mesh->getVertexBuffer().getVulkanBuffer(),
             std::vector<vk::DeviceSize>(1, 0));
-        commandBuffer.bindIndexBuffer(
+        mRenderCommandBuffer->bindIndexBuffer(
             shape->mesh->getIndexBuffer().getVulkanBuffer(), 0,
             vk::IndexType::eUint32);
-        commandBuffer.drawIndexed(shape->mesh->getIndexCount(), 1, 0, 0, 0);
+        mRenderCommandBuffer->drawIndexed(shape->mesh->getIndexCount(), 1, 0, 0,
+                                          0);
       }
       gbufferIndex++;
     } else {
-      commandBuffer.draw(3, 1, 0, 0);
+      mRenderCommandBuffer->draw(3, 1, 0, 0);
     }
-    commandBuffer.endRenderPass();
+    mRenderCommandBuffer->endRenderPass();
   }
   for (auto &[name, target] : mRenderTargets) {
     target->getImage().setCurrentLayout(mRenderTargetFinalLayouts[name]);
   }
+
+  mRenderCommandBuffer->end();
+  vk::CommandBuffer cbs[2] = {mShadowCommandBuffer.get(),
+                              mRenderCommandBuffer.get()};
+  vk::SubmitInfo info(waitSemaphores.size(), waitSemaphores.data(),
+                      waitStages.data(), 2, cbs, signalSemaphores.size(),
+                      signalSemaphores.data());
+  mContext->getQueue().submit(info, fence);
+  mRequiresRecord = false;
+  mLastVersion = mScene->getVersion();
 }
 
 std::vector<std::string> Renderer::getDisplayTargetNames() const {
@@ -721,13 +755,22 @@ std::vector<std::string> Renderer::getRenderTargetNames() const {
   return result;
 }
 
-void Renderer::display(vk::CommandBuffer commandBuffer,
-                       std::string const &renderTargetName,
+void Renderer::display(std::string const &renderTargetName,
                        vk::Image backBuffer, vk::Format format, uint32_t width,
-                       uint32_t height) {
+                       uint32_t height,
+                       std::vector<vk::Semaphore> const &waitSemaphores,
+                       std::vector<vk::PipelineStageFlags> const &waitStages,
+                       std::vector<vk::Semaphore> const &signalSemaphores,
+                       vk::Fence fence) {
   if (!mContext->isPresentAvailable()) {
     throw std::runtime_error("Display failed: present is not enabled.");
   }
+
+  if (!mDisplayCommandBuffer) {
+    mDisplayCommandBuffer = mContext->createCommandBuffer();
+  }
+  mDisplayCommandBuffer->begin(
+      {vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
 
   auto &renderTarget = mRenderTargets.at(renderTargetName);
   auto targetFormat = renderTarget->getFormat();
@@ -751,7 +794,7 @@ void Renderer::display(vk::CommandBuffer commandBuffer,
 
   // transfer render target
   renderTarget->getImage().transitionLayout(
-      commandBuffer, layout, vk::ImageLayout::eTransferSrcOptimal,
+      mDisplayCommandBuffer.get(), layout, vk::ImageLayout::eTransferSrcOptimal,
       sourceAccessMask, vk::AccessFlagBits::eTransferRead, sourceStage,
       vk::PipelineStageFlagBits::eTransfer);
 
@@ -763,9 +806,9 @@ void Renderer::display(vk::CommandBuffer commandBuffer,
         {}, vk::AccessFlagBits::eTransferWrite, vk::ImageLayout::eUndefined,
         vk::ImageLayout::eTransferDstOptimal, VK_QUEUE_FAMILY_IGNORED,
         VK_QUEUE_FAMILY_IGNORED, backBuffer, imageSubresourceRange);
-    commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe,
-                                  vk::PipelineStageFlagBits::eTransfer, {},
-                                  nullptr, nullptr, barrier);
+    mDisplayCommandBuffer->pipelineBarrier(
+        vk::PipelineStageFlagBits::eTopOfPipe,
+        vk::PipelineStageFlagBits::eTransfer, {}, nullptr, nullptr, barrier);
   }
   vk::ImageSubresourceLayers imageSubresourceLayers(
       vk::ImageAspectFlagBits::eColor, 0, 0, 1);
@@ -775,10 +818,10 @@ void Renderer::display(vk::CommandBuffer commandBuffer,
       imageSubresourceLayers,
       {{vk::Offset3D{0, 0, 0},
         vk::Offset3D{static_cast<int>(width), static_cast<int>(height), 1}}});
-  commandBuffer.blitImage(renderTarget->getImage().getVulkanImage(),
-                          vk::ImageLayout::eTransferSrcOptimal, backBuffer,
-                          vk::ImageLayout::eTransferDstOptimal, imageBlit,
-                          vk::Filter::eNearest);
+  mDisplayCommandBuffer->blitImage(
+      renderTarget->getImage().getVulkanImage(),
+      vk::ImageLayout::eTransferSrcOptimal, backBuffer,
+      vk::ImageLayout::eTransferDstOptimal, imageBlit, vk::Filter::eNearest);
 
   // transfer swap chain back
   {
@@ -789,10 +832,17 @@ void Renderer::display(vk::CommandBuffer commandBuffer,
         vk::ImageLayout::eTransferDstOptimal,
         vk::ImageLayout::eColorAttachmentOptimal, VK_QUEUE_FAMILY_IGNORED,
         VK_QUEUE_FAMILY_IGNORED, backBuffer, imageSubresourceRange);
-    commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer,
-                                  vk::PipelineStageFlagBits::eAllCommands, {},
-                                  nullptr, nullptr, barrier);
+    mDisplayCommandBuffer->pipelineBarrier(
+        vk::PipelineStageFlagBits::eTransfer,
+        vk::PipelineStageFlagBits::eAllCommands, {}, nullptr, nullptr, barrier);
   }
+
+  mDisplayCommandBuffer->end();
+
+  vk::SubmitInfo info(waitSemaphores.size(), waitSemaphores.data(),
+                      waitStages.data(), 1, &mDisplayCommandBuffer.get(),
+                      signalSemaphores.size(), signalSemaphores.data());
+  mContext->getQueue().submit(info, fence);
 }
 
 void Renderer::prepareSceneBuffer() {

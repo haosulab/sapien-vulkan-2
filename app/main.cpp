@@ -13,8 +13,7 @@
 
 static bool gSwapchainRebuild = true;
 static bool gClosed = false;
-static std::string srcBase = ""
-    ;
+static std::string srcBase = "";
 
 static void glfw_resize_callback(GLFWwindow *, int w, int h) {
   gSwapchainRebuild = true;
@@ -159,6 +158,8 @@ int main() {
                        ->Label("Checkbox")
                        ->Checked(true));
 
+  renderer.setScene(scene);
+
   int count = 0;
   while (!window->isClosed()) {
     count += 1;
@@ -231,19 +232,13 @@ int main() {
     scene.updateModelMatrices();
     // draw
     {
-      commandBuffer->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
-      renderer.render(commandBuffer.get(), scene, cameraNode);
-      renderer.display(commandBuffer.get(), "Color", window->getBackbuffer(),
-                       window->getBackBufferFormat(), window->getWidth(),
-                       window->getHeight());
-      commandBuffer->end();
-
+      renderer.render(cameraNode, {}, {}, {}, {});
       auto imageAcquiredSemaphore = window->getImageAcquiredSemaphore();
-      vk::PipelineStageFlags waitStage =
-          vk::PipelineStageFlagBits::eColorAttachmentOutput;
-      vk::SubmitInfo info(1, &imageAcquiredSemaphore, &waitStage, 1,
-                          &commandBuffer.get(), 1, &sceneRenderSemaphore.get());
-      context.getQueue().submit(info, {});
+      renderer.display("Color", window->getBackbuffer(),
+                       window->getBackBufferFormat(), window->getWidth(),
+                       window->getHeight(), {imageAcquiredSemaphore},
+                       {vk::PipelineStageFlagBits::eColorAttachmentOutput},
+                       {sceneRenderSemaphore.get()}, {});
     }
 
     auto swapchain = window->getSwapchain();
