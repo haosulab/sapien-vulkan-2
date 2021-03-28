@@ -56,6 +56,7 @@ if (${SVULKAN2_PROFILE})
   add_subdirectory("3rd_party/easy_profiler")
   set(EASY_PROFILER_LIBRARIES "easy_profiler")
   add_definitions(-DBUILD_WITH_EASY_PROFILER)
+  set_target_properties(easy_profiler PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 endif()
 
 find_package(glfw3 REQUIRED)
@@ -68,6 +69,9 @@ add_library(svulkan2 STATIC ${RENDER_SRC} ${GUI_SRC})
 
 target_link_libraries(svulkan2 ${ASSIMP_LIBRARIES} glfw3 dl pthread Vulkan::Vulkan spdlog
     glslang SPIRV spirv-cross-cpp ${CUDA_LIBRARIES} ${EASY_PROFILER_LIBRARIES})
+
+set_target_properties(svulkan2 PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+set_target_properties(spirv-cross-core PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 
 file (GLOB_RECURSE TEST_SRC "test/*.cpp")
 

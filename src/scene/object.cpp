@@ -77,11 +77,13 @@ void Object::setCustomDataInt4(std::string const &name, glm::ivec4 x) {
 }
 
 void Object::setTransparency(float transparency) {
-  if (transparency >= 1.f) {
+  if (transparency >= 1.f && mTransparency < 1.f) {
     mScene->updateVersion();
   } else if (transparency < 1.f && mTransparency >= 1.f) {
     mScene->updateVersion();
-  } else if (transparency <= 0.f) {
+  } else if (transparency <= 0.f && mTransparency > 0.f) {
+    mScene->updateVersion();
+  } else if (transparency > 0.f && mTransparency <= 0.f) {
     mScene->updateVersion();
   }
   mTransparency = transparency;
