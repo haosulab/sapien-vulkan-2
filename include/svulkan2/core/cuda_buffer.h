@@ -22,7 +22,13 @@ public:
   CudaBuffer(
       class Context &context, vk::DeviceSize size,
       vk::BufferUsageFlags usageFlags = vk::BufferUsageFlagBits::eTransferDst);
+  ~CudaBuffer();
+
   inline vk::DeviceSize getSize() const { return mSize; }
+
+  vk::Buffer getVulkanBuffer() const { return mBuffer.get(); }
+  vk::DeviceMemory getVulkanMemory() const { return mMemory.get(); }
+  void *getCudaPointer() const { return mCudaPtr; }
 };
 
 } // namespace core

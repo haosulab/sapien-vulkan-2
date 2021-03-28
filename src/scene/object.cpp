@@ -1,4 +1,5 @@
 #include "svulkan2/scene/object.h"
+#include "svulkan2/scene/scene.h"
 
 namespace svulkan2 {
 namespace scene {
@@ -30,7 +31,8 @@ void Object::uploadToDevice(core::Buffer &objectBuffer,
       }
     }
   }
-  if (objectLayout.elements.find("transparency") != objectLayout.elements.end()) {
+  if (objectLayout.elements.find("transparency") !=
+      objectLayout.elements.end()) {
     auto &elem = objectLayout.elements.at("transparency");
     if (elem.dtype != DataType::eFLOAT) {
       throw std::runtime_error("Upload object failed: object attribute "
@@ -58,7 +60,8 @@ void Object::setCustomDataFloat4(std::string const &name, glm::vec4 x) {
   mCustomData[name] = CustomData{.dtype = DataType::eFLOAT4, .float4Value = x};
 }
 void Object::setCustomDataFloat44(std::string const &name, glm::mat4 x) {
-  mCustomData[name] = CustomData{.dtype = DataType::eFLOAT44, .float44Value = x};
+  mCustomData[name] =
+      CustomData{.dtype = DataType::eFLOAT44, .float44Value = x};
 }
 void Object::setCustomDataInt(std::string const &name, int x) {
   mCustomData[name] = CustomData{.dtype = DataType::eINT, .intValue = x};
@@ -71,6 +74,17 @@ void Object::setCustomDataInt3(std::string const &name, glm::ivec3 x) {
 }
 void Object::setCustomDataInt4(std::string const &name, glm::ivec4 x) {
   mCustomData[name] = CustomData{.dtype = DataType::eINT4, .int4Value = x};
+}
+
+void Object::setTransparency(float transparency) {
+  if (transparency >= 1.f) {
+    mScene->updateVersion();
+  } else if (transparency < 1.f && mTransparency >= 1.f) {
+    mScene->updateVersion();
+  } else if (transparency <= 0.f) {
+    mScene->updateVersion();
+  }
+  mTransparency = transparency;
 }
 
 } // namespace scene

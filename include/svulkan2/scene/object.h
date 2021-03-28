@@ -56,9 +56,7 @@ public:
   inline void setShadingMode(int mode) { mShadingMode = mode; }
   inline int getShadingMode() const { return mShadingMode; }
 
-  inline void setTransparency(float transparency) {
-    mTransparency = transparency;
-  }
+  void setTransparency(float transparency);
   inline float getTransparency() const { return mTransparency; }
 };
 

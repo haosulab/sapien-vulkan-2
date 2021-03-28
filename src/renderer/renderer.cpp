@@ -843,6 +843,8 @@ void Renderer::display(std::string const &renderTargetName,
                       waitStages.data(), 1, &mDisplayCommandBuffer.get(),
                       signalSemaphores.size(), signalSemaphores.data());
   mContext->getQueue().submit(info, fence);
+  renderTarget->getImage().setCurrentLayout(
+      vk::ImageLayout::eTransferSrcOptimal);
 }
 
 void Renderer::prepareSceneBuffer() {
@@ -1035,6 +1037,23 @@ std::shared_ptr<resource::SVRenderTarget>
 Renderer::getRenderTarget(std::string const &name) const {
   return mRenderTargets.at(name);
 }
+
+#ifdef CUDA_INTEROP
+std::tuple<std::unique_ptr<core::CudaBuffer>, std::array<uint32_t, 2>,
+           vk::Format>
+Renderer::transferToCuda(std::string const &targetName) {
+  auto target = mRenderTargets.at(targetName);
+  auto &img = target->getImage();
+  auto extent = img.getExtent();
+  vk::DeviceSize size = extent.width * extent.height * extent.depth *
+                        core::findSizeFromFormat(img.getFormat());
+  auto buffer = std::make_unique<core::CudaBuffer>(*mContext, size);
+  img.copyToBuffer(buffer->getVulkanBuffer(), size, {0, 0, 0}, extent);
+  return {std::move(buffer),
+          std::array<uint32_t, 2>{extent.width, extent.height},
+          img.getFormat()};
+}
+#endif
 
 } // namespace renderer
 } // namespace svulkan2

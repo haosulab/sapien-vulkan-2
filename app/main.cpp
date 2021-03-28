@@ -255,6 +255,7 @@ int main() {
     }
     // required since we only use 1 set of uniform buffers
     context.getDevice().waitIdle();
+    auto cuda = renderer.transferToCuda("Color");
     // break;
     if (gClosed) {
       window->close();

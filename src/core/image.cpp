@@ -184,6 +184,86 @@ void Image::generateMipmaps(vk::CommandBuffer cb, uint32_t arrayLayer) {
                      barrier);
 }
 
+void Image::copyToBuffer(vk::Buffer buffer, size_t size, vk::Offset3D offset,
+                         vk::Extent3D extent, uint32_t arrayLayer) {
+  size_t imageSize =
+      extent.width * extent.height * extent.depth * findSizeFromFormat(mFormat);
+  if (size != imageSize) {
+    throw std::runtime_error("copy to buffer failed: expecting size " +
+                             std::to_string(imageSize) + ", got " +
+                             std::to_string(size));
+  }
+
+  vk::ImageLayout sourceLayout;
+  vk::AccessFlags sourceAccessFlag;
+  vk::PipelineStageFlags sourceStage;
+
+  vk::ImageAspectFlags aspect;
+  switch (mFormat) {
+  case vk::Format::eR8G8B8A8Unorm:
+  case vk::Format::eR32G32B32A32Uint:
+  case vk::Format::eR32G32B32A32Sfloat:
+    aspect = vk::ImageAspectFlagBits::eColor;
+    break;
+  case vk::Format::eD32Sfloat:
+    aspect = vk::ImageAspectFlagBits::eDepth;
+    break;
+  case vk::Format::eD24UnormS8Uint:
+    vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
+    break;
+  default:
+    throw std::runtime_error("failed to download image: unsupported format.");
+  }
+
+  switch (mCurrentLayout) {
+  case vk::ImageLayout::eColorAttachmentOptimal:
+    sourceLayout = vk::ImageLayout::eColorAttachmentOptimal;
+    sourceAccessFlag = vk::AccessFlagBits::eColorAttachmentWrite;
+    sourceStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+    break;
+  case vk::ImageLayout::eDepthStencilAttachmentOptimal:
+    sourceLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+    sourceAccessFlag = vk::AccessFlagBits::eDepthStencilAttachmentWrite;
+    sourceStage = vk::PipelineStageFlagBits::eEarlyFragmentTests |
+                  vk::PipelineStageFlagBits::eLateFragmentTests;
+    break;
+  case vk::ImageLayout::eShaderReadOnlyOptimal:
+    sourceLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+    sourceAccessFlag = {};
+    sourceStage = vk::PipelineStageFlagBits::eFragmentShader;
+    break;
+  case vk::ImageLayout::eTransferSrcOptimal:
+    break;
+  default:
+    throw std::runtime_error("failed to download image: invalid layout.");
+  }
+
+  auto cb = mContext->createCommandBuffer();
+  cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+  if (mCurrentLayout != vk::ImageLayout::eTransferSrcOptimal) {
+    transitionLayout(cb.get(), sourceLayout,
+                     vk::ImageLayout::eTransferSrcOptimal, sourceAccessFlag,
+                     vk::AccessFlagBits::eTransferRead, sourceStage,
+                     vk::PipelineStageFlagBits::eTransfer);
+  }
+  vk::BufferImageCopy copyRegion(0, mExtent.width, mExtent.height,
+                                 {aspect, 0, 0, 1}, offset, extent);
+  cb->copyImageToBuffer(mImage, vk::ImageLayout::eTransferSrcOptimal, buffer,
+                        copyRegion);
+  cb->end();
+
+  auto fence = mContext->getDevice().createFenceUnique({});
+  vk::PipelineStageFlags waitStage = vk::PipelineStageFlagBits::eTransfer;
+  mContext->getQueue().submit(
+      vk::SubmitInfo(0, nullptr, &waitStage, 1, &cb.get()), fence.get());
+  auto result =
+      mContext->getDevice().waitForFences(fence.get(), VK_TRUE, UINT64_MAX);
+  if (result != vk::Result::eSuccess) {
+    throw std::runtime_error("failed to wait for fence");
+  }
+  setCurrentLayout(vk::ImageLayout::eTransferSrcOptimal);
+}
+
 void Image::download(void *data, size_t size, vk::Offset3D offset,
                      vk::Extent3D extent, uint32_t arrayLayer) {
   size_t imageSize =
@@ -255,11 +335,11 @@ void Image::download(void *data, size_t size, vk::Offset3D offset,
   cb->end();
 
   auto fence = mContext->getDevice().createFenceUnique({});
-  vk::PipelineStageFlags waitStage =
-      vk::PipelineStageFlagBits::eTransfer;
+  vk::PipelineStageFlags waitStage = vk::PipelineStageFlagBits::eTransfer;
   mContext->getQueue().submit(
       vk::SubmitInfo(0, nullptr, &waitStage, 1, &cb.get()), fence.get());
-  auto result = mContext->getDevice().waitForFences(fence.get(), VK_TRUE, UINT64_MAX);
+  auto result =
+      mContext->getDevice().waitForFences(fence.get(), VK_TRUE, UINT64_MAX);
   if (result != vk::Result::eSuccess) {
     throw std::runtime_error("failed to wait for fence");
   }

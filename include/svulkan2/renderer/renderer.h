@@ -6,6 +6,10 @@
 #include "svulkan2/shader/shader_manager.h"
 #include <map>
 
+#ifdef CUDA_INTEROP
+#include "svulkan2/core/cuda_buffer.h"
+#endif
+
 namespace svulkan2 {
 namespace renderer {
 
@@ -151,6 +155,12 @@ public:
   Renderer &operator=(Renderer const &other) = delete;
   Renderer(Renderer &&other) = default;
   Renderer &operator=(Renderer &&other) = default;
+
+#ifdef CUDA_INTEROP
+  std::tuple<std::unique_ptr<core::CudaBuffer>, std::array<uint32_t, 2>,
+             vk::Format>
+  transferToCuda(std::string const &targetName);
+#endif
 
 private:
   void prepareRenderTargets(uint32_t width, uint32_t height);

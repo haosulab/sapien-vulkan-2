@@ -86,7 +86,6 @@ public:
   void reorderLights();
 
   uint64_t getVersion() const { return mVersion; }
-private:
   void updateVersion() { mVersion++; }
 };
 

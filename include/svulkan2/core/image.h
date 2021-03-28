@@ -86,6 +86,8 @@ public:
     upload(data.data(), data.size() * sizeof(DataType), arrayLayer);
   }
 
+  void copyToBuffer(vk::Buffer buffer, size_t size, vk::Offset3D offset,
+                    vk::Extent3D extent, uint32_t arrayLayer = 0);
   void download(void *data, size_t size, vk::Offset3D offset,
                 vk::Extent3D extent, uint32_t arrayLayer = 0);
   void download(void *data, size_t size, uint32_t arrayLayer = 0);

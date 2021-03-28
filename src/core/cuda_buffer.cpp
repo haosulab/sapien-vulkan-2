@@ -6,8 +6,8 @@
   do {                                                                         \
     cudaError_t err = call;                                                    \
     if (err != cudaSuccess) {                                                  \
-      fprintf(stderr, "CUDA error at %s %d: %s\n", __FILE__, __LINE__,  \
-             cudaGetErrorString(err));                                         \
+      fprintf(stderr, "CUDA error at %s %d: %s\n", __FILE__, __LINE__,         \
+              cudaGetErrorString(err));                                        \
       exit(EXIT_FAILURE);                                                      \
     }                                                                          \
   } while (0)
@@ -34,6 +34,8 @@ CudaBuffer::CudaBuffer(Context &context, vk::DeviceSize size,
                            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)));
   mBuffer = mContext->getDevice().createBufferUnique(
       vk::BufferCreateInfo({}, size, usageFlags));
+
+  context.getDevice().bindBufferMemory(mBuffer.get(), mMemory.get(), 0);
 
   cudaExternalMemoryHandleDesc externalMemoryHandleDesc = {};
   externalMemoryHandleDesc.type = cudaExternalMemoryHandleTypeOpaqueFd;
@@ -69,6 +71,11 @@ CudaBuffer::CudaBuffer(Context &context, vk::DeviceSize size,
 
   checkCudaErrors(cudaExternalMemoryGetMappedBuffer(&mCudaPtr, mCudaMem,
                                                     &externalMemBufferDesc));
+}
+
+CudaBuffer::~CudaBuffer() {
+  checkCudaErrors(cudaDestroyExternalMemory(mCudaMem));
+  checkCudaErrors(cudaFree(mCudaPtr));
 }
 
 } // namespace core
