@@ -48,8 +48,8 @@ if (${SVULKAN2_BUILD_TEST})
 endif()
 if (${SVULKAN2_CUDA_INTEROP})
   add_definitions(-DCUDA_INTEROP)
-  find_package(CUDA REQUIRED)
-  include_directories(${CUDA_TOOLKIT_INCLUDE})
+  # find_package(CUDA REQUIRED)
+  # include_directories(${CUDA_TOOLKIT_INCLUDE})
 endif()
 
 if (${SVULKAN2_PROFILE})
@@ -68,7 +68,8 @@ file(GLOB GUI_SRC "3rd_party/imgui/*.cpp"
 add_library(svulkan2 STATIC ${RENDER_SRC} ${GUI_SRC})
 
 target_link_libraries(svulkan2 ${ASSIMP_LIBRARIES} glfw3 dl pthread Vulkan::Vulkan spdlog
-    glslang SPIRV spirv-cross-cpp ${CUDA_LIBRARIES} ${EASY_PROFILER_LIBRARIES})
+    glslang SPIRV spirv-cross-cpp # ${CUDA_LIBRARIES}
+    ${EASY_PROFILER_LIBRARIES})
 
 set_target_properties(svulkan2 PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 set_target_properties(spirv-cross-core PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
