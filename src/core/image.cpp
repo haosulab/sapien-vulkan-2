@@ -229,7 +229,7 @@ void Image::copyToBuffer(vk::Buffer buffer, size_t size, vk::Offset3D offset,
     break;
   case vk::ImageLayout::eShaderReadOnlyOptimal:
     sourceLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-    sourceAccessFlag = {};
+    sourceAccessFlag = vk::AccessFlagBits::eShaderRead;
     sourceStage = vk::PipelineStageFlagBits::eFragmentShader;
     break;
   case vk::ImageLayout::eTransferSrcOptimal:

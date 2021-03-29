@@ -86,7 +86,7 @@ public:
   void reorderLights();
 
   uint64_t getVersion() const { return mVersion; }
-  void updateVersion() { mVersion++; }
+  void updateVersion();
 };
 
 } // namespace scene

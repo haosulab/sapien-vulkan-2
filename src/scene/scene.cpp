@@ -233,7 +233,6 @@ void Scene::updateModelMatrices() {
 
 void Scene::uploadToDevice(core::Buffer &sceneBuffer,
                            StructDataLayout const &sceneLayout) {
-  reorderLights();
   auto pointLights = getPointLights();
   auto directionalLights = getDirectionalLights();
   std::vector<PointLightData> pointLightData;
@@ -400,6 +399,11 @@ void Scene::reorderLights() {
             [](auto &l1, auto &l2) {
               return l1->isShadowEnabled() && !l2->isShadowEnabled();
             });
+}
+
+void Scene::updateVersion() {
+  mVersion++;
+  log::info("Scene updated");
 }
 
 } // namespace scene
