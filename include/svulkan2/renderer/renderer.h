@@ -75,6 +75,9 @@ class Renderer {
   uint64_t mLastVersion{0};
   scene::Scene *mScene{nullptr};
 
+#ifdef CUDA_INTEROP
+  std::map<std::string, std::shared_ptr<core::CudaBuffer>> mCudaBuffers;
+#endif
 public:
   Renderer(core::Context &context, std::shared_ptr<RendererConfig> config);
 
@@ -82,8 +85,6 @@ public:
   void setSpecializationConstantFloat(std::string const &name, float value);
 
   void resize(int width, int height);
-
-  // void render(vk::CommandBuffer commandBuffer, scene::Camera &camera);
 
   void render(scene::Camera &camera,
               std::vector<vk::Semaphore> const &waitSemaphores,
@@ -157,7 +158,7 @@ public:
   Renderer &operator=(Renderer &&other) = default;
 
 #ifdef CUDA_INTEROP
-  std::tuple<std::unique_ptr<core::CudaBuffer>, std::array<uint32_t, 2>,
+  std::tuple<std::shared_ptr<core::CudaBuffer>, std::array<uint32_t, 2>,
              vk::Format>
   transferToCuda(std::string const &targetName);
 #endif
@@ -179,7 +180,10 @@ private:
   vk::UniqueCommandBuffer mShadowCommandBuffer{};
   vk::UniqueCommandBuffer mRenderCommandBuffer{};
   vk::UniqueCommandBuffer mDisplayCommandBuffer{};
+
+  void prepareObjects(scene::Scene &scene);
   void recordShadows(scene::Scene &scene);
+  void recordRenderPasses(scene::Scene &scene);
 };
 
 } // namespace renderer

@@ -438,125 +438,10 @@ void Renderer::recordShadows(scene::Scene &scene) {
   mShadowCommandBuffer->end();
 }
 
-void Renderer::render(scene::Camera &camera,
-                      std::vector<vk::Semaphore> const &waitSemaphores,
-                      std::vector<vk::PipelineStageFlags> const &waitStages,
-                      std::vector<vk::Semaphore> const &signalSemaphores,
-                      vk::Fence fence) {
-  if (!mScene) {
-    throw std::runtime_error("setScene must be called before rendering");
-  }
-
-  EASY_BLOCK("Record & Submit");
-  if (mLastVersion != mScene->getVersion()) {
-    mRequiresRecord = true;
-  }
-
-  if (!mContext->isVulkanAvailable()) {
-    return;
-  }
-  if (mWidth <= 0 || mHeight <= 0) {
-    throw std::runtime_error(
-        "failed to render: resize must be called before rendering.");
-  }
-  auto pointLights = mScene->getPointLights();
-  auto directionalLights = mScene->getDirectionalLights();
-  int numPointLights = pointLights.size();
-  int numDirectionalLights = directionalLights.size();
-
-  mNumPointLightShadows = 0;
-  mNumDirectionalLightShadows = 0;
-  mNumCustomShadows = mScene->getCustomLights().size();
-
-  for (auto l : pointLights) {
-    if (l->isShadowEnabled()) {
-      mNumPointLightShadows += 1;
-    }
-  }
-  for (auto l : directionalLights) {
-    if (l->isShadowEnabled()) {
-      mNumDirectionalLightShadows += 1;
-    }
-  }
-
-  {
-    // load custom textures
-    std::vector<std::future<void>> futures;
-    for (auto t : mCustomTextures) {
-      futures.push_back(t.second->loadAsync());
-    }
-    for (auto &f : futures) {
-      f.get();
-    }
-  }
-
-  setSpecializationConstantInt("NUM_POINT_LIGHTS", numPointLights);
-  setSpecializationConstantInt("NUM_DIRECTIONAL_LIGHTS", numDirectionalLights);
-  setSpecializationConstantInt("NUM_POINT_LIGHT_SHADOWS",
-                               mNumPointLightShadows);
-  setSpecializationConstantInt("NUM_DIRECTIONAL_LIGHT_SHADOWS",
-                               mNumDirectionalLightShadows);
-  setSpecializationConstantInt("NUM_CUSTOM_LIGHT_SHADOWS", mNumCustomShadows);
-
-  if (mRequiresRebuild || mSpecializationConstantsChanged) {
-    EASY_BLOCK("Rebuilding Pipeline");
-    mRequiresRecord = true;
-
-    preparePipelines();
-    prepareRenderTargets(mWidth, mHeight);
-    if (mShaderManager->isShadowEnabled()) {
-      prepareShadowRenderTargets();
-      prepareShadowFramebuffers();
-    }
-    prepareFramebuffers(mWidth, mHeight);
-    prepareInputTextureDescriptorSets();
-    mSpecializationConstantsChanged = false;
-    mRequiresRebuild = false;
-
-    if (mShaderManager->isShadowEnabled()) {
-      prepareLightBuffers();
-    }
-    prepareSceneBuffer();
-    prepareCameaBuffer();
-  }
-
+void Renderer::prepareObjects(scene::Scene &scene) {
   EASY_BLOCK("Prepare objects");
   auto objects = mScene->getObjects();
   prepareObjectBuffers(objects.size());
-
-  // classify shapes
-  uint32_t numGbufferPasses = mShaderManager->getNumGbufferPasses();
-  std::vector<std::vector<std::shared_ptr<resource::SVShape>>> shapes(
-      numGbufferPasses);
-
-  std::vector<std::vector<uint32_t>> shapeObjectIndex(numGbufferPasses);
-
-  int defaultShadingMode = 0;
-  int transparencyShadingMode = numGbufferPasses > 1 ? 1 : 0;
-
-  for (uint32_t objectIndex = 0; objectIndex < objects.size(); ++objectIndex) {
-    int shadingMode = objects[objectIndex]->getShadingMode();
-    if (static_cast<uint32_t>(shadingMode) >= shapes.size()) {
-      shadingMode = defaultShadingMode;
-    }
-    if (shadingMode == 0 && objects[objectIndex]->getTransparency() != 0) {
-      shadingMode = transparencyShadingMode;
-    }
-    if (objects[objectIndex]->getTransparency() >= 1) {
-      continue;
-    }
-    for (auto shape : objects[objectIndex]->getModel()->getShapes()) {
-      int shapeShadingMode = shadingMode;
-      if (shape->material->getOpacity() == 0) {
-        continue;
-      }
-      if (shape->material->getOpacity() != 1 && shadingMode == 0) {
-        shapeShadingMode = transparencyShadingMode;
-      }
-      shapes[shapeShadingMode].push_back(shape);
-      shapeObjectIndex[shapeShadingMode].push_back(objectIndex);
-    }
-  }
   EASY_END_BLOCK;
 
   // load objects to CPU, if not already loaded
@@ -581,47 +466,47 @@ void Renderer::render(scene::Camera &camera,
       }
     }
   }
+}
 
-  {
-    EASY_BLOCK("Update camera & scene");
-    // update camera
-    camera.uploadToDevice(
-        *mCameraBuffer, mWidth, mHeight,
-        *mShaderManager->getShaderConfig()->cameraBufferLayout);
+void Renderer::recordRenderPasses(scene::Scene &scene) {
+  mRenderCommandBuffer =
+      mContext->createCommandBuffer(vk::CommandBufferLevel::ePrimary);
+  mRenderCommandBuffer->begin(vk::CommandBufferBeginInfo({}, {}));
 
-    // update scene
-    mScene->uploadToDevice(
-        *mSceneBuffer, *mShaderManager->getShaderConfig()->sceneBufferLayout);
+  // classify shapes
+  uint32_t numGbufferPasses = mShaderManager->getNumGbufferPasses();
+  std::vector<std::vector<std::shared_ptr<resource::SVShape>>> shapes(
+      numGbufferPasses);
 
-    if (mShaderManager->isShadowEnabled()) {
-      mScene->uploadShadowToDevice(
-          *mShadowBuffer, mLightBuffers,
-          *mShaderManager->getShaderConfig()->shadowBufferLayout);
+  std::vector<std::vector<uint32_t>> shapeObjectIndex(numGbufferPasses);
+
+  int defaultShadingMode = 0;
+  int transparencyShadingMode = numGbufferPasses > 1 ? 1 : 0;
+
+  auto objects = mScene->getObjects();
+  for (uint32_t objectIndex = 0; objectIndex < objects.size(); ++objectIndex) {
+    int shadingMode = objects[objectIndex]->getShadingMode();
+    if (static_cast<uint32_t>(shadingMode) >= shapes.size()) {
+      shadingMode = defaultShadingMode;
+    }
+    if (shadingMode == 0 && objects[objectIndex]->getTransparency() != 0) {
+      shadingMode = transparencyShadingMode;
+    }
+    if (objects[objectIndex]->getTransparency() >= 1) {
+      continue;
+    }
+    for (auto shape : objects[objectIndex]->getModel()->getShapes()) {
+      int shapeShadingMode = shadingMode;
+      if (shape->material->getOpacity() == 0) {
+        continue;
+      }
+      if (shape->material->getOpacity() != 1 && shadingMode == 0) {
+        shapeShadingMode = transparencyShadingMode;
+      }
+      shapes[shapeShadingMode].push_back(shape);
+      shapeObjectIndex[shapeShadingMode].push_back(objectIndex);
     }
   }
-
-  {
-    EASY_BLOCK("Update objects");
-    // update objects
-    for (uint32_t i = 0; i < objects.size(); ++i) {
-      objects[i]->uploadToDevice(
-          *mObjectBuffers[i],
-          *mShaderManager->getShaderConfig()->objectBufferLayout);
-    }
-  }
-
-  {
-    EASY_BLOCK("Record shadow draw calls");
-    if (mRequiresRecord) {
-      recordShadows(*mScene);
-    }
-  }
-
-  if (!mRenderCommandBuffer) {
-    mRenderCommandBuffer = mContext->createCommandBuffer();
-  }
-
-  mRenderCommandBuffer->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
 
   uint32_t gbufferIndex = 0;
   auto passes = mShaderManager->getAllPasses();
@@ -715,8 +600,141 @@ void Renderer::render(scene::Camera &camera,
   for (auto &[name, target] : mRenderTargets) {
     target->getImage().setCurrentLayout(mRenderTargetFinalLayouts[name]);
   }
-
   mRenderCommandBuffer->end();
+}
+
+void Renderer::render(scene::Camera &camera,
+                      std::vector<vk::Semaphore> const &waitSemaphores,
+                      std::vector<vk::PipelineStageFlags> const &waitStages,
+                      std::vector<vk::Semaphore> const &signalSemaphores,
+                      vk::Fence fence) {
+  if (!mScene) {
+    throw std::runtime_error("setScene must be called before rendering");
+  }
+
+  EASY_BLOCK("Record & Submit");
+  if (mLastVersion != mScene->getVersion()) {
+    mRequiresRecord = true;
+  }
+
+  if (!mContext->isVulkanAvailable()) {
+    return;
+  }
+  if (mWidth <= 0 || mHeight <= 0) {
+    throw std::runtime_error(
+        "failed to render: resize must be called before rendering.");
+  }
+
+  if (mRequiresRecord) {
+    auto pointLights = mScene->getPointLights();
+    auto directionalLights = mScene->getDirectionalLights();
+    int numPointLights = pointLights.size();
+    int numDirectionalLights = directionalLights.size();
+
+    mNumPointLightShadows = 0;
+    mNumDirectionalLightShadows = 0;
+    mNumCustomShadows = mScene->getCustomLights().size();
+
+    for (auto l : pointLights) {
+      if (l->isShadowEnabled()) {
+        mNumPointLightShadows += 1;
+      }
+    }
+    for (auto l : directionalLights) {
+      if (l->isShadowEnabled()) {
+        mNumDirectionalLightShadows += 1;
+      }
+    }
+
+    {
+      // load custom textures
+      std::vector<std::future<void>> futures;
+      for (auto t : mCustomTextures) {
+        futures.push_back(t.second->loadAsync());
+      }
+      for (auto &f : futures) {
+        f.get();
+      }
+    }
+
+    setSpecializationConstantInt("NUM_POINT_LIGHTS", numPointLights);
+    setSpecializationConstantInt("NUM_DIRECTIONAL_LIGHTS",
+                                 numDirectionalLights);
+    setSpecializationConstantInt("NUM_POINT_LIGHT_SHADOWS",
+                                 mNumPointLightShadows);
+    setSpecializationConstantInt("NUM_DIRECTIONAL_LIGHT_SHADOWS",
+                                 mNumDirectionalLightShadows);
+    setSpecializationConstantInt("NUM_CUSTOM_LIGHT_SHADOWS", mNumCustomShadows);
+  }
+
+  if (mRequiresRebuild || mSpecializationConstantsChanged) {
+    EASY_BLOCK("Rebuilding Pipeline");
+    mRequiresRecord = true;
+
+    preparePipelines();
+    prepareRenderTargets(mWidth, mHeight);
+    if (mShaderManager->isShadowEnabled()) {
+      prepareShadowRenderTargets();
+      prepareShadowFramebuffers();
+    }
+    prepareFramebuffers(mWidth, mHeight);
+    prepareInputTextureDescriptorSets();
+    mSpecializationConstantsChanged = false;
+    mRequiresRebuild = false;
+
+    if (mShaderManager->isShadowEnabled()) {
+      prepareLightBuffers();
+    }
+    prepareSceneBuffer();
+    prepareCameaBuffer();
+  }
+
+  if (mRequiresRecord) {
+    prepareObjects(*mScene);
+  }
+
+  {
+    EASY_BLOCK("Update camera & scene");
+    // update camera
+    camera.uploadToDevice(
+        *mCameraBuffer, mWidth, mHeight,
+        *mShaderManager->getShaderConfig()->cameraBufferLayout);
+
+    // update scene
+    mScene->uploadToDevice(
+        *mSceneBuffer, *mShaderManager->getShaderConfig()->sceneBufferLayout);
+
+    if (mShaderManager->isShadowEnabled()) {
+      mScene->uploadShadowToDevice(
+          *mShadowBuffer, mLightBuffers,
+          *mShaderManager->getShaderConfig()->shadowBufferLayout);
+    }
+  }
+
+  {
+    EASY_BLOCK("Update objects");
+    // update objects
+    auto objects = mScene->getObjects();
+    for (uint32_t i = 0; i < objects.size(); ++i) {
+      objects[i]->uploadToDevice(
+          *mObjectBuffers[i],
+          *mShaderManager->getShaderConfig()->objectBufferLayout);
+    }
+  }
+
+  {
+    if (mRequiresRecord) {
+      {
+        EASY_BLOCK("Record shadow draw calls");
+        recordShadows(*mScene);
+      }
+      {
+        EASY_BLOCK("Record render draw calls");
+        recordRenderPasses(*mScene);
+      }
+    }
+  }
+
   vk::CommandBuffer cbs[2] = {mShadowCommandBuffer.get(),
                               mRenderCommandBuffer.get()};
   vk::SubmitInfo info(waitSemaphores.size(), waitSemaphores.data(),
@@ -1039,23 +1057,31 @@ Renderer::getRenderTarget(std::string const &name) const {
 }
 
 #ifdef CUDA_INTEROP
-std::tuple<std::unique_ptr<core::CudaBuffer>, std::array<uint32_t, 2>,
+std::tuple<std::shared_ptr<core::CudaBuffer>, std::array<uint32_t, 2>,
            vk::Format>
 Renderer::transferToCuda(std::string const &targetName) {
-  EASY_BLOCK("Create Vulkan-cuda buffer");
   auto target = mRenderTargets.at(targetName);
   auto &img = target->getImage();
   auto extent = img.getExtent();
   vk::DeviceSize size = extent.width * extent.height * extent.depth *
                         core::findSizeFromFormat(img.getFormat());
-  auto buffer = std::make_unique<core::CudaBuffer>(*mContext, size);
-  EASY_END_BLOCK;
+
+  {
+    auto it = mCudaBuffers.find(targetName);
+    if (it == mCudaBuffers.end() || it->second->getSize() != size) {
+      EASY_BLOCK("Create Vulkan-cuda buffer");
+      mCudaBuffers[targetName] =
+          std::make_shared<core::CudaBuffer>(*mContext, size);
+      EASY_END_BLOCK;
+    }
+  }
 
   EASY_BLOCK("Wait for render and copy to Vulkan-Cuda buffer");
-  img.copyToBuffer(buffer->getVulkanBuffer(), size, {0, 0, 0}, extent);
+  img.copyToBuffer(mCudaBuffers[targetName]->getVulkanBuffer(), size, {0, 0, 0},
+                   extent);
   EASY_END_BLOCK;
 
-  return {std::move(buffer),
+  return {mCudaBuffers[targetName],
           std::array<uint32_t, 2>{extent.width, extent.height},
           img.getFormat()};
 }
