@@ -17,6 +17,7 @@ class CudaBuffer {
 
   void *mCudaPtr;
   cudaExternalMemory_t mCudaMem;
+  int mCudaDeviceId;
 
 public:
   CudaBuffer(
@@ -29,6 +30,7 @@ public:
   vk::Buffer getVulkanBuffer() const { return mBuffer.get(); }
   vk::DeviceMemory getVulkanMemory() const { return mMemory.get(); }
   void *getCudaPointer() const { return mCudaPtr; }
+  int getCudaDeviceId() const { return mCudaDeviceId; }
 };
 
 } // namespace core
