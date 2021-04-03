@@ -48,8 +48,6 @@ if (${SVULKAN2_BUILD_TEST})
 endif()
 if (${SVULKAN2_CUDA_INTEROP})
   add_definitions(-DCUDA_INTEROP)
-  # find_package(CUDA REQUIRED)
-  # include_directories(${CUDA_TOOLKIT_INCLUDE})
 endif()
 
 if (${SVULKAN2_PROFILE})
@@ -70,6 +68,10 @@ add_library(svulkan2 STATIC ${RENDER_SRC} ${GUI_SRC})
 target_link_libraries(svulkan2 ${ASSIMP_LIBRARIES} glfw3 dl pthread Vulkan::Vulkan spdlog
     glslang SPIRV spirv-cross-cpp # ${CUDA_LIBRARIES}
     ${EASY_PROFILER_LIBRARIES})
+
+if (${SVULKAN2_CUDA_INTEROP})
+    target_link_libraries(svulkan2 cudart_static rt)
+endif()
 
 set_target_properties(svulkan2 PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 set_target_properties(spirv-cross-core PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
