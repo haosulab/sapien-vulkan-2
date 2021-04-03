@@ -597,9 +597,6 @@ void Renderer::recordRenderPasses(scene::Scene &scene) {
     }
     mRenderCommandBuffer->endRenderPass();
   }
-  for (auto &[name, target] : mRenderTargets) {
-    target->getImage().setCurrentLayout(mRenderTargetFinalLayouts[name]);
-  }
   mRenderCommandBuffer->end();
 }
 
@@ -743,6 +740,10 @@ void Renderer::render(scene::Camera &camera,
   mContext->getQueue().submit(info, fence);
   mRequiresRecord = false;
   mLastVersion = mScene->getVersion();
+
+  for (auto &[name, target] : mRenderTargets) {
+    target->getImage().setCurrentLayout(mRenderTargetFinalLayouts[name]);
+  }
 }
 
 std::vector<std::string> Renderer::getDisplayTargetNames() const {
