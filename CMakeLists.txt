@@ -38,6 +38,15 @@ include_directories("3rd_party/SPIRV-Cross")
 include_directories("3rd_party/VulkanMemoryAllocator")
 include_directories("$ENV{VULKAN_SDK}/include")
 include_directories("3rd_party/stb")
+include_directories("3rd_party/cuda_include")
+
+if (${SVULKAN2_CUDA_INTEROP})
+    message("-- CUDA enabled in SVulkan2 ")
+    link_directories("3rd_party/cuda_lib")
+    add_definitions(-DCUDA_INTEROP)
+else()
+    message("-- CUDA not enabled in SVulkan2 ")
+endif()
 
 link_directories("$ENV{VULKAN_SDK}/lib")
 add_subdirectory("3rd_party/glslang")
@@ -45,9 +54,6 @@ add_subdirectory("3rd_party/SPIRV-Cross")
 
 if (${SVULKAN2_BUILD_TEST})
   add_subdirectory("3rd_party/googletest")
-endif()
-if (${SVULKAN2_CUDA_INTEROP})
-  add_definitions(-DCUDA_INTEROP)
 endif()
 
 if (${SVULKAN2_PROFILE})
@@ -70,8 +76,6 @@ target_link_libraries(svulkan2 ${ASSIMP_LIBRARIES} glfw3 dl pthread Vulkan::Vulk
     ${EASY_PROFILER_LIBRARIES})
 
 if (${SVULKAN2_CUDA_INTEROP})
-    include_directories("3rd_party/cuda_include")
-    link_directories("3rd_party/cuda_lib")
     target_link_libraries(svulkan2 cudart_static rt)
 endif()
 

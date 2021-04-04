@@ -63,8 +63,9 @@ Context::Context(uint32_t apiVersion, bool present, uint32_t maxNumMaterials,
 Context::~Context() {
   if (mPresent) {
     glfwTerminate();
-    log::info("GLFW terminated.");
+    log::info("GLFW terminated");
   }
+  log::info("Vulkan finished");
 }
 
 std::shared_ptr<resource::SVResourceManager>
