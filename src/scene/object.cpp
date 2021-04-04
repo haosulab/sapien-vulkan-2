@@ -4,6 +4,7 @@
 namespace svulkan2 {
 namespace scene {
 
+static int gObjectId = 0;
 Object::Object(std::shared_ptr<resource::SVModel> model,
                std::string const &name)
     : Node(name), mModel(model) {}

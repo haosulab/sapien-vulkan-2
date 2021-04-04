@@ -31,10 +31,11 @@ struct VulkanFrameSemaphores {
 };
 
 class GuiWindow {
+  std::shared_ptr<core::Context> mContext;
+
   GLFWwindow *mWindow;
   vk::UniqueSurfaceKHR mSurface;
 
-  core::Context *mContext;
   uint32_t mMinImageCount;
 
   float mContentScale{0.f};
@@ -63,7 +64,9 @@ class GuiWindow {
   bool mClosed{};
 
 public:
-  [[nodiscard]] inline vk::SwapchainKHR getSwapchain() const { return mSwapchain.get(); }
+  [[nodiscard]] inline vk::SwapchainKHR getSwapchain() const {
+    return mSwapchain.get();
+  }
   [[nodiscard]] inline vk::Format getBackBufferFormat() const {
     return mSurfaceFormat.format;
   }
@@ -92,7 +95,7 @@ public:
     return mFrames[mFrameIndex].mBackbuffer;
   }
 
-  GuiWindow(core::Context &context,
+  GuiWindow(std::shared_ptr<core::Context> context,
             std::vector<vk::Format> const &requestFormats,
             vk::ColorSpaceKHR requestColorSpace, uint32_t width,
             uint32_t height,

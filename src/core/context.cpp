@@ -1,7 +1,7 @@
 #include "svulkan2/core/context.h"
 #include "svulkan2/common/log.h"
-#include <GLFW/glfw3.h>
 #include "svulkan2/core/allocator.h"
+#include <GLFW/glfw3.h>
 #include <easy/profiler.h>
 
 namespace svulkan2 {
@@ -36,10 +36,19 @@ static bool checkValidationLayerSupport() {
 }
 #endif
 
+std::shared_ptr<Context> Context::Create(uint32_t apiVersion, bool present,
+                                         uint32_t maxNumMaterials,
+                                         uint32_t maxNumTextures,
+                                         uint32_t defaultMipLevels) {
+  return std::make_shared<Context>(apiVersion, present, maxNumMaterials,
+                                   maxNumTextures, defaultMipLevels);
+}
+
 Context::Context(uint32_t apiVersion, bool present, uint32_t maxNumMaterials,
                  uint32_t maxNumTextures, uint32_t defaultMipLevels)
     : mApiVersion(apiVersion), mPresent(present),
-      mMaxNumMaterials(maxNumMaterials), mMaxNumTextures(maxNumTextures) {
+      mMaxNumMaterials(maxNumMaterials), mMaxNumTextures(maxNumTextures),
+      mDefaultMipLevels(defaultMipLevels) {
   profiler::startListen();
   createInstance();
   pickSuitableGpuAndQueueFamilyIndex();
@@ -47,17 +56,45 @@ Context::Context(uint32_t apiVersion, bool present, uint32_t maxNumMaterials,
   createMemoryAllocator();
   createCommandPool();
   createDescriptorPool();
-  mResourceManager = std::make_unique<resource::SVResourceManager>();
-  mResourceManager->setDefaultMipLevels(defaultMipLevels);
+  // mResourceManager = std::make_unique<resource::SVResourceManager>();
+  // mResourceManager->setDefaultMipLevels(defaultMipLevels);
 }
 
-Context::~Context() {}
+Context::~Context() {
+  if (mPresent) {
+    glfwTerminate();
+    log::info("GLFW terminated.");
+  }
+}
+
+std::shared_ptr<resource::SVResourceManager>
+Context::getResourceManager() const {
+  if (mResourceManager.expired()) {
+    throw std::runtime_error(
+        "A externally owned resource manager is required.");
+  }
+  return mResourceManager.lock();
+}
+
+std::shared_ptr<resource::SVResourceManager> Context::createResourceManager() {
+  if (!mResourceManager.expired()) {
+    return mResourceManager.lock();
+  }
+  auto manager = std::make_shared<resource::SVResourceManager>();
+  manager->setDefaultMipLevels(mDefaultMipLevels);
+  mResourceManager = manager;
+  return manager;
+}
 
 void Context::createInstance() {
   if (mPresent) {
-    glfwInit();
-    log::info("GLFW initialized.");
     glfwSetErrorCallback(glfwErrorCallback);
+    if (glfwInit()) {
+      log::info("GLFW initialized.");
+    } else {
+      log::warn("Continue without GLFW.");
+      mPresent = false;
+    }
   }
 
 #ifdef VK_VALIDATION
@@ -94,14 +131,15 @@ void Context::createInstance() {
       if (!glfwExtensions) {
         int glfwExtensionsErrCode = glfwGetError(NULL);
         if (glfwExtensionsErrCode == GLFW_NOT_INITIALIZED) {
-          throw std::runtime_error(
-              "createInstance: GLFW has not initialized");
+          throw std::runtime_error("createInstance: GLFW has not initialized");
         } else if (glfwExtensionsErrCode == GLFW_API_UNAVAILABLE) {
           throw std::runtime_error(
               "createInstance: Vulkan is not available on the machine");
-        } else throw std::runtime_error(
+        } else
+          throw std::runtime_error(
               "createInstance: No Vulkan extensions found for window "
-              "surface creation (hint: set VK_ICD_FILENAMES to `locate icd.json`).");
+              "surface creation (hint: set VK_ICD_FILENAMES to `locate "
+              "icd.json`).");
       }
       for (uint32_t i = 0; i < glfwExtensionCount; ++i) {
         instanceExtensions.push_back(glfwExtensions[i]);
@@ -355,7 +393,7 @@ std::unique_ptr<renderer::GuiWindow> Context::createWindow(uint32_t width,
         "Create window failed: width and height must be positive.");
   }
   return std::make_unique<renderer::GuiWindow>(
-      *this,
+      shared_from_this(),
       std::vector<vk::Format>{
           vk::Format::eB8G8R8A8Unorm, vk::Format::eR8G8B8A8Unorm,
           vk::Format::eB8G8R8Unorm, vk::Format::eR8G8B8Unorm},

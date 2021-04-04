@@ -40,19 +40,19 @@ static void updateDescriptorSets(
   device.updateDescriptorSets(writeDescriptorSets, nullptr);
 }
 
-Renderer::Renderer(core::Context &context,
+Renderer::Renderer(std::shared_ptr<core::Context> context,
                    std::shared_ptr<RendererConfig> config)
-    : mContext(&context), mConfig(config) {
+    : mContext(context), mConfig(config) {
   if (!mContext->isVulkanAvailable()) {
     return;
   }
 
   mShaderManager = std::make_unique<shader::ShaderManager>(config);
 
-  mContext->getResourceManager().setMaterialPipelineType(
+  mContext->getResourceManager()->setMaterialPipelineType(
       mShaderManager->getShaderConfig()->materialPipeline);
 
-  mContext->getResourceManager().setVertexLayout(
+  mContext->getResourceManager()->setVertexLayout(
       mShaderManager->getShaderConfig()->vertexLayout);
 
   vk::DescriptorPoolSize pool_sizes[] = {
@@ -64,8 +64,8 @@ Renderer::Renderer(core::Context &context,
   mDescriptorPool = mContext->getDevice().createDescriptorPoolUnique(info);
 
   mObjectPool = std::make_unique<core::DynamicDescriptorPool>(
-      *mContext, std::vector<vk::DescriptorPoolSize>{
-                     {vk::DescriptorType::eUniformBuffer, 1000}});
+      mContext, std::vector<vk::DescriptorPoolSize>{
+                    {vk::DescriptorType::eUniformBuffer, 1000}});
 }
 
 void Renderer::prepareRenderTargets(uint32_t width, uint32_t height) {
@@ -77,7 +77,7 @@ void Renderer::prepareRenderTargets(uint32_t width, uint32_t height) {
   for (auto &[name, format] : renderTargetFormats) {
     mRenderTargets[name] =
         std::make_shared<resource::SVRenderTarget>(name, width, height, format);
-    mRenderTargets[name]->createDeviceResources(*mContext);
+    mRenderTargets[name]->createDeviceResources(mContext);
   }
   mRenderTargetFinalLayouts = mShaderManager->getRenderTargetFinalLayouts();
 }
@@ -105,7 +105,7 @@ void Renderer::prepareShadowRenderTargets() {
     uint32_t size = mNumPointLightShadows ? shadowSize : 1;
     uint32_t num = mNumPointLightShadows ? mNumPointLightShadows : 1;
     auto pointShadowImage = std::make_shared<core::Image>(
-        *mContext, vk::Extent3D{size, size, 1}, format,
+        mContext, vk::Extent3D{size, size, 1}, format,
         vk::ImageUsageFlagBits::eDepthStencilAttachment |
             vk::ImageUsageFlagBits::eSampled,
         VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, vk::SampleCountFlagBits::e1,
@@ -160,7 +160,7 @@ void Renderer::prepareShadowRenderTargets() {
     uint32_t num =
         mNumDirectionalLightShadows ? mNumDirectionalLightShadows : 1;
     auto directionalShadowImage = std::make_shared<core::Image>(
-        *mContext, vk::Extent3D{size, size, 1}, format,
+        mContext, vk::Extent3D{size, size, 1}, format,
         vk::ImageUsageFlagBits::eDepthStencilAttachment |
             vk::ImageUsageFlagBits::eSampled,
         VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, vk::SampleCountFlagBits::e1,
@@ -209,7 +209,7 @@ void Renderer::prepareShadowRenderTargets() {
     uint32_t size = mNumCustomShadows ? shadowSize : 1;
     uint32_t num = mNumCustomShadows ? mNumCustomShadows : 1;
     auto customShadowImage = std::make_shared<core::Image>(
-        *mContext, vk::Extent3D{size, size, 1}, format,
+        mContext, vk::Extent3D{size, size, 1}, format,
         vk::ImageUsageFlagBits::eDepthStencilAttachment |
             vk::ImageUsageFlagBits::eSampled,
         VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, vk::SampleCountFlagBits::e1,
@@ -261,7 +261,7 @@ void Renderer::preparePipelines() {
   if (!mContext->isVulkanAvailable()) {
     return;
   }
-  mShaderManager->createPipelines(*mContext, mSpecializationConstants);
+  mShaderManager->createPipelines(mContext, mSpecializationConstants);
 }
 
 void Renderer::prepareFramebuffers(uint32_t width, uint32_t height) {
@@ -461,8 +461,8 @@ void Renderer::prepareObjects(scene::Scene &scene) {
     // upload objects to GPU, if not up-to-date
     for (auto obj : objects) {
       for (auto shape : obj->getModel()->getShapes()) {
-        shape->material->uploadToDevice(*mContext);
-        shape->mesh->uploadToDevice(*mContext);
+        shape->material->uploadToDevice(mContext);
+        shape->mesh->uploadToDevice(mContext);
       }
     }
   }
@@ -912,16 +912,16 @@ void Renderer::prepareSceneBuffer() {
                binding.name.substr(0, 7) == "sampler") {
       std::string customTextureName = binding.name.substr(7);
       if (customTextureName.substr(0, 6) == "Random") {
-        auto randomTex = mContext->getResourceManager().CreateRandomTexture(
+        auto randomTex = mContext->getResourceManager()->CreateRandomTexture(
             customTextureName);
-        randomTex->uploadToDevice(*mContext);
+        randomTex->uploadToDevice(mContext);
         updateDescriptorSets(
             mContext->getDevice(), mSceneSet.get(), {},
             {{randomTex->getImageView(), randomTex->getSampler()}},
             bindingIndex);
       } else if (mCustomTextures.find(customTextureName) !=
                  mCustomTextures.end()) {
-        mCustomTextures[customTextureName]->uploadToDevice(*mContext);
+        mCustomTextures[customTextureName]->uploadToDevice(mContext);
         updateDescriptorSets(
             mContext->getDevice(), mSceneSet.get(), {},
             {{mCustomTextures[customTextureName]->getImageView(),
@@ -1011,12 +1011,12 @@ void Renderer::prepareInputTextureDescriptorSets() {
                                  mRenderTargets[name]->getSampler()});
         } else if (name.substr(0, 6) == "Random") {
           auto randomTex =
-              mContext->getResourceManager().CreateRandomTexture(name);
-          randomTex->uploadToDevice(*mContext);
+              mContext->getResourceManager()->CreateRandomTexture(name);
+          randomTex->uploadToDevice(mContext);
           textureData.push_back(
               {randomTex->getImageView(), randomTex->getSampler()});
         } else if (mCustomTextures.find(name) != mCustomTextures.end()) {
-          mCustomTextures[name]->uploadToDevice(*mContext);
+          mCustomTextures[name]->uploadToDevice(mContext);
           textureData.push_back({mCustomTextures[name]->getImageView(),
                                  mCustomTextures[name]->getSampler()});
         } else {
@@ -1072,7 +1072,7 @@ Renderer::transferToCuda(std::string const &targetName) {
     if (it == mCudaBuffers.end() || it->second->getSize() != size) {
       EASY_BLOCK("Create Vulkan-cuda buffer");
       mCudaBuffers[targetName] =
-          std::make_shared<core::CudaBuffer>(*mContext, size);
+          std::make_shared<core::CudaBuffer>(mContext, size);
       EASY_END_BLOCK;
     }
   }

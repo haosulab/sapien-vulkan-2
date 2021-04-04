@@ -78,7 +78,7 @@ public:
 
   std::vector<vk::DescriptorSetLayout> getInputTextureLayouts() const;
 
-  void createPipelines(core::Context &context,
+  void createPipelines(std::shared_ptr<core::Context> context,
                        std::map<std::string, SpecializationConstantValue> const
                            &specializationConstantInfo);
   std::vector<std::shared_ptr<BaseParser>> getAllPasses() const;

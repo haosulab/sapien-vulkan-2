@@ -6,7 +6,7 @@ namespace svulkan2 {
 namespace core {
 
 class Buffer {
-  class Context *mContext;
+  std::shared_ptr<class Context> mContext;
   vk::DeviceSize mSize;
   bool mHostVisible;
   bool mHostCoherent;
@@ -18,7 +18,7 @@ class Buffer {
   void *mMappedData;
 
 public:
-  Buffer(class Context &context, vk::DeviceSize size,
+  Buffer(std::shared_ptr<class Context> context, vk::DeviceSize size,
          vk::BufferUsageFlags usageFlags, VmaMemoryUsage memoryUsage,
          VmaAllocationCreateFlags allocationFlags = {});
 

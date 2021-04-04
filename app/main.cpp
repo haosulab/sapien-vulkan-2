@@ -29,7 +29,9 @@ using namespace svulkan2;
 int main() {
   svulkan2::log::getLogger()->set_level(spdlog::level::info);
 
-  svulkan2::core::Context context(VK_API_VERSION_1_1, true, 5000, 5000, 4);
+  auto context =
+      svulkan2::core::Context::Create(VK_API_VERSION_1_1, true, 5000, 5000, 4);
+  auto manager = context->createResourceManager();
 
   if (srcBase.length() == 0) {
     std::cout << "Using default srcBase" << std::endl;
@@ -94,7 +96,7 @@ int main() {
   // scene.addObject(sphere).setTransform(
   //     {.position = {0, 0.25, 0}, .scale = {0.1, 0.1, 0.1}});
 
-  auto model = context.getResourceManager().CreateModelFromFile(
+  auto model = context->getResourceManager()->CreateModelFromFile(
       srcBase + "test/assets/scene/sponza/sponza2.obj");
   scene.addObject(model).setTransform(
       scene::Transform{.scale = {0.001, 0.001, 0.001}});
@@ -118,18 +120,18 @@ int main() {
   //                           context.getResourceManager().CreateTextureFromFile(
   //                               "../test/assets/image/flashlight.jpg", 1));
 
-  auto window = context.createWindow(1600, 1200);
+  auto window = context->createWindow(1600, 1200);
   // glfwGetFramebufferSize(window->getGLFWWindow(), &gSwapchainResizeWidth,
   //                        &gSwapchainResizeHeight);
   // renderer.resize(gSwapchainResizeWidth, gSwapchainResizeHeight);
 
   window->initImgui();
-  context.getDevice().waitIdle();
+  context->getDevice().waitIdle();
   vk::UniqueSemaphore sceneRenderSemaphore =
-      context.getDevice().createSemaphoreUnique({});
-  vk::UniqueFence sceneRenderFence = context.getDevice().createFenceUnique(
+      context->getDevice().createSemaphoreUnique({});
+  vk::UniqueFence sceneRenderFence = context->getDevice().createFenceUnique(
       {vk::FenceCreateFlagBits::eSignaled});
-  auto commandBuffer = context.createCommandBuffer();
+  auto commandBuffer = context->createCommandBuffer();
 
   glfwSetFramebufferSizeCallback(window->getGLFWWindow(), glfw_resize_callback);
   glfwSetWindowCloseCallback(window->getGLFWWindow(), window_close_callback);
@@ -164,7 +166,7 @@ int main() {
   while (!window->isClosed()) {
     count += 1;
     if (gSwapchainRebuild) {
-      context.getDevice().waitIdle();
+      context->getDevice().waitIdle();
       int width, height;
       glfwGetFramebufferSize(window->getGLFWWindow(), &width, &height);
       if (!window->updateSize(width, height)) {
@@ -172,7 +174,7 @@ int main() {
       }
       gSwapchainRebuild = false;
       renderer.resize(width, height);
-      context.getDevice().waitIdle();
+      context->getDevice().waitIdle();
       cameraNode.setPerspectiveParameters(
           0.05, 10, 1,
           static_cast<float>(window->getWidth()) / window->getHeight());
@@ -182,7 +184,7 @@ int main() {
       window->newFrame();
     } catch (vk::OutOfDateKHRError &e) {
       gSwapchainRebuild = true;
-      context.getDevice().waitIdle();
+      context->getDevice().waitIdle();
       continue;
     }
 
@@ -221,12 +223,12 @@ int main() {
 
     // wait for previous frame to finish
     {
-      if (context.getDevice().waitForFences(sceneRenderFence.get(), VK_TRUE,
-                                            UINT64_MAX) !=
+      if (context->getDevice().waitForFences(sceneRenderFence.get(), VK_TRUE,
+                                             UINT64_MAX) !=
           vk::Result::eSuccess) {
         throw std::runtime_error("Failed on wait for fence.");
       }
-      context.getDevice().resetFences(sceneRenderFence.get());
+      context->getDevice().resetFences(sceneRenderFence.get());
     }
 
     scene.updateModelMatrices();
@@ -250,11 +252,11 @@ int main() {
                                     sceneRenderFence.get());
     } catch (vk::OutOfDateKHRError &e) {
       gSwapchainRebuild = true;
-      context.getDevice().waitIdle();
+      context->getDevice().waitIdle();
       continue;
     }
     // required since we only use 1 set of uniform buffers
-    context.getDevice().waitIdle();
+    context->getDevice().waitIdle();
     auto cuda = renderer.transferToCuda("Color");
     // break;
     if (gClosed) {
@@ -286,7 +288,7 @@ int main() {
   scene.clearNodes();
   model.reset();
 
-  context.getDevice().waitIdle();
+  context->getDevice().waitIdle();
   log::info("finish");
 
   return 0;

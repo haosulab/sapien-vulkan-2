@@ -39,7 +39,7 @@ inline size_t findSizeFromFormat(vk::Format format) {
 
 class Image {
 private:
-  class Context *mContext;
+  std::shared_ptr<class Context> mContext;
   vk::Extent3D mExtent;
   vk::Format mFormat;
   vk::ImageUsageFlags mUsageFlags;
@@ -61,7 +61,7 @@ private:
   void generateMipmaps(vk::CommandBuffer cb, uint32_t arrayLayer = 0);
 
 public:
-  Image(Context &context, vk::Extent3D extent, vk::Format format,
+  Image(std::shared_ptr<Context> context, vk::Extent3D extent, vk::Format format,
         vk::ImageUsageFlags usageFlags, VmaMemoryUsage memoryUsage,
         vk::SampleCountFlagBits sampleCount = vk::SampleCountFlagBits::e1,
         uint32_t mipLevels = 1, uint32_t arrayLayers = 1,

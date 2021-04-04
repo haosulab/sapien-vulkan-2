@@ -18,6 +18,8 @@ struct SVImageDescription {
 };
 
 class SVImage {
+  std::shared_ptr<core::Context> mContext{};
+
   SVImageDescription mDescription{};
   std::unique_ptr<core::Image> mImage{};
 
@@ -56,7 +58,7 @@ public:
   static std::shared_ptr<SVImage>
   FromFile(std::vector<std::string> const &filenames, uint32_t mipLevels = 1);
 
-  void uploadToDevice(core::Context &context);
+  void uploadToDevice(std::shared_ptr<core::Context> context);
   void removeFromDevice();
   inline bool isLoaded() const { return mLoaded; }
   inline bool isOnDevice() const { return mOnDevice; }

@@ -5,8 +5,9 @@ namespace svulkan2 {
 namespace core {
 
 DynamicDescriptorPool::DynamicDescriptorPool(
-    class Context &context, std::vector<vk::DescriptorPoolSize> const &sizes)
-    : mContext(&context), mSizes(sizes) {
+    std::shared_ptr<Context> context,
+    std::vector<vk::DescriptorPoolSize> const &sizes)
+    : mContext(context), mSizes(sizes) {
   expand();
 }
 
@@ -18,8 +19,8 @@ void DynamicDescriptorPool::expand() {
     count += size.descriptorCount;
   }
   auto info = vk::DescriptorPoolCreateInfo(
-      vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, count,
-      sizes.size(), sizes.data());
+      vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, count, sizes.size(),
+      sizes.data());
   mPools.push_back(mContext->getDevice().createDescriptorPoolUnique(info));
 }
 

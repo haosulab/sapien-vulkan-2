@@ -493,10 +493,10 @@ void ShaderManager::createDescriptorSetLayouts(vk::Device device) {
 }
 
 void ShaderManager::createPipelines(
-    core::Context &context,
+    std::shared_ptr<core::Context> context,
     std::map<std::string, SpecializationConstantValue> const
         &specializationConstantInfo) {
-  auto device = context.getDevice();
+  auto device = context->getDevice();
 
   if (not mDescriptorSetLayoutsCreated) {
     createDescriptorSetLayouts(device);
@@ -522,8 +522,8 @@ void ShaderManager::createPipelines(
         descriptorSetLayouts.push_back(
             mShaderConfig->materialPipeline ==
                     ShaderConfig::MaterialPipeline::eMETALLIC
-                ? context.getMetallicDescriptorSetLayout()
-                : context.getSpecularDescriptorSetLayout());
+                ? context->getMetallicDescriptorSetLayout()
+                : context->getSpecularDescriptorSetLayout());
         break;
       case UniformBindingType::eTextures:
         descriptorSetLayouts.push_back(mInputTextureLayouts[passIdx].get());

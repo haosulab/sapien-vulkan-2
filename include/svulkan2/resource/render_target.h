@@ -31,7 +31,7 @@ public:
                  std::shared_ptr<core::Image> image,
                  vk::UniqueImageView imageView, vk::UniqueSampler sampler);
 
-  void createDeviceResources(core::Context &context);
+  void createDeviceResources(std::shared_ptr<core::Context> context);
   template <typename T> std::vector<T> download() {
     return mImage->download<T>();
   }

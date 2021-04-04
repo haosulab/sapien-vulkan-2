@@ -41,21 +41,22 @@ SVCubemap::FromData(uint32_t size, uint32_t channels,
   return texture;
 }
 
-void SVCubemap::uploadToDevice(core::Context &context) {
+void SVCubemap::uploadToDevice(std::shared_ptr<core::Context> context) {
   if (mOnDevice) {
     return;
   }
+  mContext = context;
   if (!mImage->isOnDevice()) {
     mImage->uploadToDevice(context);
   }
   mImageView =
-      context.getDevice().createImageViewUnique(vk::ImageViewCreateInfo(
+      context->getDevice().createImageViewUnique(vk::ImageViewCreateInfo(
           {}, mImage->getDeviceImage()->getVulkanImage(),
           vk::ImageViewType::eCube, mImage->getDeviceImage()->getFormat(),
           vk::ComponentSwizzle::eIdentity,
           vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0,
                                     mDescription.mipLevels, 0, 6)));
-  mSampler = context.getDevice().createSamplerUnique(vk::SamplerCreateInfo(
+  mSampler = context->getDevice().createSamplerUnique(vk::SamplerCreateInfo(
       {}, mDescription.magFilter, mDescription.minFilter,
       vk::SamplerMipmapMode::eLinear, mDescription.addressModeU,
       mDescription.addressModeV, vk::SamplerAddressMode::eRepeat, 0.f, false,

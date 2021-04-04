@@ -9,7 +9,7 @@ namespace svulkan2 {
 namespace core {
 
 class CudaBuffer {
-  class Context *mContext;
+  std::shared_ptr<class Context> mContext;
   vk::DeviceSize mSize;
 
   vk::UniqueBuffer mBuffer;
@@ -21,7 +21,7 @@ class CudaBuffer {
 
 public:
   CudaBuffer(
-      class Context &context, vk::DeviceSize size,
+      std::shared_ptr<class Context> context, vk::DeviceSize size,
       vk::BufferUsageFlags usageFlags = vk::BufferUsageFlagBits::eTransferDst);
   ~CudaBuffer();
 

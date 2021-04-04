@@ -14,7 +14,7 @@ namespace svulkan2 {
 namespace renderer {
 
 class Renderer {
-  core::Context *mContext;
+  std::shared_ptr<core::Context> mContext;
   std::shared_ptr<RendererConfig> mConfig;
 
   vk::UniqueDescriptorPool mDescriptorPool;
@@ -79,7 +79,8 @@ class Renderer {
   std::map<std::string, std::shared_ptr<core::CudaBuffer>> mCudaBuffers;
 #endif
 public:
-  Renderer(core::Context &context, std::shared_ptr<RendererConfig> config);
+  Renderer(std::shared_ptr<core::Context> context,
+           std::shared_ptr<RendererConfig> config);
 
   void setSpecializationConstantInt(std::string const &name, int value);
   void setSpecializationConstantFloat(std::string const &name, float value);

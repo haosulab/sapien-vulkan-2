@@ -51,12 +51,13 @@ bool SVMesh::hasVertexAttribute(std::string const &name) const {
   return mAttributes.find(name) != mAttributes.end();
 }
 
-void SVMesh::uploadToDevice(core::Context &context) {
+void SVMesh::uploadToDevice(std::shared_ptr<core::Context> context) {
   if (!mDirty) {
     return;
   }
+  mContext = context;
 
-  auto layout = context.getResourceManager().getVertexLayout();
+  auto layout = context->getResourceManager()->getVertexLayout();
 
   if (mAttributes.find("position") == mAttributes.end() ||
       mAttributes["position"].size() == 0) {

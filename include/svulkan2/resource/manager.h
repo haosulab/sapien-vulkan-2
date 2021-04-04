@@ -28,7 +28,7 @@ class SVResourceManager {
 
 public:
   SVResourceManager();
-  ~SVResourceManager();
+  ~SVResourceManager() = default;
 
   std::shared_ptr<SVImage> CreateImageFromFile(std::string const &filename,
                                                uint32_t mipLevels);

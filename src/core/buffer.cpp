@@ -4,10 +4,10 @@
 
 namespace svulkan2 {
 namespace core {
-Buffer::Buffer(Context &context, vk::DeviceSize size,
+Buffer::Buffer(std::shared_ptr<Context> context, vk::DeviceSize size,
                vk::BufferUsageFlags usageFlags, VmaMemoryUsage memoryUsage,
                VmaAllocationCreateFlags allocationFlags)
-    : mContext(&context), mSize(size) {
+    : mContext(context), mSize(size) {
 
   vk::BufferCreateInfo bufferInfo({}, size, usageFlags);
 
@@ -24,7 +24,7 @@ Buffer::Buffer(Context &context, vk::DeviceSize size,
   }
 
   VkMemoryPropertyFlags memFlags;
-  vmaGetMemoryTypeProperties(context.getAllocator().getVmaAllocator(),
+  vmaGetMemoryTypeProperties(mContext->getAllocator().getVmaAllocator(),
                              allocInfo.memoryType, &memFlags);
   mHostVisible = (memFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0;
   mHostCoherent = (memFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0;

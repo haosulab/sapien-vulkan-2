@@ -167,12 +167,7 @@ void SVResourceManager::clearCachedResources() {
   mModelRegistry.clear();
   mTextureRegistry.clear();
   mImageRegistry.clear();
-}
-
-SVResourceManager::~SVResourceManager() {
-  mModelRegistry.clear();
-  mTextureRegistry.clear();
-  mImageRegistry.clear();
+  mRandomTextureRegistry.clear();
 }
 
 } // namespace resource

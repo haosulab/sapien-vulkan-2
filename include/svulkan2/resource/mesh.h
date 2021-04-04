@@ -9,6 +9,8 @@ namespace svulkan2 {
 namespace resource {
 
 class SVMesh {
+  std::shared_ptr<core::Context> mContext{};
+
   std::vector<uint32_t> mIndices;
   uint32_t mIndexCount{};
   std::unordered_map<std::string, std::vector<float>> mAttributes;
@@ -29,7 +31,7 @@ public:
   std::vector<float> const &getVertexAttribute(std::string const &name) const;
   bool hasVertexAttribute(std::string const &name) const;
 
-  void uploadToDevice(core::Context &context);
+  void uploadToDevice(std::shared_ptr<core::Context> context);
   void removeFromDevice();
 
   inline bool isOnDevice() const { return mOnDevice; }

@@ -27,53 +27,54 @@ uint32_t findMemoryType(vk::PhysicalDevice physicalDevice,
 }
 
 int getPCIBusIdFromCudaDeviceId(int cudaDeviceId) {
-    static std::unordered_map<int, int> pciBusIdToDeviceId;
+  static std::unordered_map<int, int> pciBusIdToDeviceId;
 
-    if (!pciBusIdToDeviceId.contains(cudaDeviceId)) {
-        int pciBusId;
-        std::string pciBus(20, '\0');
-        cudaDeviceGetPCIBusId(pciBus.data(), 20, cudaDeviceId);
+  if (!pciBusIdToDeviceId.contains(cudaDeviceId)) {
+    int pciBusId;
+    std::string pciBus(20, '\0');
+    cudaDeviceGetPCIBusId(pciBus.data(), 20, cudaDeviceId);
 
-        if (pciBus[0] == '\0')  // invalid cudaDeviceId
-            pciBusId = -1;
-        else {
-            std::stringstream ss;
-            ss << std::hex << pciBus.substr(5, 2);
-            ss >> pciBusId;
-        }
-        pciBusIdToDeviceId[cudaDeviceId] = pciBusId;
+    if (pciBus[0] == '\0') // invalid cudaDeviceId
+      pciBusId = -1;
+    else {
+      std::stringstream ss;
+      ss << std::hex << pciBus.substr(5, 2);
+      ss >> pciBusId;
     }
+    pciBusIdToDeviceId[cudaDeviceId] = pciBusId;
+  }
 
-    return pciBusIdToDeviceId[cudaDeviceId];
+  return pciBusIdToDeviceId[cudaDeviceId];
 }
 
+int getCudaDeviceIdFromPhysicalDevice(const vk::PhysicalDevice &device) {
+  vk::PhysicalDeviceProperties2KHR p2;
+  vk::PhysicalDevicePCIBusInfoPropertiesEXT pciInfo;
+  pciInfo.pNext = p2.pNext;
+  p2.pNext = &pciInfo;
+  device.getProperties2(&p2);
 
-int getCudaDeviceIdFromPhysicalDevice(const vk::PhysicalDevice& device) {
-    vk::PhysicalDeviceProperties2KHR p2;
-    vk::PhysicalDevicePCIBusInfoPropertiesEXT pciInfo;
-    pciInfo.pNext = p2.pNext;
-    p2.pNext = &pciInfo;
-    device.getProperties2(&p2);
+  for (int cudaDeviceId = 0; cudaDeviceId < 20; cudaDeviceId++)
+    if (static_cast<int>(pciInfo.pciBus) ==
+        getPCIBusIdFromCudaDeviceId(cudaDeviceId))
+      return cudaDeviceId;
 
-    for (int cudaDeviceId = 0; cudaDeviceId < 20; cudaDeviceId++)
-        if (static_cast<int>(pciInfo.pciBus) == getPCIBusIdFromCudaDeviceId(cudaDeviceId))
-            return cudaDeviceId;
-
-    return -1;  // should never reach here
+  return -1; // should never reach here
 }
 
-CudaBuffer::CudaBuffer(Context &context, vk::DeviceSize size,
+CudaBuffer::CudaBuffer(std::shared_ptr<Context> context, vk::DeviceSize size,
                        vk::BufferUsageFlags usageFlags)
-    : mContext(&context), mSize(size) {
+    : mContext(context), mSize(size) {
   mMemory = mContext->getDevice().allocateMemoryUnique(vk::MemoryAllocateInfo(
       size, findMemoryType(mContext->getPhysicalDevice(),
                            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)));
   mBuffer = mContext->getDevice().createBufferUnique(
       vk::BufferCreateInfo({}, size, usageFlags));
 
-  context.getDevice().bindBufferMemory(mBuffer.get(), mMemory.get(), 0);
+  mContext->getDevice().bindBufferMemory(mBuffer.get(), mMemory.get(), 0);
 
-  mCudaDeviceId = getCudaDeviceIdFromPhysicalDevice(context.getPhysicalDevice());
+  mCudaDeviceId =
+      getCudaDeviceIdFromPhysicalDevice(mContext->getPhysicalDevice());
 
   cudaExternalMemoryHandleDesc externalMemoryHandleDesc = {};
   externalMemoryHandleDesc.type = cudaExternalMemoryHandleTypeOpaqueFd;

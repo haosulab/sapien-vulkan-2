@@ -38,12 +38,12 @@ static vk::ImageAspectFlags findAspectBitsFromFormat(vk::Format format) {
   throw std::runtime_error("unknown image format");
 }
 
-Image::Image(Context &context, vk::Extent3D extent, vk::Format format,
-             vk::ImageUsageFlags usageFlags, VmaMemoryUsage memoryUsage,
-             vk::SampleCountFlagBits sampleCount, uint32_t mipLevels,
-             uint32_t arrayLayers, vk::ImageTiling tiling,
+Image::Image(std::shared_ptr<Context> context, vk::Extent3D extent,
+             vk::Format format, vk::ImageUsageFlags usageFlags,
+             VmaMemoryUsage memoryUsage, vk::SampleCountFlagBits sampleCount,
+             uint32_t mipLevels, uint32_t arrayLayers, vk::ImageTiling tiling,
              vk::ImageCreateFlags flags)
-    : mContext(&context), mExtent(extent), mFormat(format),
+    : mContext(context), mExtent(extent), mFormat(format),
       mUsageFlags(usageFlags), mSampleCount(sampleCount), mMipLevels(mipLevels),
       mArrayLayers(arrayLayers), mTiling(tiling) {
   vk::ImageCreateInfo imageInfo(flags, findImageTypeFromExtent(mExtent), format,
@@ -54,7 +54,7 @@ Image::Image(Context &context, vk::Extent3D extent, vk::Format format,
 
   VmaAllocationInfo allocInfo;
 
-  if (vmaCreateImage(context.getAllocator().getVmaAllocator(),
+  if (vmaCreateImage(mContext->getAllocator().getVmaAllocator(),
                      reinterpret_cast<VkImageCreateInfo *>(&imageInfo),
                      &memoryInfo, reinterpret_cast<VkImage *>(&mImage),
                      &mAllocation, &allocInfo) != VK_SUCCESS) {
@@ -62,7 +62,7 @@ Image::Image(Context &context, vk::Extent3D extent, vk::Format format,
   }
 
   VkMemoryPropertyFlags memFlags;
-  vmaGetMemoryTypeProperties(context.getAllocator().getVmaAllocator(),
+  vmaGetMemoryTypeProperties(mContext->getAllocator().getVmaAllocator(),
                              allocInfo.memoryType, &memFlags);
   mHostVisible = (memFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0;
   mHostCoherent = (memFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0;

@@ -13,13 +13,15 @@ class SVMaterial {
 protected:
   bool mRequiresBufferUpload{true};
   bool mRequiresTextureUpload{true};
+
+  std::shared_ptr<core::Context> mContext{};
   vk::UniqueDescriptorSet mDescriptorSet;
 
 public:
   inline vk::DescriptorSet getDescriptorSet() const {
     return mDescriptorSet.get();
   }
-  virtual void uploadToDevice(core::Context &context) = 0;
+  virtual void uploadToDevice(std::shared_ptr<core::Context> context) = 0;
   virtual float getOpacity() const = 0;
   virtual ~SVMaterial() = default;
 };
@@ -64,7 +66,7 @@ public:
                    std::shared_ptr<SVTexture> normalTexture,
                    std::shared_ptr<SVTexture> metallicTexture);
 
-  virtual void uploadToDevice(core::Context &context) override;
+  virtual void uploadToDevice(std::shared_ptr<core::Context> context) override;
   inline float getOpacity() const override { return mBuffer.baseColor.a; }
 };
 
@@ -80,7 +82,6 @@ class SVSpecularMaterial : public SVMaterial {
   std::shared_ptr<SVTexture> mNormalTexture;
 
   std::unique_ptr<core::Buffer> mDeviceBuffer;
-
 public:
   inline SVSpecularMaterial(glm::vec4 diffuse = {0, 0, 0, 1},
                             glm::vec4 specular = {0, 0, 0, 0},
@@ -92,7 +93,7 @@ public:
                    std::shared_ptr<SVTexture> specularTexture,
                    std::shared_ptr<SVTexture> normalTexture);
 
-  virtual void uploadToDevice(core::Context &context) override;
+  virtual void uploadToDevice(std::shared_ptr<core::Context> context) override;
   inline float getOpacity() const override { return mBuffer.diffuse.a; }
 };
 

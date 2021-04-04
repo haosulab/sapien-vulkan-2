@@ -128,15 +128,16 @@ void SVSpecularMaterial::setTextures(std::shared_ptr<SVTexture> diffuseTexture,
   }
 }
 
-void SVMetallicMaterial::uploadToDevice(core::Context &context) {
+void SVMetallicMaterial::uploadToDevice(std::shared_ptr<core::Context> context) {
+  mContext = context;
   if (!mDeviceBuffer) {
-    mDeviceBuffer = context.getAllocator().allocateUniformBuffer(
+    mDeviceBuffer = context->getAllocator().allocateUniformBuffer(
         sizeof(SVMetallicMaterial::Buffer));
-    auto layout = context.getMetallicDescriptorSetLayout();
+    auto layout = context->getMetallicDescriptorSetLayout();
     mDescriptorSet = std::move(
-        context.getDevice()
+        context->getDevice()
             .allocateDescriptorSetsUnique(vk::DescriptorSetAllocateInfo(
-                context.getDescriptorPool(), 1, &layout))
+                context->getDescriptorPool(), 1, &layout))
             .front());
   }
 
@@ -146,7 +147,7 @@ void SVMetallicMaterial::uploadToDevice(core::Context &context) {
   }
 
   if (mRequiresTextureUpload) {
-    auto defaultTexture = context.getResourceManager().getDefaultTexture();
+    auto defaultTexture = context->getResourceManager()->getDefaultTexture();
     std::vector<std::tuple<vk::ImageView, vk::Sampler>> textures;
     if (mBaseColorTexture) {
       mBaseColorTexture->uploadToDevice(context);
@@ -184,7 +185,7 @@ void SVMetallicMaterial::uploadToDevice(core::Context &context) {
       textures.push_back(
           {defaultTexture->getImageView(), defaultTexture->getSampler()});
     }
-    updateDescriptorSets(context.getDevice(), mDescriptorSet.get(),
+    updateDescriptorSets(context->getDevice(), mDescriptorSet.get(),
                          {{vk::DescriptorType::eUniformBuffer,
                            mDeviceBuffer->getVulkanBuffer(), nullptr}},
                          textures, 0);
@@ -192,15 +193,16 @@ void SVMetallicMaterial::uploadToDevice(core::Context &context) {
   }
 }
 
-void SVSpecularMaterial::uploadToDevice(core::Context &context) {
+void SVSpecularMaterial::uploadToDevice(std::shared_ptr<core::Context> context) {
+  mContext = context;
   if (!mDeviceBuffer) {
-    mDeviceBuffer = context.getAllocator().allocateUniformBuffer(
+    mDeviceBuffer = context->getAllocator().allocateUniformBuffer(
         sizeof(SVSpecularMaterial::Buffer));
-    auto layout = context.getSpecularDescriptorSetLayout();
+    auto layout = context->getSpecularDescriptorSetLayout();
     mDescriptorSet = std::move(
-        context.getDevice()
+        context->getDevice()
             .allocateDescriptorSetsUnique(vk::DescriptorSetAllocateInfo(
-                context.getDescriptorPool(), 1, &layout))
+                context->getDescriptorPool(), 1, &layout))
             .front());
   }
 
@@ -210,7 +212,7 @@ void SVSpecularMaterial::uploadToDevice(core::Context &context) {
   }
 
   if (mRequiresTextureUpload) {
-    auto defaultTexture = context.getResourceManager().getDefaultTexture();
+    auto defaultTexture = context->getResourceManager()->getDefaultTexture();
     std::vector<std::tuple<vk::ImageView, vk::Sampler>> textures;
     if (mDiffuseTexture) {
       mDiffuseTexture->uploadToDevice(context);
@@ -239,11 +241,11 @@ void SVSpecularMaterial::uploadToDevice(core::Context &context) {
       textures.push_back(
           {defaultTexture->getImageView(), defaultTexture->getSampler()});
     }
-    updateDescriptorSets(context.getDevice(), mDescriptorSet.get(),
+    updateDescriptorSets(context->getDevice(), mDescriptorSet.get(),
                          {{vk::DescriptorType::eUniformBuffer,
                            mDeviceBuffer->getVulkanBuffer(), nullptr}},
                          {}, 0);
-    updateDescriptorSets(context.getDevice(), mDescriptorSet.get(),
+    updateDescriptorSets(context->getDevice(), mDescriptorSet.get(),
                          {{vk::DescriptorType::eUniformBuffer,
                            mDeviceBuffer->getVulkanBuffer(), nullptr}},
                          textures, 0);

@@ -9,16 +9,16 @@ TEST(ResourceManager, Creation) { SVResourceManager manager; }
 
 TEST(ResourceManager, Image) {
   core::Context context;
-  auto &manager = context.getResourceManager();
-  manager.setMaterialPipelineType(ShaderConfig::MaterialPipeline::eMETALLIC);
+  auto manager = context.createResourceManager();
+  manager->setMaterialPipelineType(ShaderConfig::MaterialPipeline::eMETALLIC);
   auto layout = std::make_shared<InputDataLayout>();
   layout->elements["position"] = {
       .name = "position", .location = 0, .dtype = eFLOAT3};
   layout->elements["normal"] = {
       .name = "normal", .location = 1, .dtype = eFLOAT3};
-  manager.setVertexLayout(layout);
+  manager->setVertexLayout(layout);
 
-  auto img = manager.CreateImageFromFile("../test/assets/image/4x2.png", 1);
+  auto img = manager->CreateImageFromFile("../test/assets/image/4x2.png", 1);
   ASSERT_FALSE(img->isLoaded());
   img->load();
   ASSERT_TRUE(img->isLoaded());

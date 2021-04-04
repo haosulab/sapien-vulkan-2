@@ -17,7 +17,7 @@ SVRenderTarget::SVRenderTarget(std::string const &name, uint32_t width,
       mImage(image), mImageView(std::move(imageView)),
       mSampler(std::move(sampler)) {}
 
-void SVRenderTarget::createDeviceResources(core::Context &context) {
+void SVRenderTarget::createDeviceResources(std::shared_ptr<core::Context> context) {
   bool isDepth = false;
   vk::ImageUsageFlags usage;
   if (mFormat == vk::Format::eR8G8B8A8Unorm ||
@@ -52,8 +52,8 @@ void SVRenderTarget::createDeviceResources(core::Context &context) {
       vk::ImageSubresourceRange(isDepth ? vk::ImageAspectFlagBits::eDepth
                                         : vk::ImageAspectFlagBits::eColor,
                                 0, 1, 0, 1));
-  mImageView = context.getDevice().createImageViewUnique(info);
-  mSampler = context.getDevice().createSamplerUnique(vk::SamplerCreateInfo(
+  mImageView = context->getDevice().createImageViewUnique(info);
+  mSampler = context->getDevice().createSamplerUnique(vk::SamplerCreateInfo(
       {}, vk::Filter::eNearest, vk::Filter::eNearest,
       vk::SamplerMipmapMode::eNearest, vk::SamplerAddressMode::eClampToEdge,
       vk::SamplerAddressMode::eClampToEdge,

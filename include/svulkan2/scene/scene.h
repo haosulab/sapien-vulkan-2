@@ -53,8 +53,6 @@ public:
   void clearNodes();
   void forceRemove();
 
-  void prepareDeviceResources(core::Context &context);
-
   inline void setAmbientLight(glm::vec4 const &color) { mAmbientLight = color; }
   inline glm::vec4 getAmbientLight() const { return mAmbientLight; };
 

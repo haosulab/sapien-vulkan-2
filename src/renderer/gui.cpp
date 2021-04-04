@@ -41,13 +41,13 @@ static vk::UniqueRenderPass createImguiRenderPass(vk::Device device,
   return device.createRenderPassUnique(info);
 }
 
-GuiWindow::GuiWindow(core::Context &context,
+GuiWindow::GuiWindow(std::shared_ptr<core::Context> context,
                      std::vector<vk::Format> const &requestFormats,
                      vk::ColorSpaceKHR requestColorSpace, uint32_t width,
                      uint32_t height,
                      std::vector<vk::PresentModeKHR> const &requestModes,
                      uint32_t minImageCount)
-    : mContext(&context), mMinImageCount(minImageCount) {
+    : mContext(context), mMinImageCount(minImageCount) {
   createGlfwWindow(width, height);
   selectSurfaceFormat(requestFormats, requestColorSpace);
   selectPresentMode(requestModes);
@@ -229,7 +229,7 @@ void GuiWindow::initImgui() {
       float yscale = 0.f;
       glfwGetMonitorContentScale(monitors[i], &xscale, &yscale);
       log::info("Monitor {} scale: {}", i, xscale);
-      assert(xscale == yscale);  // this should always be true
+      assert(xscale == yscale); // this should always be true
       mContentScale = std::max(yscale, std::max(xscale, mContentScale));
     }
     if (mContentScale < 0.1f) {

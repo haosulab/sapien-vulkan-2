@@ -6,18 +6,18 @@ namespace svulkan2 {
 namespace core {
 
 class Allocator {
-  class Context *mContext;
+  class Context &mContext;
   VmaAllocator mMemoryAllocator;
 
 public:
-  Allocator(class Context &context, VmaAllocatorCreateInfo const &info);
+  Allocator(Context &context, VmaAllocatorCreateInfo const &info);
   ~Allocator();
   Allocator(Allocator &other) = delete;
-  Allocator(Allocator &&other) = default;
+  Allocator(Allocator &&other) = delete;
   Allocator &operator=(Allocator &other) = delete;
-  Allocator &operator=(Allocator &&other) = default;
+  Allocator &operator=(Allocator &&other) = delete;
 
-  inline Context &getContext() const { return *mContext; }
+  std::shared_ptr<class Context> getContext() const;
   VmaAllocator getVmaAllocator() const { return mMemoryAllocator; }
 
 public:

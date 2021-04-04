@@ -24,6 +24,7 @@ struct SVCubemapDescription {
 };
 
 class SVCubemap {
+  std::shared_ptr<core::Context> mContext{};
   SVCubemapDescription mDescription;
   std::shared_ptr<SVImage> mImage;
 
@@ -53,7 +54,7 @@ public:
       vk::SamplerAddressMode addressModeU = vk::SamplerAddressMode::eRepeat,
       vk::SamplerAddressMode addressModeV = vk::SamplerAddressMode::eRepeat);
 
-  void uploadToDevice(core::Context &context);
+  void uploadToDevice(std::shared_ptr<core::Context> context);
   void removeFromDevice();
 
   inline bool isOnDevice() const { return mOnDevice && mImage->isOnDevice(); }

@@ -104,10 +104,11 @@ SVImage::FromFile(std::vector<std::string> const &filenames,
   return image;
 }
 
-void SVImage::uploadToDevice(core::Context &context) {
+void SVImage::uploadToDevice(std::shared_ptr<core::Context> context) {
   if (mOnDevice) {
     return;
   }
+  mContext = context;
   if (!mLoaded) {
     throw std::runtime_error(
         "failed to upload to device: image does not exist in memory");

@@ -70,6 +70,8 @@ target_link_libraries(svulkan2 ${ASSIMP_LIBRARIES} glfw3 dl pthread Vulkan::Vulk
     ${EASY_PROFILER_LIBRARIES})
 
 if (${SVULKAN2_CUDA_INTEROP})
+    include_directories("3rd_party/cuda_include")
+    link_directories("3rd_party/cuda_lib")
     target_link_libraries(svulkan2 cudart_static rt)
 endif()
 

@@ -8,7 +8,7 @@
 namespace svulkan2 {
 namespace core {
 
-class Context {
+class Context : public std::enable_shared_from_this<Context> {
   uint32_t mApiVersion;
   bool mVulkanAvailable;
   bool mPresent;
@@ -26,13 +26,19 @@ class Context {
 
   uint32_t mMaxNumMaterials;
   uint32_t mMaxNumTextures;
+  uint32_t mDefaultMipLevels;
 
-  std::unique_ptr<resource::SVResourceManager> mResourceManager;
+  std::weak_ptr<resource::SVResourceManager> mResourceManager;
 
   vk::UniqueDescriptorSetLayout mMetallicDescriptorSetLayout;
   vk::UniqueDescriptorSetLayout mSpecularDescriptorSetLayout;
 
 public:
+  static std::shared_ptr<Context>
+  Create(uint32_t apiVersion = VK_API_VERSION_1_1, bool present = true,
+         uint32_t maxNumMaterials = 5000, uint32_t maxNumTextures = 5000,
+         uint32_t defaultMipLevels = 1);
+
   Context(uint32_t apiVersion = VK_API_VERSION_1_1, bool present = true,
           uint32_t maxNumMaterials = 5000, uint32_t maxNumTextures = 5000,
           uint32_t defaultMipLevels = 1);
@@ -68,9 +74,8 @@ public:
   inline vk::DescriptorSetLayout getSpecularDescriptorSetLayout() const {
     return mSpecularDescriptorSetLayout.get();
   }
-  inline resource::SVResourceManager &getResourceManager() const {
-    return *mResourceManager;
-  }
+  std::shared_ptr<resource::SVResourceManager> getResourceManager() const;
+  std::shared_ptr<resource::SVResourceManager> createResourceManager();
 
   std::unique_ptr<renderer::GuiWindow> createWindow(uint32_t width,
                                                     uint32_t height);
