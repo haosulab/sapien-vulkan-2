@@ -51,8 +51,7 @@ void Camera::setPerspectiveParameters(float near, float far, float fovy,
   mFar = far;
   mFovy = fovy;
   mAspect = aspect;
-  mProjectionMatrix = glm::perspective(fovy, aspect, near, far);
-  mProjectionMatrix[1][1] *= -1;
+  mProjectionMatrix = math::perspective(fovy, aspect, near, far);
 }
 
 void Camera::setOrthographicParameters(float near, float far, float aspect,
@@ -63,9 +62,8 @@ void Camera::setOrthographicParameters(float near, float far, float aspect,
   mFar = far;
   mAspect = aspect;
   mScaling = scaling;
-  mProjectionMatrix = glm::ortho(-scaling * aspect, scaling * aspect, -scaling,
-                                 scaling, near, far);
-  mProjectionMatrix[1][1] *= -1;
+  mProjectionMatrix = math::ortho(-scaling * aspect, scaling * aspect, -scaling,
+                                  scaling, near, far);
 }
 
 void Camera::uploadToDevice(core::Buffer &cameraBuffer, uint32_t width,

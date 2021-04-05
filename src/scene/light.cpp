@@ -43,8 +43,7 @@ void PointLight::setShadowParameters(float near, float far) {
 
 glm::mat4 PointLight::getShadowProjectionMatrix() const {
   auto mat =
-      glm::perspective(glm::pi<float>() / 2.f, 1.f, mShadowNear, mShadowFar);
-  mat[1][1] *= -1;
+      math::perspective(glm::pi<float>() / 2.f, 1.f, mShadowNear, mShadowFar);
   return mat;
 }
 
@@ -76,10 +75,8 @@ void DirectionalLight::setShadowParameters(float near, float far,
 }
 
 glm::mat4 DirectionalLight::getShadowProjectionMatrix() const {
-  auto mat = glm::ortho(-mShadowScaling, mShadowScaling, -mShadowScaling,
-                        mShadowScaling, mShadowNear, mShadowFar);
-  mat[1][1] *= -1;
-  return mat;
+  return math::ortho(-mShadowScaling, mShadowScaling, -mShadowScaling,
+                     mShadowScaling, mShadowNear, mShadowFar);
 }
 
 CustomLight::CustomLight(std::string const &name) : Node(name) {}

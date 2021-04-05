@@ -113,7 +113,7 @@ int main() {
 
   // auto &customLight = scene.addCustomLight(cameraNode);
   // customLight.setTransform({.position = {0.1, 0, 0}});
-  // customLight.setShadowProjectionMatrix(glm::perspective(0.7f, 1.f,
+  // customLight.setShadowProjectionMatrix(math::perspective(0.7f, 1.f,
   // 0.1f, 5.f));
 
   // renderer.setCustomTexture("LightMap",
