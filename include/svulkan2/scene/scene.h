@@ -15,6 +15,7 @@ class Scene {
   std::vector<std::unique_ptr<Camera>> mCameras{};
   std::vector<std::unique_ptr<PointLight>> mPointLights{};
   std::vector<std::unique_ptr<DirectionalLight>> mDirectionalLights{};
+  std::vector<std::unique_ptr<SpotLight>> mSpotLights{};
   std::vector<std::unique_ptr<CustomLight>> mCustomLights{};
 
   Node *mRootNode{nullptr};
@@ -46,6 +47,9 @@ public:
   DirectionalLight &addDirectionalLight();
   DirectionalLight &addDirectionalLight(Node &parent);
 
+  SpotLight &addSpotLight();
+  SpotLight &addSpotLight(Node &parent);
+
   CustomLight &addCustomLight();
   CustomLight &addCustomLight(Node &parent);
 
@@ -60,6 +64,7 @@ public:
   std::vector<Camera *> getCameras();
   std::vector<PointLight *> getPointLights();
   std::vector<DirectionalLight *> getDirectionalLights();
+  std::vector<SpotLight *> getSpotLights();
   std::vector<CustomLight *> getCustomLights();
 
   Scene();

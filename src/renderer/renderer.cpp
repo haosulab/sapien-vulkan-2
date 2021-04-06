@@ -92,6 +92,7 @@ void Renderer::prepareShadowRenderTargets() {
 
   mDirectionalShadowWriteTargets.clear();
   mPointShadowWriteTargets.clear();
+  mSpotShadowWriteTargets.clear();
   mCustomShadowWriteTargets.clear();
 
   auto commandBuffer = mContext->createCommandBuffer();
@@ -206,6 +207,55 @@ void Renderer::prepareShadowRenderTargets() {
   }
 
   {
+    uint32_t size = mNumSpotLightShadows ? shadowSize : 1;
+    uint32_t num = mNumSpotLightShadows ? mNumSpotLightShadows : 1;
+    auto spotShadowImage = std::make_shared<core::Image>(
+        mContext, vk::Extent3D{size, size, 1}, format,
+        vk::ImageUsageFlagBits::eDepthStencilAttachment |
+            vk::ImageUsageFlagBits::eSampled,
+        VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, vk::SampleCountFlagBits::e1,
+        1, num);
+
+    spotShadowImage->transitionLayout(
+        commandBuffer.get(), vk::ImageLayout::eUndefined,
+        vk::ImageLayout::eShaderReadOnlyOptimal, {},
+        vk::AccessFlagBits::eShaderRead,
+        vk::PipelineStageFlagBits::eBottomOfPipe,
+        vk::PipelineStageFlagBits::eFragmentShader);
+
+    vk::ImageViewCreateInfo viewInfo(
+        {}, spotShadowImage->getVulkanImage(), vk::ImageViewType::e2DArray,
+        format, componentMapping,
+        vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eDepth, 0, 1, 0,
+                                  num));
+    auto imageView = mContext->getDevice().createImageViewUnique(viewInfo);
+    auto sampler = mContext->getDevice().createSamplerUnique(
+        vk::SamplerCreateInfo({}, vk::Filter::eLinear, vk::Filter::eLinear,
+                              vk::SamplerMipmapMode::eNearest,
+                              vk::SamplerAddressMode::eClampToBorder,
+                              vk::SamplerAddressMode::eClampToBorder,
+                              vk::SamplerAddressMode::eClampToBorder, 0.f,
+                              false, 0.f, false, vk::CompareOp::eNever, 0.f,
+                              0.f, vk::BorderColor::eFloatOpaqueWhite));
+    mSpotShadowReadTarget = std::make_shared<resource::SVRenderTarget>(
+        "SpotShadow", size, size, spotShadowImage, std::move(imageView),
+        std::move(sampler));
+
+    for (uint32_t shadowIndex = 0; shadowIndex < num; ++shadowIndex) {
+      vk::ImageViewCreateInfo viewInfo(
+          {}, spotShadowImage->getVulkanImage(), vk::ImageViewType::e2D, format,
+          componentMapping,
+          vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eDepth, 0, 1,
+                                    shadowIndex, 1));
+      auto imageView = mContext->getDevice().createImageViewUnique(viewInfo);
+      auto renderTarget = std::make_shared<resource::SVRenderTarget>(
+          "SpotShadow", size, size, spotShadowImage, std::move(imageView),
+          vk::UniqueSampler{});
+      mSpotShadowWriteTargets.push_back(renderTarget);
+    }
+  }
+
+  {
     uint32_t size = mNumCustomShadows ? shadowSize : 1;
     uint32_t num = mNumCustomShadows ? mNumCustomShadows : 1;
     auto customShadowImage = std::make_shared<core::Image>(
@@ -299,6 +349,8 @@ void Renderer::prepareShadowFramebuffers() {
                      mNumDirectionalLightShadows);
   targets.insert(targets.end(), mPointShadowWriteTargets.begin(),
                  mPointShadowWriteTargets.begin() + mNumPointLightShadows * 6);
+  targets.insert(targets.end(), mSpotShadowWriteTargets.begin(),
+                 mSpotShadowWriteTargets.begin() + mNumSpotLightShadows);
   targets.insert(targets.end(), mCustomShadowWriteTargets.begin(),
                  mCustomShadowWriteTargets.begin() + mNumCustomShadows);
   for (auto &target : targets) {
@@ -382,7 +434,7 @@ void Renderer::recordShadows(scene::Scene &scene) {
 
     for (uint32_t shadowIdx = 0;
          shadowIdx < mNumDirectionalLightShadows + 6 * mNumPointLightShadows +
-                         mNumCustomShadows;
+                         mNumSpotLightShadows + mNumCustomShadows;
          ++shadowIdx) {
       vk::RenderPassBeginInfo renderPassBeginInfo{
           shadowPass->getRenderPass(), mShadowFramebuffers[shadowIdx].get(),
@@ -625,11 +677,14 @@ void Renderer::render(scene::Camera &camera,
   if (mRequiresRecord) {
     auto pointLights = mScene->getPointLights();
     auto directionalLights = mScene->getDirectionalLights();
+    auto spotLights = mScene->getSpotLights();
     int numPointLights = pointLights.size();
     int numDirectionalLights = directionalLights.size();
+    int numSpotLights = spotLights.size();
 
     mNumPointLightShadows = 0;
     mNumDirectionalLightShadows = 0;
+    mNumSpotLightShadows = 0;
     mNumCustomShadows = mScene->getCustomLights().size();
 
     for (auto l : pointLights) {
@@ -640,6 +695,11 @@ void Renderer::render(scene::Camera &camera,
     for (auto l : directionalLights) {
       if (l->isShadowEnabled()) {
         mNumDirectionalLightShadows += 1;
+      }
+    }
+    for (auto l : spotLights) {
+      if (l->isShadowEnabled()) {
+        mNumSpotLightShadows += 1;
       }
     }
 
@@ -657,10 +717,15 @@ void Renderer::render(scene::Camera &camera,
     setSpecializationConstantInt("NUM_POINT_LIGHTS", numPointLights);
     setSpecializationConstantInt("NUM_DIRECTIONAL_LIGHTS",
                                  numDirectionalLights);
+    setSpecializationConstantInt("NUM_SPOT_LIGHTS", numSpotLights);
+
     setSpecializationConstantInt("NUM_POINT_LIGHT_SHADOWS",
                                  mNumPointLightShadows);
     setSpecializationConstantInt("NUM_DIRECTIONAL_LIGHT_SHADOWS",
                                  mNumDirectionalLightShadows);
+    setSpecializationConstantInt("NUM_SPOT_LIGHT_SHADOWS",
+                                 mNumSpotLightShadows);
+
     setSpecializationConstantInt("NUM_CUSTOM_LIGHT_SHADOWS", mNumCustomShadows);
   }
 
@@ -903,6 +968,11 @@ void Renderer::prepareSceneBuffer() {
                            {{mDirectionalShadowReadTarget->getImageView(),
                              mDirectionalShadowReadTarget->getSampler()}},
                            bindingIndex);
+    } else if (binding.name == "samplerSpotLightDepths") {
+      updateDescriptorSets(mContext->getDevice(), mSceneSet.get(), {},
+                           {{mSpotShadowReadTarget->getImageView(),
+                             mSpotShadowReadTarget->getSampler()}},
+                           bindingIndex);
     } else if (binding.name == "samplerCustomLightDepths") {
       updateDescriptorSets(mContext->getDevice(), mSceneSet.get(), {},
                            {{mCustomShadowReadTarget->getImageView(),
@@ -963,7 +1033,8 @@ void Renderer::prepareObjectBuffers(uint32_t numObjects) {
 void Renderer::prepareLightBuffers() {
   auto lightBufferLayout = mShaderManager->getShaderConfig()->lightBufferLayout;
   uint32_t numShadows = mNumPointLightShadows * 6 +
-                        mNumDirectionalLightShadows + mNumCustomShadows;
+                        mNumDirectionalLightShadows + mNumSpotLightShadows +
+                        mNumCustomShadows;
   // too many shadow sets
   if (numShadows * 2 < mLightSets.size()) {
     uint32_t newSize = numShadows;

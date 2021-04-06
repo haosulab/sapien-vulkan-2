@@ -46,6 +46,10 @@ void DeferredPassParser::validate() const {
           CONTAINS(mSpecializationConstantLayout->elements, "NUM_POINT_LIGHTS"),
           "[frag]NUM_POINT_LIGHTS is a required specialization "
           "constant when using SceneBuffer");
+      ASSERT(
+          CONTAINS(mSpecializationConstantLayout->elements, "NUM_SPOT_LIGHTS"),
+          "[frag]NUM_SPOT_LIGHTS is a required specialization "
+          "constant when using SceneBuffer");
     }
   }
 

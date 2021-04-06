@@ -1,10 +1,52 @@
 #include "svulkan2/shader/glsl_compiler.h"
+#include "svulkan2/common/fs.h"
 #include "svulkan2/common/log.h"
+#include <glslang/SPIRV/GlslangToSpv.h>
 #include <glslang/Public/ShaderLang.h>
-#include <SPIRV/GlslangToSpv.h>
 #include <vulkan/vulkan.hpp>
 
 namespace svulkan2 {
+
+std::string GLSLCompiler::loadGlslCode(fs::path const &filepath) {
+  std::vector<char> charCode = readFile(filepath);
+  std::string code{charCode.begin(), charCode.end()};
+  std::istringstream iss(code);
+  std::string result;
+
+  for (std::string line; std::getline(iss, line);) {
+    // left trim
+    line.erase(line.begin(),
+               std::find_if(line.begin(), line.end(), [](unsigned char ch) {
+                 return !std::isspace(ch);
+               }));
+
+    if (line.starts_with("#include") && std::isspace(line[8])) {
+      line = line.substr(8);
+
+      // lr trim
+      line.erase(line.begin(),
+                 std::find_if(line.begin(), line.end(), [](unsigned char ch) {
+                   return !std::isspace(ch);
+                 }));
+      line.erase(
+          std::find_if(line.rbegin(), line.rend(),
+                       [](unsigned char ch) { return !std::isspace(ch); })
+              .base(),
+          line.end());
+      if (line.size() >= 2 && line[0] == '"' && line[line.size() - 1] == '"') {
+        std::string filename = line.substr(1, line.size() - 2);
+        auto includePath = filepath.parent_path() / filename;
+        result += loadGlslCode(includePath) + "\n";
+
+      } else {
+        throw std::runtime_error("ill-formed include: " + line);
+      }
+    } else {
+      result += line + "\n";
+    }
+  }
+  return result;
+}
 
 static TBuiltInResource GetDefaultTBuiltInResource() {
   TBuiltInResource Resources;
@@ -131,12 +173,10 @@ void GLSLCompiler::FinalizeProcess() { glslang::FinalizeProcess(); }
 
 std::vector<std::uint32_t>
 GLSLCompiler::compileToSpirv(vk::ShaderStageFlagBits shaderStage,
-                             std::vector<char> const &glslCode) {
-
+                             std::string const &glslCode) {
   EShLanguage language = GetEShLanguage(shaderStage);
   glslang::TShader shader(language);
-  std::string code(glslCode.begin(), glslCode.end());
-  const char *codes[1] = {code.c_str()};
+  const char *codes[1] = {glslCode.c_str()};
 
   shader.setStrings(codes, 1);
   shader.setEnvInput(glslang::EShSourceGlsl, GetEShLanguage(shaderStage),

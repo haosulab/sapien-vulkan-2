@@ -27,6 +27,7 @@ class Renderer {
   // shadow targets ================================
   uint32_t mNumPointLightShadows{};
   uint32_t mNumDirectionalLightShadows{};
+  uint32_t mNumSpotLightShadows{};
   uint32_t mNumCustomShadows{};
   std::shared_ptr<resource::SVRenderTarget> mDirectionalShadowReadTarget;
   std::vector<std::shared_ptr<resource::SVRenderTarget>>
@@ -35,6 +36,10 @@ class Renderer {
   std::shared_ptr<resource::SVRenderTarget> mPointShadowReadTarget;
   std::vector<std::shared_ptr<resource::SVRenderTarget>>
       mPointShadowWriteTargets;
+
+  std::shared_ptr<resource::SVRenderTarget> mSpotShadowReadTarget;
+  std::vector<std::shared_ptr<resource::SVRenderTarget>>
+  mSpotShadowWriteTargets;
 
   std::shared_ptr<resource::SVRenderTarget> mCustomShadowReadTarget;
   std::vector<std::shared_ptr<resource::SVRenderTarget>>

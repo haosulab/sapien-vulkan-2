@@ -20,7 +20,7 @@ Buffer::Buffer(std::shared_ptr<Context> context, vk::DeviceSize size,
                       reinterpret_cast<VkBufferCreateInfo *>(&bufferInfo),
                       &memoryInfo, reinterpret_cast<VkBuffer *>(&mBuffer),
                       &mAllocation, &allocInfo) != VK_SUCCESS) {
-    throw std::runtime_error("cannot create image");
+    throw std::runtime_error("cannot create buffer");
   }
 
   VkMemoryPropertyFlags memFlags;

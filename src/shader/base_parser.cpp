@@ -425,6 +425,8 @@ void verifySceneBuffer(std::shared_ptr<StructDataLayout> layout) {
          "scene buffer requires variable ambientLight");
   ASSERT(CONTAINS(layout->elements, "directionalLights"),
          "scene buffer requires variable directionalLights");
+  ASSERT(CONTAINS(layout->elements, "spotLights"),
+         "scene buffer requires variable spotLights");
   ASSERT(CONTAINS(layout->elements, "pointLights"),
          "scene buffer requires variable pointLights");
 
@@ -450,6 +452,30 @@ void verifySceneBuffer(std::shared_ptr<StructDataLayout> layout) {
                      .dtype == eFLOAT4,
          "directional lights in scene buffer must be an array of {vec4 "
          "direction; vec4 emission;}");
+
+  ASSERT(layout->elements["spotLights"].dtype == eSTRUCT,
+         "scene spotLights should be struct");
+
+  ASSERT(
+      layout->elements["spotLights"].member->elements.size() == 3 &&
+          CONTAINS(layout->elements["spotLights"].member->elements,
+                   "position") &&
+          layout->elements["spotLights"].member->elements["position"].offset ==
+              0 &&
+          layout->elements["spotLights"].member->elements["position"].dtype ==
+              eFLOAT4 &&
+          CONTAINS(layout->elements["spotLights"].member->elements,
+                   "direction") &&
+          layout->elements["spotLights"].member->elements["direction"].offset ==
+              16 &&
+          layout->elements["spotLights"].member->elements["direction"].dtype ==
+              eFLOAT4 &&
+          CONTAINS(layout->elements["spotLights"].member->elements,
+                   "emission") &&
+          layout->elements["spotLights"].member->elements["emission"].dtype ==
+              eFLOAT4,
+      "spot lights in scene buffer must be an array of {vec4 "
+      "direction; vec4 emission;}");
 
   ASSERT(
       layout->elements["pointLights"].member->elements.size() == 2 &&
@@ -665,21 +691,21 @@ getDescriptorSetDescription(spirv_cross::Compiler &compiler,
 std::future<void> BaseParser::loadGLSLFilesAsync(std::string const &vertFile,
                                                  std::string const &fragFile) {
   return std::async(std::launch::async,
-                    [=]() { loadGLSLFiles(vertFile, fragFile); });
+                    [=, this]() { loadGLSLFiles(vertFile, fragFile); });
 }
 
 void BaseParser::loadGLSLFiles(std::string const &vertFile,
                                std::string const &fragFile) {
-  GLSLCompiler compiler;
   log::info("Compiling: " + vertFile);
-  mVertSPVCode = compiler.compileToSpirv(vk::ShaderStageFlagBits::eVertex,
-                                         readFile(vertFile));
+  mVertSPVCode = GLSLCompiler::compileToSpirv(
+      vk::ShaderStageFlagBits::eVertex, GLSLCompiler::loadGlslCode(vertFile));
   log::info("Compiled: " + vertFile);
 
   if (fragFile.length()) {
     log::info("Compiling: " + fragFile);
-    mFragSPVCode = compiler.compileToSpirv(vk::ShaderStageFlagBits::eFragment,
-                                           readFile(fragFile));
+    mFragSPVCode =
+        GLSLCompiler::compileToSpirv(vk::ShaderStageFlagBits::eFragment,
+                                     GLSLCompiler::loadGlslCode(fragFile));
     log::info("Compiled: " + fragFile);
   }
 

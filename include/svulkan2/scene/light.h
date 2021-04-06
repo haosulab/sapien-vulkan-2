@@ -56,5 +56,27 @@ public:
   };
 };
 
+class SpotLight : public Node {
+  glm::vec4 mColor{0, 0, 0, 1};
+  bool mCastShadow{};
+  float mShadowNear{0};
+  float mShadowFar{10};
+  float mFov = 1.5708;
+
+public:
+  SpotLight(std::string const &name = "");
+  inline void setColor(glm::vec4 const &color) { mColor = color; }
+  inline glm::vec4 getColor() const { return mColor; }
+  void enableShadow(bool enable);
+  inline bool isShadowEnabled() const { return mCastShadow; }
+  void setShadowParameters(float near, float far);
+  void setDirection(glm::vec3 const &dir);
+  glm::vec3 getDirection() const;
+  void setFov(float fov);
+  float getFov() const;
+
+  glm::mat4 getShadowProjectionMatrix() const;
+};
+
 } // namespace scene
 } // namespace svulkan2

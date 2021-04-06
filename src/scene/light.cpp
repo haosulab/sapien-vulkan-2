@@ -58,7 +58,7 @@ void DirectionalLight::setDirection(glm::vec3 const &dir) {
   auto z = -glm::normalize(dir);
   glm::vec3 x(1, 0, 0);
   glm::vec3 y;
-  if (std::abs(glm::dot(z, x)) > 0.05) {
+  if (std::abs(glm::dot(z, x)) < 0.95) {
     y = glm::normalize(glm::cross(z, x));
   } else {
     y = glm::normalize(glm::cross(z, glm::vec3(0, 1, 0)));
@@ -80,6 +80,44 @@ glm::mat4 DirectionalLight::getShadowProjectionMatrix() const {
 }
 
 CustomLight::CustomLight(std::string const &name) : Node(name) {}
+
+SpotLight::SpotLight(std::string const &name) : Node(name){};
+void SpotLight::enableShadow(bool enable) {
+  mCastShadow = enable;
+  mScene->reorderLights();
+}
+
+void SpotLight::setShadowParameters(float near, float far) {
+  mShadowNear = near;
+  mShadowFar = far;
+}
+
+void SpotLight::setDirection(glm::vec3 const &dir) {
+  auto z = -glm::normalize(dir);
+  glm::vec3 x(1, 0, 0);
+  glm::vec3 y;
+  if (std::abs(glm::dot(z, x)) < 0.95) {
+    y = glm::normalize(glm::cross(z, x));
+  } else {
+    y = glm::normalize(glm::cross(z, glm::vec3(0, 1, 0)));
+  }
+  x = glm::cross(y, z);
+  mTransform.rotation = glm::quat(glm::mat3(x, y, z));
+}
+
+glm::vec3 SpotLight::getDirection() const {
+  return glm::mat3(mTransform.rotation) * glm::vec3(0, 0, -1);
+}
+
+void SpotLight::setFov(float fov) { mFov = fov; }
+float SpotLight::getFov() const { return mFov; }
+
+glm::mat4 SpotLight::getShadowProjectionMatrix() const {
+  auto mat =
+      glm::perspective(glm::pi<float>() / 2.f, 1.f, mShadowNear, mShadowFar);
+  mat[1][1] *= -1;
+  return mat;
+}
 
 } // namespace scene
 } // namespace svulkan2

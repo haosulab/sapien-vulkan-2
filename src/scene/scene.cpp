@@ -14,6 +14,12 @@ struct DirectionalLightData {
   glm::vec4 color;
 };
 
+struct SpotLightData {
+  glm::vec4 position;
+  glm::vec4 direction;
+  glm::vec4 color;
+};
+
 struct LightBufferData {
   glm::mat4 viewMatrix;
   glm::mat4 viewMatrixInverse;
@@ -110,6 +116,19 @@ DirectionalLight &Scene::addDirectionalLight(Node &parent) {
   mDirectionalLights.back()->setScene(this);
   mDirectionalLights.back()->setParent(parent);
   parent.addChild(*mDirectionalLights.back());
+  return result;
+}
+
+SpotLight &Scene::addSpotLight() { return addSpotLight(getRootNode()); }
+SpotLight &Scene::addSpotLight(Node &parent) {
+  updateVersion();
+  forceRemove();
+  auto spotLight = std::make_unique<SpotLight>();
+  auto &result = *spotLight;
+  mSpotLights.push_back(std::move(spotLight));
+  mSpotLights.back()->setScene(this);
+  mSpotLights.back()->setParent(parent);
+  parent.addChild(*mSpotLights.back());
   return result;
 }
 
@@ -218,6 +237,15 @@ std::vector<DirectionalLight *> Scene::getDirectionalLights() {
   return result;
 }
 
+std::vector<SpotLight *> Scene::getSpotLights() {
+  forceRemove();
+  std::vector<SpotLight *> result;
+  for (auto &light : mSpotLights) {
+    result.push_back(light.get());
+  }
+  return result;
+}
+
 std::vector<CustomLight *> Scene::getCustomLights() {
   forceRemove();
   std::vector<CustomLight *> result;
@@ -235,8 +263,11 @@ void Scene::uploadToDevice(core::Buffer &sceneBuffer,
                            StructDataLayout const &sceneLayout) {
   auto pointLights = getPointLights();
   auto directionalLights = getDirectionalLights();
+  auto spotLights = getSpotLights();
+
   std::vector<PointLightData> pointLightData;
   std::vector<DirectionalLightData> directionalLightData;
+  std::vector<SpotLightData> spotLightData;
   for (auto light : pointLights) {
     pointLightData.push_back(
         {.position =
@@ -251,16 +282,27 @@ void Scene::uploadToDevice(core::Buffer &sceneBuffer,
          .color = light->getColor()});
   }
 
+  for (auto light : spotLights) {
+    spotLightData.push_back(
+        {.position = glm::vec4(light->getPosition(), 1),
+         .direction = glm::vec4(light->getDirection(), light->getFov()),
+         .color = light->getColor()});
+  }
+
   sceneBuffer.upload(&mAmbientLight, 16,
                      sceneLayout.elements.at("ambientLight").offset);
   uint32_t numPointLights = mPointLights.size();
   uint32_t numDirectionalLights = mDirectionalLights.size();
+  uint32_t numSpotLights = mSpotLights.size();
   uint32_t maxNumPointLights =
       sceneLayout.elements.at("pointLights").size /
       sceneLayout.elements.at("pointLights").member->size;
   uint32_t maxNumDirectionalLights =
       sceneLayout.elements.at("directionalLights").size /
       sceneLayout.elements.at("directionalLights").member->size;
+  uint32_t maxNumSpotLights =
+      sceneLayout.elements.at("spotLights").size /
+      sceneLayout.elements.at("spotLights").member->size;
 
   if (maxNumPointLights < mPointLights.size()) {
     log::warn("The scene contains more point lights than the maximum number of "
@@ -273,12 +315,21 @@ void Scene::uploadToDevice(core::Buffer &sceneBuffer,
         "directional lights in the shader. Truncated.");
     numDirectionalLights = maxNumDirectionalLights;
   }
+  if (maxNumSpotLights < mSpotLights.size()) {
+    log::warn("The scene contains more spot lights than the maximum number of "
+              "spot lights in the shader. Truncated.");
+    numSpotLights = maxNumSpotLights;
+  }
+
   sceneBuffer.upload(pointLightData.data(),
                      numPointLights * sizeof(PointLightData),
                      sceneLayout.elements.at("pointLights").offset);
   sceneBuffer.upload(directionalLightData.data(),
-                     numDirectionalLights * sizeof(PointLightData),
+                     numDirectionalLights * sizeof(DirectionalLightData),
                      sceneLayout.elements.at("directionalLights").offset);
+  sceneBuffer.upload(spotLightData.data(),
+                     numSpotLights * sizeof(SpotLightData),
+                     sceneLayout.elements.at("spotLights").offset);
 }
 
 void Scene::uploadShadowToDevice(
@@ -292,6 +343,9 @@ void Scene::uploadShadowToDevice(
   uint32_t maxNumPointLightShadows =
       shadowLayout.elements.at("pointLightBuffers").size /
       shadowLayout.elements.at("pointLightBuffers").member->size / 6;
+  uint32_t maxNumSpotLightShadows =
+      shadowLayout.elements.at("spotLightBuffers").size /
+      shadowLayout.elements.at("spotLightBuffers").member->size;
   uint32_t maxNumCustomLightShadows =
       shadowLayout.elements.at("customLightBuffers").size /
       shadowLayout.elements.at("customLightBuffers").member->size;
@@ -327,6 +381,37 @@ void Scene::uploadShadowToDevice(
         directionalLightShadowData.data(),
         directionalLightShadowData.size() * sizeof(LightBufferData),
         shadowLayout.elements.at("directionalLightBuffers").offset);
+  }
+
+  {
+    std::vector<LightBufferData> spotLightShadowData;
+    uint32_t numSpotLightShadows = 0;
+    for (auto &l : getSpotLights()) {
+      if (l->isShadowEnabled()) {
+        if (numSpotLightShadows >= maxNumSpotLightShadows) {
+          throw std::runtime_error("The scene contains too many spot "
+                                   "lights that cast shadows.");
+          break;
+        }
+        numSpotLightShadows++;
+
+        auto modelMat = l->getTransform().worldModelMatrix;
+        auto projMat = l->getShadowProjectionMatrix();
+        spotLightShadowData.push_back({
+            .viewMatrix = glm::affineInverse(modelMat),
+            .viewMatrixInverse = modelMat,
+            .projectionMatrix = projMat,
+            .projectionMatrixInverse = glm::inverse(projMat),
+        });
+        lightBuffers[lightBufferIndex++]->upload(&spotLightShadowData.back(),
+                                                 sizeof(LightBufferData));
+      } else {
+        break;
+      }
+    }
+    shadowBuffer.upload(spotLightShadowData.data(),
+                        spotLightShadowData.size() * sizeof(LightBufferData),
+                        shadowLayout.elements.at("spotLightBuffers").offset);
   }
 
   {
@@ -399,6 +484,9 @@ void Scene::reorderLights() {
             [](auto &l1, auto &l2) {
               return l1->isShadowEnabled() && !l2->isShadowEnabled();
             });
+  std::sort(mSpotLights.begin(), mSpotLights.end(), [](auto &l1, auto &l2) {
+    return l1->isShadowEnabled() && !l2->isShadowEnabled();
+  });
 }
 
 void Scene::updateVersion() {

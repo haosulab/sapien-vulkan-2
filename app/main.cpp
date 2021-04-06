@@ -48,11 +48,18 @@ int main() {
 
   svulkan2::scene::Scene scene;
 
-  auto &pointLight = scene.addPointLight();
-  pointLight.setTransform({.position = glm::vec4{0, 0.5, 0, 1}});
-  pointLight.setColor({1, 0, 0, 1});
-  pointLight.enableShadow(true);
-  pointLight.setShadowParameters(0.05, 5);
+  // auto &pointLight = scene.addPointLight();
+  // pointLight.setTransform({.position = glm::vec4{0, 0.5, 0, 1}});
+  // pointLight.setColor({1, 0, 0, 1});
+  // pointLight.enableShadow(true);
+  // pointLight.setShadowParameters(0.05, 5);
+  auto &spotLight = scene.addSpotLight();
+  spotLight.setPosition({0, 0.5, 0});
+  spotLight.setDirection({1, 0, 0});
+  spotLight.setFov(1);
+  spotLight.setColor({1, 0, 0, 1});
+  spotLight.enableShadow(true);
+  spotLight.setShadowParameters(0.05, 5);
 
   // auto &p2 = scene.addPointLight();
   // p2.setTransform({.position = glm::vec4{0.5, 0.5, 0, 1}});
@@ -67,11 +74,11 @@ int main() {
   // p3.setShadowParameters(0.05, 5);
 
   auto &dl = scene.addDirectionalLight();
-  dl.setTransform({.position = {0, 0, 0}});
+  dl.setPosition({0, 0, 0});
   dl.setDirection({0, -5, -1});
   dl.setColor({1, 1, 1, 1});
   dl.enableShadow(true);
-  dl.setShadowParameters(-5, 5, 3);
+  dl.setShadowParameters(-10, 10, 10);
 
   // auto &dl2 = scene.addDirectionalLight();
   // dl2.setTransform({.position = {0, 0, 0}});
@@ -80,7 +87,7 @@ int main() {
   // dl2.enableShadow(true);
   // dl2.setShadowParameters(-5, 5, 3);
 
-  scene.setAmbientLight({0.7f, 0.7f, 0.7f, 0});
+  scene.setAmbientLight({0.f, 0.f, 0.f, 0});
 
   auto material =
       std::make_shared<resource::SVMetallicMaterial>(glm::vec4{1, 1, 1, 1});
@@ -101,13 +108,17 @@ int main() {
   scene.addObject(model).setTransform(
       scene::Transform{.scale = {0.001, 0.001, 0.001}});
 
+  // auto model = context->getResourceManager()->CreateModelFromFile(
+  //     "/home/fx/blender-data/scene120.gltf");
+  // scene.addObject(model);
+
   // auto dragon = context.getResourceManager().CreateModelFromFile(
   //     "../test/assets/scene/dragon/dragon.obj");
   // scene.addObject(dragon).setTransform(
   //     scene::Transform{.position = {0, 0.1, 0}, .scale = {0.3, 0.3, 0.3}});
 
   auto &cameraNode = scene.addCamera();
-  cameraNode.setPerspectiveParameters(0.05, 10, 1, 4.f / 3);
+  cameraNode.setPerspectiveParameters(0.05, 50, 1, 4.f / 3);
   FPSCameraController controller(cameraNode, {0, 0, -1}, {0, 1, 0});
   controller.setXYZ(0, 0.5, 0);
 
@@ -165,7 +176,9 @@ int main() {
   int count = 0;
   while (!window->isClosed()) {
     count += 1;
-    if (gSwapchainRebuild) {
+    spotLight.setDirection({glm::cos(count / 50.f), 0, glm::sin(count / 50.f)});
+
+        if (gSwapchainRebuild) {
       context->getDevice().waitIdle();
       int width, height;
       glfwGetFramebufferSize(window->getGLFWWindow(), &width, &height);
@@ -176,7 +189,7 @@ int main() {
       renderer.resize(width, height);
       context->getDevice().waitIdle();
       cameraNode.setPerspectiveParameters(
-          0.05, 10, 1,
+          0.05, 50, 1,
           static_cast<float>(window->getWidth()) / window->getHeight());
       continue;
     }

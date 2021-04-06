@@ -43,6 +43,17 @@ std::vector<std::shared_ptr<SVShape>> const &SVModel::getShapes() {
   return mShapes;
 }
 
+static std::shared_ptr<SVTexture> loadEmbededTexture(aiTexture const *texture,
+                                                     uint32_t mipLevels) {
+  if (texture->mHeight == 0) {
+    throw std::runtime_error("compressed embedded texture is not supported.");  // TODO: support
+  }
+  std::vector<uint8_t> data(reinterpret_cast<uint8_t *>(texture->pcData),
+                            reinterpret_cast<uint8_t *>(texture->pcData) +
+                                texture->mWidth * texture->mHeight * 4);
+  return SVTexture::FromData(texture->mWidth, texture->mHeight, 4, data, mipLevels);
+}
+
 std::future<void> SVModel::loadAsync() {
   if (mLoaded) {
     return std::async(std::launch::deferred, []() {});
@@ -90,6 +101,7 @@ std::future<void> SVModel::loadAsync() {
     std::vector<std::shared_ptr<SVMaterial>> materials;
     if (mManager->getMaterialPipelineType() ==
         ShaderConfig::MaterialPipeline::eMETALLIC) {
+      std::unordered_map<std::string, std::shared_ptr<SVTexture>> textureCache;
       for (uint32_t mat_idx = 0; mat_idx < scene->mNumMaterials; ++mat_idx) {
         auto *m = scene->mMaterials[mat_idx];
         aiColor3D diffuse{0, 0, 0};
@@ -109,34 +121,76 @@ std::future<void> SVModel::loadAsync() {
         aiString path;
         if (m->GetTextureCount(aiTextureType_DIFFUSE) > 0 &&
             m->GetTexture(aiTextureType_DIFFUSE, 0, &path) == AI_SUCCESS) {
-          std::string p = std::string(path.C_Str());
-          std::string fullPath = (parentDir / p).string();
-          baseColorTexture = mManager->CreateTextureFromFile(
-              fullPath, MIP_LEVEL); // TODO configurable mip levels
-          futures.push_back(baseColorTexture->loadAsync());
+          log::info("Trying to load texture {}", path.C_Str());
+          if (auto texture = scene->GetEmbeddedTexture(path.C_Str())) {
+            if (textureCache.contains(std::string(path.C_Str()))) {
+              baseColorTexture = textureCache[std::string(path.C_Str())];
+            } else {
+              log::info("Loading embeded texture {}", path.C_Str());
+              textureCache[std::string(path.C_Str())] = baseColorTexture =
+                  loadEmbededTexture(texture, MIP_LEVEL);
+            }
+          } else {
+            std::string p = std::string(path.C_Str());
+            std::string fullPath = (parentDir / p).string();
+            baseColorTexture = mManager->CreateTextureFromFile(
+                fullPath, MIP_LEVEL); // TODO configurable mip levels
+            futures.push_back(baseColorTexture->loadAsync());
+          }
         }
         if (m->GetTextureCount(aiTextureType_METALNESS) > 0 &&
             m->GetTexture(aiTextureType_METALNESS, 0, &path) == AI_SUCCESS) {
-          std::string p = std::string(path.C_Str());
-          std::string fullPath = (parentDir / p).string();
-          metallicTexture =
-              mManager->CreateTextureFromFile(fullPath, MIP_LEVEL);
-          futures.push_back(metallicTexture->loadAsync());
+          if (auto texture = scene->GetEmbeddedTexture(path.C_Str())) {
+            if (textureCache.contains(std::string(path.C_Str()))) {
+              metallicTexture = textureCache[std::string(path.C_Str())];
+            } else {
+              log::info("Loading embeded texture {}", path.C_Str());
+              textureCache[std::string(path.C_Str())] = metallicTexture =
+                  loadEmbededTexture(texture, MIP_LEVEL);
+            }
+          } else {
+            std::string p = std::string(path.C_Str());
+            std::string fullPath = (parentDir / p).string();
+            metallicTexture =
+                mManager->CreateTextureFromFile(fullPath, MIP_LEVEL);
+            futures.push_back(metallicTexture->loadAsync());
+          }
         }
         if (m->GetTextureCount(aiTextureType_NORMALS) > 0 &&
             m->GetTexture(aiTextureType_NORMALS, 0, &path) == AI_SUCCESS) {
-          std::string p = std::string(path.C_Str());
-          std::string fullPath = (parentDir / p).string();
-          normalTexture = mManager->CreateTextureFromFile(fullPath, MIP_LEVEL);
-          futures.push_back(normalTexture->loadAsync());
+          if (auto texture = scene->GetEmbeddedTexture(path.C_Str())) {
+            if (textureCache.contains(std::string(path.C_Str()))) {
+              normalTexture = textureCache[std::string(path.C_Str())];
+            } else {
+              log::info("Loading embeded texture {}", path.C_Str());
+              textureCache[std::string(path.C_Str())] = normalTexture =
+                  loadEmbededTexture(texture, MIP_LEVEL);
+            }
+          } else {
+            std::string p = std::string(path.C_Str());
+            std::string fullPath = (parentDir / p).string();
+            normalTexture =
+                mManager->CreateTextureFromFile(fullPath, MIP_LEVEL);
+            futures.push_back(normalTexture->loadAsync());
+          }
         }
         if (m->GetTextureCount(aiTextureType_DIFFUSE_ROUGHNESS) > 0 &&
             m->GetTexture(aiTextureType_NORMALS, 0, &path) == AI_SUCCESS) {
-          std::string p = std::string(path.C_Str());
-          std::string fullPath = (parentDir / p).string();
-          roughnessTexture =
-              mManager->CreateTextureFromFile(fullPath, MIP_LEVEL);
-          futures.push_back(roughnessTexture->loadAsync());
+          if (auto texture = scene->GetEmbeddedTexture(path.C_Str())) {
+            if (textureCache.contains(std::string(path.C_Str()))) {
+              roughnessTexture = textureCache[std::string(path.C_Str())];
+            } else {
+              log::info("Loading embeded texture {}", path.C_Str());
+              textureCache[std::string(path.C_Str())] = roughnessTexture =
+                  loadEmbededTexture(texture, MIP_LEVEL);
+            }
+          } else {
+            std::string p = std::string(path.C_Str());
+            std::string fullPath = (parentDir / p).string();
+            roughnessTexture =
+                mManager->CreateTextureFromFile(fullPath, MIP_LEVEL);
+            futures.push_back(roughnessTexture->loadAsync());
+          }
         }
 
         auto material = std::make_shared<SVMetallicMaterial>(
@@ -148,6 +202,7 @@ std::future<void> SVModel::loadAsync() {
         materials.push_back(material);
       }
     } else {
+      throw std::runtime_error("Non-metallic pipeline is not currently supported");  // TODO: implement
       for (uint32_t mat_idx = 0; mat_idx < scene->mNumMaterials; ++mat_idx) {
         auto *m = scene->mMaterials[mat_idx];
         aiColor3D diffuse{0, 0, 0};

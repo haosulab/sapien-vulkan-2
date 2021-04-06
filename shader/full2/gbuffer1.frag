@@ -26,6 +26,7 @@ layout(set = 2, binding = 0) uniform MaterialBuffer {
   float transparency;
   int textureMask;
 } materialBuffer;
+
 layout(set = 2, binding = 1) uniform sampler2D colorTexture;
 layout(set = 2, binding = 2) uniform sampler2D roughnessTexture;
 layout(set = 2, binding = 3) uniform sampler2D normalTexture;
@@ -36,19 +37,15 @@ layout (constant_id = 1) const int NUM_POINT_LIGHTS = 10;
 layout (constant_id = 2) const int NUM_DIRECTIONAL_LIGHT_SHADOWS = 3;
 layout (constant_id = 3) const int NUM_POINT_LIGHT_SHADOWS = 10;
 layout (constant_id = 4) const int NUM_CUSTOM_LIGHT_SHADOWS = 1;
+layout (constant_id = 5) const int NUM_SPOT_LIGHTS = 10;
+layout (constant_id = 6) const int NUM_SPOT_LIGHT_SHADOWS = 10;
 
-struct PointLight {
-  vec4 position;
-  vec4 emission;
-};
-struct DirectionalLight {
-  vec4 direction;
-  vec4 emission;
-};
+#include "partial/lights.glsl"
 
 layout(set = 3, binding = 0) uniform SceneBuffer {
   vec4 ambientLight;
   DirectionalLight directionalLights[3];
+  SpotLight spotLights[10];
   PointLight pointLights[10];
 } sceneBuffer;
 
@@ -61,13 +58,10 @@ struct LightBuffer {
 
 layout(set = 3, binding = 1) uniform ShadowBuffer {
   LightBuffer directionalLightBuffers[3];
+  LightBuffer spotLightBuffers[10];
   LightBuffer pointLightBuffers[60];
   LightBuffer customLightBuffers[1];
 } shadowBuffer;
-
-// layout(set = 3, binding = 2) uniform samplerCube samplerPointLightDepths[NUM_POINT_LIGHT_SHADOWS > 0 ? NUM_POINT_LIGHT_SHADOWS : 1];
-// layout(set = 3, binding = 3) uniform sampler2D samplerDirectionalLightDepths[NUM_DIRECTIONAL_LIGHT_SHADOWS > 0 ? NUM_DIRECTIONAL_LIGHT_SHADOWS : 1];
-// layout(set = 3, binding = 4) uniform sampler2D samplerCustomLightDepths[NUM_CUSTOM_LIGHT_SHADOWS > 0 ? NUM_CUSTOM_LIGHT_SHADOWS : 1];
 
 layout(set = 3, binding = 2) uniform samplerCubeArray samplerPointLightDepths;
 layout(set = 3, binding = 3) uniform sampler2DArray samplerDirectionalLightDepths;
@@ -82,26 +76,7 @@ vec3 getBackgroundColor(vec3 texcoord) {
   return vec3(1,1,1);
 }
 
-float diffuse(float NoL) {
-  return max(NoL, 0.f) / 3.141592653589793f;
-}
-
-vec3 ggx(float NoL, float NoV, float NoH, float VoH, float roughness, vec3 fresnel) {
-  float alpha = roughness * roughness;
-  float alpha2 = alpha * alpha;
-
-  float k = (alpha + 2 * roughness + 1.0) / 8.0;
-
-  float FMi = ((-5.55473) * VoH - 6.98316) * VoH;
-  vec3 frac = (fresnel + (1 - fresnel) * pow(2.0, FMi)) * alpha2;
-  float nom0 = NoH * NoH * (alpha2 - 1) + 1;
-  float nom1 = NoV * (1 - k) + k;
-  float nom2 = NoL * (1 - k) + k;
-  float nom = clamp((4 * 3.141592653589793f * nom0 * nom0 * nom1 * nom2), 1e-6, 4 * 3.141592653589793f);
-  vec3 spec = frac / nom;
-
-  return spec * NoL;
-}
+#include "partial/light_functions.glsl"
 
 layout(location = 0) in vec4 inPosition;
 layout(location = 1) in vec2 inUV;
@@ -112,45 +87,6 @@ layout(location = 4) in mat3 inTbn;
 layout(location = 0) out vec4 outLighting1;
 layout(location = 1) out vec4 outNormal1;
 layout(location = 2) out uvec4 outSegmentation1;
-
-vec3 computeDirectionalLight(int index, vec3 normal, vec3 camDir, vec3 diffuseAlbedo, float roughness, vec3 fresnel) {
-  vec3 lightDir = -normalize((cameraBuffer.viewMatrix *
-                              vec4(sceneBuffer.directionalLights[index].direction.xyz, 0)).xyz);
-
-  vec3 H = lightDir + camDir;
-  float H2 = dot(H, H);
-  H = H2 < 1e-6 ? vec3(0) : normalize(H);
-  float NoH = clamp(dot(normal, H), 1e-6, 1);
-  float VoH = clamp(dot(camDir, H), 1e-6, 1);
-  float NoL = clamp(dot(normal, lightDir), 0, 1);
-  float NoV = clamp(dot(normal, camDir), 1e-6, 1);
-
-  vec3 color = diffuseAlbedo * sceneBuffer.directionalLights[index].emission.rgb * diffuse(NoL);
-  color += sceneBuffer.directionalLights[index].emission.rgb * ggx(NoL, NoV, NoH, VoH, roughness, fresnel);
-  return color;
-}
-
-vec3 computePointLight(vec3 emission, vec3 l, vec3 normal, vec3 camDir, vec3 diffuseAlbedo, float roughness, vec3 fresnel) {
-  float d = max(length(l), 0.0001);
-
-  if (length(l) == 0) {
-    return vec3(0.f);
-  }
-
-  vec3 lightDir = normalize(l);
-
-  vec3 H = lightDir + camDir;
-  float H2 = dot(H, H);
-  H = H2 < 1e-6 ? vec3(0) : normalize(H);
-  float NoH = clamp(dot(normal, H), 1e-6, 1);
-  float VoH = clamp(dot(camDir, H), 1e-6, 1);
-  float NoL = clamp(dot(normal, lightDir), 0, 1);
-  float NoV = clamp(dot(normal, camDir), 1e-6, 1);
-
-  vec3 color = diffuseAlbedo * emission * diffuse(NoL) / d / d;
-  color += emission * ggx(NoL, NoV, NoH, VoH, roughness, fresnel) / d / d;
-  return color;
-}
 
 void main() {
   outSegmentation1 = inSegmentation;
@@ -214,7 +150,20 @@ void main() {
   }
 
   for (int i = 0; i < NUM_DIRECTIONAL_LIGHTS; ++i) {
-    color += computeDirectionalLight(i, normal, camDir, diffuseAlbedo, roughness, fresnel);
+    color += computeDirectionalLight(sceneBuffer.directionalLights[i].direction.xyz,
+                                     sceneBuffer.directionalLights[i].emission.rgb,
+                                     normal, camDir, diffuseAlbedo, roughness, fresnel);
+  }
+
+  for (int i = 0; i < NUM_SPOT_LIGHTS; ++i) {
+    vec3 pos = world2camera(vec4(sceneBuffer.spotLights[i].position.xyz, 1.f)).xyz;
+    vec3 l = pos - csPosition.xyz;
+    vec3 centerDir = mat3(cameraBuffer.viewMatrix) * sceneBuffer.spotLights[i].direction.xyz;
+    color += computeSpotLight(
+        sceneBuffer.spotLights[i].direction.a,
+        centerDir,
+        sceneBuffer.spotLights[i].emission.rgb,
+        l, normal, camDir, diffuseAlbedo, roughness, fresnel);
   }
 
   color += sceneBuffer.ambientLight.rgb * diffuseAlbedo;
