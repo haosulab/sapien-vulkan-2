@@ -89,5 +89,10 @@ void Object::setTransparency(float transparency) {
   mTransparency = transparency;
 }
 
+void Object::setCastShadow(bool castShadow) {
+  mCastShadow = castShadow;
+  mScene->updateVersion();
+}
+
 } // namespace scene
 } // namespace svulkan2

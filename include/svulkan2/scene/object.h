@@ -28,6 +28,7 @@ class Object : public Node {
   std::unordered_map<std::string, CustomData> mCustomData;
   int mShadingMode{};
   float mTransparency{};
+  bool mCastShadow{true};
 
 public:
   inline Type getType() const override { return Type::eObject; }
@@ -58,6 +59,9 @@ public:
 
   void setTransparency(float transparency);
   inline float getTransparency() const { return mTransparency; }
+
+  void setCastShadow(bool castShadow);
+  inline bool getCastShadow() const { return mCastShadow; }
 };
 
 } // namespace scene

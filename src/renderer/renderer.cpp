@@ -467,6 +467,11 @@ void Renderer::recordShadows(scene::Scene &scene) {
       }
 
       for (uint32_t objIdx = 0; objIdx < objects.size(); ++objIdx) {
+        if (objects[objIdx]->getTransparency() <= 0 ||
+            !objects[objIdx]->getCastShadow()) {
+          continue;
+        }
+
         for (auto &shape : objects[objIdx]->getModel()->getShapes()) {
           if (objectBinding >= 0) {
             mShadowCommandBuffer->bindDescriptorSets(
@@ -532,14 +537,14 @@ void Renderer::recordRenderPasses(scene::Scene &scene) {
 
   std::vector<std::vector<uint32_t>> shapeObjectIndex(numGbufferPasses);
 
-  int defaultShadingMode = 0;
   int transparencyShadingMode = numGbufferPasses > 1 ? 1 : 0;
 
   auto objects = mScene->getObjects();
   for (uint32_t objectIndex = 0; objectIndex < objects.size(); ++objectIndex) {
     int shadingMode = objects[objectIndex]->getShadingMode();
     if (static_cast<uint32_t>(shadingMode) >= shapes.size()) {
-      shadingMode = defaultShadingMode;
+      // shadingMode = defaultShadingMode;
+      continue; // do not render
     }
     if (shadingMode == 0 && objects[objectIndex]->getTransparency() != 0) {
       shadingMode = transparencyShadingMode;
