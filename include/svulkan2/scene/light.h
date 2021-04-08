@@ -20,6 +20,7 @@ public:
   void enableShadow(bool enable);
   inline bool isShadowEnabled() const { return mCastShadow; }
   void setShadowParameters(float near, float far, float scaling);
+  glm::vec3 getDirection() const;
   void setDirection(glm::vec3 const &dir);
 
   glm::mat4 getShadowProjectionMatrix() const;

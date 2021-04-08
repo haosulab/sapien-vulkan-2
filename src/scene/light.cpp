@@ -54,6 +54,10 @@ void DirectionalLight::enableShadow(bool enable) {
   mScene->reorderLights();
 }
 
+glm::vec3 DirectionalLight::getDirection() const {
+  return glm::mat3(mTransform.rotation) * glm::vec3(0, 0, -1);
+}
+
 void DirectionalLight::setDirection(glm::vec3 const &dir) {
   auto z = -glm::normalize(dir);
   glm::vec3 x(1, 0, 0);
