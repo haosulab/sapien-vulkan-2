@@ -39,20 +39,13 @@ int main() {
   }
 
   auto config = std::make_shared<RendererConfig>();
-  // config->shaderDir = "../shader/full_no_shadow";
-  // config->shaderDir = "../shader/full";
-  // config->shaderDir = "../shader/forward";
-  config->shaderDir = srcBase + "shader/full2";
-  config->colorFormat = vk::Format::eR8G8B8A8Unorm;
+  config->shaderDir = srcBase + "shader/default_viewer";
+
+  config->colorFormat = vk::Format::eR32G32B32A32Sfloat;
   renderer::Renderer renderer(context, config);
 
   svulkan2::scene::Scene scene;
 
-  // auto &pointLight = scene.addPointLight();
-  // pointLight.setTransform({.position = glm::vec4{0, 0.5, 0, 1}});
-  // pointLight.setColor({1, 0, 0, 1});
-  // pointLight.enableShadow(true);
-  // pointLight.setShadowParameters(0.05, 5);
   auto &spotLight = scene.addSpotLight();
   spotLight.setPosition({0, 0.5, 0});
   spotLight.setDirection({1, 0, 0});

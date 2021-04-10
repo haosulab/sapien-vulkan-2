@@ -467,7 +467,7 @@ void Renderer::recordShadows(scene::Scene &scene) {
       }
 
       for (uint32_t objIdx = 0; objIdx < objects.size(); ++objIdx) {
-        if (objects[objIdx]->getTransparency() <= 0 ||
+        if (objects[objIdx]->getTransparency() >= 1 ||
             !objects[objIdx]->getCastShadow()) {
           continue;
         }
