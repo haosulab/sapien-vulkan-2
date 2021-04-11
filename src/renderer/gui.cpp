@@ -66,15 +66,6 @@ void GuiWindow::newFrame() {
   }
   mFrameIndex = result.value;
 
-  auto mousePos = ImGui::GetMousePos();
-  static bool firstFrame = true;
-  if (firstFrame) {
-    firstFrame = false;
-  } else {
-    mMouseDelta = {mousePos.x - mMousePos.x, mousePos.y - mMousePos.y};
-  }
-  mMousePos = mousePos;
-
   if (ImGui::GetIO().WantCaptureMouse) {
     mMouseWheelDelta = {0, 0};
   } else {
@@ -509,6 +500,8 @@ static int findKeyCode(std::string const &key) {
       {"z", ImGui::GetKeyIndex(ImGuiKey_A) + 25},
       {" ", ImGui::GetKeyIndex(ImGuiKey_Space)},
       {"space", ImGui::GetKeyIndex(ImGuiKey_Space)},
+      {"esc", ImGui::GetKeyIndex(ImGuiKey_Escape)},
+      {"escape", ImGui::GetKeyIndex(ImGuiKey_Escape)},
       {"tab", ImGui::GetKeyIndex(ImGuiKey_Tab)},
       {"enter", ImGui::GetKeyIndex(ImGuiKey_Enter)},
       {"insert", ImGui::GetKeyIndex(ImGuiKey_Insert)},
@@ -548,23 +541,41 @@ bool GuiWindow::isCtrlDown() { return ImGui::GetIO().KeyCtrl; }
 bool GuiWindow::isAltDown() { return ImGui::GetIO().KeyAlt; }
 bool GuiWindow::isSuperDown() { return ImGui::GetIO().KeySuper; }
 
-ImVec2 GuiWindow::getMouseDelta() {
-  mMouseDelta.x = std::clamp(mMouseDelta.x, -100.f, 100.f);
-  mMouseDelta.y = std::clamp(mMouseDelta.y, -100.f, 100.f);
-  return mMouseDelta;
+ImVec2 GuiWindow::getMouseDelta() { return ImGui::GetIO().MouseDelta; }
+
+ImVec2 GuiWindow::getMouseWheelDelta() {
+  return mMouseWheelDelta;
+  // if (ImGui::GetIO().WantCaptureMouse) {
+  //   return {0, 0};
+  // }
+  // return {ImGui::GetIO().MouseWheel, ImGui::GetIO().MouseWheelH};
 }
 
-ImVec2 GuiWindow::getMouseWheelDelta() { return mMouseWheelDelta; }
-
-ImVec2 GuiWindow::getMousePosition() { return mMousePos; }
+ImVec2 GuiWindow::getMousePosition() { return ImGui::GetIO().MousePos; }
 
 bool GuiWindow::isMouseKeyDown(int key) {
   return !ImGui::GetIO().WantCaptureMouse && ImGui::IsMouseDown(key);
 }
 
 bool GuiWindow::isMouseKeyClicked(int key) {
+  if (!mCursorEnabled) {
+    return ImGui::IsMouseClicked(key);
+  }
   return !ImGui::GetIO().WantCaptureMouse && ImGui::IsMouseClicked(key);
 }
+
+void GuiWindow::setCursorEnabled(bool enabled) {
+  mCursorEnabled = enabled;
+  if (enabled) {
+    glfwSetInputMode(mWindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NoMouse;
+  } else {
+    glfwSetInputMode(mWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouse;
+  }
+}
+
+bool GuiWindow::getCursorEnabled() const { return mCursorEnabled; }
 
 } // namespace renderer
 } // namespace svulkan2

@@ -57,11 +57,11 @@ class GuiWindow {
   // imgui render pass
   vk::UniqueRenderPass mImguiRenderPass;
 
-  // ImVec2 mMousePos{0, 0};
-  // ImVec2 mMouseDelta{0, 0};
-  // ImVec2 mMouseWheelDelta{0, 0};
+  bool mCursorEnabled{true};
 
   bool mClosed{};
+
+  ImVec2 mMouseWheelDelta{0, 0};
 
 public:
   [[nodiscard]] inline vk::SwapchainKHR getSwapchain() const {
@@ -118,11 +118,6 @@ public:
   inline bool isClosed() const { return mClosed; }
 
 public:
-  bool mFirstFrame{true};
-  ImVec2 mMousePos{0, 0};
-  ImVec2 mMouseDelta{0, 0};
-  ImVec2 mMouseWheelDelta{0, 0};
-
   bool isKeyDown(std::string const &key);
   bool isKeyPressed(std::string const &key);
 
@@ -130,10 +125,6 @@ public:
   bool isCtrlDown();
   bool isAltDown();
   bool isSuperDown();
-
-  // bool isKeyDown(char key);
-
-  // bool isKeyPressed(char key);
 
   ImVec2 getMouseDelta();
 
@@ -144,6 +135,9 @@ public:
   bool isMouseKeyDown(int key);
 
   bool isMouseKeyClicked(int key);
+
+  void setCursorEnabled(bool enabled);
+  bool getCursorEnabled() const;
 
 private:
   /** Called at initialization time  */
