@@ -129,7 +129,7 @@ void Renderer::prepareShadowRenderTargets() {
                                   6 * num));
     auto imageView = mContext->getDevice().createImageViewUnique(viewInfo);
     auto sampler = mContext->getDevice().createSamplerUnique(
-        vk::SamplerCreateInfo({}, vk::Filter::eLinear, vk::Filter::eLinear,
+        vk::SamplerCreateInfo({}, vk::Filter::eNearest, vk::Filter::eNearest,
                               vk::SamplerMipmapMode::eNearest,
                               vk::SamplerAddressMode::eClampToBorder,
                               vk::SamplerAddressMode::eClampToBorder,
@@ -181,7 +181,7 @@ void Renderer::prepareShadowRenderTargets() {
                                   num));
     auto imageView = mContext->getDevice().createImageViewUnique(viewInfo);
     auto sampler = mContext->getDevice().createSamplerUnique(
-        vk::SamplerCreateInfo({}, vk::Filter::eLinear, vk::Filter::eLinear,
+        vk::SamplerCreateInfo({}, vk::Filter::eNearest, vk::Filter::eNearest,
                               vk::SamplerMipmapMode::eNearest,
                               vk::SamplerAddressMode::eClampToBorder,
                               vk::SamplerAddressMode::eClampToBorder,
@@ -230,7 +230,7 @@ void Renderer::prepareShadowRenderTargets() {
                                   num));
     auto imageView = mContext->getDevice().createImageViewUnique(viewInfo);
     auto sampler = mContext->getDevice().createSamplerUnique(
-        vk::SamplerCreateInfo({}, vk::Filter::eLinear, vk::Filter::eLinear,
+        vk::SamplerCreateInfo({}, vk::Filter::eNearest, vk::Filter::eNearest,
                               vk::SamplerMipmapMode::eNearest,
                               vk::SamplerAddressMode::eClampToBorder,
                               vk::SamplerAddressMode::eClampToBorder,
@@ -279,7 +279,7 @@ void Renderer::prepareShadowRenderTargets() {
                                   num));
     auto imageView = mContext->getDevice().createImageViewUnique(viewInfo);
     auto sampler = mContext->getDevice().createSamplerUnique(
-        vk::SamplerCreateInfo({}, vk::Filter::eLinear, vk::Filter::eLinear,
+        vk::SamplerCreateInfo({}, vk::Filter::eNearest, vk::Filter::eNearest,
                               vk::SamplerMipmapMode::eNearest,
                               vk::SamplerAddressMode::eClampToBorder,
                               vk::SamplerAddressMode::eClampToBorder,
