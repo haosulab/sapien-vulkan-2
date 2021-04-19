@@ -714,6 +714,9 @@ void Renderer::render(scene::Camera &camera,
       for (auto t : mCustomTextures) {
         futures.push_back(t.second->loadAsync());
       }
+      for (auto t : mCustomCubemaps) {
+        futures.push_back(t.second->loadAsync());
+      }
       for (auto &f : futures) {
         f.get();
       }
@@ -1002,6 +1005,14 @@ void Renderer::prepareSceneBuffer() {
             {{mCustomTextures[customTextureName]->getImageView(),
               mCustomTextures[customTextureName]->getSampler()}},
             bindingIndex);
+      } else if (mCustomCubemaps.find(customTextureName) !=
+                 mCustomCubemaps.end()) {
+        mCustomCubemaps[customTextureName]->uploadToDevice(mContext);
+        updateDescriptorSets(
+            mContext->getDevice(), mSceneSet.get(), {},
+            {{mCustomCubemaps[customTextureName]->getImageView(),
+              mCustomCubemaps[customTextureName]->getSampler()}},
+            bindingIndex);
       } else {
         throw std::runtime_error("custom sampler \"" + customTextureName +
                                  "\" is not set in the renderer");
@@ -1095,6 +1106,10 @@ void Renderer::prepareInputTextureDescriptorSets() {
           mCustomTextures[name]->uploadToDevice(mContext);
           textureData.push_back({mCustomTextures[name]->getImageView(),
                                  mCustomTextures[name]->getSampler()});
+        } else if (mCustomCubemaps.find(name) != mCustomCubemaps.end()) {
+          mCustomCubemaps[name]->uploadToDevice(mContext);
+          textureData.push_back({mCustomCubemaps[name]->getImageView(),
+                                 mCustomCubemaps[name]->getSampler()});
         } else {
           throw std::runtime_error("custom sampler \"" + name +
                                    "\" is not set in the renderer");
@@ -1126,6 +1141,11 @@ void Renderer::prepareCameaBuffer() {
 void Renderer::setCustomTexture(std::string const &name,
                                 std::shared_ptr<resource::SVTexture> texture) {
   mCustomTextures[name] = texture;
+}
+
+void Renderer::setCustomCubemap(std::string const &name,
+                                std::shared_ptr<resource::SVCubemap> cubemap) {
+  mCustomCubemaps[name] = cubemap;
 }
 
 std::shared_ptr<resource::SVRenderTarget>

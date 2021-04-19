@@ -104,6 +104,22 @@ SVImage::FromFile(std::vector<std::string> const &filenames,
   return image;
 }
 
+void SVImage::setUsage(vk::ImageUsageFlags usage) {
+  if (mOnDevice) {
+    throw std::runtime_error(
+        "failed to set usage: device image already created");
+  }
+  mUsage = usage;
+}
+
+void SVImage::setCreateFlags(vk::ImageCreateFlags flags) {
+  if (mOnDevice) {
+    throw std::runtime_error(
+        "failed to set create flags: device image already created");
+  }
+  mCreateFlags = flags;
+}
+
 void SVImage::uploadToDevice(std::shared_ptr<core::Context> context) {
   if (mOnDevice) {
     return;
@@ -117,11 +133,9 @@ void SVImage::uploadToDevice(std::shared_ptr<core::Context> context) {
     mImage = std::make_unique<core::Image>(
         context, vk::Extent3D{mWidth, mHeight, 1},
         mChannels == 4 ? vk::Format::eR8G8B8A8Unorm : vk::Format::eR8Unorm,
-        vk::ImageUsageFlagBits::eSampled |
-            vk::ImageUsageFlagBits::eTransferDst |
-            vk::ImageUsageFlagBits::eTransferSrc,
-        VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, vk::SampleCountFlagBits::e1,
-        mDescription.mipLevels, mData.size());
+        mUsage, VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY,
+        vk::SampleCountFlagBits::e1, mDescription.mipLevels, mData.size(),
+        vk::ImageTiling::eOptimal, mCreateFlags);
     for (uint32_t layer = 0; layer < mData.size(); ++layer) {
       mImage->upload(mData[layer].data(), mData[layer].size() * sizeof(uint8_t),
                      layer);
@@ -131,11 +145,9 @@ void SVImage::uploadToDevice(std::shared_ptr<core::Context> context) {
         context, vk::Extent3D{mWidth, mHeight, 1},
         mChannels == 4 ? vk::Format::eR32G32B32A32Sfloat
                        : vk::Format::eR32Sfloat,
-        vk::ImageUsageFlagBits::eSampled |
-            vk::ImageUsageFlagBits::eTransferDst |
-            vk::ImageUsageFlagBits::eTransferSrc,
-        VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, vk::SampleCountFlagBits::e1,
-        mDescription.mipLevels, mFloatData.size());
+        mUsage, VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY,
+        vk::SampleCountFlagBits::e1, mDescription.mipLevels, mFloatData.size(),
+        vk::ImageTiling::eOptimal, mCreateFlags);
     for (uint32_t layer = 0; layer < mFloatData.size(); ++layer) {
       mImage->upload(mFloatData[layer].data(),
                      mFloatData[layer].size() * sizeof(float), layer);

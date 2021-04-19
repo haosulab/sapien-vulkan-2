@@ -1,4 +1,5 @@
 #pragma once
+#include "cubemap.h"
 #include "model.h"
 #include "svulkan2/common/config.h"
 #include <unordered_map>
@@ -11,6 +12,8 @@ class SVResourceManager {
       mModelRegistry;
   std::unordered_map<std::string, std::vector<std::shared_ptr<SVTexture>>>
       mTextureRegistry;
+  std::unordered_map<std::string, std::vector<std::shared_ptr<SVCubemap>>>
+      mCubemapRegistry;
   std::unordered_map<std::string, std::vector<std::shared_ptr<SVImage>>>
       mImageRegistry;
   std::unordered_map<std::string, std::shared_ptr<SVTexture>>
@@ -39,6 +42,12 @@ public:
       vk::Filter minFilter = vk::Filter::eLinear,
       vk::SamplerAddressMode addressModeU = vk::SamplerAddressMode::eRepeat,
       vk::SamplerAddressMode addressModeV = vk::SamplerAddressMode::eRepeat);
+
+  std::shared_ptr<SVCubemap>
+  CreateCubemapFromFiles(std::array<std::string, 6> const &filenames,
+                         uint32_t mipLevels = 1,
+                         vk::Filter magFilter = vk::Filter::eLinear,
+                         vk::Filter minFilter = vk::Filter::eLinear);
 
   std::shared_ptr<SVTexture> CreateRandomTexture(std::string const &name);
 
@@ -70,18 +79,26 @@ public:
     return mVertexLayout;
   }
 
-  std::unordered_map<std::string, std::vector<std::shared_ptr<SVModel>>> const &
+  inline std::unordered_map<std::string,
+                            std::vector<std::shared_ptr<SVModel>>> const &
   getModels() const {
     return mModelRegistry;
   }
 
-  std::unordered_map<std::string, std::vector<std::shared_ptr<SVTexture>>> const
-      &
-      getTextures() const {
+  inline std::unordered_map<std::string,
+                            std::vector<std::shared_ptr<SVTexture>>> const &
+  getTextures() const {
     return mTextureRegistry;
   }
 
-  std::unordered_map<std::string, std::vector<std::shared_ptr<SVImage>>> const &
+  inline std::unordered_map<std::string,
+                            std::vector<std::shared_ptr<SVCubemap>>> const &
+  getCubemaps() const {
+    return mCubemapRegistry;
+  }
+
+  inline std::unordered_map<std::string,
+                            std::vector<std::shared_ptr<SVImage>>> const &
   getImages() const {
     return mImageRegistry;
   }

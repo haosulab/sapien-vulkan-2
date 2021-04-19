@@ -96,10 +96,10 @@ int main() {
   // scene.addObject(sphere).setTransform(
   //     {.position = {0, 0.25, 0}, .scale = {0.1, 0.1, 0.1}});
 
-  auto model = context->getResourceManager()->CreateModelFromFile(
-      srcBase + "test/assets/scene/sponza/sponza2.obj");
-  scene.addObject(model).setTransform(
-      scene::Transform{.scale = {0.001, 0.001, 0.001}});
+  // auto model = context->getResourceManager()->CreateModelFromFile(
+  //     srcBase + "test/assets/scene/sponza/sponza2.obj");
+  // scene.addObject(model).setTransform(
+  //     scene::Transform{.scale = {0.001, 0.001, 0.001}});
 
   // auto model = context->getResourceManager()->CreateModelFromFile(
   //     "/home/fx/blender-data/scene120.gltf");
@@ -123,6 +123,16 @@ int main() {
   // renderer.setCustomTexture("LightMap",
   //                           context.getResourceManager().CreateTextureFromFile(
   //                               "../test/assets/image/flashlight.jpg", 1));
+
+  auto cubemap = context->getResourceManager()->CreateCubemapFromFiles({
+      "../test/assets/image/cube2/px.png",
+      "../test/assets/image/cube2/nx.png",
+      "../test/assets/image/cube2/py.png",
+      "../test/assets/image/cube2/ny.png",
+      "../test/assets/image/cube2/pz.png",
+      "../test/assets/image/cube2/nz.png",
+  });
+  renderer.setCustomCubemap("Environment", cubemap);
 
   auto window = context->createWindow(1600, 1200);
   // glfwGetFramebufferSize(window->getGLFWWindow(), &gSwapchainResizeWidth,
@@ -171,7 +181,7 @@ int main() {
     count += 1;
     spotLight.setDirection({glm::cos(count / 50.f), 0, glm::sin(count / 50.f)});
 
-        if (gSwapchainRebuild) {
+    if (gSwapchainRebuild) {
       context->getDevice().waitIdle();
       int width, height;
       glfwGetFramebufferSize(window->getGLFWWindow(), &width, &height);
@@ -263,7 +273,7 @@ int main() {
     }
     // required since we only use 1 set of uniform buffers
     context->getDevice().waitIdle();
-    auto cuda = renderer.transferToCuda("Color");
+    // auto cuda = renderer.transferToCuda("Color");
     // break;
     if (gClosed) {
       window->close();
@@ -290,9 +300,6 @@ int main() {
       controller.move(0, -r, 0);
     }
   }
-
-  scene.clearNodes();
-  model.reset();
 
   context->getDevice().waitIdle();
   log::info("finish");

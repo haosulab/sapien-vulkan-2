@@ -26,6 +26,10 @@ class SVImage {
   uint32_t mWidth{};
   uint32_t mHeight{};
   uint32_t mChannels{};
+  vk::ImageCreateFlags mCreateFlags{};
+  vk::ImageUsageFlags mUsage{vk::ImageUsageFlagBits::eSampled |
+                             vk::ImageUsageFlagBits::eTransferDst |
+                             vk::ImageUsageFlagBits::eTransferSrc};
 
   std::vector<std::vector<uint8_t>> mData;
   std::vector<std::vector<float>> mFloatData;
@@ -58,6 +62,9 @@ public:
   static std::shared_ptr<SVImage>
   FromFile(std::vector<std::string> const &filenames, uint32_t mipLevels = 1);
 
+  void setUsage(vk::ImageUsageFlags usage);
+  void setCreateFlags(vk::ImageCreateFlags flags);
+
   void uploadToDevice(std::shared_ptr<core::Context> context);
   void removeFromDevice();
   inline bool isLoaded() const { return mLoaded; }
@@ -71,6 +78,18 @@ public:
   inline SVImageDescription const &getDescription() const {
     return mDescription;
   }
+
+  std::vector<std::vector<uint8_t>> const &getUint8Data() const {
+    return mData;
+  }
+
+  std::vector<std::vector<float>> const &getFloatData() const {
+    return mFloatData;
+  }
+
+  inline uint32_t getWidth() const { return mWidth; };
+  inline uint32_t getHeight() const { return mHeight; };
+  inline uint32_t getChannels() const { return mChannels; };
 
 private:
   SVImage() = default;

@@ -53,6 +53,7 @@ layout(set = 2, binding = 2) uniform sampler2D samplerSpecular;
 layout(set = 2, binding = 3) uniform sampler2D samplerNormal;
 layout(set = 2, binding = 4) uniform sampler2D samplerGbufferDepth;
 layout(set = 2, binding = 5) uniform sampler2D samplerCustom;
+layout(set = 2, binding = 6) uniform samplerCube samplerEnvironment;
 
 layout(location = 0) in vec2 inUV;
 layout(location = 0) out vec4 outLighting;
@@ -62,7 +63,9 @@ vec4 world2camera(vec4 pos) {
 }
 
 vec3 getBackgroundColor(vec3 texcoord) {
-  return vec3(0.89411765, 0.83137255, 0.72156863) - 0.2;
+  texcoord.z *= -1;
+  return pow(texture(samplerEnvironment, texcoord).rgb, vec3(2.2));
+  // return vec3(0.89411765, 0.83137255, 0.72156863) - 0.2;
 }
 
 
@@ -194,7 +197,7 @@ void main() {
   color += sceneBuffer.ambientLight.rgb * diffuseAlbedo;
 
   if (depth == 1) {
-    outLighting = vec4(getBackgroundColor((cameraBuffer.viewMatrixInverse * csPosition).xyz), 1.f);
+    outLighting = vec4(getBackgroundColor((mat3(cameraBuffer.viewMatrixInverse) * csPosition.xyz)), 1.f);
   } else {
     outLighting = vec4(color, 1);
   }

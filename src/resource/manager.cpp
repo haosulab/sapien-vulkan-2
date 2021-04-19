@@ -65,6 +65,36 @@ std::shared_ptr<SVTexture> SVResourceManager::CreateTextureFromFile(
   return tex;
 }
 
+std::shared_ptr<SVCubemap> SVResourceManager::CreateCubemapFromFiles(
+    std::array<std::string, 6> const &filenames, uint32_t mipLevels,
+    vk::Filter magFilter, vk::Filter minFilter) {
+  std::lock_guard<std::mutex> lock(mCreateLock);
+  SVCubemapDescription desc = {
+      .source = SVCubemapDescription::SourceType::eFILE,
+      .filenames = {fs::canonical(filenames[0]).string(),
+                    fs::canonical(filenames[1]).string(),
+                    fs::canonical(filenames[2]).string(),
+                    fs::canonical(filenames[3]).string(),
+                    fs::canonical(filenames[4]).string(),
+                    fs::canonical(filenames[5]).string()},
+      .mipLevels = mipLevels,
+      .magFilter = magFilter,
+      .minFilter = minFilter};
+  auto cubemap = SVCubemap::FromFile(desc.filenames, desc.mipLevels,
+                                     desc.magFilter, desc.minFilter);
+  auto it = mCubemapRegistry.find(desc.filenames[0]);
+  if (it != mCubemapRegistry.end()) {
+    for (auto &tex : it->second) {
+      if (tex->getDescription() == desc) {
+        return tex;
+      }
+    }
+  }
+  cubemap->setManager(this);
+  mCubemapRegistry[desc.filenames[0]].push_back(cubemap);
+  return cubemap;
+}
+
 // TODO: test this function
 std::shared_ptr<SVTexture>
 SVResourceManager::CreateRandomTexture(std::string const &name) {
@@ -166,6 +196,7 @@ void SVResourceManager::clearCachedResources() {
   std::lock_guard<std::mutex> lock(mCreateLock);
   mModelRegistry.clear();
   mTextureRegistry.clear();
+  mCubemapRegistry.clear();
   mImageRegistry.clear();
   mRandomTextureRegistry.clear();
 }

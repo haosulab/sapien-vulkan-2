@@ -204,7 +204,8 @@ void Context::pickSuitableGpuAndQueueFamilyIndex() {
         device.getQueueFamilyProperties();
     pickedIndex = queueFamilyProperties.size();
     for (uint32_t i = 0; i < queueFamilyProperties.size(); ++i) {
-      if (queueFamilyProperties[i].queueFlags & vk::QueueFlagBits::eGraphics) {
+      if (queueFamilyProperties[i].queueFlags & vk::QueueFlagBits::eGraphics &&
+          queueFamilyProperties[i].queueFlags & vk::QueueFlagBits::eCompute) {
         if (mPresent && !device.getSurfaceSupportKHR(i, tmpSurface)) {
           continue;
         }
@@ -225,7 +226,8 @@ void Context::pickSuitableGpuAndQueueFamilyIndex() {
   }
   if (!pickedDevice) {
     throw std::runtime_error(
-        "pickSuitableGpuAndQueue: no compatible GPU found");
+        "pickSuitableGpuAndQueue: no compatible GPU found. Required queue "
+        "properties: graphics, compute, present");
   }
   if (mPresent) {
     vkDestroySurfaceKHR(mInstance.get(), tmpSurface, nullptr);

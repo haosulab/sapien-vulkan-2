@@ -8,16 +8,13 @@ namespace resource {
 std::shared_ptr<SVCubemap>
 SVCubemap::FromFile(std::array<std::string, 6> const &filenames,
                     uint32_t mipLevels, vk::Filter magFilter,
-                    vk::Filter minFilter, vk::SamplerAddressMode addressModeU,
-                    vk::SamplerAddressMode addressModeV) {
+                    vk::Filter minFilter) {
   auto texture = std::shared_ptr<SVCubemap>(new SVCubemap);
   texture->mDescription = {.source = SVCubemapDescription::SourceType::eFILE,
                            .filenames = filenames,
                            .mipLevels = mipLevels,
                            .magFilter = magFilter,
-                           .minFilter = minFilter,
-                           .addressModeU = addressModeU,
-                           .addressModeV = addressModeV};
+                           .minFilter = minFilter};
   return texture;
 }
 
@@ -25,16 +22,13 @@ std::shared_ptr<SVCubemap>
 SVCubemap::FromData(uint32_t size, uint32_t channels,
                     std::array<std::vector<uint8_t>, 6> const &data,
                     uint32_t mipLevels, vk::Filter magFilter,
-                    vk::Filter minFilter, vk::SamplerAddressMode addressModeU,
-                    vk::SamplerAddressMode addressModeV) {
+                    vk::Filter minFilter) {
   auto texture = std::shared_ptr<SVCubemap>(new SVCubemap);
   texture->mDescription = {.source = SVCubemapDescription::SourceType::eCUSTOM,
                            .filenames = {},
                            .mipLevels = mipLevels,
                            .magFilter = magFilter,
-                           .minFilter = minFilter,
-                           .addressModeU = addressModeU,
-                           .addressModeV = addressModeV};
+                           .minFilter = minFilter};
   std::vector<std::vector<uint8_t>> vdata(data.begin(), data.end());
   texture->mImage = SVImage::FromData(size, size, channels, vdata, mipLevels);
   texture->mLoaded = true;
@@ -58,9 +52,9 @@ void SVCubemap::uploadToDevice(std::shared_ptr<core::Context> context) {
                                     mDescription.mipLevels, 0, 6)));
   mSampler = context->getDevice().createSamplerUnique(vk::SamplerCreateInfo(
       {}, mDescription.magFilter, mDescription.minFilter,
-      vk::SamplerMipmapMode::eLinear, mDescription.addressModeU,
-      mDescription.addressModeV, vk::SamplerAddressMode::eRepeat, 0.f, false,
-      0.f, false, vk::CompareOp::eNever, 0.f,
+      vk::SamplerMipmapMode::eLinear, vk::SamplerAddressMode::eRepeat,
+      vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat, 0.f,
+      false, 0.f, false, vk::CompareOp::eNever, 0.f,
       static_cast<float>(mDescription.mipLevels),
       vk::BorderColor::eFloatOpaqueBlack));
   mOnDevice = true;
@@ -90,7 +84,8 @@ std::future<void> SVCubemap::loadAsync() {
     }
     auto vfiles = std::vector<std::string>(mDescription.filenames.begin(),
                                            mDescription.filenames.end());
-    SVImage::FromFile(vfiles, mDescription.mipLevels);
+    mImage = SVImage::FromFile(vfiles, mDescription.mipLevels);
+    mImage->setCreateFlags(vk::ImageCreateFlagBits::eCubeCompatible);
     mImage->loadAsync().get();
     mLoaded = true;
     for (auto f : mDescription.filenames) {

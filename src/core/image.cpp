@@ -118,7 +118,7 @@ void Image::upload(void const *data, size_t size, uint32_t arrayLayer) {
                    vk::PipelineStageFlagBits::eTransfer, arrayLayer);
   cb->copyBufferToImage(stagingBuffer->getVulkanBuffer(), mImage,
                         vk::ImageLayout::eTransferDstOptimal, copyRegion);
-  generateMipmaps(cb.get());
+  generateMipmaps(cb.get(), arrayLayer);
   cb->end();
   mContext->submitCommandBufferAndWait(cb.get());
 }

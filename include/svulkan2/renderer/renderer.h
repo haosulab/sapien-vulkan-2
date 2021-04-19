@@ -1,6 +1,7 @@
 #pragma once
 #include "svulkan2/core/context.h"
 #include "svulkan2/core/descriptor_pool.h"
+#include "svulkan2/resource/cubemap.h"
 #include "svulkan2/resource/render_target.h"
 #include "svulkan2/scene/scene.h"
 #include "svulkan2/shader/shader_manager.h"
@@ -39,7 +40,7 @@ class Renderer {
 
   std::shared_ptr<resource::SVRenderTarget> mSpotShadowReadTarget;
   std::vector<std::shared_ptr<resource::SVRenderTarget>>
-  mSpotShadowWriteTargets;
+      mSpotShadowWriteTargets;
 
   std::shared_ptr<resource::SVRenderTarget> mCustomShadowReadTarget;
   std::vector<std::shared_ptr<resource::SVRenderTarget>>
@@ -57,6 +58,7 @@ class Renderer {
   std::vector<vk::UniqueFramebuffer> mShadowFramebuffers;
 
   std::map<std::string, std::shared_ptr<resource::SVTexture>> mCustomTextures;
+  std::map<std::string, std::shared_ptr<resource::SVCubemap>> mCustomCubemaps;
 
   int mWidth{};
   int mHeight{};
@@ -157,6 +159,8 @@ public:
 
   void setCustomTexture(std::string const &name,
                         std::shared_ptr<resource::SVTexture> texture);
+  void setCustomCubemap(std::string const &name,
+                        std::shared_ptr<resource::SVCubemap> cubemap);
 
   Renderer(Renderer const &other) = delete;
   Renderer &operator=(Renderer const &other) = delete;

@@ -12,14 +12,11 @@ struct SVCubemapDescription {
   uint32_t mipLevels;
   vk::Filter magFilter;
   vk::Filter minFilter;
-  vk::SamplerAddressMode addressModeU;
-  vk::SamplerAddressMode addressModeV;
 
   inline bool operator==(SVCubemapDescription const &other) const {
     return source == other.source && filenames == other.filenames &&
            mipLevels == other.mipLevels && magFilter == other.magFilter &&
-           minFilter == other.minFilter && addressModeU == other.addressModeU &&
-           addressModeV == other.addressModeV;
+           minFilter == other.minFilter;
   }
 };
 
@@ -39,20 +36,16 @@ class SVCubemap {
   std::mutex mLoadingMutex;
 
 public:
-  static std::shared_ptr<SVCubemap> FromFile(
-      std::array<std::string, 6> const &filenames, uint32_t mipLevels,
-      vk::Filter magFilter = vk::Filter::eLinear,
-      vk::Filter minFilter = vk::Filter::eLinear,
-      vk::SamplerAddressMode addressModeU = vk::SamplerAddressMode::eRepeat,
-      vk::SamplerAddressMode addressModeV = vk::SamplerAddressMode::eRepeat);
+  static std::shared_ptr<SVCubemap>
+  FromFile(std::array<std::string, 6> const &filenames, uint32_t mipLevels,
+           vk::Filter magFilter = vk::Filter::eLinear,
+           vk::Filter minFilter = vk::Filter::eLinear);
 
-  static std::shared_ptr<SVCubemap> FromData(
-      uint32_t size, uint32_t channels,
-      std::array<std::vector<uint8_t>, 6> const &data, uint32_t mipLevels = 1,
-      vk::Filter magFilter = vk::Filter::eLinear,
-      vk::Filter minFilter = vk::Filter::eLinear,
-      vk::SamplerAddressMode addressModeU = vk::SamplerAddressMode::eRepeat,
-      vk::SamplerAddressMode addressModeV = vk::SamplerAddressMode::eRepeat);
+  static std::shared_ptr<SVCubemap>
+  FromData(uint32_t size, uint32_t channels,
+           std::array<std::vector<uint8_t>, 6> const &data,
+           uint32_t mipLevels = 1, vk::Filter magFilter = vk::Filter::eLinear,
+           vk::Filter minFilter = vk::Filter::eLinear);
 
   void uploadToDevice(std::shared_ptr<core::Context> context);
   void removeFromDevice();
@@ -70,6 +63,7 @@ public:
     mManager = manager;
   }
 
+  inline std::shared_ptr<SVImage> getImage() const { return mImage; }
   inline vk::ImageView getImageView() const { return mImageView.get(); }
   inline vk::Sampler getSampler() const { return mSampler.get(); }
 
