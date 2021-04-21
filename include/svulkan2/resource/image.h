@@ -6,7 +6,7 @@ namespace svulkan2 {
 namespace resource {
 
 struct SVImageDescription {
-  enum SourceType { eFILE, eCUSTOM } source{eCUSTOM};
+  enum SourceType { eFILE, eCUSTOM, eDEVICE } source{eCUSTOM};
   enum Format { eUINT8, eFLOAT } format{eUINT8};
   std::vector<std::string> filenames{};
   uint32_t mipLevels{1};
@@ -62,10 +62,14 @@ public:
   static std::shared_ptr<SVImage>
   FromFile(std::vector<std::string> const &filenames, uint32_t mipLevels = 1);
 
+  static std::shared_ptr<SVImage>
+  FromDeviceImage(std::unique_ptr<core::Image> image);
+
   void setUsage(vk::ImageUsageFlags usage);
   void setCreateFlags(vk::ImageCreateFlags flags);
 
-  void uploadToDevice(std::shared_ptr<core::Context> context);
+  void uploadToDevice(std::shared_ptr<core::Context> context,
+                      bool generateMipmaps = true);
   void removeFromDevice();
   inline bool isLoaded() const { return mLoaded; }
   inline bool isOnDevice() const { return mOnDevice; }

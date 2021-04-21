@@ -104,6 +104,19 @@ SVImage::FromFile(std::vector<std::string> const &filenames,
   return image;
 }
 
+std::shared_ptr<SVImage>
+SVImage::FromDeviceImage(std::unique_ptr<core::Image> image) {
+  auto result = std::shared_ptr<SVImage>(new SVImage);
+  result->mDescription =
+      SVImageDescription{.source = SVImageDescription::SourceType::eDEVICE};
+  result->mWidth = image->getExtent().width;
+  result->mHeight = image->getExtent().height;
+  result->mImage = std::move(image);
+  result->mLoaded = true;
+  result->mOnDevice = true;
+  return result;
+}
+
 void SVImage::setUsage(vk::ImageUsageFlags usage) {
   if (mOnDevice) {
     throw std::runtime_error(
@@ -120,7 +133,8 @@ void SVImage::setCreateFlags(vk::ImageCreateFlags flags) {
   mCreateFlags = flags;
 }
 
-void SVImage::uploadToDevice(std::shared_ptr<core::Context> context) {
+void SVImage::uploadToDevice(std::shared_ptr<core::Context> context,
+                             bool generateMipmaps) {
   if (mOnDevice) {
     return;
   }
@@ -138,7 +152,7 @@ void SVImage::uploadToDevice(std::shared_ptr<core::Context> context) {
         vk::ImageTiling::eOptimal, mCreateFlags);
     for (uint32_t layer = 0; layer < mData.size(); ++layer) {
       mImage->upload(mData[layer].data(), mData[layer].size() * sizeof(uint8_t),
-                     layer);
+                     layer, generateMipmaps);
     }
   } else {
     mImage = std::make_unique<core::Image>(
@@ -150,7 +164,8 @@ void SVImage::uploadToDevice(std::shared_ptr<core::Context> context) {
         vk::ImageTiling::eOptimal, mCreateFlags);
     for (uint32_t layer = 0; layer < mFloatData.size(); ++layer) {
       mImage->upload(mFloatData[layer].data(),
-                     mFloatData[layer].size() * sizeof(float), layer);
+                     mFloatData[layer].size() * sizeof(float), layer,
+                     generateMipmaps);
     }
   }
   mOnDevice = true;

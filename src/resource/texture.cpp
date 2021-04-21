@@ -63,6 +63,18 @@ SVTexture::FromData(uint32_t width, uint32_t height, uint32_t channels,
   return texture;
 }
 
+std::shared_ptr<SVTexture> SVTexture::FromImage(std::shared_ptr<SVImage> image,
+                                                vk::UniqueImageView imageView,
+                                                vk::UniqueSampler sampler) {
+  auto texture = std::shared_ptr<SVTexture>(new SVTexture);
+  texture->mDescription = {.source = SVTextureDescription::SourceType::eCUSTOM};
+  texture->mImage = image;
+  texture->mImageView = std::move(imageView);
+  texture->mSampler = std::move(sampler);
+  texture->mLoaded = true;
+  return texture;
+}
+
 void SVTexture::uploadToDevice(std::shared_ptr<core::Context> context) {
   if (mOnDevice) {
     return;
@@ -72,20 +84,24 @@ void SVTexture::uploadToDevice(std::shared_ptr<core::Context> context) {
   if (!mImage->isOnDevice()) {
     mImage->uploadToDevice(context);
   }
-  mImageView =
-      context->getDevice().createImageViewUnique(vk::ImageViewCreateInfo(
-          {}, mImage->getDeviceImage()->getVulkanImage(),
-          vk::ImageViewType::e2D, mImage->getDeviceImage()->getFormat(),
-          vk::ComponentSwizzle::eIdentity,
-          vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0,
-                                    mDescription.mipLevels, 0, 1)));
-  mSampler = context->getDevice().createSamplerUnique(vk::SamplerCreateInfo(
-      {}, mDescription.magFilter, mDescription.minFilter,
-      vk::SamplerMipmapMode::eLinear, mDescription.addressModeU,
-      mDescription.addressModeV, vk::SamplerAddressMode::eRepeat, 0.f, false,
-      0.f, false, vk::CompareOp::eNever, 0.f,
-      static_cast<float>(mDescription.mipLevels),
-      vk::BorderColor::eFloatOpaqueBlack));
+  if (!mImageView) {
+    mImageView =
+        context->getDevice().createImageViewUnique(vk::ImageViewCreateInfo(
+            {}, mImage->getDeviceImage()->getVulkanImage(),
+            vk::ImageViewType::e2D, mImage->getDeviceImage()->getFormat(),
+            vk::ComponentSwizzle::eIdentity,
+            vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0,
+                                      mDescription.mipLevels, 0, 1)));
+  }
+  if (!mSampler) {
+    mSampler = context->getDevice().createSamplerUnique(vk::SamplerCreateInfo(
+        {}, mDescription.magFilter, mDescription.minFilter,
+        vk::SamplerMipmapMode::eLinear, mDescription.addressModeU,
+        mDescription.addressModeV, vk::SamplerAddressMode::eRepeat, 0.f, false,
+        0.f, false, vk::CompareOp::eNever, 0.f,
+        static_cast<float>(mDescription.mipLevels),
+        vk::BorderColor::eFloatOpaqueBlack));
+  }
   mOnDevice = true;
 }
 
@@ -116,8 +132,6 @@ std::future<void> SVTexture::loadAsync() {
     log::info("Loaded: {}", mDescription.filename);
   });
 }
-
-void SVTexture::load() { loadAsync().get(); }
 
 } // namespace resource
 } // namespace svulkan2

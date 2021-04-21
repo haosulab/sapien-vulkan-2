@@ -8,7 +8,7 @@ namespace resource {
 
 struct SVTextureDescription {
   enum SourceType { eFILE, eCUSTOM } source{eCUSTOM};
-  enum Format { eUINT8, eFLOAT } format{eUINT8};
+  enum Format { eUINT8, eFLOAT, eUNKNOWN } format{eUINT8};
   std::string filename{};
   uint32_t mipLevels{1};
   vk::Filter magFilter{vk::Filter::eNearest};
@@ -68,13 +68,16 @@ public:
       vk::SamplerAddressMode addressModeU = vk::SamplerAddressMode::eRepeat,
       vk::SamplerAddressMode addressModeV = vk::SamplerAddressMode::eRepeat);
 
+  static std::shared_ptr<SVTexture> FromImage(std::shared_ptr<SVImage> image,
+                                              vk::UniqueImageView imageView,
+                                              vk::UniqueSampler sampler);
+
   void uploadToDevice(std::shared_ptr<core::Context> context);
   void removeFromDevice();
 
   inline bool isOnDevice() const { return mOnDevice && mImage->isOnDevice(); }
   inline bool isLoaded() const { return mLoaded; }
   std::future<void> loadAsync();
-  void load();
 
   inline SVTextureDescription const &getDescription() const {
     return mDescription;

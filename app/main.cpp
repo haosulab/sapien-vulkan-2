@@ -3,6 +3,7 @@
 #include "svulkan2/core/context.h"
 #include "svulkan2/renderer/renderer.h"
 #include "svulkan2/scene/scene.h"
+#include "svulkan2/shader/compute.h"
 #include "svulkan2/shader/shader.h"
 #include "svulkan2/ui/ui.h"
 #include <iostream>
@@ -10,6 +11,8 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "camera_controller.hpp"
 #include <stb_image_write.h>
+
+using namespace svulkan2;
 
 static bool gSwapchainRebuild = true;
 static bool gClosed = false;
@@ -24,7 +27,22 @@ static void window_close_callback(GLFWwindow *window) {
   glfwSetWindowShouldClose(window, GLFW_FALSE);
 }
 
-using namespace svulkan2;
+static void createSphereArray(svulkan2::scene::Scene &scene) {
+  for (uint32_t i = 0; i < 10; ++i) {
+    for (uint32_t j = 0; j < 10; ++j) {
+      float metallic = i / 9.f;
+      float roughness = j / 9.f;
+      auto shape = resource::SVShape::Create(
+          resource::SVMesh::CreateUVSphere(32, 16),
+          std::make_shared<resource::SVMetallicMaterial>(
+              glm::vec4{1, 1, 1, 1}, 0, roughness, metallic));
+      scene.addObject(resource::SVModel::FromData({shape}), {
+          .position = {i/8.f, j/8.f, 0},
+          .scale = {0.05, 0.05, 0.05}
+        });
+    }
+  }
+}
 
 int main() {
   svulkan2::log::getLogger()->set_level(spdlog::level::info);
@@ -44,15 +62,34 @@ int main() {
   config->colorFormat = vk::Format::eR32G32B32A32Sfloat;
   renderer::Renderer renderer(context, config);
 
+  auto image = shader::generateBRDFLUT(context, 512);
+  auto sampler = context->getDevice().createSamplerUnique(vk::SamplerCreateInfo(
+      {}, vk::Filter::eLinear, vk::Filter::eLinear,
+      vk::SamplerMipmapMode::eNearest, vk::SamplerAddressMode::eClampToEdge,
+      vk::SamplerAddressMode::eClampToEdge,
+      vk::SamplerAddressMode::eClampToEdge, 0.f, false, 0.f, false,
+      vk::CompareOp::eNever, 0.f, 0.f, vk::BorderColor::eFloatOpaqueWhite));
+  auto view =
+      context->getDevice().createImageViewUnique(vk::ImageViewCreateInfo(
+          {}, image->getVulkanImage(), vk::ImageViewType::e2D,
+          image->getFormat(), vk::ComponentSwizzle::eIdentity,
+          vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0,
+                                    1)));
+  auto lutTexture = resource::SVTexture::FromImage(
+      resource::SVImage::FromDeviceImage(std::move(image)), std::move(view),
+      std::move(sampler));
+
   svulkan2::scene::Scene scene;
 
-  auto &spotLight = scene.addSpotLight();
-  spotLight.setPosition({0, 0.5, 0});
-  spotLight.setDirection({1, 0, 0});
-  spotLight.setFov(1);
-  spotLight.setColor({1, 0, 0, 1});
-  spotLight.enableShadow(true);
-  spotLight.setShadowParameters(0.05, 5);
+  createSphereArray(scene);
+
+  // auto &spotLight = scene.addSpotLight();
+  // spotLight.setPosition({0, 0.5, 0});
+  // spotLight.setDirection({1, 0, 0});
+  // spotLight.setFov(1);
+  // spotLight.setColor({1, 0, 0, 1});
+  // spotLight.enableShadow(true);
+  // spotLight.setShadowParameters(0.05, 5);
 
   // auto &p2 = scene.addPointLight();
   // p2.setTransform({.position = glm::vec4{0.5, 0.5, 0, 1}});
@@ -70,8 +107,8 @@ int main() {
   dl.setPosition({0, 0, 0});
   dl.setDirection({0, -5, -1});
   dl.setColor({1, 1, 1, 1});
-  dl.enableShadow(true);
-  dl.setShadowParameters(-10, 10, 10);
+  dl.enableShadow(false);
+  // dl.setShadowParameters(-10, 10, 10);
 
   // auto &dl2 = scene.addDirectionalLight();
   // dl2.setTransform({.position = {0, 0, 0}});
@@ -124,14 +161,21 @@ int main() {
   //                           context.getResourceManager().CreateTextureFromFile(
   //                               "../test/assets/image/flashlight.jpg", 1));
 
-  auto cubemap = context->getResourceManager()->CreateCubemapFromFiles({
-      "../test/assets/image/cube2/px.png",
-      "../test/assets/image/cube2/nx.png",
-      "../test/assets/image/cube2/py.png",
-      "../test/assets/image/cube2/ny.png",
-      "../test/assets/image/cube2/pz.png",
-      "../test/assets/image/cube2/nz.png",
-  });
+  renderer.setCustomTexture("BRDFLUT", lutTexture);
+
+  auto cubemap = context->getResourceManager()->CreateCubemapFromFiles(
+      {
+          "../test/assets/image/cube2/px.png",
+          "../test/assets/image/cube2/nx.png",
+          "../test/assets/image/cube2/py.png",
+          "../test/assets/image/cube2/ny.png",
+          "../test/assets/image/cube2/pz.png",
+          "../test/assets/image/cube2/nz.png",
+      },
+      6);
+  cubemap->loadAsync().get();
+  cubemap->uploadToDevice(context);
+  shader::prefilterCubemap(*cubemap->getImage()->getDeviceImage());
   renderer.setCustomCubemap("Environment", cubemap);
 
   auto window = context->createWindow(1600, 1200);
@@ -179,7 +223,7 @@ int main() {
   int count = 0;
   while (!window->isClosed()) {
     count += 1;
-    spotLight.setDirection({glm::cos(count / 50.f), 0, glm::sin(count / 50.f)});
+    // spotLight.setDirection({glm::cos(count / 50.f), 0, glm::sin(count / 50.f)});
 
     if (gSwapchainRebuild) {
       context->getDevice().waitIdle();

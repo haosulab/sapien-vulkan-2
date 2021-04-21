@@ -41,7 +41,10 @@ void SVCubemap::uploadToDevice(std::shared_ptr<core::Context> context) {
   }
   mContext = context;
   if (!mImage->isOnDevice()) {
-    mImage->uploadToDevice(context);
+    mImage->setUsage(vk::ImageUsageFlagBits::eSampled |
+                     vk::ImageUsageFlagBits::eTransferDst |
+                     vk::ImageUsageFlagBits::eStorage);
+    mImage->uploadToDevice(context, false);
   }
   mImageView =
       context->getDevice().createImageViewUnique(vk::ImageViewCreateInfo(

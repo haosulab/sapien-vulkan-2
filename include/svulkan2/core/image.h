@@ -22,6 +22,9 @@ inline size_t findSizeFromFormat(vk::Format format) {
   if (format == vk::Format::eR32G32B32A32Uint) {
     return 16;
   }
+  if (format == vk::Format::eR16G16Sfloat) {
+    return 4;
+  }
   if (format == vk::Format::eR32Sfloat) {
     return 4;
   }
@@ -53,16 +56,14 @@ private:
   vk::Image mImage;
   VmaAllocation mAllocation;
 
-  // bool mMapped{};
-  // void *mMappedData;
-
   vk::ImageLayout mCurrentLayout;
 
   void generateMipmaps(vk::CommandBuffer cb, uint32_t arrayLayer = 0);
 
 public:
-  Image(std::shared_ptr<Context> context, vk::Extent3D extent, vk::Format format,
-        vk::ImageUsageFlags usageFlags, VmaMemoryUsage memoryUsage,
+  Image(std::shared_ptr<Context> context, vk::Extent3D extent,
+        vk::Format format, vk::ImageUsageFlags usageFlags,
+        VmaMemoryUsage memoryUsage,
         vk::SampleCountFlagBits sampleCount = vk::SampleCountFlagBits::e1,
         uint32_t mipLevels = 1, uint32_t arrayLayers = 1,
         vk::ImageTiling tiling = vk::ImageTiling::eOptimal,
@@ -75,15 +76,16 @@ public:
 
   ~Image();
 
+  inline std::shared_ptr<Context> getContext() const { return mContext; }
+
   vk::Image getVulkanImage() const { return mImage; }
 
-  // void *map();
-  // void unmap();
-
-  void upload(void const *data, size_t size, uint32_t arrayLayer = 0);
+  void upload(void const *data, size_t size, uint32_t arrayLayer = 0,
+              bool mipmaps = true);
   template <typename DataType>
-  void upload(std::vector<DataType> const &data, uint32_t arrayLayer = 0) {
-    upload(data.data(), data.size() * sizeof(DataType), arrayLayer);
+  void upload(std::vector<DataType> const &data, uint32_t arrayLayer = 0,
+              bool mipmaps = true) {
+    upload(data.data(), data.size() * sizeof(DataType), arrayLayer, mipmaps);
   }
 
   void copyToBuffer(vk::Buffer buffer, size_t size, vk::Offset3D offset,

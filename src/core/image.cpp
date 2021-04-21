@@ -26,6 +26,9 @@ static vk::ImageAspectFlags findAspectBitsFromFormat(vk::Format format) {
   if (format == vk::Format::eR32G32B32A32Sfloat) {
     return vk::ImageAspectFlagBits::eColor;
   }
+  if (format == vk::Format::eR16G16Sfloat) {
+    return vk::ImageAspectFlagBits::eColor;
+  }
   if (format == vk::Format::eR32Sfloat) {
     return vk::ImageAspectFlagBits::eColor;
   }
@@ -73,26 +76,8 @@ Image::~Image() {
                   mAllocation);
 }
 
-// void *Image::map() {
-//   if (!mMapped) {
-//     auto result = vmaMapMemory(mContext->getAllocator().getVmaAllocator(),
-//                                mAllocation, &mMappedData);
-//     if (result != VK_SUCCESS) {
-//       log::critical("unable to map memory");
-//       abort();
-//     }
-//   }
-//   return mMappedData;
-// }
-
-// void Image::unmap() {
-//   if (mMapped) {
-//     vmaUnmapMemory(mContext->getAllocator().getVmaAllocator(), mAllocation);
-//     mMapped = false;
-//   }
-// }
-
-void Image::upload(void const *data, size_t size, uint32_t arrayLayer) {
+void Image::upload(void const *data, size_t size, uint32_t arrayLayer,
+                   bool mipmaps) {
   size_t imageSize = mExtent.width * mExtent.height * mExtent.depth *
                      findSizeFromFormat(mFormat);
   if (size != imageSize) {
@@ -118,7 +103,26 @@ void Image::upload(void const *data, size_t size, uint32_t arrayLayer) {
                    vk::PipelineStageFlagBits::eTransfer, arrayLayer);
   cb->copyBufferToImage(stagingBuffer->getVulkanBuffer(), mImage,
                         vk::ImageLayout::eTransferDstOptimal, copyRegion);
-  generateMipmaps(cb.get(), arrayLayer);
+  if (mipmaps) {
+    generateMipmaps(cb.get(), arrayLayer);
+  } else {
+    vk::ImageMemoryBarrier barrier;
+    barrier.setImage(mImage);
+    barrier.setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED);
+    barrier.setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED);
+    barrier.subresourceRange.setAspectMask(vk::ImageAspectFlagBits::eColor);
+    barrier.subresourceRange.setBaseArrayLayer(arrayLayer);
+    barrier.subresourceRange.setLayerCount(1);
+    barrier.subresourceRange.setBaseMipLevel(0);
+    barrier.subresourceRange.setLevelCount(1);
+    barrier.setOldLayout(vk::ImageLayout::eTransferDstOptimal);
+    barrier.setNewLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
+    barrier.setSrcAccessMask(vk::AccessFlagBits::eTransferWrite);
+    barrier.setDstAccessMask(vk::AccessFlagBits::eShaderRead);
+    cb->pipelineBarrier(vk::PipelineStageFlagBits::eTransfer,
+                        vk::PipelineStageFlagBits::eFragmentShader, {}, {}, {},
+                        barrier);
+  }
   cb->end();
   mContext->submitCommandBufferAndWait(cb.get());
 }
@@ -318,7 +322,6 @@ void Image::download(void *data, size_t size, vk::Offset3D offset,
     throw std::runtime_error("failed to download image: invalid layout.");
   }
 
-  // if (!mHostCoherent) {
   auto stagingBuffer = mContext->getAllocator().allocateStagingBuffer(size);
   auto cb = mContext->createCommandBuffer();
   cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
@@ -348,16 +351,6 @@ void Image::download(void *data, size_t size, vk::Offset3D offset,
 
   std::memcpy(data, stagingBuffer->map(), size);
   stagingBuffer->unmap();
-  // }
-  // else {
-  //   vk::ImageSubresource subResource(aspect, 0, 0);
-  //   vk::SubresourceLayout subresourceLayout =
-  //       mContext->getDevice().getImageSubresourceLayout(mImage, subResource);
-  //   std::memcpy(data,
-  //               static_cast<char const *>(map()) + subresourceLayout.offset,
-  //               size);
-  //   unmap();
-  // }
 }
 
 void Image::download(void *data, size_t size, uint32_t arrayLayer) {

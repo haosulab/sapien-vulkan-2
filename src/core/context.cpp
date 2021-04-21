@@ -294,10 +294,12 @@ void Context::createDescriptorPool() {
 
   vk::DescriptorPoolSize pool_sizes[] = {
       {vk::DescriptorType::eCombinedImageSampler, mMaxNumTextures},
-      {vk::DescriptorType::eUniformBuffer, mMaxNumMaterials}};
+      {vk::DescriptorType::eUniformBuffer, mMaxNumMaterials},
+      {vk::DescriptorType::eStorageImage, 10}, // for some compute
+  };
   auto info = vk::DescriptorPoolCreateInfo(
       vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
-      mMaxNumTextures + mMaxNumMaterials, 2, pool_sizes);
+      mMaxNumTextures + mMaxNumMaterials, 3, pool_sizes);
   mDescriptorPool = getDevice().createDescriptorPoolUnique(info);
 
   {
