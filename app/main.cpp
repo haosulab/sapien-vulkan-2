@@ -173,9 +173,8 @@ int main() {
           "../test/assets/image/cube2/nz.png",
       },
       6);
-  cubemap->loadAsync().get();
-  cubemap->uploadToDevice(context);
-  shader::prefilterCubemap(*cubemap->getImage()->getDeviceImage());
+  // cubemap->loadAsync().get();
+  // cubemap->uploadToDevice(context);
   renderer.setCustomCubemap("Environment", cubemap);
 
   auto window = context->createWindow(1600, 1200);

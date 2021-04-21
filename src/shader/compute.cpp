@@ -2,6 +2,7 @@
 #include "svulkan2/common/fs.h"
 #include "svulkan2/core/context.h"
 #include "svulkan2/shader/brdf_lut.h"
+#include "svulkan2/shader/prefilter.h"
 
 namespace svulkan2 {
 namespace shader {
@@ -133,13 +134,9 @@ void prefilterCubemap(core::Image &image) {
                                imageInfo);
   device.updateDescriptorSets(write, {});
 
-  std::vector<char> prefilter_code =
-      readFile("../shader_internal/prefilter.comp.spv");
-
   std::vector<uint32_t> code(
-      reinterpret_cast<const uint32_t *>(prefilter_code.data()),
-      reinterpret_cast<const uint32_t *>(prefilter_code.data()) +
-          prefilter_code.size() / 4);
+      reinterpret_cast<const uint32_t *>(prefilter_code),
+      reinterpret_cast<const uint32_t *>(prefilter_code) + prefilter_size / 4);
 
   auto shaderModule =
       device.createShaderModuleUnique(vk::ShaderModuleCreateInfo({}, code));

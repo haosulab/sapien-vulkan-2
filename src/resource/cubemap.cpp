@@ -1,6 +1,7 @@
 #include "svulkan2/resource/cubemap.h"
 #include "svulkan2/core/context.h"
 #include "svulkan2/resource/manager.h"
+#include "svulkan2/shader/compute.h"
 
 namespace svulkan2 {
 namespace resource {
@@ -60,6 +61,13 @@ void SVCubemap::uploadToDevice(std::shared_ptr<core::Context> context) {
       false, 0.f, false, vk::CompareOp::eNever, 0.f,
       static_cast<float>(mDescription.mipLevels),
       vk::BorderColor::eFloatOpaqueBlack));
+
+  if (mDescription.mipLevels > 1) {
+    log::info("Prefiltering cube map...");
+    shader::prefilterCubemap(*mImage->getDeviceImage());
+    log::info("Prefiltering cube map completed");
+  }
+
   mOnDevice = true;
 }
 
