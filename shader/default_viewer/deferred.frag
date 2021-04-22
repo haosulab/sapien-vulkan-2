@@ -65,23 +65,102 @@ vec4 world2camera(vec4 pos) {
 
 vec3 getBackgroundColor(vec3 texcoord) {
   return pow(textureLod(samplerEnvironment, texcoord, 0).rgb, vec3(2.2));
-  // return vec3(0.89411765, 0.83137255, 0.72156863) - 0.2;
 }
 
 vec3 diffuseIBL(vec3 albedo, vec3 N) {
-  vec3 color = textureLod(samplerEnvironment, N, 5).rgb;
+  vec3 color = pow(textureLod(samplerEnvironment, N, 5).rgb, vec3(2.2));
   return color * albedo;
 }
 
 vec3 specularIBL(vec3 fresnel, float roughness, vec3 N, vec3 V) {
   float dotNV = max(dot(N, V), 0);
   vec3 R = 2 * dot(N, V) * N - V;
-  vec3 color = textureLod(samplerEnvironment, R, roughness * 5).rgb;
+  vec3 color = pow(textureLod(samplerEnvironment, R, roughness * 5).rgb, vec3(2.2));
   vec2 envBRDF = texture(samplerBRDFLUT, vec2(roughness, dotNV)).xy;
   return color * (fresnel * envBRDF.x + envBRDF.y);
 }
 
+vec3 project(mat4 proj, vec3 point) {
+  vec4 v = proj * vec4(point, 1);
+  return v.xyz / v.w;
+}
+
+const int PCF_SampleCount = 25;
+vec2 PCF_Samples[PCF_SampleCount] = {
+  {-2, -2}, {-1, -2}, {0, -2}, {1, -2}, {2, -2},
+  {-2, -1}, {-1, -1}, {0, -1}, {1, -1}, {2, -1},
+  {-2, 0}, {-1, 0}, {0, 0}, {1, 0}, {2, 0},
+  {-2, 1}, {-1, 1}, {0, 1}, {1, 1}, {2, 1},
+  {-2, 2}, {-1, 2}, {0, 2}, {1, 2}, {2, 2}
+};
+
+// vec2 PCSS_Rotate(vec2 offset, vec2 rotationTrig) {
+//   return vec2(rotationTrig.x * offset.x - rotationTrig.y * offset.y,
+//               rotationTrig.y * offset.x + rotationTrig.x * offset.y);
+// }
+
+// float PCSS_BlockerDistance(
+//     sampler2DArray shadowTex, int shadowIndex, mat4 shadowProjInv,
+//     vec3 projCoord, float searchUV, vec2 rotationTrig)
+// {
+// 	// Perform N samples with pre-defined offset and random rotation, scale by input search size
+// 	int blockers = 0;
+// 	float avgBlocker = 0.0f;
+// 	for (int i = 0; i < PCSS_SampleCount; i++)
+// 	{
+// 		vec2 offset = PCSS_Samples[i] * searchUV;
+// 		offset = PCSS_Rotate(offset, rotationTrig);
+
+// 		// Compare given sample depth with receiver depth, if it puts receiver into shadow, this sample is a blocker
+//     float z = texture(shadowTex, vec3(projCoord.xy + offset, shadowIndex)).x;
+
+// 		if (z < projCoord.z)
+// 		{
+// 			blockers++;
+// 			avgBlocker += -project(shadowProjInv, vec3(0,0,z)).z;
+// 		}
+// 	}
+
+// 	// Calculate average blocker depth
+// 	avgBlocker /= blockers;
+
+// 	// To solve cases where there are no blockers - we output 2 values - average blocker depth and no. of blockers
+//   if (blockers == 0) {
+//     return -1;
+//   }
+// 	return avgBlocker;
+// }
+
+float ShadowMapPCF(
+    sampler2DArray shadowTex, int shadowIndex,
+    vec3 projCoord, float resolution, float searchUV, float filterSize)
+{
+	float shadow = 0.0f;
+	vec2 grad = fract(projCoord.xy * resolution + 0.5f);
+
+	for (int i = 0; i < PCF_SampleCount; i++)
+	{
+    vec4 tmp = textureGather(shadowTex, vec3(projCoord.xy +
+                                             filterSize * PCF_Samples[i] * searchUV,
+                                             shadowIndex));
+    tmp.x = tmp.x < projCoord.z ? 0.0f : 1.0f;
+    tmp.y = tmp.y < projCoord.z ? 0.0f : 1.0f;
+    tmp.z = tmp.z < projCoord.z ? 0.0f : 1.0f;
+    tmp.w = tmp.w < projCoord.z ? 0.0f : 1.0f;
+    shadow += mix(mix(tmp.w, tmp.z, grad.x), mix(tmp.x, tmp.y, grad.x), grad.y);
+  }
+	return shadow / PCF_SampleCount;
+}
+
+float interleavedGradientNoise(vec2 position_screen)
+{
+  const vec3 magic = vec3(0.06711056f, 0.00583715f, 52.9829189f);
+  return fract(magic.z * fract(dot(position_screen, magic.xy)));
+}
+
 const float eps = 1e-2;
+
+
 void main() {
   vec3 albedo = texture(samplerAlbedo, inUV).xyz;
   vec3 frm = texture(samplerSpecular, inUV).xyz;
@@ -138,7 +217,13 @@ void main() {
     shadowMapCoord /= shadowMapCoord.w;
     shadowMapCoord.xy = shadowMapCoord.xy * 0.5 + 0.5;
 
-    float visibility = step(shadowMapCoord.z - texture(samplerDirectionalLightDepths, vec3(shadowMapCoord.xy, i)).x, 0);
+    float resolution = textureSize(samplerDirectionalLightDepths, 0).x;
+
+    float visibility = ShadowMapPCF(
+        samplerDirectionalLightDepths, i, shadowMapCoord.xyz, resolution, 1 / resolution, 1);
+
+    // float visibility = step(shadowMapCoord.z - texture(samplerDirectionalLightDepths, vec3(shadowMapCoord.xy, i)).x, 0);
+
     color += visibility * computeDirectionalLight(
         mat3(cameraBuffer.viewMatrix) * sceneBuffer.directionalLights[i].direction.xyz,
         sceneBuffer.directionalLights[i].emission.rgb,
@@ -162,7 +247,13 @@ void main() {
     shadowMapCoord /= shadowMapCoord.w;
     shadowMapCoord.xy = shadowMapCoord.xy * 0.5 + 0.5;
 
-    float visibility = step(shadowMapCoord.z - texture(samplerSpotLightDepths, vec3(shadowMapCoord.xy, i)).x, 0);
+    // float visibility = step(shadowMapCoord.z - texture(samplerSpotLightDepths, vec3(shadowMapCoord.xy, i)).x, 0);
+
+    // float r = 6.28318531 * interleavedGradientNoise(inUV * vec2(cameraBuffer.width, cameraBuffer.height));
+
+    float resolution = textureSize(samplerSpotLightDepths, 0).x;
+    float visibility = ShadowMapPCF(
+        samplerSpotLightDepths, i, shadowMapCoord.xyz, resolution, 1 / resolution, 1);
 
     vec3 pos = world2camera(vec4(sceneBuffer.spotLights[i].position.xyz, 1.f)).xyz;
     vec3 centerDir = mat3(cameraBuffer.viewMatrix) * sceneBuffer.spotLights[i].direction.xyz;

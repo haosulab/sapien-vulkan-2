@@ -49,6 +49,8 @@ public:
                          vk::Filter magFilter = vk::Filter::eLinear,
                          vk::Filter minFilter = vk::Filter::eLinear);
 
+  std::shared_ptr<SVTexture> generateBRDFLUT(std::shared_ptr<core::Context> context, uint32_t size);
+
   std::shared_ptr<SVTexture> CreateRandomTexture(std::string const &name);
 
   inline std::shared_ptr<SVTexture> getDefaultTexture() const {

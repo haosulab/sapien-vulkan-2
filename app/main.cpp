@@ -28,6 +28,17 @@ static void window_close_callback(GLFWwindow *window) {
 }
 
 static void createSphereArray(svulkan2::scene::Scene &scene) {
+  // {
+  //   auto shape = resource::SVShape::Create(
+  //       resource::SVMesh::CreateCube(),
+  //       std::make_shared<resource::SVMetallicMaterial>(
+  //           glm::vec4{1, 1, 1, 1}, 0, 0.4, 1));
+  //   scene.addObject(resource::SVModel::FromData({shape}), {
+  //       .position = {0.5, 0.3, -0.3},
+  //       .scale = {0.05, 0.05, 0.3}
+  //     });
+  // }
+
   for (uint32_t i = 0; i < 10; ++i) {
     for (uint32_t j = 0; j < 10; ++j) {
       float metallic = i / 9.f;
@@ -41,6 +52,17 @@ static void createSphereArray(svulkan2::scene::Scene &scene) {
           .scale = {0.05, 0.05, 0.05}
         });
     }
+  }
+
+  {
+    auto shape = resource::SVShape::Create(
+        resource::SVMesh::CreateCube(),
+        std::make_shared<resource::SVMetallicMaterial>(
+            glm::vec4{1, 1, 1, 1}, 0, 1, 0));
+    scene.addObject(resource::SVModel::FromData({shape}), {
+        .position = {0, 0, 0},
+        .scale = {10, 0.1, 10}
+      });
   }
 }
 
@@ -103,12 +125,12 @@ int main() {
   // p3.enableShadow(true);
   // p3.setShadowParameters(0.05, 5);
 
-  auto &dl = scene.addDirectionalLight();
-  dl.setPosition({0, 0, 0});
-  dl.setDirection({0, -5, -1});
-  dl.setColor({1, 1, 1, 1});
-  dl.enableShadow(false);
-  // dl.setShadowParameters(-10, 10, 10);
+  // auto &dl = scene.addDirectionalLight();
+  // dl.setPosition({0, 0, 0});
+  // dl.setDirection({-1, -5, -1});
+  // dl.setColor({1, 1, 1, 1});
+  // dl.enableShadow(true);
+  // dl.setShadowParameters(-10, 10, 5);
 
   // auto &dl2 = scene.addDirectionalLight();
   // dl2.setTransform({.position = {0, 0, 0}});
@@ -116,6 +138,14 @@ int main() {
   // dl2.setColor({1, 0, 0, 1});
   // dl2.enableShadow(true);
   // dl2.setShadowParameters(-5, 5, 3);
+
+  auto &spotLight = scene.addSpotLight();
+  spotLight.setPosition({0.5, 0.5, 0.7});
+  spotLight.setDirection({0, 0, -1});
+  spotLight.setFov(2);
+  spotLight.setColor({4, 4, 4, 1});
+  spotLight.enableShadow(true);
+  spotLight.setShadowParameters(0.05, 10);
 
   scene.setAmbientLight({0.f, 0.f, 0.f, 0});
 

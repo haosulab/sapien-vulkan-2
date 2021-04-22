@@ -1,4 +1,6 @@
 #include "svulkan2/resource/manager.h"
+#include "svulkan2/core/context.h"
+#include "svulkan2/shader/compute.h"
 #include <filesystem>
 #include <random>
 
@@ -93,6 +95,30 @@ std::shared_ptr<SVCubemap> SVResourceManager::CreateCubemapFromFiles(
   cubemap->setManager(this);
   mCubemapRegistry[desc.filenames[0]].push_back(cubemap);
   return cubemap;
+}
+
+std::shared_ptr<SVTexture>
+SVResourceManager::generateBRDFLUT(std::shared_ptr<core::Context> context,
+                                   uint32_t size) {
+  if (!context->isVulkanAvailable()) {
+    return nullptr;
+  }
+  auto image = shader::generateBRDFLUT(context, 512);
+  auto sampler = context->getDevice().createSamplerUnique(vk::SamplerCreateInfo(
+      {}, vk::Filter::eLinear, vk::Filter::eLinear,
+      vk::SamplerMipmapMode::eNearest, vk::SamplerAddressMode::eClampToEdge,
+      vk::SamplerAddressMode::eClampToEdge,
+      vk::SamplerAddressMode::eClampToEdge, 0.f, false, 0.f, false,
+      vk::CompareOp::eNever, 0.f, 0.f, vk::BorderColor::eFloatOpaqueWhite));
+  auto view =
+      context->getDevice().createImageViewUnique(vk::ImageViewCreateInfo(
+          {}, image->getVulkanImage(), vk::ImageViewType::e2D,
+          image->getFormat(), vk::ComponentSwizzle::eIdentity,
+          vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0,
+                                    1)));
+  return resource::SVTexture::FromImage(
+      resource::SVImage::FromDeviceImage(std::move(image)), std::move(view),
+      std::move(sampler));
 }
 
 // TODO: test this function

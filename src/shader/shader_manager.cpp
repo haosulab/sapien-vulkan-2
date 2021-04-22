@@ -48,8 +48,8 @@ void ShaderManager::processShadersInFolder(std::string const &folder) {
   mNumGbufferPasses = 0;
   for (const auto &entry : fs::directory_iterator(path)) {
     std::string filename = entry.path().filename().string();
-    if (filename.substr(0, 7) == "gbuffer" &&
-        filename.substr(filename.length() - 5) == ".frag") {
+    if (filename.starts_with("gbuffer") &&
+        filename.ends_with(".frag")) {
       mNumGbufferPasses++;
     }
   }
@@ -100,8 +100,7 @@ void ShaderManager::processShadersInFolder(std::string const &folder) {
   int numCompositePasses = 0;
   for (const auto &entry : fs::directory_iterator(path)) {
     std::string filename = entry.path().filename().string();
-    if (filename.substr(0, 9) == "composite" &&
-        filename.substr(filename.length() - 5, 5) == ".frag")
+    if (filename.starts_with("composite") && filename.ends_with(".frag"))
       numCompositePasses++;
   }
 
@@ -229,9 +228,9 @@ void ShaderManager::prepareRenderTargetFormats() {
     }
     for (auto &elem : pass->getTextureOutputLayout()->elements) {
       std::string texName = getOutTextureName(elem.second.name);
-      if (texName.substr(texName.length() - 5) == "Depth") {
+      if (texName.ends_with("Depth")) {
         throw std::runtime_error(
-            "You are not allowed to name your texture \"Depth\"");
+            "You are not allowed to name your texture \"*Depth\"");
       }
       vk::Format texFormat;
       switch (elem.second.dtype) {
