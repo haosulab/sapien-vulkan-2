@@ -384,37 +384,6 @@ void Scene::uploadShadowToDevice(
   }
 
   {
-    std::vector<LightBufferData> spotLightShadowData;
-    uint32_t numSpotLightShadows = 0;
-    for (auto &l : getSpotLights()) {
-      if (l->isShadowEnabled()) {
-        if (numSpotLightShadows >= maxNumSpotLightShadows) {
-          throw std::runtime_error("The scene contains too many spot "
-                                   "lights that cast shadows.");
-          break;
-        }
-        numSpotLightShadows++;
-
-        auto modelMat = l->getTransform().worldModelMatrix;
-        auto projMat = l->getShadowProjectionMatrix();
-        spotLightShadowData.push_back({
-            .viewMatrix = glm::affineInverse(modelMat),
-            .viewMatrixInverse = modelMat,
-            .projectionMatrix = projMat,
-            .projectionMatrixInverse = glm::inverse(projMat),
-        });
-        lightBuffers[lightBufferIndex++]->upload(&spotLightShadowData.back(),
-                                                 sizeof(LightBufferData));
-      } else {
-        break;
-      }
-    }
-    shadowBuffer.upload(spotLightShadowData.data(),
-                        spotLightShadowData.size() * sizeof(LightBufferData),
-                        shadowLayout.elements.at("spotLightBuffers").offset);
-  }
-
-  {
     std::vector<LightBufferData> pointLightShadowData;
     uint32_t numPointLightShadows = 0;
     for (auto &l : getPointLights()) {
@@ -449,6 +418,38 @@ void Scene::uploadShadowToDevice(
                         pointLightShadowData.size() * sizeof(LightBufferData),
                         shadowLayout.elements.at("pointLightBuffers").offset);
   }
+
+  {
+    std::vector<LightBufferData> spotLightShadowData;
+    uint32_t numSpotLightShadows = 0;
+    for (auto &l : getSpotLights()) {
+      if (l->isShadowEnabled()) {
+        if (numSpotLightShadows >= maxNumSpotLightShadows) {
+          throw std::runtime_error("The scene contains too many spot "
+                                   "lights that cast shadows.");
+          break;
+        }
+        numSpotLightShadows++;
+
+        auto modelMat = l->getTransform().worldModelMatrix;
+        auto projMat = l->getShadowProjectionMatrix();
+        spotLightShadowData.push_back({
+            .viewMatrix = glm::affineInverse(modelMat),
+            .viewMatrixInverse = modelMat,
+            .projectionMatrix = projMat,
+            .projectionMatrixInverse = glm::inverse(projMat),
+          });
+        lightBuffers[lightBufferIndex++]->upload(&spotLightShadowData.back(),
+                                                 sizeof(LightBufferData));
+      } else {
+        break;
+      }
+    }
+    shadowBuffer.upload(spotLightShadowData.data(),
+                        spotLightShadowData.size() * sizeof(LightBufferData),
+                        shadowLayout.elements.at("spotLightBuffers").offset);
+  }
+
   {
     std::vector<LightBufferData> customLightShadowData;
     uint32_t numCustomLightShadows = 0;
