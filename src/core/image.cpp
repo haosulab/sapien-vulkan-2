@@ -13,34 +13,6 @@ static vk::ImageType findImageTypeFromExtent(vk::Extent3D extent) {
   return vk::ImageType::e2D;
 }
 
-static vk::ImageAspectFlags findAspectBitsFromFormat(vk::Format format) {
-  if (format == vk::Format::eR8Unorm) {
-    return vk::ImageAspectFlagBits::eColor;
-  }
-  if (format == vk::Format::eR8G8B8A8Unorm) {
-    return vk::ImageAspectFlagBits::eColor;
-  }
-  if (format == vk::Format::eR32G32B32A32Uint) {
-    return vk::ImageAspectFlagBits::eColor;
-  }
-  if (format == vk::Format::eR32G32B32A32Sfloat) {
-    return vk::ImageAspectFlagBits::eColor;
-  }
-  if (format == vk::Format::eR16G16Sfloat) {
-    return vk::ImageAspectFlagBits::eColor;
-  }
-  if (format == vk::Format::eR32Sfloat) {
-    return vk::ImageAspectFlagBits::eColor;
-  }
-  if (format == vk::Format::eD32Sfloat) {
-    return vk::ImageAspectFlagBits::eDepth;
-  }
-  if (format == vk::Format::eD24UnormS8Uint) {
-    return vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
-  }
-  throw std::runtime_error("unknown image format");
-}
-
 Image::Image(std::shared_ptr<Context> context, vk::Extent3D extent,
              vk::Format format, vk::ImageUsageFlags usageFlags,
              VmaMemoryUsage memoryUsage, vk::SampleCountFlagBits sampleCount,
@@ -79,7 +51,7 @@ Image::~Image() {
 void Image::upload(void const *data, size_t size, uint32_t arrayLayer,
                    bool mipmaps) {
   size_t imageSize = mExtent.width * mExtent.height * mExtent.depth *
-                     findSizeFromFormat(mFormat);
+                     getFormatSize(mFormat);
   if (size != imageSize) {
     throw std::runtime_error("image upload failed: expecting size " +
                              std::to_string(imageSize) + ", got " +
@@ -90,8 +62,8 @@ void Image::upload(void const *data, size_t size, uint32_t arrayLayer,
 
   vk::BufferImageCopy copyRegion(
       0, mExtent.width, mExtent.height,
-      vk::ImageSubresourceLayers(findAspectBitsFromFormat(mFormat), 0,
-                                 arrayLayer, 1),
+      vk::ImageSubresourceLayers(getImageAspectFlags(mFormat), 0, arrayLayer,
+                                 1),
       vk::Offset3D(0, 0, 0), mExtent);
 
   auto cb = mContext->createCommandBuffer();
@@ -190,8 +162,8 @@ void Image::generateMipmaps(vk::CommandBuffer cb, uint32_t arrayLayer) {
 
 void Image::copyToBuffer(vk::Buffer buffer, size_t size, vk::Offset3D offset,
                          vk::Extent3D extent, uint32_t arrayLayer) {
-  size_t imageSize =
-      extent.width * extent.height * extent.depth * findSizeFromFormat(mFormat);
+  size_t imageSize = extent.width * extent.height * extent.depth *
+                     getFormatSize(mFormat);
   if (size != imageSize) {
     throw std::runtime_error("copy to buffer failed: expecting size " +
                              std::to_string(imageSize) + ", got " +
@@ -270,8 +242,8 @@ void Image::copyToBuffer(vk::Buffer buffer, size_t size, vk::Offset3D offset,
 
 void Image::download(void *data, size_t size, vk::Offset3D offset,
                      vk::Extent3D extent, uint32_t arrayLayer) {
-  size_t imageSize =
-      extent.width * extent.height * extent.depth * findSizeFromFormat(mFormat);
+  size_t imageSize = extent.width * extent.height * extent.depth *
+                     getFormatSize(mFormat);
   if (size != imageSize) {
     throw std::runtime_error("image download failed: expecting size " +
                              std::to_string(imageSize) + ", got " +
@@ -367,8 +339,8 @@ void Image::transitionLayout(
     vk::ImageLayout newImageLayout, vk::AccessFlags sourceAccessMask,
     vk::AccessFlags destAccessMask, vk::PipelineStageFlags sourceStage,
     vk::PipelineStageFlags destStage, uint32_t arrayLayer) {
-  vk::ImageSubresourceRange imageSubresourceRange(
-      findAspectBitsFromFormat(mFormat), 0, mMipLevels, arrayLayer, 1);
+  vk::ImageSubresourceRange imageSubresourceRange(getImageAspectFlags(mFormat),
+                                                  0, mMipLevels, arrayLayer, 1);
   vk::ImageMemoryBarrier barrier(
       sourceAccessMask, destAccessMask, oldImageLayout, newImageLayout,
       VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, mImage,
@@ -385,7 +357,7 @@ void Image::transitionLayout(vk::CommandBuffer commandBuffer,
                              vk::PipelineStageFlags sourceStage,
                              vk::PipelineStageFlags destStage) {
   vk::ImageSubresourceRange imageSubresourceRange(
-      findAspectBitsFromFormat(mFormat), 0, mMipLevels, 0, mArrayLayers);
+      getImageAspectFlags(mFormat), 0, mMipLevels, 0, mArrayLayers);
   vk::ImageMemoryBarrier barrier(
       sourceAccessMask, destAccessMask, oldImageLayout, newImageLayout,
       VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, mImage,

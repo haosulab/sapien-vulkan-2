@@ -1161,7 +1161,7 @@ Renderer::transferToCuda(std::string const &targetName) {
   auto &img = target->getImage();
   auto extent = img.getExtent();
   vk::DeviceSize size = extent.width * extent.height * extent.depth *
-                        core::findSizeFromFormat(img.getFormat());
+                        getFormatSize(img.getFormat());
 
   {
     auto it = mCudaBuffers.find(targetName);

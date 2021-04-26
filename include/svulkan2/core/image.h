@@ -12,34 +12,6 @@
 namespace svulkan2 {
 namespace core {
 
-inline size_t findSizeFromFormat(vk::Format format) {
-  if (format == vk::Format::eR8Unorm) {
-    return 1;
-  }
-  if (format == vk::Format::eR8G8B8A8Unorm) {
-    return 4;
-  }
-  if (format == vk::Format::eR32G32B32A32Uint) {
-    return 16;
-  }
-  if (format == vk::Format::eR16G16Sfloat) {
-    return 4;
-  }
-  if (format == vk::Format::eR32Sfloat) {
-    return 4;
-  }
-  if (format == vk::Format::eR32G32B32A32Sfloat) {
-    return 16;
-  }
-  if (format == vk::Format::eD32Sfloat) {
-    return 4;
-  }
-  if (format == vk::Format::eD24UnormS8Uint) {
-    return 4;
-  }
-  throw std::runtime_error("unknown image format");
-}
-
 class Image {
 private:
   std::shared_ptr<class Context> mContext;
@@ -99,10 +71,13 @@ public:
   template <typename DataType>
   std::vector<DataType> download(vk::Offset3D offset, vk::Extent3D extent,
                                  uint32_t arrayLayer = 0) {
+    if (!isFormatCompatible<DataType>(mFormat)) {
+      throw std::runtime_error("Download failed: incompatible format");
+    }
     static_assert(sizeof(DataType) == 1 ||
                   sizeof(DataType) == 4); // only support char, int or float
-    size_t size = findSizeFromFormat(mFormat) * extent.width * extent.height *
-                  extent.depth;
+    size_t size =
+        getFormatSize(mFormat) * extent.width * extent.height * extent.depth;
     std::vector<DataType> data(size / sizeof(DataType));
     download(data.data(), size, offset, extent, arrayLayer);
     return data;
@@ -114,6 +89,9 @@ public:
   template <typename DataType>
   std::vector<DataType> downloadPixel(vk::Offset3D offset,
                                       uint32_t arrayLayer = 0) {
+    if (!isFormatCompatible<DataType>(mFormat)) {
+      throw std::runtime_error("Download pixel failed: incompatible format");
+    }
     return download<DataType>(offset, {1, 1, 1}, arrayLayer);
   }
 
