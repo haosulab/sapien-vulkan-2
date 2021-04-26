@@ -118,7 +118,7 @@ float SpotLight::getFov() const { return mFov; }
 
 glm::mat4 SpotLight::getShadowProjectionMatrix() const {
   auto mat =
-      glm::perspective(glm::pi<float>() / 2.f, 1.f, mShadowNear, mShadowFar);
+      glm::perspective(mFov, 1.f, mShadowNear, mShadowFar);
   mat[1][1] *= -1;
   return mat;
 }
