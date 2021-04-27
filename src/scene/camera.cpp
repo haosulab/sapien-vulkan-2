@@ -30,6 +30,7 @@ void Camera::setFullPerspectiveParameters(float near, float far, float fx,
   mat[2][3] = -1.f;
   mat[2][0] = -2.f * cx / width + 1;
   mat[2][1] = -2.f * cy / height + 1;
+  mat[3][3] = 0.f;
 
   mat[1][0] = -2 * skew / width;
 
