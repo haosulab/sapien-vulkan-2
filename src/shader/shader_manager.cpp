@@ -563,7 +563,8 @@ void ShaderManager::createPipelines(
     }
     mShadowPass->createGraphicsPipeline(
         device, mRenderConfig->colorFormat, mRenderConfig->depthFormat,
-        mRenderConfig->culling, vk::FrontFace::eCounterClockwise, {},
+        vk::CullModeFlagBits::eFront,
+        vk::FrontFace::eCounterClockwise, {},
         {vk::ImageLayout::eUndefined, vk::ImageLayout::eShaderReadOnlyOptimal},
         descriptorSetLayouts, specializationConstantInfo);
   }
