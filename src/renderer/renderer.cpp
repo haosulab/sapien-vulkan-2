@@ -526,6 +526,9 @@ void Renderer::prepareObjects(scene::Scene &scene) {
 }
 
 void Renderer::recordRenderPasses(scene::Scene &scene) {
+  mRenderCommandBuffer.reset();
+  mModelCache.clear();
+
   mRenderCommandBuffer =
       mContext->createCommandBuffer(vk::CommandBufferLevel::ePrimary);
   mRenderCommandBuffer->begin(vk::CommandBufferBeginInfo({}, {}));
@@ -552,6 +555,11 @@ void Renderer::recordRenderPasses(scene::Scene &scene) {
     if (objects[objectIndex]->getTransparency() >= 1) {
       continue;
     }
+
+    /* HACK: hold onto the models to make sure the underlying buffers are not
+     * released until command buffer reset */
+    mModelCache.insert(objects[objectIndex]->getModel());
+
     for (auto shape : objects[objectIndex]->getModel()->getShapes()) {
       int shapeShadingMode = shadingMode;
       if (shape->material->getOpacity() == 0) {
