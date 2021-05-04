@@ -1,7 +1,7 @@
 #include "svulkan2/shader/glsl_compiler.h"
 #include "svulkan2/common/fs.h"
 #include "svulkan2/common/log.h"
-#include <glslang/SPIRV/GlslangToSpv.h>
+#include <SPIRV/GlslangToSpv.h>
 #include <glslang/Public/ShaderLang.h>
 #include <vulkan/vulkan.hpp>
 
