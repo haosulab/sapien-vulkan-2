@@ -28,41 +28,27 @@ static void window_close_callback(GLFWwindow *window) {
 }
 
 static void createSphereArray(svulkan2::scene::Scene &scene) {
-  // {
-  //   auto shape = resource::SVShape::Create(
-  //       resource::SVMesh::CreateCube(),
-  //       std::make_shared<resource::SVMetallicMaterial>(
-  //           glm::vec4{1, 1, 1, 1}, 0, 0.4, 1));
-  //   scene.addObject(resource::SVModel::FromData({shape}), {
-  //       .position = {0.5, 0.3, -0.3},
-  //       .scale = {0.05, 0.05, 0.3}
-  //     });
-  // }
-
   for (uint32_t i = 0; i < 10; ++i) {
-    for (uint32_t j = 0; j < 10; ++j) {
+    for (uint32_t j = 0; j < 2; ++j) {
       float metallic = i / 9.f;
       float roughness = j / 9.f;
       auto shape = resource::SVShape::Create(
           resource::SVMesh::CreateUVSphere(32, 16),
           std::make_shared<resource::SVMetallicMaterial>(
               glm::vec4{1, 1, 1, 1}, 0, roughness, metallic));
-      scene.addObject(resource::SVModel::FromData({shape}), {
-          .position = {i/8.f, j/8.f, 0},
-          .scale = {0.05, 0.05, 0.05}
-        });
+      scene.addObject(
+          resource::SVModel::FromData({shape}),
+          {.position = {i / 8.f, j / 8.f, 0}, .scale = {0.05, 0.05, 0.05}});
     }
   }
 
   {
     auto shape = resource::SVShape::Create(
         resource::SVMesh::CreateCube(),
-        std::make_shared<resource::SVMetallicMaterial>(
-            glm::vec4{1, 1, 1, 1}, 0, 1, 0));
-    scene.addObject(resource::SVModel::FromData({shape}), {
-        .position = {0, 0, 0},
-        .scale = {10, 0.1, 10}
-      });
+        std::make_shared<resource::SVMetallicMaterial>(glm::vec4{1, 1, 1, 1}, 0,
+                                                       1, 0));
+    scene.addObject(resource::SVModel::FromData({shape}),
+                    {.position = {0, -0.1, 0}, .scale = {10, 0.1, 10}});
   }
 }
 
@@ -103,7 +89,7 @@ int main() {
 
   svulkan2::scene::Scene scene;
 
-  createSphereArray(scene);
+  // createSphereArray(scene);
 
   // auto &spotLight = scene.addSpotLight();
   // spotLight.setPosition({0, 0.5, 0});
@@ -132,26 +118,26 @@ int main() {
   // dl.enableShadow(true);
   // dl.setShadowParameters(-10, 10, 5);
 
-  // auto &dl2 = scene.addDirectionalLight();
-  // dl2.setTransform({.position = {0, 0, 0}});
-  // dl2.setDirection({1, -1, 0.1});
-  // dl2.setColor({1, 0, 0, 1});
-  // dl2.enableShadow(true);
-  // dl2.setShadowParameters(-5, 5, 3);
+  auto &dl2 = scene.addDirectionalLight();
+  dl2.setTransform({.position = {0, 0, 0}});
+  dl2.setDirection({1, -1, 0.1});
+  dl2.setColor({1, 0, 0, 1});
+  dl2.enableShadow(true);
+  dl2.setShadowParameters(-5, 5, 3);
 
-  auto &spotLight = scene.addSpotLight();
-  spotLight.setPosition({0.5, 0.5, 0.7});
-  spotLight.setDirection({0, 0, -1});
-  spotLight.setFov(2);
-  spotLight.setColor({4, 4, 4, 1});
-  spotLight.enableShadow(true);
-  spotLight.setShadowParameters(0.05, 10);
+  // auto &spotLight = scene.addSpotLight();
+  // spotLight.setPosition({0.5, 0.5, 0.7});
+  // spotLight.setDirection({0, 0, -1});
+  // spotLight.setFov(2);
+  // spotLight.setColor({4, 4, 4, 1});
+  // spotLight.enableShadow(true);
+  // spotLight.setShadowParameters(0.05, 10);
 
   scene.setAmbientLight({0.f, 0.f, 0.f, 0});
 
-  auto material =
-      std::make_shared<resource::SVMetallicMaterial>(glm::vec4{1, 1, 1, 1});
-  auto shape = std::make_shared<resource::SVShape>();
+  // auto material =
+  //     std::make_shared<resource::SVMetallicMaterial>(glm::vec4{1, 1, 1, 1});
+  // auto shape = std::make_shared<resource::SVShape>();
   // shape->mesh = resource::SVMesh::createCapsule(0.1, 0.2, 32, 8);
   // shape->mesh = resource::SVMesh::createUVSphere(32, 16);
   // shape->mesh = resource::SVMesh::createCone(32);
@@ -167,6 +153,10 @@ int main() {
   //     srcBase + "test/assets/scene/sponza/sponza2.obj");
   // scene.addObject(model).setTransform(
   //     scene::Transform{.scale = {0.001, 0.001, 0.001}});
+
+  auto model = context->getResourceManager()->CreateModelFromFile(
+      "/home/fx/Downloads/angel_assets/assets/v3_sc1_staging_11.glb");
+  scene.addObject(model);
 
   // auto model = context->getResourceManager()->CreateModelFromFile(
   //     "/home/fx/blender-data/scene120.gltf");
@@ -202,9 +192,7 @@ int main() {
           "../test/assets/image/cube2/pz.png",
           "../test/assets/image/cube2/nz.png",
       },
-      6);
-  // cubemap->loadAsync().get();
-  // cubemap->uploadToDevice(context);
+      1);
   renderer.setCustomCubemap("Environment", cubemap);
 
   auto window = context->createWindow(1600, 1200);
@@ -252,7 +240,8 @@ int main() {
   int count = 0;
   while (!window->isClosed()) {
     count += 1;
-    // spotLight.setDirection({glm::cos(count / 50.f), 0, glm::sin(count / 50.f)});
+    // spotLight.setDirection({glm::cos(count / 50.f), 0, glm::sin(count
+    // / 50.f)});
 
     if (gSwapchainRebuild) {
       context->getDevice().waitIdle();

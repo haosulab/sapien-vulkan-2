@@ -1,4 +1,5 @@
 #include "svulkan2/resource/model.h"
+#include "svulkan2/common/image.h"
 #include "svulkan2/common/log.h"
 #include "svulkan2/resource/manager.h"
 #include <assimp/Importer.hpp>
@@ -43,15 +44,25 @@ std::vector<std::shared_ptr<SVShape>> const &SVModel::getShapes() {
   return mShapes;
 }
 
+static std::vector<uint8_t> loadCompressedTexture(aiTexture const *texture,
+                                                  int &width, int &height) {
+  return loadImageFromMemory(reinterpret_cast<unsigned char *>(texture->pcData),
+                             texture->mWidth, width, height);
+}
+
 static std::shared_ptr<SVTexture> loadEmbededTexture(aiTexture const *texture,
                                                      uint32_t mipLevels) {
+  std::vector<uint8_t> data;
   if (texture->mHeight == 0) {
-    throw std::runtime_error("compressed embedded texture is not supported.");  // TODO: support
+    int width, height;
+    data = loadCompressedTexture(texture, width, height);
+    return SVTexture::FromData(width, height, 4, data, mipLevels);
   }
-  std::vector<uint8_t> data(reinterpret_cast<uint8_t *>(texture->pcData),
-                            reinterpret_cast<uint8_t *>(texture->pcData) +
-                                texture->mWidth * texture->mHeight * 4);
-  return SVTexture::FromData(texture->mWidth, texture->mHeight, 4, data, mipLevels);
+  data = std::vector<uint8_t>(reinterpret_cast<uint8_t *>(texture->pcData),
+                              reinterpret_cast<uint8_t *>(texture->pcData) +
+                                  texture->mWidth * texture->mHeight * 4);
+  return SVTexture::FromData(texture->mWidth, texture->mHeight, 4, data,
+                             mipLevels);
 }
 
 std::future<void> SVModel::loadAsync() {
@@ -202,7 +213,9 @@ std::future<void> SVModel::loadAsync() {
         materials.push_back(material);
       }
     } else {
-      throw std::runtime_error("Non-metallic pipeline is not currently supported");  // TODO: implement
+      throw std::runtime_error(
+          "Non-metallic pipeline is not currently supported"); // TODO:
+                                                               // implement
       for (uint32_t mat_idx = 0; mat_idx < scene->mNumMaterials; ++mat_idx) {
         auto *m = scene->mMaterials[mat_idx];
         aiColor3D diffuse{0, 0, 0};

@@ -1,13 +1,14 @@
 #include "svulkan2/resource/image.h"
+#include "svulkan2/common/image.h"
 #include "svulkan2/common/log.h"
 #include <filesystem>
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-function"
-#define STB_IMAGE_IMPLEMENTATION
-#define STB_IMAGE_STATIC
-#include <stb_image.h>
-#pragma GCC diagnostic pop
+// #pragma GCC diagnostic push
+// #pragma GCC diagnostic ignored "-Wunused-function"
+// #define STB_IMAGE_IMPLEMENTATION
+// #define STB_IMAGE_STATIC
+// #include <stb_image.h>
+// #pragma GCC diagnostic pop
 
 namespace fs = std::filesystem;
 namespace svulkan2 {
@@ -195,17 +196,16 @@ std::future<void> SVImage::loadAsync() {
     mChannels = 4;
 
     for (uint32_t i = 0; i < mDescription.filenames.size(); ++i) {
-      int width, height, nrChannels;
-      unsigned char *data = stbi_load(mDescription.filenames[i].c_str(), &width,
-                                      &height, &nrChannels, STBI_rgb_alpha);
-      if (!data || (mWidth != 0 && mWidth != static_cast<uint32_t>(width)) ||
+      int width, height;
+      auto dataVector = loadImage(mDescription.filenames[i], width, height);
+
+      if ((mWidth != 0 && mWidth != static_cast<uint32_t>(width)) ||
           (mHeight != 0 && mHeight != static_cast<uint32_t>(height))) {
         throw std::runtime_error(
             "image load failed: provided files have different sizes");
       }
       mWidth = width;
       mHeight = height;
-      std::vector<uint8_t> dataVector(data, data + width * height * 4);
       if (mDescription.format == SVImageDescription::Format::eUINT8) {
         mData.push_back(dataVector);
       } else {
@@ -216,7 +216,6 @@ std::future<void> SVImage::loadAsync() {
         }
         mFloatData.push_back(floatDataVector);
       }
-      stbi_image_free(data);
       mLoaded = true;
     }
   });
