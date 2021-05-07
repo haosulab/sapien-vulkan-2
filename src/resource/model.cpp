@@ -120,6 +120,13 @@ std::future<void> SVModel::loadAsync() {
         float alpha = 1.f;
         float shininess = 0.f;
         m->Get(AI_MATKEY_OPACITY, alpha);
+        if (alpha < 1e-5 && (mDescription.filename.ends_with("dae") ||
+                             mDescription.filename.ends_with("DAE"))) {
+          log::warn("The DAE file {} is fully transparent. This is probably "
+                    "due to modeling error. Setting opacity to 1 instead...",
+                    mDescription.filename);
+          alpha = 1.f;
+        }
         m->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse);
         m->Get(AI_MATKEY_COLOR_SPECULAR, specular);
         m->Get(AI_MATKEY_SHININESS, shininess);
@@ -223,6 +230,16 @@ std::future<void> SVModel::loadAsync() {
         float alpha = 1.f;
         float shininess = 0.f;
         m->Get(AI_MATKEY_OPACITY, alpha);
+        if (alpha < 1e-5 && (mDescription.filename.ends_with("dae") ||
+                             mDescription.filename.ends_with("DAE"))) {
+          log::warn("The DAE file {} is fully transparent. This is probably "
+                    "due to modeling error. Setting opacity to 1 instead... We "
+                    "highly recommend using GLTF/GLB format to replace DAE in "
+                    "the future.",
+                    mDescription.filename);
+          alpha = 1.f;
+        }
+
         m->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse);
         m->Get(AI_MATKEY_COLOR_SPECULAR, specular);
         m->Get(AI_MATKEY_SHININESS, shininess);
