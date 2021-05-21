@@ -274,63 +274,35 @@ void verifyCameraBuffer(std::shared_ptr<StructDataLayout> layout) {
 }
 
 void verifyMaterialBuffer(std::shared_ptr<StructDataLayout> layout) {
-  ASSERT(CONTAINS(layout->elements, "baseColor") ||
-             CONTAINS(layout->elements, "diffuse"),
-         "material buffer must contains the variable baseColor or diffuse");
-  bool metallic = CONTAINS(layout->elements, "baseColor");
-  if (metallic) {
-    ASSERT(
-        layout->elements.size() == 6,
-        "metallic pipeline material should contain exactly 6 member variables");
+  ASSERT(layout->elements.size() == 6,
+         "Material should contain exactly 6 member variables");
+  // required variables
+  ASSERT(CONTAINS(layout->elements, "baseColor"),
+         "material requires variable baseColor");
+  ASSERT(CONTAINS(layout->elements, "fresnel"),
+         "material requires variable fresnel");
+  ASSERT(CONTAINS(layout->elements, "roughness"),
+         "material requires variable roughness");
+  ASSERT(CONTAINS(layout->elements, "metallic"),
+         "material requires variable metallic");
+  ASSERT(CONTAINS(layout->elements, "transparency"),
+         "material requires variable transparency");
+  ASSERT(CONTAINS(layout->elements, "textureMask"),
+         "material requires variable textureMask");
 
-    // required variables
-    ASSERT(CONTAINS(layout->elements, "fresnel"),
-           "metallic pipeline material requires variable fresnel");
-    ASSERT(CONTAINS(layout->elements, "roughness"),
-           "metallic pipeline material requires variable roughness");
-    ASSERT(CONTAINS(layout->elements, "metallic"),
-           "metallic pipeline material requires variable metallic");
-    ASSERT(CONTAINS(layout->elements, "transparency"),
-           "metallic pipeline material requires variable transparency");
-    ASSERT(CONTAINS(layout->elements, "textureMask"),
-           "metallic pipeline material requires variable textureMask");
-
-    // variable  types
-    ASSERT(layout->elements["baseColor"].dtype == eFLOAT4,
-           "material baseColor should be float4");
-    ASSERT(layout->elements["fresnel"].dtype == eFLOAT,
-           "material fresnel should be float");
-    ASSERT(layout->elements["roughness"].dtype == eFLOAT,
-           "material roughness should be float");
-    ASSERT(layout->elements["metallic"].dtype == eFLOAT,
-           "material metallic should be float");
-    ASSERT(layout->elements["transparency"].dtype == eFLOAT,
-           "material transparency should be float");
-    ASSERT(layout->elements["textureMask"].dtype == eINT,
-           "material textureMask should be float");
-  } else {
-    ASSERT(
-        layout->elements.size() == 4,
-        "specular pipeline material should contain exactly 4 member variables");
-
-    // required variables
-    ASSERT(CONTAINS(layout->elements, "specular"),
-           "specular pipeline material requires variable roughness");
-    ASSERT(CONTAINS(layout->elements, "transparency"),
-           "specular pipeline material requires variable transparency");
-    ASSERT(CONTAINS(layout->elements, "textureMask"),
-           "specular pipeline material requires variable textureMask");
-
-    // variable  types
-    ASSERT(layout->elements["diffuse"].dtype == eFLOAT4,
-           "material diffuse should be float4");
-    ASSERT(layout->elements["specular"].dtype == eFLOAT4,
-           "material specular should be float4");
-    ASSERT(layout->elements["transparency"].dtype == eFLOAT,
-           "material transparency should be float");
-    ASSERT(layout->elements["textureMask"].dtype == eINT,
-           "material textureMask should be float");
-  }
+  // variable  types
+  ASSERT(layout->elements["baseColor"].dtype == eFLOAT4,
+         "material baseColor should be float4");
+  ASSERT(layout->elements["fresnel"].dtype == eFLOAT,
+         "material fresnel should be float");
+  ASSERT(layout->elements["roughness"].dtype == eFLOAT,
+         "material roughness should be float");
+  ASSERT(layout->elements["metallic"].dtype == eFLOAT,
+         "material metallic should be float");
+  ASSERT(layout->elements["transparency"].dtype == eFLOAT,
+         "material transparency should be float");
+  ASSERT(layout->elements["textureMask"].dtype == eINT,
+         "material textureMask should be float");
 }
 
 void verifyObjectBuffer(std::shared_ptr<StructDataLayout> layout) {

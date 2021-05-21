@@ -101,34 +101,8 @@ void SVMetallicMaterial::setTextures(
   }
 }
 
-void SVSpecularMaterial::setTextures(std::shared_ptr<SVTexture> diffuseTexture,
-                                     std::shared_ptr<SVTexture> specularTexture,
-                                     std::shared_ptr<SVTexture> normalTexture) {
-  mRequiresTextureUpload = true;
-  mDiffuseTexture = diffuseTexture;
-  mSpecularTexture = specularTexture;
-  mNormalTexture = normalTexture;
-
-  if (diffuseTexture) {
-    setBit(mBuffer.textureMask, 0);
-  } else {
-    unsetBit(mBuffer.textureMask, 0);
-  }
-
-  if (specularTexture) {
-    setBit(mBuffer.textureMask, 1);
-  } else {
-    unsetBit(mBuffer.textureMask, 1);
-  }
-
-  if (normalTexture) {
-    setBit(mBuffer.textureMask, 2);
-  } else {
-    unsetBit(mBuffer.textureMask, 2);
-  }
-}
-
-void SVMetallicMaterial::uploadToDevice(std::shared_ptr<core::Context> context) {
+void SVMetallicMaterial::uploadToDevice(
+    std::shared_ptr<core::Context> context) {
   mContext = context;
   if (!mDeviceBuffer) {
     mDeviceBuffer = context->getAllocator().allocateUniformBuffer(
@@ -185,66 +159,6 @@ void SVMetallicMaterial::uploadToDevice(std::shared_ptr<core::Context> context) 
       textures.push_back(
           {defaultTexture->getImageView(), defaultTexture->getSampler()});
     }
-    updateDescriptorSets(context->getDevice(), mDescriptorSet.get(),
-                         {{vk::DescriptorType::eUniformBuffer,
-                           mDeviceBuffer->getVulkanBuffer(), nullptr}},
-                         textures, 0);
-    mRequiresTextureUpload = false;
-  }
-}
-
-void SVSpecularMaterial::uploadToDevice(std::shared_ptr<core::Context> context) {
-  mContext = context;
-  if (!mDeviceBuffer) {
-    mDeviceBuffer = context->getAllocator().allocateUniformBuffer(
-        sizeof(SVSpecularMaterial::Buffer));
-    auto layout = context->getSpecularDescriptorSetLayout();
-    mDescriptorSet = std::move(
-        context->getDevice()
-            .allocateDescriptorSetsUnique(vk::DescriptorSetAllocateInfo(
-                context->getDescriptorPool(), 1, &layout))
-            .front());
-  }
-
-  if (mRequiresBufferUpload) {
-    mDeviceBuffer->upload(mBuffer);
-    mRequiresBufferUpload = false;
-  }
-
-  if (mRequiresTextureUpload) {
-    auto defaultTexture = context->getResourceManager()->getDefaultTexture();
-    std::vector<std::tuple<vk::ImageView, vk::Sampler>> textures;
-    if (mDiffuseTexture) {
-      mDiffuseTexture->uploadToDevice(context);
-      textures.push_back(
-          {mDiffuseTexture->getImageView(), mDiffuseTexture->getSampler()});
-    } else {
-      defaultTexture->uploadToDevice(context);
-      textures.push_back(
-          {defaultTexture->getImageView(), defaultTexture->getSampler()});
-    }
-    if (mNormalTexture) {
-      mNormalTexture->uploadToDevice(context);
-      textures.push_back(
-          {mNormalTexture->getImageView(), mNormalTexture->getSampler()});
-    } else {
-      defaultTexture->uploadToDevice(context);
-      textures.push_back(
-          {defaultTexture->getImageView(), defaultTexture->getSampler()});
-    }
-    if (mSpecularTexture) {
-      mSpecularTexture->uploadToDevice(context);
-      textures.push_back(
-          {mSpecularTexture->getImageView(), mSpecularTexture->getSampler()});
-    } else {
-      defaultTexture->uploadToDevice(context);
-      textures.push_back(
-          {defaultTexture->getImageView(), defaultTexture->getSampler()});
-    }
-    updateDescriptorSets(context->getDevice(), mDescriptorSet.get(),
-                         {{vk::DescriptorType::eUniformBuffer,
-                           mDeviceBuffer->getVulkanBuffer(), nullptr}},
-                         {}, 0);
     updateDescriptorSets(context->getDevice(), mDescriptorSet.get(),
                          {{vk::DescriptorType::eUniformBuffer,
                            mDeviceBuffer->getVulkanBuffer(), nullptr}},

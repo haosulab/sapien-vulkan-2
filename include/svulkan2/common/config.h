@@ -16,7 +16,7 @@ struct RendererConfig {
 
 /** Options configured by the shaders  */
 struct ShaderConfig {
-  enum MaterialPipeline { eMETALLIC, eSPECULAR, eUNKNOWN } materialPipeline;
+  // enum MaterialPipeline { eMETALLIC, eSPECULAR, eUNKNOWN } materialPipeline;
   std::shared_ptr<InputDataLayout> vertexLayout;
   std::shared_ptr<StructDataLayout> objectBufferLayout;
   std::shared_ptr<StructDataLayout> sceneBufferLayout;

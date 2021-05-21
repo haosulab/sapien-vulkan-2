@@ -23,6 +23,10 @@ public:
   glm::vec3 getDirection() const;
   void setDirection(glm::vec3 const &dir);
 
+  inline float getShadowNear() const { return mShadowNear; }
+  inline float getShadowFar() const { return mShadowFar; }
+  inline float getShadowScaling() const { return mShadowScaling; }
+
   glm::mat4 getShadowProjectionMatrix() const;
 };
 
@@ -42,6 +46,9 @@ public:
   inline bool isShadowEnabled() const { return mCastShadow; }
   void setShadowParameters(float near, float far);
   glm::mat4 getShadowProjectionMatrix() const;
+
+  inline float getShadowNear() const { return mShadowNear; }
+  inline float getShadowFar() const { return mShadowFar; }
 };
 
 class CustomLight : public Node {
@@ -75,6 +82,9 @@ public:
   glm::vec3 getDirection() const;
   void setFov(float fov);
   float getFov() const;
+
+  inline float getShadowNear() const { return mShadowNear; }
+  inline float getShadowFar() const { return mShadowFar; }
 
   glm::mat4 getShadowProjectionMatrix() const;
 };

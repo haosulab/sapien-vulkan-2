@@ -194,18 +194,6 @@ SVResourceManager::CreateModelFromFile(std::string const &filename) {
   return model;
 }
 
-void SVResourceManager::setMaterialPipelineType(
-    ShaderConfig::MaterialPipeline pipeline) {
-  if (mMaterialPipeline == ShaderConfig::MaterialPipeline::eUNKNOWN) {
-    mMaterialPipeline = pipeline;
-    return;
-  }
-  if (mMaterialPipeline != pipeline) {
-    throw std::runtime_error(
-        "All shaders are required to use the same material pipeline!");
-  }
-}
-
 void SVResourceManager::setVertexLayout(
     std::shared_ptr<InputDataLayout> layout) {
   if (!mVertexLayout) {

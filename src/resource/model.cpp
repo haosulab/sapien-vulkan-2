@@ -110,175 +110,112 @@ std::future<void> SVModel::loadAsync() {
 
     const uint32_t MIP_LEVEL = mManager->getDefaultMipLevels();
     std::vector<std::shared_ptr<SVMaterial>> materials;
-    if (mManager->getMaterialPipelineType() ==
-        ShaderConfig::MaterialPipeline::eMETALLIC) {
-      std::unordered_map<std::string, std::shared_ptr<SVTexture>> textureCache;
-      for (uint32_t mat_idx = 0; mat_idx < scene->mNumMaterials; ++mat_idx) {
-        auto *m = scene->mMaterials[mat_idx];
-        aiColor3D diffuse{0, 0, 0};
-        aiColor3D specular{0, 0, 0};
-        float alpha = 1.f;
-        float shininess = 0.f;
-        m->Get(AI_MATKEY_OPACITY, alpha);
-        if (alpha < 1e-5 && (mDescription.filename.ends_with("dae") ||
-                             mDescription.filename.ends_with("DAE"))) {
-          log::warn("The DAE file {} is fully transparent. This is probably "
-                    "due to modeling error. Setting opacity to 1 instead...",
-                    mDescription.filename);
-          alpha = 1.f;
-        }
-        m->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse);
-        m->Get(AI_MATKEY_COLOR_SPECULAR, specular);
-        m->Get(AI_MATKEY_SHININESS, shininess);
-
-        std::shared_ptr<SVTexture> baseColorTexture{};
-        std::shared_ptr<SVTexture> normalTexture{};
-        std::shared_ptr<SVTexture> roughnessTexture{};
-        std::shared_ptr<SVTexture> metallicTexture{};
-
-        aiString path;
-        if (m->GetTextureCount(aiTextureType_DIFFUSE) > 0 &&
-            m->GetTexture(aiTextureType_DIFFUSE, 0, &path) == AI_SUCCESS) {
-          log::info("Trying to load texture {}", path.C_Str());
-          if (auto texture = scene->GetEmbeddedTexture(path.C_Str())) {
-            if (textureCache.contains(std::string(path.C_Str()))) {
-              baseColorTexture = textureCache[std::string(path.C_Str())];
-            } else {
-              log::info("Loading embeded texture {}", path.C_Str());
-              textureCache[std::string(path.C_Str())] = baseColorTexture =
-                  loadEmbededTexture(texture, MIP_LEVEL);
-            }
-          } else {
-            std::string p = std::string(path.C_Str());
-            std::string fullPath = (parentDir / p).string();
-            baseColorTexture = mManager->CreateTextureFromFile(
-                fullPath, MIP_LEVEL); // TODO configurable mip levels
-            futures.push_back(baseColorTexture->loadAsync());
-          }
-        }
-        if (m->GetTextureCount(aiTextureType_METALNESS) > 0 &&
-            m->GetTexture(aiTextureType_METALNESS, 0, &path) == AI_SUCCESS) {
-          if (auto texture = scene->GetEmbeddedTexture(path.C_Str())) {
-            if (textureCache.contains(std::string(path.C_Str()))) {
-              metallicTexture = textureCache[std::string(path.C_Str())];
-            } else {
-              log::info("Loading embeded texture {}", path.C_Str());
-              textureCache[std::string(path.C_Str())] = metallicTexture =
-                  loadEmbededTexture(texture, MIP_LEVEL);
-            }
-          } else {
-            std::string p = std::string(path.C_Str());
-            std::string fullPath = (parentDir / p).string();
-            metallicTexture =
-                mManager->CreateTextureFromFile(fullPath, MIP_LEVEL);
-            futures.push_back(metallicTexture->loadAsync());
-          }
-        }
-        if (m->GetTextureCount(aiTextureType_NORMALS) > 0 &&
-            m->GetTexture(aiTextureType_NORMALS, 0, &path) == AI_SUCCESS) {
-          if (auto texture = scene->GetEmbeddedTexture(path.C_Str())) {
-            if (textureCache.contains(std::string(path.C_Str()))) {
-              normalTexture = textureCache[std::string(path.C_Str())];
-            } else {
-              log::info("Loading embeded texture {}", path.C_Str());
-              textureCache[std::string(path.C_Str())] = normalTexture =
-                  loadEmbededTexture(texture, MIP_LEVEL);
-            }
-          } else {
-            std::string p = std::string(path.C_Str());
-            std::string fullPath = (parentDir / p).string();
-            normalTexture =
-                mManager->CreateTextureFromFile(fullPath, MIP_LEVEL);
-            futures.push_back(normalTexture->loadAsync());
-          }
-        }
-        if (m->GetTextureCount(aiTextureType_DIFFUSE_ROUGHNESS) > 0 &&
-            m->GetTexture(aiTextureType_NORMALS, 0, &path) == AI_SUCCESS) {
-          if (auto texture = scene->GetEmbeddedTexture(path.C_Str())) {
-            if (textureCache.contains(std::string(path.C_Str()))) {
-              roughnessTexture = textureCache[std::string(path.C_Str())];
-            } else {
-              log::info("Loading embeded texture {}", path.C_Str());
-              textureCache[std::string(path.C_Str())] = roughnessTexture =
-                  loadEmbededTexture(texture, MIP_LEVEL);
-            }
-          } else {
-            std::string p = std::string(path.C_Str());
-            std::string fullPath = (parentDir / p).string();
-            roughnessTexture =
-                mManager->CreateTextureFromFile(fullPath, MIP_LEVEL);
-            futures.push_back(roughnessTexture->loadAsync());
-          }
-        }
-
-        auto material = std::make_shared<SVMetallicMaterial>(
-            glm::vec4{diffuse.r, diffuse.g, diffuse.b, alpha},
-            (specular.r + specular.g + specular.b) / 3,
-            shininessToRoughness(shininess), 0, 0);
-        material->setTextures(baseColorTexture, roughnessTexture, normalTexture,
-                              metallicTexture);
-        materials.push_back(material);
+    std::unordered_map<std::string, std::shared_ptr<SVTexture>> textureCache;
+    for (uint32_t mat_idx = 0; mat_idx < scene->mNumMaterials; ++mat_idx) {
+      auto *m = scene->mMaterials[mat_idx];
+      aiColor3D diffuse{0, 0, 0};
+      aiColor3D specular{0, 0, 0};
+      float alpha = 1.f;
+      float shininess = 0.f;
+      m->Get(AI_MATKEY_OPACITY, alpha);
+      if (alpha < 1e-5 && (mDescription.filename.ends_with("dae") ||
+                           mDescription.filename.ends_with("DAE"))) {
+        log::warn("The DAE file {} is fully transparent. This is probably "
+                  "due to modeling error. Setting opacity to 1 instead...",
+                  mDescription.filename);
+        alpha = 1.f;
       }
-    } else {
-      throw std::runtime_error(
-          "Non-metallic pipeline is not currently supported"); // TODO:
-                                                               // implement
-      for (uint32_t mat_idx = 0; mat_idx < scene->mNumMaterials; ++mat_idx) {
-        auto *m = scene->mMaterials[mat_idx];
-        aiColor3D diffuse{0, 0, 0};
-        aiColor3D specular{0, 0, 0};
-        float alpha = 1.f;
-        float shininess = 0.f;
-        m->Get(AI_MATKEY_OPACITY, alpha);
-        if (alpha < 1e-5 && (mDescription.filename.ends_with("dae") ||
-                             mDescription.filename.ends_with("DAE"))) {
-          log::warn("The DAE file {} is fully transparent. This is probably "
-                    "due to modeling error. Setting opacity to 1 instead... We "
-                    "highly recommend using GLTF/GLB format to replace DAE in "
-                    "the future.",
-                    mDescription.filename);
-          alpha = 1.f;
-        }
+      m->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse);
+      m->Get(AI_MATKEY_COLOR_SPECULAR, specular);
+      m->Get(AI_MATKEY_SHININESS, shininess);
 
-        m->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse);
-        m->Get(AI_MATKEY_COLOR_SPECULAR, specular);
-        m->Get(AI_MATKEY_SHININESS, shininess);
+      std::shared_ptr<SVTexture> baseColorTexture{};
+      std::shared_ptr<SVTexture> normalTexture{};
+      std::shared_ptr<SVTexture> roughnessTexture{};
+      std::shared_ptr<SVTexture> metallicTexture{};
 
-        std::shared_ptr<SVTexture> diffuseTexture{};
-        std::shared_ptr<SVTexture> specularTexture{};
-        std::shared_ptr<SVTexture> normalTexture{};
-
-        aiString path;
-        if (m->GetTextureCount(aiTextureType_DIFFUSE) > 0 &&
-            m->GetTexture(aiTextureType_DIFFUSE, 0, &path) == AI_SUCCESS) {
+      aiString path;
+      if (m->GetTextureCount(aiTextureType_DIFFUSE) > 0 &&
+          m->GetTexture(aiTextureType_DIFFUSE, 0, &path) == AI_SUCCESS) {
+        log::info("Trying to load texture {}", path.C_Str());
+        if (auto texture = scene->GetEmbeddedTexture(path.C_Str())) {
+          if (textureCache.contains(std::string(path.C_Str()))) {
+            baseColorTexture = textureCache[std::string(path.C_Str())];
+          } else {
+            log::info("Loading embeded texture {}", path.C_Str());
+            textureCache[std::string(path.C_Str())] = baseColorTexture =
+                                                      loadEmbededTexture(texture, MIP_LEVEL);
+          }
+        } else {
           std::string p = std::string(path.C_Str());
           std::string fullPath = (parentDir / p).string();
-          diffuseTexture = mManager->CreateTextureFromFile(
+          baseColorTexture = mManager->CreateTextureFromFile(
               fullPath, MIP_LEVEL); // TODO configurable mip levels
-          futures.push_back(diffuseTexture->loadAsync());
+          futures.push_back(baseColorTexture->loadAsync());
         }
-        if (m->GetTextureCount(aiTextureType_SPECULAR) > 0 &&
-            m->GetTexture(aiTextureType_SPECULAR, 0, &path) == AI_SUCCESS) {
+      }
+      if (m->GetTextureCount(aiTextureType_METALNESS) > 0 &&
+          m->GetTexture(aiTextureType_METALNESS, 0, &path) == AI_SUCCESS) {
+        if (auto texture = scene->GetEmbeddedTexture(path.C_Str())) {
+          if (textureCache.contains(std::string(path.C_Str()))) {
+            metallicTexture = textureCache[std::string(path.C_Str())];
+          } else {
+            log::info("Loading embeded texture {}", path.C_Str());
+            textureCache[std::string(path.C_Str())] = metallicTexture =
+                                                      loadEmbededTexture(texture, MIP_LEVEL);
+          }
+        } else {
           std::string p = std::string(path.C_Str());
           std::string fullPath = (parentDir / p).string();
-          specularTexture =
+          metallicTexture =
               mManager->CreateTextureFromFile(fullPath, MIP_LEVEL);
-          futures.push_back(specularTexture->loadAsync());
+          futures.push_back(metallicTexture->loadAsync());
         }
-        if (m->GetTextureCount(aiTextureType_NORMALS) > 0 &&
-            m->GetTexture(aiTextureType_NORMALS, 0, &path) == AI_SUCCESS) {
+      }
+      if (m->GetTextureCount(aiTextureType_NORMALS) > 0 &&
+          m->GetTexture(aiTextureType_NORMALS, 0, &path) == AI_SUCCESS) {
+        if (auto texture = scene->GetEmbeddedTexture(path.C_Str())) {
+          if (textureCache.contains(std::string(path.C_Str()))) {
+            normalTexture = textureCache[std::string(path.C_Str())];
+          } else {
+            log::info("Loading embeded texture {}", path.C_Str());
+            textureCache[std::string(path.C_Str())] = normalTexture =
+                                                      loadEmbededTexture(texture, MIP_LEVEL);
+          }
+        } else {
           std::string p = std::string(path.C_Str());
           std::string fullPath = (parentDir / p).string();
-          normalTexture = mManager->CreateTextureFromFile(fullPath, MIP_LEVEL);
+          normalTexture =
+              mManager->CreateTextureFromFile(fullPath, MIP_LEVEL);
           futures.push_back(normalTexture->loadAsync());
         }
-
-        auto material = std::make_shared<SVSpecularMaterial>(
-            glm::vec4{diffuse.r, diffuse.g, diffuse.b, alpha},
-            glm::vec4{specular.r, specular.g, specular.b, shininess}, 0);
-        material->setTextures(diffuseTexture, specularTexture, normalTexture);
-        materials.push_back(material);
       }
+      if (m->GetTextureCount(aiTextureType_DIFFUSE_ROUGHNESS) > 0 &&
+          m->GetTexture(aiTextureType_NORMALS, 0, &path) == AI_SUCCESS) {
+        if (auto texture = scene->GetEmbeddedTexture(path.C_Str())) {
+          if (textureCache.contains(std::string(path.C_Str()))) {
+            roughnessTexture = textureCache[std::string(path.C_Str())];
+          } else {
+            log::info("Loading embeded texture {}", path.C_Str());
+            textureCache[std::string(path.C_Str())] = roughnessTexture =
+                                                      loadEmbededTexture(texture, MIP_LEVEL);
+          }
+        } else {
+          std::string p = std::string(path.C_Str());
+          std::string fullPath = (parentDir / p).string();
+          roughnessTexture =
+              mManager->CreateTextureFromFile(fullPath, MIP_LEVEL);
+          futures.push_back(roughnessTexture->loadAsync());
+        }
+      }
+
+      auto material = std::make_shared<SVMetallicMaterial>(
+          glm::vec4{diffuse.r, diffuse.g, diffuse.b, alpha},
+          (specular.r + specular.g + specular.b) / 3,
+          shininessToRoughness(shininess), 0, 0);
+      material->setTextures(baseColorTexture, roughnessTexture, normalTexture,
+                            metallicTexture);
+      materials.push_back(material);
     }
 
     for (uint32_t mesh_idx = 0; mesh_idx < scene->mNumMeshes; ++mesh_idx) {
@@ -304,21 +241,21 @@ std::future<void> SVModel::loadAsync() {
         glm::vec3 bitangent = glm::vec3(0);
         if (mesh->HasNormals()) {
           normal = glm::vec3{mesh->mNormals[v].x, mesh->mNormals[v].y,
-                             mesh->mNormals[v].z};
+            mesh->mNormals[v].z};
         }
         if (mesh->HasTextureCoords(0)) {
           texcoord = glm::vec2{mesh->mTextureCoords[0][v].x,
-                               mesh->mTextureCoords[0][v].y};
+            mesh->mTextureCoords[0][v].y};
         }
         if (mesh->HasTangentsAndBitangents()) {
           tangent = glm::vec3{mesh->mTangents[v].x, mesh->mTangents[v].y,
-                              mesh->mTangents[v].z};
+            mesh->mTangents[v].z};
           bitangent = glm::vec3{mesh->mBitangents[v].x, mesh->mBitangents[v].y,
-                                mesh->mBitangents[v].z};
+            mesh->mBitangents[v].z};
         }
         if (mesh->HasVertexColors(0)) {
           color = glm::vec4{mesh->mColors[0][v].r, mesh->mColors[0][v].g,
-                            mesh->mColors[0][v].b, mesh->mColors[0][v].a};
+            mesh->mColors[0][v].b, mesh->mColors[0][v].a};
         }
         positions.push_back(position.x);
         positions.push_back(position.y);

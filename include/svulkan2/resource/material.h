@@ -70,32 +70,5 @@ public:
   inline float getOpacity() const override { return mBuffer.baseColor.a; }
 };
 
-class SVSpecularMaterial : public SVMaterial {
-  struct Buffer {
-    glm::vec4 diffuse;
-    glm::vec4 specular;
-    float transparency;
-    int textureMask;
-  } mBuffer;
-  std::shared_ptr<SVTexture> mDiffuseTexture;
-  std::shared_ptr<SVTexture> mSpecularTexture;
-  std::shared_ptr<SVTexture> mNormalTexture;
-
-  std::unique_ptr<core::Buffer> mDeviceBuffer;
-public:
-  inline SVSpecularMaterial(glm::vec4 diffuse = {0, 0, 0, 1},
-                            glm::vec4 specular = {0, 0, 0, 0},
-                            float transparency = 0) {
-    mBuffer = {diffuse, specular, transparency, 0};
-  }
-
-  void setTextures(std::shared_ptr<SVTexture> diffuseTexture,
-                   std::shared_ptr<SVTexture> specularTexture,
-                   std::shared_ptr<SVTexture> normalTexture);
-
-  virtual void uploadToDevice(std::shared_ptr<core::Context> context) override;
-  inline float getOpacity() const override { return mBuffer.diffuse.a; }
-};
-
 } // namespace resource
 } // namespace svulkan2

@@ -48,8 +48,7 @@ void ShaderManager::processShadersInFolder(std::string const &folder) {
   mNumGbufferPasses = 0;
   for (const auto &entry : fs::directory_iterator(path)) {
     std::string filename = entry.path().filename().string();
-    if (filename.starts_with("gbuffer") &&
-        filename.ends_with(".frag")) {
+    if (filename.starts_with("gbuffer") && filename.ends_with(".frag")) {
       mNumGbufferPasses++;
     }
   }
@@ -128,8 +127,6 @@ void ShaderManager::processShadersInFolder(std::string const &folder) {
 
 void ShaderManager::populateShaderConfig() {
   auto allPasses = getAllPasses();
-  ShaderConfig::MaterialPipeline material =
-      ShaderConfig::MaterialPipeline::eUNKNOWN;
   if (mShadowEnabled) {
     allPasses.push_back(mShadowPass);
   }
@@ -166,22 +163,6 @@ void ShaderManager::populateShaderConfig() {
         }
         break;
       case UniformBindingType::eMaterial:
-        if (desc.bindings[1].name == "colorTexture") {
-          if (material == ShaderConfig::MaterialPipeline::eSPECULAR) {
-            throw std::runtime_error(
-                "Only one type of material (either metallic or specular) may "
-                "be used in all shader pipelines.");
-          }
-          material = ShaderConfig::MaterialPipeline::eMETALLIC;
-        } else {
-          if (material == ShaderConfig::MaterialPipeline::eMETALLIC) {
-            throw std::runtime_error(
-                "Only one type of material (either metallic or specular) may "
-                "be used in all shader pipelines.");
-          }
-          material = ShaderConfig::MaterialPipeline::eMETALLIC;
-        }
-        break;
       case UniformBindingType::eTextures:
         break;
       case UniformBindingType::eNone:
@@ -191,11 +172,6 @@ void ShaderManager::populateShaderConfig() {
     }
   }
 
-  if (material == ShaderConfig::MaterialPipeline::eUNKNOWN) {
-    throw std::runtime_error(
-        "at least one shader needs to specify the material buffer");
-  }
-  mShaderConfig->materialPipeline = material;
   mShaderConfig->cameraBufferLayout =
       mCameraSetDesc.buffers[mCameraSetDesc.bindings.at(0).arrayIndex];
   mShaderConfig->objectBufferLayout =
@@ -519,10 +495,7 @@ void ShaderManager::createPipelines(
         break;
       case UniformBindingType::eMaterial:
         descriptorSetLayouts.push_back(
-            mShaderConfig->materialPipeline ==
-                    ShaderConfig::MaterialPipeline::eMETALLIC
-                ? context->getMetallicDescriptorSetLayout()
-                : context->getSpecularDescriptorSetLayout());
+            context->getMetallicDescriptorSetLayout());
         break;
       case UniformBindingType::eTextures:
         descriptorSetLayouts.push_back(mInputTextureLayouts[passIdx].get());
@@ -563,8 +536,7 @@ void ShaderManager::createPipelines(
     }
     mShadowPass->createGraphicsPipeline(
         device, mRenderConfig->colorFormat, mRenderConfig->depthFormat,
-        vk::CullModeFlagBits::eFront,
-        vk::FrontFace::eCounterClockwise, {},
+        vk::CullModeFlagBits::eFront, vk::FrontFace::eCounterClockwise, {},
         {vk::ImageLayout::eUndefined, vk::ImageLayout::eShaderReadOnlyOptimal},
         descriptorSetLayouts, specializationConstantInfo);
   }

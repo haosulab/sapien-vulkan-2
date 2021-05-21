@@ -326,9 +326,6 @@ void Context::createDescriptorPool() {
           i + 1, vk::DescriptorType::eCombinedImageSampler, 1,
           vk::ShaderStageFlagBits::eFragment));
     }
-    mSpecularDescriptorSetLayout = mDevice->createDescriptorSetLayoutUnique(
-        vk::DescriptorSetLayoutCreateInfo({}, bindings.size(),
-                                          bindings.data()));
   }
 }
 
@@ -412,13 +409,6 @@ Context::createMetallicMaterial(glm::vec4 baseColor, float fresnel,
                                 float transparency) {
   return std::make_shared<resource::SVMetallicMaterial>(
       baseColor, fresnel, roughness, metallic, transparency);
-}
-
-std::shared_ptr<resource::SVSpecularMaterial>
-Context::createSpecularMaterial(glm::vec4 diffuse, glm::vec4 specular,
-                                float transparency) {
-  return std::make_shared<resource::SVSpecularMaterial>(diffuse, specular,
-                                                        transparency);
 }
 
 std::shared_ptr<resource::SVModel> Context::createModel(

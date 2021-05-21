@@ -19,8 +19,6 @@ class SVResourceManager {
   std::unordered_map<std::string, std::shared_ptr<SVTexture>>
       mRandomTextureRegistry;
 
-  ShaderConfig::MaterialPipeline mMaterialPipeline{
-      ShaderConfig::MaterialPipeline::eUNKNOWN};
   std::shared_ptr<InputDataLayout> mVertexLayout{};
 
   std::shared_ptr<SVTexture> mDefaultTexture;
@@ -49,7 +47,8 @@ public:
                          vk::Filter magFilter = vk::Filter::eLinear,
                          vk::Filter minFilter = vk::Filter::eLinear);
 
-  std::shared_ptr<SVTexture> generateBRDFLUT(std::shared_ptr<core::Context> context, uint32_t size);
+  std::shared_ptr<SVTexture>
+  generateBRDFLUT(std::shared_ptr<core::Context> context, uint32_t size);
 
   std::shared_ptr<SVTexture> CreateRandomTexture(std::string const &name);
 
@@ -61,16 +60,6 @@ public:
 
   /** release all cached resources */
   void clearCachedResources();
-
-  void setMaterialPipelineType(ShaderConfig::MaterialPipeline pipeline);
-  inline ShaderConfig::MaterialPipeline getMaterialPipelineType() const {
-    if (mMaterialPipeline == ShaderConfig::MaterialPipeline::eUNKNOWN) {
-      throw std::runtime_error(
-          "[resource manager] getMaterialPipelineType called before "
-          "setMaterialPipelineType is not allowed");
-    }
-    return mMaterialPipeline;
-  }
 
   void setVertexLayout(std::shared_ptr<InputDataLayout> layout);
   inline std::shared_ptr<InputDataLayout> getVertexLayout() const {

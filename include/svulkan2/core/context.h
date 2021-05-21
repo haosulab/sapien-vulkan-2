@@ -31,7 +31,6 @@ class Context : public std::enable_shared_from_this<Context> {
   std::weak_ptr<resource::SVResourceManager> mResourceManager;
 
   vk::UniqueDescriptorSetLayout mMetallicDescriptorSetLayout;
-  vk::UniqueDescriptorSetLayout mSpecularDescriptorSetLayout;
 
 public:
   static std::shared_ptr<Context>
@@ -71,9 +70,7 @@ public:
   inline vk::DescriptorSetLayout getMetallicDescriptorSetLayout() const {
     return mMetallicDescriptorSetLayout.get();
   }
-  inline vk::DescriptorSetLayout getSpecularDescriptorSetLayout() const {
-    return mSpecularDescriptorSetLayout.get();
-  }
+
   std::shared_ptr<resource::SVResourceManager> getResourceManager() const;
   std::shared_ptr<resource::SVResourceManager> createResourceManager();
 
@@ -83,10 +80,6 @@ public:
   std::shared_ptr<resource::SVMetallicMaterial>
   createMetallicMaterial(glm::vec4 baseColor, float fresnel, float roughness,
                          float metallic, float transparency);
-
-  std::shared_ptr<resource::SVSpecularMaterial>
-  createSpecularMaterial(glm::vec4 diffuse, glm::vec4 specular,
-                         float transparency);
 
   std::shared_ptr<resource::SVModel> createModel(
       std::vector<std::shared_ptr<resource::SVMesh>> const &meshes,

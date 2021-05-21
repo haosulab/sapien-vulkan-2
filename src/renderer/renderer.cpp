@@ -49,9 +49,6 @@ Renderer::Renderer(std::shared_ptr<core::Context> context,
 
   mShaderManager = std::make_unique<shader::ShaderManager>(config);
 
-  mContext->getResourceManager()->setMaterialPipelineType(
-      mShaderManager->getShaderConfig()->materialPipeline);
-
   mContext->getResourceManager()->setVertexLayout(
       mShaderManager->getShaderConfig()->vertexLayout);
 
