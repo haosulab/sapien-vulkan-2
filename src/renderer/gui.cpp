@@ -227,7 +227,14 @@ void GuiWindow::initImgui() {
       mContentScale = 1.f;
     }
     log::info("Largest monitor DPI scale: {}", mContentScale);
-    ImGui::GetStyle().ScaleAllSizes(mContentScale);
+
+    // HACK: do not scale content twice
+    static bool __called = false;
+    if (!__called) {
+      ImGui::GetStyle().ScaleAllSizes(mContentScale);
+      __called = true;
+    }
+
     auto font = io.Fonts->AddFontFromMemoryCompressedBase85TTF(
         roboto_compressed_data_base85, std::round(17.f));
     if (font != nullptr) {
