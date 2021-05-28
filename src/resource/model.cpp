@@ -230,7 +230,7 @@ std::future<void> SVModel::loadAsync() {
       }
 
       if (m->GetTextureCount(aiTextureType_DIFFUSE_ROUGHNESS) > 0 &&
-          m->GetTexture(aiTextureType_NORMALS, 0, &path) == AI_SUCCESS) {
+          m->GetTexture(aiTextureType_DIFFUSE_ROUGHNESS, 0, &path) == AI_SUCCESS) {
         if (auto texture = scene->GetEmbeddedTexture(path.C_Str())) {
           if (textureCache.contains(std::string(path.C_Str()))) {
             roughnessTexture = textureCache[std::string(path.C_Str())];
@@ -263,12 +263,6 @@ std::future<void> SVModel::loadAsync() {
                 roughnessMetallicTextureCache[std::string(path.C_Str())] =
                     loadEmbededRoughnessMetallicTexture(texture, MIP_LEVEL);
           }
-          // } else {
-          //   std::string p = std::string(path.C_Str());
-          //   std::string fullPath = (parentDir / p).string();
-          //   normalTexture = mManager->CreateTextureFromFile(fullPath,
-          //   MIP_LEVEL); futures.push_back(normalTexture->loadAsync());
-          // }
         } else {
           log::warn("Loading non-embeded roughness metallic texture is currently not supported");
         }

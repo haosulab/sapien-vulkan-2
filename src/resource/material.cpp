@@ -132,19 +132,19 @@ void SVMetallicMaterial::uploadToDevice(
       textures.push_back(
           {defaultTexture->getImageView(), defaultTexture->getSampler()});
     }
-    if (mNormalTexture) {
-      mNormalTexture->uploadToDevice(context);
+    if (mRoughnessTexture) {
+      mRoughnessTexture->uploadToDevice(context);
       textures.push_back(
-          {mNormalTexture->getImageView(), mNormalTexture->getSampler()});
+          {mRoughnessTexture->getImageView(), mRoughnessTexture->getSampler()});
     } else {
       defaultTexture->uploadToDevice(context);
       textures.push_back(
           {defaultTexture->getImageView(), defaultTexture->getSampler()});
     }
-    if (mRoughnessTexture) {
-      mRoughnessTexture->uploadToDevice(context);
+    if (mNormalTexture) {
+      mNormalTexture->uploadToDevice(context);
       textures.push_back(
-          {mRoughnessTexture->getImageView(), mRoughnessTexture->getSampler()});
+          {mNormalTexture->getImageView(), mNormalTexture->getSampler()});
     } else {
       defaultTexture->uploadToDevice(context);
       textures.push_back(
