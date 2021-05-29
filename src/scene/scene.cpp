@@ -272,21 +272,21 @@ void Scene::uploadToDevice(core::Buffer &sceneBuffer,
     pointLightData.push_back(
         {.position =
              light->getTransform().worldModelMatrix * glm::vec4(0, 0, 0, 1),
-         .color = light->getColor()});
+         .color = glm::vec4(light->getColor(), 0)});
   }
 
   for (auto light : directionalLights) {
     directionalLightData.push_back(
         {.direction =
              light->getTransform().worldModelMatrix * glm::vec4(0, 0, -1, 0),
-         .color = light->getColor()});
+         .color = glm::vec4(light->getColor(), 0)});
   }
 
   for (auto light : spotLights) {
     spotLightData.push_back(
         {.position = glm::vec4(light->getPosition(), 1),
          .direction = glm::vec4(light->getDirection(), light->getFov()),
-         .color = light->getColor()});
+         .color = glm::vec4(light->getColor(), light->getFovSmall())});
   }
 
   sceneBuffer.upload(&mAmbientLight, 16,

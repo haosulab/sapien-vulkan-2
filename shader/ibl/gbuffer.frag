@@ -58,6 +58,7 @@ void main() {
 
   if ((materialBuffer.textureMask & 1) != 0) {
     outAlbedo = texture(colorTexture, inUV);
+    outAlbedo.rgb = pow(outAlbedo.rgb, vec3(2.2));  // sRGB to linear
   } else {
     outAlbedo = materialBuffer.baseColor;
   }
@@ -81,9 +82,9 @@ void main() {
   }
 
   if ((materialBuffer.textureMask & 4) != 0) {
-    outNormal = vec4(normalize(inTbn * texture(normalTexture, inUV).xyz), 0);
+    outNormal = vec4(normalize(inTbn * (texture(normalTexture, inUV).xyz * 2 - 1)), 0);
   } else {
     outNormal = vec4(normalize(inTbn * vec3(0, 0, 1)), 0);
   }
-  outNormal = outNormal * 0.5 + 0.5;
+  outNormal = outNormal;
 }

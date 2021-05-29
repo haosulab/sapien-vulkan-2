@@ -74,7 +74,7 @@ vec3 computePointLight(vec3 emission, vec3 l, vec3 normal, vec3 camDir, vec3 dif
   return color;
 }
 
-vec3 computeSpotLight(float fov, vec3 centerDir, vec3 emission, vec3 l, vec3 normal, vec3 camDir, vec3 diffuseAlbedo, float roughness, vec3 fresnel) {
+vec3 computeSpotLight(float fov1, float fov2, vec3 centerDir, vec3 emission, vec3 l, vec3 normal, vec3 camDir, vec3 diffuseAlbedo, float roughness, vec3 fresnel) {
   float d = max(length(l), 0.0001);
 
   if (length(l) == 0) {
@@ -83,7 +83,34 @@ vec3 computeSpotLight(float fov, vec3 centerDir, vec3 emission, vec3 l, vec3 nor
 
   vec3 lightDir = normalize(l);
 
-  if (dot(-lightDir, centerDir) < cos(fov / 2)) {
+  float cf1 = cos(fov1/2) + 1e-6;
+  float cf2 = cos(fov2/2);
+
+  float visibility = clamp((dot(-lightDir, centerDir) - cf2) / (cf1 - cf2), 0, 1);
+
+  vec3 H = lightDir + camDir;
+  float H2 = dot(H, H);
+  H = H2 < 1e-6 ? vec3(0) : normalize(H);
+  float NoH = clamp(dot(normal, H), 1e-6, 1);
+  float VoH = clamp(dot(camDir, H), 1e-6, 1);
+  float NoL = clamp(dot(normal, lightDir), 0, 1);
+  float NoV = clamp(dot(normal, camDir), 1e-6, 1);
+
+  vec3 color = diffuseAlbedo * emission * diffuse(NoL) / d / d;
+  color += emission * ggx(NoL, NoV, NoH, VoH, roughness, fresnel) / d / d;
+  return visibility * color;
+}
+
+vec3 computeSpotLight2(float fov, vec3 centerDir, vec3 emission, vec3 l, vec3 normal, vec3 camDir, vec3 diffuseAlbedo, float roughness, vec3 fresnel) {
+  float d = max(length(l), 0.0001);
+
+  if (length(l) == 0) {
+    return vec3(0.f);
+  }
+
+  vec3 lightDir = normalize(l);
+
+  if (dot(-lightDir, centerDir) <= 0) {
     return vec3(0.f);
   }
 

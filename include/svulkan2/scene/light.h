@@ -7,7 +7,7 @@ namespace svulkan2 {
 namespace scene {
 
 class DirectionalLight : public Node {
-  glm::vec4 mColor{0, 0, 0, 1};
+  glm::vec3 mColor{0, 0, 0};
   bool mCastShadow{};
   float mShadowNear{0};
   float mShadowFar{10};
@@ -15,8 +15,8 @@ class DirectionalLight : public Node {
 
 public:
   DirectionalLight(std::string const &name = "");
-  inline void setColor(glm::vec4 const &color) { mColor = color; }
-  inline glm::vec4 getColor() const { return mColor; }
+  inline void setColor(glm::vec3 const &color) { mColor = color; }
+  inline glm::vec3 getColor() const { return mColor; }
   void enableShadow(bool enable);
   inline bool isShadowEnabled() const { return mCastShadow; }
   void setShadowParameters(float near, float far, float scaling);
@@ -31,7 +31,7 @@ public:
 };
 
 class PointLight : public Node {
-  glm::vec4 mColor{0, 0, 0, 1};
+  glm::vec3 mColor{0, 0, 0};
   bool mCastShadow{};
   float mShadowNear{0};
   float mShadowFar{10};
@@ -40,8 +40,8 @@ public:
   static std::array<glm::mat4, 6> getModelMatrices(glm::vec3 const &center);
 
   PointLight(std::string const &name = "");
-  inline void setColor(glm::vec4 const &color) { mColor = color; }
-  inline glm::vec4 getColor() const { return mColor; }
+  inline void setColor(glm::vec3 const &color) { mColor = color; }
+  inline glm::vec3 getColor() const { return mColor; }
   void enableShadow(bool enable);
   inline bool isShadowEnabled() const { return mCastShadow; }
   void setShadowParameters(float near, float far);
@@ -65,16 +65,17 @@ public:
 };
 
 class SpotLight : public Node {
-  glm::vec4 mColor{0, 0, 0, 1};
+  glm::vec3 mColor{0, 0, 0};
   bool mCastShadow{};
   float mShadowNear{0};
   float mShadowFar{10};
+  float mFovSmall = 1.5708;
   float mFov = 1.5708;
 
 public:
   SpotLight(std::string const &name = "");
-  inline void setColor(glm::vec4 const &color) { mColor = color; }
-  inline glm::vec4 getColor() const { return mColor; }
+  inline void setColor(glm::vec3 const &color) { mColor = color; }
+  inline glm::vec3 getColor() const { return mColor; }
   void enableShadow(bool enable);
   inline bool isShadowEnabled() const { return mCastShadow; }
   void setShadowParameters(float near, float far);
@@ -82,6 +83,9 @@ public:
   glm::vec3 getDirection() const;
   void setFov(float fov);
   float getFov() const;
+
+  void setFovSmall(float fov);
+  float getFovSmall() const;
 
   inline float getShadowNear() const { return mShadowNear; }
   inline float getShadowFar() const { return mShadowFar; }

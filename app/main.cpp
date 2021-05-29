@@ -155,7 +155,7 @@ int main() {
   //     scene::Transform{.scale = {0.001, 0.001, 0.001}});
 
   auto model = context->getResourceManager()->CreateModelFromFile(
-      "/home/fx/Downloads/angel_assets/assets/v3_sc1_staging_11.glb");
+      "/home/fx/blender-data/test_pbr.glb");
   scene.addObject(model);
 
   // auto model = context->getResourceManager()->CreateModelFromFile(

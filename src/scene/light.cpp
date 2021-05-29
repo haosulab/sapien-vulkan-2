@@ -116,9 +116,11 @@ glm::vec3 SpotLight::getDirection() const {
 void SpotLight::setFov(float fov) { mFov = fov; }
 float SpotLight::getFov() const { return mFov; }
 
+void SpotLight::setFovSmall(float fov) { mFovSmall = fov; }
+float SpotLight::getFovSmall() const { return mFovSmall; }
+
 glm::mat4 SpotLight::getShadowProjectionMatrix() const {
-  auto mat =
-      glm::perspective(mFov, 1.f, mShadowNear, mShadowFar);
+  auto mat = glm::perspective(mFov, 1.f, mShadowNear, mShadowFar);
   mat[1][1] *= -1;
   return mat;
 }

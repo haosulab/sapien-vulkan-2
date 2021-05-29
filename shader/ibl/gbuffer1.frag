@@ -5,8 +5,8 @@ layout (constant_id = 1) const int NUM_POINT_LIGHTS = 10;
 layout (constant_id = 2) const int NUM_DIRECTIONAL_LIGHT_SHADOWS = 1;
 layout (constant_id = 3) const int NUM_POINT_LIGHT_SHADOWS = 3;
 layout (constant_id = 4) const int NUM_CUSTOM_LIGHT_SHADOWS = 1;
-layout (constant_id = 6) const int NUM_SPOT_LIGHTS = 10;
 layout (constant_id = 5) const int NUM_SPOT_LIGHT_SHADOWS = 10;
+layout (constant_id = 6) const int NUM_SPOT_LIGHTS = 10;
 
 layout(set = 0, binding = 0) uniform CameraBuffer {
   mat4 viewMatrix;
@@ -40,7 +40,6 @@ layout(set = 2, binding = 2) uniform sampler2D roughnessTexture;
 layout(set = 2, binding = 3) uniform sampler2D normalTexture;
 layout(set = 2, binding = 4) uniform sampler2D metallicTexture;
 
-
 #include "../common/lights.glsl"
 
 layout(set = 3, binding = 0) uniform SceneBuffer {
@@ -67,7 +66,7 @@ layout(set = 3, binding = 1) uniform ShadowBuffer {
 layout(set = 3, binding = 2) uniform samplerCubeArray samplerPointLightDepths;
 layout(set = 3, binding = 3) uniform sampler2DArray samplerDirectionalLightDepths;
 layout(set = 3, binding = 4) uniform sampler2DArray samplerCustomLightDepths;
-layout(set = 0, binding = 5) uniform sampler2DArray samplerSpotLightDepths;
+layout(set = 3, binding = 5) uniform sampler2DArray samplerSpotLightDepths;
 
 
 vec4 world2camera(vec4 pos) {
@@ -113,6 +112,7 @@ void main() {
 
   if ((materialBuffer.textureMask & 1) != 0) {
     albedo = texture(colorTexture, inUV);
+    albedo.rgb = pow(albedo.rgb, vec3(2.2));  // sRGB to linear
   } else {
     albedo = materialBuffer.baseColor;
   }
@@ -175,6 +175,7 @@ void main() {
     vec3 l = pos - csPosition.xyz;
     vec3 centerDir = mat3(cameraBuffer.viewMatrix) * sceneBuffer.spotLights[i].direction.xyz;
     color += computeSpotLight(
+        sceneBuffer.spotLights[i].emission.a,
         sceneBuffer.spotLights[i].direction.a,
         centerDir,
         sceneBuffer.spotLights[i].emission.rgb,
