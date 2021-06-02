@@ -191,6 +191,12 @@ void Scene::forceRemove() {
                        return node->isMarkedRemoved();
                      }),
       mDirectionalLights.end());
+  mSpotLights.erase(
+      std::remove_if(mSpotLights.begin(), mSpotLights.end(),
+                     [](std::unique_ptr<SpotLight> &node) {
+                       return node->isMarkedRemoved();
+                     }),
+      mSpotLights.end());
 
   mCustomLights.erase(std::remove_if(mCustomLights.begin(), mCustomLights.end(),
                                      [](std::unique_ptr<CustomLight> &node) {
