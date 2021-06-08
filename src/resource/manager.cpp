@@ -178,7 +178,7 @@ SVResourceManager::CreateModelFromFile(std::string const &filename) {
   std::string path = fs::canonical(filename).string();
 
   ModelDescription desc = {.source = ModelDescription::SourceType::eFILE,
-                           .filename = filename};
+                           .filename = path};
 
   auto it = mModelRegistry.find(path);
   if (it != mModelRegistry.end()) {
