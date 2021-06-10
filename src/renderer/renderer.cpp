@@ -52,6 +52,11 @@ Renderer::Renderer(std::shared_ptr<core::Context> context,
   mContext->getResourceManager()->setVertexLayout(
       mShaderManager->getShaderConfig()->vertexLayout);
 
+  if (mShaderManager->getShaderConfig()->lineVertexLayout) {
+    mContext->getResourceManager()->setLineVertexLayout(
+        mShaderManager->getShaderConfig()->lineVertexLayout);
+  }
+
   vk::DescriptorPoolSize pool_sizes[] = {
       {vk::DescriptorType::eCombinedImageSampler,
        100}, // render targets and input textures TODO: configure instead of 100
@@ -495,7 +500,14 @@ void Renderer::recordShadows(scene::Scene &scene) {
 void Renderer::prepareObjects(scene::Scene &scene) {
   EASY_BLOCK("Prepare objects");
   auto objects = mScene->getObjects();
-  prepareObjectBuffers(objects.size());
+  auto lineObjects = mScene->getLineObjects();
+
+  if (mShaderManager->isLineEnabled()) {
+    prepareObjectBuffers(objects.size() + lineObjects.size());
+  } else {
+    prepareObjectBuffers(objects.size());
+  }
+
   EASY_END_BLOCK;
 
   // load objects to CPU, if not already loaded
@@ -519,12 +531,18 @@ void Renderer::prepareObjects(scene::Scene &scene) {
         shape->mesh->uploadToDevice(mContext);
       }
     }
+    if (mShaderManager->isLineEnabled()) {
+      for (auto obj : lineObjects) {
+        obj->getLineSet()->uploadToDevice(mContext);
+      }
+    }
   }
 }
 
 void Renderer::recordRenderPasses(scene::Scene &scene) {
   mRenderCommandBuffer.reset();
   mModelCache.clear();
+  mLineSetCache.clear();
 
   mRenderCommandBuffer =
       mContext->createCommandBuffer(vk::CommandBufferLevel::ePrimary);
@@ -569,6 +587,8 @@ void Renderer::recordRenderPasses(scene::Scene &scene) {
       shapeObjectIndex[shapeShadingMode].push_back(objectIndex);
     }
   }
+
+  auto linesetObjects = mScene->getLineObjects();
 
   uint32_t gbufferIndex = 0;
   auto passes = mShaderManager->getAllPasses();
@@ -654,6 +674,24 @@ void Renderer::recordRenderPasses(scene::Scene &scene) {
                                           0);
       }
       gbufferIndex++;
+    } else if (auto linePass =
+                   std::dynamic_pointer_cast<shader::LinePassParser>(pass)) {
+      for (uint32_t index = 0; index < linesetObjects.size(); ++index) {
+        auto &lineObj = linesetObjects[index];
+        if (objectBinding >= 0) {
+          mRenderCommandBuffer->bindDescriptorSets(
+              vk::PipelineBindPoint::eGraphics, pass->getPipelineLayout(),
+              objectBinding, mObjectSet[objects.size() + index].get(), nullptr);
+        }
+        if (lineObj->getTransparency() < 1) {
+          mLineSetCache.insert(lineObj->getLineSet());
+          mRenderCommandBuffer->bindVertexBuffers(
+              0, lineObj->getLineSet()->getVertexBuffer().getVulkanBuffer(),
+              vk::DeviceSize(0));
+          mRenderCommandBuffer->draw(lineObj->getLineSet()->getVertexCount(), 1,
+                                     0, 0);
+        }
+      }
     } else {
       mRenderCommandBuffer->draw(3, 1, 0, 0);
     }
@@ -794,6 +832,14 @@ void Renderer::render(scene::Camera &camera,
       objects[i]->uploadToDevice(
           *mObjectBuffers[i],
           *mShaderManager->getShaderConfig()->objectBufferLayout);
+    }
+    if (mShaderManager->isLineEnabled()) {
+      auto lineObjects = mScene->getLineObjects();
+      for (uint32_t i = 0; i < lineObjects.size(); ++i) {
+        lineObjects[i]->uploadToDevice(
+            *mObjectBuffers[objects.size() + i],
+            *mShaderManager->getShaderConfig()->objectBufferLayout);
+      }
     }
   }
 

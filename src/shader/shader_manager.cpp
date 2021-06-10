@@ -73,6 +73,22 @@ void ShaderManager::processShadersInFolder(std::string const &folder) {
     futures.push_back(gbufferPass->loadGLSLFilesAsync(vsFile, fsFile));
   }
 
+  std::shared_ptr<LinePassParser> linePass{};
+  // line pass
+  {
+    std::string vsFile = (path / "line.vert").string();
+    std::string fsFile = (path / "line.frag").string();
+    if (fs::is_regular_file(vsFile) && fs::is_regular_file(fsFile)) {
+      linePass = std::make_shared<LinePassParser>();
+      linePass->setName("Line");
+      linePass->setLineWidth(2.f);
+      mAllPasses.push_back(linePass);
+      mPassIndex[linePass] = mAllPasses.size() - 1;
+      futures.push_back(linePass->loadGLSLFilesAsync(vsFile, fsFile));
+      mLineEnabled = true;
+    }
+  }
+
   {
     std::string vsFile = (path / "ao.vert").string();
     std::string fsFile = (path / "ao.frag").string();
@@ -119,6 +135,16 @@ void ShaderManager::processShadersInFolder(std::string const &folder) {
   GLSLCompiler::FinalizeProcess();
 
   mShaderConfig->vertexLayout = firstGbufferPass->getVertexInputLayout();
+
+  if (linePass) {
+    if (mShaderConfig->lineVertexLayout) {
+      ASSERT(*mShaderConfig->lineVertexLayout ==
+                 *linePass->getLineVertexInputLayout(),
+             "All line passes must share the same vertex layout");
+    } else {
+      mShaderConfig->lineVertexLayout = linePass->getLineVertexInputLayout();
+    }
+  }
 
   populateShaderConfig();
   prepareRenderTargetFormats();

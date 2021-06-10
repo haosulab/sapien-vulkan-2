@@ -1,5 +1,6 @@
 #pragma once
 #include "node.h"
+#include "svulkan2/resource/lineset.h"
 #include "svulkan2/resource/model.h"
 #include <unordered_map>
 
@@ -22,6 +23,7 @@ struct CustomData {
 };
 
 namespace scene {
+
 class Object : public Node {
   std::shared_ptr<resource::SVModel> mModel;
   glm::uvec4 mSegmentation{0};
@@ -62,6 +64,31 @@ public:
 
   void setCastShadow(bool castShadow);
   inline bool getCastShadow() const { return mCastShadow; }
+};
+
+class LineObject : public Node {
+  std::shared_ptr<resource::SVLineSet> mLineSet;
+  glm::uvec4 mSegmentation{0};
+  // std::unordered_map<std::string, CustomData> mCustomData;
+  float mTransparency{};
+
+public:
+  inline Type getType() const override { return Type::eObject; }
+
+  LineObject(std::shared_ptr<resource::SVLineSet> lineSet,
+             std::string const &name = "");
+  inline std::shared_ptr<resource::SVLineSet> getLineSet() const {
+    return mLineSet;
+  }
+
+  void uploadToDevice(core::Buffer &objectBuffer,
+                      StructDataLayout const &objectLayout);
+
+  void setSegmentation(glm::uvec4 const &segmentation);
+  inline glm::uvec4 getSegmentation() const { return mSegmentation; }
+
+  void setTransparency(float transparency);
+  inline float getTransparency() const { return mTransparency; }
 };
 
 } // namespace scene

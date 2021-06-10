@@ -18,6 +18,7 @@ struct RendererConfig {
 struct ShaderConfig {
   // enum MaterialPipeline { eMETALLIC, eSPECULAR, eUNKNOWN } materialPipeline;
   std::shared_ptr<InputDataLayout> vertexLayout;
+  std::shared_ptr<InputDataLayout> lineVertexLayout;
   std::shared_ptr<StructDataLayout> objectBufferLayout;
   std::shared_ptr<StructDataLayout> sceneBufferLayout;
   std::shared_ptr<StructDataLayout> cameraBufferLayout;

@@ -4,6 +4,7 @@
 #include "svulkan2/shader/deferred.h"
 #include "svulkan2/shader/gbuffer.h"
 #include "svulkan2/shader/shadow.h"
+#include "svulkan2/shader/line.h"
 #include <map>
 #include <memory>
 #include <string>
@@ -42,6 +43,7 @@ class ShaderManager {
 
   uint32_t mNumGbufferPasses{};
   bool mShadowEnabled{};
+  bool mLineEnabled{};
 
 public:
   ShaderManager(std::shared_ptr<RendererConfig> config = nullptr);
@@ -99,6 +101,7 @@ public:
   }
 
   bool isShadowEnabled() const { return mShadowEnabled; }
+  bool isLineEnabled() const { return mLineEnabled; }
 
 private:
   void processShadersInFolder(std::string const &folder);

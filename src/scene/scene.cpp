@@ -73,6 +73,28 @@ Object &Scene::addObject(Node &parent, std::shared_ptr<resource::SVModel> model,
   return result;
 }
 
+LineObject &Scene::addLineObject(std::shared_ptr<resource::SVLineSet> lineSet,
+                                 Transform const &transform) {
+  return addLineObject(getRootNode(), lineSet, transform);
+}
+
+LineObject &Scene::addLineObject(Node &parent,
+                                 std::shared_ptr<resource::SVLineSet> lineSet,
+                                 Transform const &transform) {
+  updateVersion();
+  forceRemove();
+  auto obj = std::make_unique<LineObject>(lineSet);
+  auto &result = *obj;
+  mLineObjects.push_back(std::move(obj));
+  mLineObjects.back()->setScene(this);
+  mLineObjects.back()->setParent(parent);
+  parent.addChild(*mLineObjects.back());
+
+  mLineObjects.back()->setTransform(transform);
+  mLineObjects.back()->updateGlobalModelMatrixRecursive();
+  return result;
+}
+
 Camera &Scene::addCamera(Transform const &transform) {
   return addCamera(getRootNode(), transform);
 }
@@ -156,6 +178,7 @@ void Scene::clearNodes() {
   updateVersion();
   mNodes.resize(1);
   mObjects.clear();
+  mLineObjects.clear();
   mCameras.clear();
   mPointLights.clear();
   mDirectionalLights.clear();
@@ -175,6 +198,11 @@ void Scene::forceRemove() {
                                   return node->isMarkedRemoved();
                                 }),
                  mObjects.end());
+  mLineObjects.erase(std::remove_if(mLineObjects.begin(), mLineObjects.end(),
+                                    [](std::unique_ptr<LineObject> &node) {
+                                      return node->isMarkedRemoved();
+                                    }),
+                     mLineObjects.end());
   mCameras.erase(std::remove_if(mCameras.begin(), mCameras.end(),
                                 [](std::unique_ptr<Camera> &node) {
                                   return node->isMarkedRemoved();
@@ -191,12 +219,11 @@ void Scene::forceRemove() {
                        return node->isMarkedRemoved();
                      }),
       mDirectionalLights.end());
-  mSpotLights.erase(
-      std::remove_if(mSpotLights.begin(), mSpotLights.end(),
-                     [](std::unique_ptr<SpotLight> &node) {
-                       return node->isMarkedRemoved();
-                     }),
-      mSpotLights.end());
+  mSpotLights.erase(std::remove_if(mSpotLights.begin(), mSpotLights.end(),
+                                   [](std::unique_ptr<SpotLight> &node) {
+                                     return node->isMarkedRemoved();
+                                   }),
+                    mSpotLights.end());
 
   mCustomLights.erase(std::remove_if(mCustomLights.begin(), mCustomLights.end(),
                                      [](std::unique_ptr<CustomLight> &node) {
@@ -211,6 +238,15 @@ std::vector<Object *> Scene::getObjects() {
   forceRemove();
   std::vector<Object *> result;
   for (auto &obj : mObjects) {
+    result.push_back(obj.get());
+  }
+  return result;
+}
+
+std::vector<LineObject *> Scene::getLineObjects() {
+  forceRemove();
+  std::vector<LineObject *> result;
+  for (auto &obj : mLineObjects) {
     result.push_back(obj.get());
   }
   return result;
@@ -444,7 +480,7 @@ void Scene::uploadShadowToDevice(
             .viewMatrixInverse = modelMat,
             .projectionMatrix = projMat,
             .projectionMatrixInverse = glm::inverse(projMat),
-          });
+        });
         lightBuffers[lightBufferIndex++]->upload(&spotLightShadowData.back(),
                                                  sizeof(LightBufferData));
       } else {

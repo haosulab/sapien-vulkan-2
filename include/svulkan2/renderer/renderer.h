@@ -188,6 +188,8 @@ private:
   void prepareInputTextureDescriptorSets();
 
   std::unordered_set<std::shared_ptr<resource::SVModel>> mModelCache;
+  std::unordered_set<std::shared_ptr<resource::SVLineSet>> mLineSetCache;
+
   vk::UniqueCommandBuffer mShadowCommandBuffer{};
   vk::UniqueCommandBuffer mRenderCommandBuffer{};
   vk::UniqueCommandBuffer mDisplayCommandBuffer{};

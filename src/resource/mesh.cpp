@@ -7,18 +7,6 @@
 namespace svulkan2 {
 namespace resource {
 
-static void strided_memcpy(void *target, void *source, size_t chunk_size,
-                           size_t chunks, size_t stride) {
-  char *target_ = reinterpret_cast<char *>(target);
-  char *source_ = reinterpret_cast<char *>(source);
-
-  for (size_t i = 0; i < chunks; ++i) {
-    std::memcpy(target_, source_, chunk_size);
-    target_ += stride;
-    source_ += chunk_size;
-  }
-}
-
 SVMesh::SVMesh() {}
 
 void SVMesh::setIndices(std::vector<uint32_t> const &indices) {

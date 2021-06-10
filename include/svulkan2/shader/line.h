@@ -1,22 +1,25 @@
 #pragma once
 #include "base_parser.h"
 #include "svulkan2/common/config.h"
-
 namespace svulkan2 {
 namespace shader {
 
-class GbufferPassParser : public BaseParser {
+class LinePassParser : public BaseParser {
   std::shared_ptr<SpecializationConstantLayout> mSpecializationConstantLayout;
-  std::shared_ptr<InputDataLayout> mVertexInputLayout;
+  std::shared_ptr<InputDataLayout> mLineVertexInputLayout;
   std::shared_ptr<OutputDataLayout> mTextureOutputLayout;
   std::vector<DescriptorSetDescription> mDescriptorSetDescriptions;
 
   vk::UniqueRenderPass mRenderPass;
   vk::UniquePipeline mPipeline;
 
+  float mLineWidth{1.f};
+
 public:
-  inline std::shared_ptr<InputDataLayout> getVertexInputLayout() const {
-    return mVertexInputLayout;
+  inline void setLineWidth(float w) { mLineWidth = w; }
+
+  inline std::shared_ptr<InputDataLayout> getLineVertexInputLayout() const {
+    return mLineVertexInputLayout;
   }
 
   inline std::shared_ptr<OutputDataLayout>
@@ -47,6 +50,7 @@ public:
   inline vk::RenderPass getRenderPass() const override {
     return mRenderPass.get();
   }
+
   inline vk::Pipeline getPipeline() const override { return mPipeline.get(); }
   std::vector<std::string> getColorRenderTargetNames() const override;
   std::optional<std::string> getDepthRenderTargetName() const override;
@@ -61,6 +65,5 @@ private:
   void reflectSPV() override;
   void validate() const;
 };
-
 } // namespace shader
 } // namespace svulkan2

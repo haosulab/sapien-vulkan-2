@@ -20,6 +20,7 @@ class SVResourceManager {
       mRandomTextureRegistry;
 
   std::shared_ptr<InputDataLayout> mVertexLayout{};
+  std::shared_ptr<InputDataLayout> mLineVertexLayout{};
 
   std::shared_ptr<SVTexture> mDefaultTexture;
 
@@ -68,6 +69,15 @@ public:
                                "before setVertexLayout is not allowed");
     }
     return mVertexLayout;
+  }
+
+  void setLineVertexLayout(std::shared_ptr<InputDataLayout> layout);
+  inline std::shared_ptr<InputDataLayout> getLineVertexLayout() const {
+    if (!mLineVertexLayout) {
+      throw std::runtime_error("[resource manager] getLineVertexLayout called "
+                               "before setLineVertexLayout is not allowed");
+    }
+    return mLineVertexLayout;
   }
 
   inline std::unordered_map<std::string,

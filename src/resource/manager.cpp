@@ -206,6 +206,18 @@ void SVResourceManager::setVertexLayout(
   }
 }
 
+void SVResourceManager::setLineVertexLayout(
+    std::shared_ptr<InputDataLayout> layout) {
+  if (!mLineVertexLayout) {
+    mLineVertexLayout = layout;
+    return;
+  }
+  if (*mVertexLayout != *layout) {
+    throw std::runtime_error("All line vertex layouts are required to be the "
+                             "same even across renderers");
+  }
+}
+
 void SVResourceManager::clearCachedResources() {
   std::lock_guard<std::mutex> lock(mCreateLock);
   mModelRegistry.clear();

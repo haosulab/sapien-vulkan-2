@@ -65,7 +65,7 @@ int main() {
   }
 
   auto config = std::make_shared<RendererConfig>();
-  config->shaderDir = srcBase + "shader/default_viewer";
+  config->shaderDir = srcBase + "shader/ibl";
 
   config->colorFormat = vk::Format::eR32G32B32A32Sfloat;
   renderer::Renderer renderer(context, config);
@@ -91,13 +91,21 @@ int main() {
 
   // createSphereArray(scene);
 
-  // auto &spotLight = scene.addSpotLight();
-  // spotLight.setPosition({0, 0.5, 0});
-  // spotLight.setDirection({1, 0, 0});
-  // spotLight.setFov(1);
-  // spotLight.setColor({1, 0, 0, 1});
-  // spotLight.enableShadow(true);
-  // spotLight.setShadowParameters(0.05, 5);
+  auto &spotLight1 = scene.addSpotLight();
+  spotLight1.setPosition({0, 0.5, 0});
+  spotLight1.setDirection({1, 0, 0});
+  spotLight1.setFov(1);
+  spotLight1.setColor({1, 0, 0});
+  spotLight1.enableShadow(true);
+  spotLight1.setShadowParameters(0.05, 5);
+
+  auto &spotLight2 = scene.addSpotLight();
+  spotLight2.setPosition({0.5, 0.5, 0.7});
+  spotLight2.setDirection({0, 0, -1});
+  spotLight2.setFov(2);
+  spotLight2.setColor({4, 4, 4});
+  spotLight2.enableShadow(true);
+  spotLight2.setShadowParameters(0.05, 10);
 
   // auto &p2 = scene.addPointLight();
   // p2.setTransform({.position = glm::vec4{0.5, 0.5, 0, 1}});
@@ -121,17 +129,9 @@ int main() {
   auto &dl2 = scene.addDirectionalLight();
   dl2.setTransform({.position = {0, 0, 0}});
   dl2.setDirection({1, -1, 0.1});
-  dl2.setColor({1, 0, 0, 1});
+  dl2.setColor({1, 0, 0});
   dl2.enableShadow(true);
   dl2.setShadowParameters(-5, 5, 3);
-
-  // auto &spotLight = scene.addSpotLight();
-  // spotLight.setPosition({0.5, 0.5, 0.7});
-  // spotLight.setDirection({0, 0, -1});
-  // spotLight.setFov(2);
-  // spotLight.setColor({4, 4, 4, 1});
-  // spotLight.enableShadow(true);
-  // spotLight.setShadowParameters(0.05, 10);
 
   scene.setAmbientLight({0.f, 0.f, 0.f, 0});
 
@@ -167,10 +167,20 @@ int main() {
   // scene.addObject(dragon).setTransform(
   //     scene::Transform{.position = {0, 0.1, 0}, .scale = {0.3, 0.3, 0.3}});
 
+  auto lineset = std::make_shared<resource::SVLineSet>();
+  lineset->setVertexAttribute("position", {0.1, 0.1, 0.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 0.1, 0.1});
+  lineset->setVertexAttribute("color", {
+      1,0,0,1,
+      1,0,0,1,
+      1,0,0,1,
+      1,0,0,1,
+    });
+  scene.addLineObject(lineset);
+
   auto &cameraNode = scene.addCamera();
   cameraNode.setPerspectiveParameters(0.05, 50, 1, 4.f / 3);
   FPSCameraController controller(cameraNode, {0, 0, -1}, {0, 1, 0});
-  controller.setXYZ(0, 0.5, 0);
+  controller.setXYZ(0, 0.5, 3);
 
   // auto &customLight = scene.addCustomLight(cameraNode);
   // customLight.setTransform({.position = {0.1, 0, 0}});
@@ -195,7 +205,7 @@ int main() {
       1);
   renderer.setCustomCubemap("Environment", cubemap);
 
-  auto window = context->createWindow(1600, 1200);
+  auto window = context->createWindow(512, 512);
   // glfwGetFramebufferSize(window->getGLFWWindow(), &gSwapchainResizeWidth,
   //                        &gSwapchainResizeHeight);
   // renderer.resize(gSwapchainResizeWidth, gSwapchainResizeHeight);
@@ -242,6 +252,11 @@ int main() {
     count += 1;
     // spotLight.setDirection({glm::cos(count / 50.f), 0, glm::sin(count
     // / 50.f)});
+    if (count == 120) {
+      auto &l = scene.addSpotLight();
+      l.enableShadow(true);
+      scene.removeNode(l);
+    }
 
     if (gSwapchainRebuild) {
       context->getDevice().waitIdle();

@@ -216,7 +216,7 @@ void Context::pickSuitableGpuAndQueueFamilyIndex() {
       continue;
     }
     auto features = device.getFeatures();
-    if (!features.independentBlend) {
+    if (!features.independentBlend || !features.wideLines) {
       continue;
     }
     pickedDevice = device;
@@ -248,6 +248,7 @@ void Context::createDevice() {
   std::vector<const char *> deviceExtensions{};
   vk::PhysicalDeviceFeatures features;
   features.independentBlend = true;
+  features.wideLines = true;
   features.imageCubeArray = true;
 
 #ifdef CUDA_INTEROP

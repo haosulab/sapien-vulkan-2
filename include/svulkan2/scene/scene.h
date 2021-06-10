@@ -12,6 +12,7 @@ namespace scene {
 class Scene {
   std::vector<std::unique_ptr<Node>> mNodes{};
   std::vector<std::unique_ptr<Object>> mObjects{};
+  std::vector<std::unique_ptr<LineObject>> mLineObjects{};
   std::vector<std::unique_ptr<Camera>> mCameras{};
   std::vector<std::unique_ptr<PointLight>> mPointLights{};
   std::vector<std::unique_ptr<DirectionalLight>> mDirectionalLights{};
@@ -38,6 +39,12 @@ public:
   Object &addObject(Node &parent, std::shared_ptr<resource::SVModel> model,
                     Transform const &transform = {});
 
+  LineObject &addLineObject(std::shared_ptr<resource::SVLineSet> lineSet,
+                            Transform const &transform = {});
+  LineObject &addLineObject(Node &parent,
+                            std::shared_ptr<resource::SVLineSet> lineSet,
+                            Transform const &transform = {});
+
   Camera &addCamera(Transform const &transform = {});
   Camera &addCamera(Node &parent, Transform const &transform = {});
 
@@ -61,6 +68,7 @@ public:
   inline glm::vec4 getAmbientLight() const { return mAmbientLight; };
 
   std::vector<Object *> getObjects();
+  std::vector<LineObject *> getLineObjects();
   std::vector<Camera *> getCameras();
   std::vector<PointLight *> getPointLights();
   std::vector<DirectionalLight *> getDirectionalLights();
