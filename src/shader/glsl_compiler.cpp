@@ -3,9 +3,24 @@
 #include "svulkan2/common/log.h"
 #include <SPIRV/GlslangToSpv.h>
 #include <glslang/Public/ShaderLang.h>
+#include <unordered_map>
 #include <vulkan/vulkan.hpp>
 
 namespace svulkan2 {
+
+static std::unordered_map<std::string, std::vector<std::uint32_t>>
+    shaderCodeCache;
+
+std::vector<std::uint32_t> const &
+GLSLCompiler::compileGlslFileCached(vk::ShaderStageFlagBits stage,
+                                    fs::path const &filepath) {
+  std::string path = fs::canonical(filepath).string();
+  if (shaderCodeCache.contains(path)) {
+    return shaderCodeCache[path];
+  }
+  return shaderCodeCache[path] = GLSLCompiler::compileToSpirv(
+             stage, GLSLCompiler::loadGlslCode(filepath));
+}
 
 std::string GLSLCompiler::loadGlslCode(fs::path const &filepath) {
   std::vector<char> charCode = readFile(filepath);

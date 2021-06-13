@@ -9,6 +9,10 @@ namespace svulkan2 {
 namespace fs = std::filesystem;
 class GLSLCompiler {
 public:
+  static std::vector<std::uint32_t> const &
+  compileGlslFileCached(vk::ShaderStageFlagBits stage,
+                        fs::path const &filepath);
+
   static std::string loadGlslCode(fs::path const &filepath);
   static std::vector<std::uint32_t>
   compileToSpirv(vk::ShaderStageFlagBits shaderStage,

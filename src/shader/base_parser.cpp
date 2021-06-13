@@ -603,15 +603,14 @@ std::future<void> BaseParser::loadGLSLFilesAsync(std::string const &vertFile,
 void BaseParser::loadGLSLFiles(std::string const &vertFile,
                                std::string const &fragFile) {
   log::info("Compiling: " + vertFile);
-  mVertSPVCode = GLSLCompiler::compileToSpirv(
-      vk::ShaderStageFlagBits::eVertex, GLSLCompiler::loadGlslCode(vertFile));
+  mVertSPVCode = GLSLCompiler::compileGlslFileCached(
+      vk::ShaderStageFlagBits::eVertex, vertFile);
   log::info("Compiled: " + vertFile);
 
   if (fragFile.length()) {
     log::info("Compiling: " + fragFile);
-    mFragSPVCode =
-        GLSLCompiler::compileToSpirv(vk::ShaderStageFlagBits::eFragment,
-                                     GLSLCompiler::loadGlslCode(fragFile));
+    mFragSPVCode = GLSLCompiler::compileGlslFileCached(
+        vk::ShaderStageFlagBits::eFragment, fragFile);
     log::info("Compiled: " + fragFile);
   }
 
