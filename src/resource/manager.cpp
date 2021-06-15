@@ -212,7 +212,7 @@ void SVResourceManager::setLineVertexLayout(
     mLineVertexLayout = layout;
     return;
   }
-  if (*mVertexLayout != *layout) {
+  if (*mLineVertexLayout != *layout) {
     throw std::runtime_error("All line vertex layouts are required to be the "
                              "same even across renderers");
   }
