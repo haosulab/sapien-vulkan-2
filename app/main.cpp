@@ -175,7 +175,16 @@ int main() {
       1,0,0,1,
       1,0,0,1,
     });
-  scene.addLineObject(lineset);
+  scene.addLineObject(lineset).setPosition({0, 1, 0});
+
+  auto pointset = std::make_shared<resource::SVPointSet>();
+  pointset->setVertexAttribute("position", {0.1, 0.1, 0.1, 1.1, 1.1, 1.1, 1.1, 0.1, 0.1});
+  pointset->setVertexAttribute("color", {
+      0,1,0,1,
+      0,1,0,1,
+      0,1,0,1,
+    });
+  scene.addPointObject(pointset);
 
   auto &cameraNode = scene.addCamera();
   cameraNode.setPerspectiveParameters(0.05, 50, 1, 4.f / 3);

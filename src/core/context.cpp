@@ -56,8 +56,6 @@ Context::Context(uint32_t apiVersion, bool present, uint32_t maxNumMaterials,
   createMemoryAllocator();
   createCommandPool();
   createDescriptorPool();
-  // mResourceManager = std::make_unique<resource::SVResourceManager>();
-  // mResourceManager->setDefaultMipLevels(defaultMipLevels);
 }
 
 Context::~Context() {

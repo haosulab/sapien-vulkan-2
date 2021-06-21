@@ -3,12 +3,12 @@
 namespace svulkan2 {
 namespace shader {
 
-void LinePassParser::reflectSPV() {
+void PrimitivePassParser::reflectSPV() {
   spirv_cross::Compiler vertComp(mVertSPVCode);
   std::vector<DescriptorSetDescription> vertDesc;
   std::vector<DescriptorSetDescription> fragDesc;
   try {
-    mLineVertexInputLayout = parseVertexInput(vertComp);
+    mVertexInputLayout = parseVertexInput(vertComp);
     for (uint32_t i = 0; i < 4; ++i) {
       vertDesc.push_back(getDescriptorSetDescription(vertComp, i));
     }
@@ -49,14 +49,14 @@ void LinePassParser::reflectSPV() {
   validate();
 }
 
-void LinePassParser::validate() const {
+void PrimitivePassParser::validate() const {
   for (auto &elem : mTextureOutputLayout->elements) {
     ASSERT(elem.second.name.substr(0, 3) == "out",
            "[frag]all out texture variables must start with \"out\"");
   }
 };
 
-vk::PipelineLayout LinePassParser::createPipelineLayout(
+vk::PipelineLayout PrimitivePassParser::createPipelineLayout(
     vk::Device device,
     std::vector<vk::DescriptorSetLayout> descriptorSetLayouts) {
   vk::PipelineLayoutCreateInfo pipelineLayoutInfo;
@@ -66,7 +66,7 @@ vk::PipelineLayout LinePassParser::createPipelineLayout(
   return mPipelineLayout.get();
 }
 
-vk::RenderPass LinePassParser::createRenderPass(
+vk::RenderPass PrimitivePassParser::createRenderPass(
     vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
     std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
         &colorTargetLayouts,
@@ -144,7 +144,7 @@ vk::RenderPass LinePassParser::createRenderPass(
   return mRenderPass.get();
 }
 
-vk::Pipeline LinePassParser::createGraphicsPipeline(
+vk::Pipeline PrimitivePassParser::createGraphicsPipelineHelper(
     vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
     vk::CullModeFlags cullMode, vk::FrontFace frontFace,
     std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
@@ -152,7 +152,8 @@ vk::Pipeline LinePassParser::createGraphicsPipeline(
     std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,
     std::vector<vk::DescriptorSetLayout> const &descriptorSetLayouts,
     std::map<std::string, SpecializationConstantValue> const
-        &specializationConstantInfo) {
+        &specializationConstantInfo,
+    int primitiveType, float primitiveSize) {
   // render pass
   auto renderPass = createRenderPass(device, colorFormat, depthFormat,
                                      colorTargetLayouts, depthLayout);
@@ -215,9 +216,9 @@ vk::Pipeline LinePassParser::createGraphicsPipeline(
 
   // vertex input
   auto vertexInputBindingDescriptions =
-      mLineVertexInputLayout->computeVertexInputBindingDescriptions();
+      mVertexInputLayout->computeVertexInputBindingDescriptions();
   auto vertexInputAttributeDescriptions =
-      mLineVertexInputLayout->computeVertexInputAttributesDescriptions();
+      mVertexInputLayout->computeVertexInputAttributesDescriptions();
   vk::PipelineVertexInputStateCreateInfo pipelineVertexInputStateCreateInfo;
   pipelineVertexInputStateCreateInfo.vertexBindingDescriptionCount =
       vertexInputBindingDescriptions.size();
@@ -231,7 +232,8 @@ vk::Pipeline LinePassParser::createGraphicsPipeline(
   // input assembly
   vk::PipelineInputAssemblyStateCreateInfo pipelineInputAssemblyStateCreateInfo(
       vk::PipelineInputAssemblyStateCreateFlags(),
-      vk::PrimitiveTopology::eLineList);
+      primitiveType == 0 ? vk::PrimitiveTopology::ePointList
+                         : vk::PrimitiveTopology::eLineList);
 
   // viewport
   vk::PipelineViewportStateCreateInfo pipelineViewportStateCreateInfo(
@@ -241,7 +243,7 @@ vk::Pipeline LinePassParser::createGraphicsPipeline(
   vk::PipelineRasterizationStateCreateInfo pipelineRasterizationStateCreateInfo(
       vk::PipelineRasterizationStateCreateFlags(), false, false,
       vk::PolygonMode::eFill, cullMode, frontFace, false, 0.0f, 0.0f, 0.f,
-      mLineWidth);
+      primitiveSize);
 
   // multisample
   vk::PipelineMultisampleStateCreateInfo pipelineMultisampleStateCreateInfo;
@@ -304,7 +306,8 @@ vk::Pipeline LinePassParser::createGraphicsPipeline(
   return mPipeline.get();
 }
 
-std::vector<std::string> LinePassParser::getColorRenderTargetNames() const {
+std::vector<std::string>
+PrimitivePassParser::getColorRenderTargetNames() const {
   std::vector<std::string> result;
   auto elems = mTextureOutputLayout->getElementsSorted();
   for (auto elem : elems) {
@@ -313,11 +316,13 @@ std::vector<std::string> LinePassParser::getColorRenderTargetNames() const {
   return result;
 }
 
-std::optional<std::string> LinePassParser::getDepthRenderTargetName() const {
+std::optional<std::string>
+PrimitivePassParser::getDepthRenderTargetName() const {
   return getName() + "Depth";
 }
 
-std::vector<UniformBindingType> LinePassParser::getUniformBindingTypes() const {
+std::vector<UniformBindingType>
+PrimitivePassParser::getUniformBindingTypes() const {
   std::vector<UniformBindingType> result;
   for (auto &desc : mDescriptorSetDescriptions) {
     result.push_back(desc.type);

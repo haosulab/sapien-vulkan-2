@@ -44,6 +44,7 @@ class ShaderManager {
   uint32_t mNumGbufferPasses{};
   bool mShadowEnabled{};
   bool mLineEnabled{};
+  bool mPointEnabled{};
 
 public:
   ShaderManager(std::shared_ptr<RendererConfig> config = nullptr);
@@ -102,6 +103,7 @@ public:
 
   bool isShadowEnabled() const { return mShadowEnabled; }
   bool isLineEnabled() const { return mLineEnabled; }
+  bool isPointEnabled() const { return mPointEnabled; }
 
 private:
   void processShadersInFolder(std::string const &folder);

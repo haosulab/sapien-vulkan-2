@@ -52,9 +52,9 @@ Renderer::Renderer(std::shared_ptr<core::Context> context,
   mContext->getResourceManager()->setVertexLayout(
       mShaderManager->getShaderConfig()->vertexLayout);
 
-  if (mShaderManager->getShaderConfig()->lineVertexLayout) {
+  if (mShaderManager->getShaderConfig()->primitiveVertexLayout) {
     mContext->getResourceManager()->setLineVertexLayout(
-        mShaderManager->getShaderConfig()->lineVertexLayout);
+        mShaderManager->getShaderConfig()->primitiveVertexLayout);
   }
 
   vk::DescriptorPoolSize pool_sizes[] = {
@@ -501,12 +501,19 @@ void Renderer::prepareObjects(scene::Scene &scene) {
   EASY_BLOCK("Prepare objects");
   auto objects = mScene->getObjects();
   auto lineObjects = mScene->getLineObjects();
+  auto pointObjects = mScene->getPointObjects();
 
+  auto size = objects.size();
   if (mShaderManager->isLineEnabled()) {
-    prepareObjectBuffers(objects.size() + lineObjects.size());
-  } else {
-    prepareObjectBuffers(objects.size());
+    mLineObjectIndex = size;
+    size += lineObjects.size();
   }
+  if (mShaderManager->isPointEnabled()) {
+    mPointObjectIndex = size;
+    size += pointObjects.size();
+  }
+
+  prepareObjectBuffers(size);
 
   EASY_END_BLOCK;
 
@@ -536,6 +543,11 @@ void Renderer::prepareObjects(scene::Scene &scene) {
         obj->getLineSet()->uploadToDevice(mContext);
       }
     }
+    if (mShaderManager->isPointEnabled()) {
+      for (auto obj : pointObjects) {
+        obj->getPointSet()->uploadToDevice(mContext);
+      }
+    }
   }
 }
 
@@ -543,6 +555,7 @@ void Renderer::recordRenderPasses(scene::Scene &scene) {
   mRenderCommandBuffer.reset();
   mModelCache.clear();
   mLineSetCache.clear();
+  mPointSetCache.clear();
 
   mRenderCommandBuffer =
       mContext->createCommandBuffer(vk::CommandBufferLevel::ePrimary);
@@ -589,6 +602,7 @@ void Renderer::recordRenderPasses(scene::Scene &scene) {
   }
 
   auto linesetObjects = mScene->getLineObjects();
+  auto pointsetObjects = mScene->getPointObjects();
 
   uint32_t gbufferIndex = 0;
   auto passes = mShaderManager->getAllPasses();
@@ -681,7 +695,7 @@ void Renderer::recordRenderPasses(scene::Scene &scene) {
         if (objectBinding >= 0) {
           mRenderCommandBuffer->bindDescriptorSets(
               vk::PipelineBindPoint::eGraphics, pass->getPipelineLayout(),
-              objectBinding, mObjectSet[objects.size() + index].get(), nullptr);
+              objectBinding, mObjectSet[mLineObjectIndex + index].get(), nullptr);
         }
         if (lineObj->getTransparency() < 1) {
           mLineSetCache.insert(lineObj->getLineSet());
@@ -690,6 +704,24 @@ void Renderer::recordRenderPasses(scene::Scene &scene) {
               vk::DeviceSize(0));
           mRenderCommandBuffer->draw(lineObj->getLineSet()->getVertexCount(), 1,
                                      0, 0);
+        }
+      }
+    } else if (auto pointPass =
+                   std::dynamic_pointer_cast<shader::PointPassParser>(pass)) {
+      for (uint32_t index = 0; index < pointsetObjects.size(); ++index) {
+        auto &pointObj = pointsetObjects[index];
+        if (objectBinding >= 0) {
+          mRenderCommandBuffer->bindDescriptorSets(
+              vk::PipelineBindPoint::eGraphics, pass->getPipelineLayout(),
+              objectBinding, mObjectSet[mPointObjectIndex + index].get(), nullptr);
+        }
+        if (pointObj->getTransparency() < 1) {
+          mPointSetCache.insert(pointObj->getPointSet());
+          mRenderCommandBuffer->bindVertexBuffers(
+              0, pointObj->getPointSet()->getVertexBuffer().getVulkanBuffer(),
+              vk::DeviceSize(0));
+          mRenderCommandBuffer->draw(pointObj->getPointSet()->getVertexCount(),
+                                     1, 0, 0);
         }
       }
     } else {
@@ -837,7 +869,15 @@ void Renderer::render(scene::Camera &camera,
       auto lineObjects = mScene->getLineObjects();
       for (uint32_t i = 0; i < lineObjects.size(); ++i) {
         lineObjects[i]->uploadToDevice(
-            *mObjectBuffers[objects.size() + i],
+            *mObjectBuffers[mLineObjectIndex + i],
+            *mShaderManager->getShaderConfig()->objectBufferLayout);
+      }
+    }
+    if (mShaderManager->isPointEnabled()) {
+      auto pointObjects = mScene->getPointObjects();
+      for (uint32_t i = 0; i < pointObjects.size(); ++i) {
+        pointObjects[i]->uploadToDevice(
+            *mObjectBuffers[mPointObjectIndex + i],
             *mShaderManager->getShaderConfig()->objectBufferLayout);
       }
     }

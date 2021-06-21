@@ -9,6 +9,11 @@ layout(set = 0, binding = 5) uniform sampler2D samplerGbuffer2Depth;
 layout(set = 0, binding = 6) uniform usampler2D samplerSegmentation0;
 layout(set = 0, binding = 7) uniform usampler2D samplerSegmentation1;
 
+layout(set = 0, binding = 8) uniform sampler2D samplerLine;
+layout(set = 0, binding = 9) uniform sampler2D samplerLineDepth;
+layout(set = 0, binding = 10) uniform sampler2D samplerPoint;
+layout(set = 0, binding = 11) uniform sampler2D samplerPointDepth;
+
 layout(location = 0) in vec2 inUV;
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 outDepthLinear;
@@ -120,4 +125,11 @@ void main() {
 
   outSegmentationView0 = mix(vec4(0,0,0,1), colors[outSegmentation.x % 60], sign(outSegmentation.x));
   outSegmentationView1 = mix(vec4(0,0,0,1), colors[outSegmentation.y % 60], sign(outSegmentation.y));
+
+  if (texture(samplerLineDepth, inUV).x < 1) {
+    outColor = texture(samplerLine, inUV);
+  }
+  if (texture(samplerPointDepth, inUV).x < 1) {
+    outColor = texture(samplerPoint, inUV);
+  }
 }

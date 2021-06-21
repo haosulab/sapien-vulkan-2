@@ -13,6 +13,7 @@ class Scene {
   std::vector<std::unique_ptr<Node>> mNodes{};
   std::vector<std::unique_ptr<Object>> mObjects{};
   std::vector<std::unique_ptr<LineObject>> mLineObjects{};
+  std::vector<std::unique_ptr<PointObject>> mPointObjects{};
   std::vector<std::unique_ptr<Camera>> mCameras{};
   std::vector<std::unique_ptr<PointLight>> mPointLights{};
   std::vector<std::unique_ptr<DirectionalLight>> mDirectionalLights{};
@@ -44,7 +45,11 @@ public:
   LineObject &addLineObject(Node &parent,
                             std::shared_ptr<resource::SVLineSet> lineSet,
                             Transform const &transform = {});
-
+  PointObject &addPointObject(std::shared_ptr<resource::SVPointSet> pointSet,
+                              Transform const &transform = {});
+  PointObject &addPointObject(Node &parent,
+                              std::shared_ptr<resource::SVPointSet> pointSet,
+                              Transform const &transform = {});
   Camera &addCamera(Transform const &transform = {});
   Camera &addCamera(Node &parent, Transform const &transform = {});
 
@@ -69,6 +74,7 @@ public:
 
   std::vector<Object *> getObjects();
   std::vector<LineObject *> getLineObjects();
+  std::vector<PointObject *> getPointObjects();
   std::vector<Camera *> getCameras();
   std::vector<PointLight *> getPointLights();
   std::vector<DirectionalLight *> getDirectionalLights();

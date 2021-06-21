@@ -1,13 +1,13 @@
-#include "svulkan2/resource/lineset.h"
+#include "svulkan2/resource/primitive_set.h"
 #include "svulkan2/core/context.h"
 
 namespace svulkan2 {
 namespace resource {
 
-SVLineSet::SVLineSet() {}
+SVPrimitiveSet::SVPrimitiveSet() {}
 
-void SVLineSet::setVertexAttribute(std::string const &name,
-                                   std::vector<float> const &attrib) {
+void SVPrimitiveSet::setVertexAttribute(std::string const &name,
+                                        std::vector<float> const &attrib) {
   mDirty = true;
   mAttributes[name] = attrib;
   if (name == "position") {
@@ -16,14 +16,14 @@ void SVLineSet::setVertexAttribute(std::string const &name,
 }
 
 std::vector<float> const &
-SVLineSet::getVertexAttribute(std::string const &name) const {
+SVPrimitiveSet::getVertexAttribute(std::string const &name) const {
   if (mAttributes.find(name) == mAttributes.end()) {
     throw std::runtime_error("attribute " + name + " does not exist on vertex");
   }
   return mAttributes.at(name);
 }
 
-void SVLineSet::uploadToDevice(std::shared_ptr<core::Context> context) {
+void SVPrimitiveSet::uploadToDevice(std::shared_ptr<core::Context> context) {
   if (!mDirty) {
     return;
   }
@@ -33,12 +33,8 @@ void SVLineSet::uploadToDevice(std::shared_ptr<core::Context> context) {
 
   if (mAttributes.find("position") == mAttributes.end() ||
       mAttributes["position"].size() == 0) {
-    throw std::runtime_error("lineset upload failed: no vertex positions");
-  }
-  if (mAttributes["position"].size() / 6 * 6 !=
-      mAttributes["position"].size()) {
     throw std::runtime_error(
-        "line set upload failed: size of positions is not a multiple of 6");
+        "primitive set upload failed: no vertex positions");
   }
 
   size_t vertexCount = mAttributes["position"].size() / 3;
@@ -74,7 +70,7 @@ void SVLineSet::uploadToDevice(std::shared_ptr<core::Context> context) {
   mDirty = false;
 }
 
-void SVLineSet::removeFromDevice() {
+void SVPrimitiveSet::removeFromDevice() {
   mDirty = true;
   mOnDevice = false;
   mVertexBuffer.reset();

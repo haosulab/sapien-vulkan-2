@@ -95,6 +95,30 @@ LineObject &Scene::addLineObject(Node &parent,
   return result;
 }
 
+PointObject &
+Scene::addPointObject(std::shared_ptr<resource::SVPointSet> pointSet,
+                      Transform const &transform) {
+  return addPointObject(getRootNode(), pointSet, transform);
+}
+
+PointObject &
+Scene::addPointObject(Node &parent,
+                      std::shared_ptr<resource::SVPointSet> pointSet,
+                      Transform const &transform) {
+  updateVersion();
+  forceRemove();
+  auto obj = std::make_unique<PointObject>(pointSet);
+  auto &result = *obj;
+  mPointObjects.push_back(std::move(obj));
+  mPointObjects.back()->setScene(this);
+  mPointObjects.back()->setParent(parent);
+  parent.addChild(*mPointObjects.back());
+
+  mPointObjects.back()->setTransform(transform);
+  mPointObjects.back()->updateGlobalModelMatrixRecursive();
+  return result;
+}
+
 Camera &Scene::addCamera(Transform const &transform) {
   return addCamera(getRootNode(), transform);
 }
@@ -179,6 +203,7 @@ void Scene::clearNodes() {
   mNodes.resize(1);
   mObjects.clear();
   mLineObjects.clear();
+  mPointObjects.clear();
   mCameras.clear();
   mPointLights.clear();
   mDirectionalLights.clear();
@@ -203,6 +228,11 @@ void Scene::forceRemove() {
                                       return node->isMarkedRemoved();
                                     }),
                      mLineObjects.end());
+  mPointObjects.erase(std::remove_if(mPointObjects.begin(), mPointObjects.end(),
+                                     [](std::unique_ptr<PointObject> &node) {
+                                       return node->isMarkedRemoved();
+                                     }),
+                      mPointObjects.end());
   mCameras.erase(std::remove_if(mCameras.begin(), mCameras.end(),
                                 [](std::unique_ptr<Camera> &node) {
                                   return node->isMarkedRemoved();
@@ -247,6 +277,15 @@ std::vector<LineObject *> Scene::getLineObjects() {
   forceRemove();
   std::vector<LineObject *> result;
   for (auto &obj : mLineObjects) {
+    result.push_back(obj.get());
+  }
+  return result;
+}
+
+std::vector<PointObject *> Scene::getPointObjects() {
+  forceRemove();
+  std::vector<PointObject *> result;
+  for (auto &obj : mPointObjects) {
     result.push_back(obj.get());
   }
   return result;

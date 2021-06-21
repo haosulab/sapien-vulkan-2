@@ -7,7 +7,7 @@
 namespace svulkan2 {
 namespace resource {
 
-class SVLineSet {
+class SVPrimitiveSet {
   std::shared_ptr<core::Context> mContext{};
   std::unordered_map<std::string, std::vector<float>> mAttributes;
 
@@ -18,7 +18,7 @@ class SVLineSet {
   std::unique_ptr<core::Buffer> mVertexBuffer;
 
 public:
-  SVLineSet();
+  SVPrimitiveSet();
   void setVertexAttribute(std::string const &name,
                           std::vector<float> const &attrib);
   std::vector<float> const &getVertexAttribute(std::string const &name) const;
@@ -28,5 +28,9 @@ public:
   void uploadToDevice(std::shared_ptr<core::Context> context);
   void removeFromDevice();
 };
+
+typedef SVPrimitiveSet SVLineSet;
+typedef SVPrimitiveSet SVPointSet;
+
 } // namespace resource
 } // namespace svulkan2

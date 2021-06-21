@@ -89,6 +89,21 @@ void ShaderManager::processShadersInFolder(std::string const &folder) {
     }
   }
 
+  std::shared_ptr<PointPassParser> pointPass{};
+  // point pass
+  {
+    std::string vsFile = (path / "point.vert").string();
+    std::string fsFile = (path / "point.frag").string();
+    if (fs::is_regular_file(vsFile) && fs::is_regular_file(fsFile)) {
+      pointPass = std::make_shared<PointPassParser>();
+      pointPass->setName("Point");
+      mAllPasses.push_back(pointPass);
+      mPassIndex[pointPass] = mAllPasses.size() - 1;
+      futures.push_back(pointPass->loadGLSLFilesAsync(vsFile, fsFile));
+      mPointEnabled = true;
+    }
+  }
+
   {
     std::string vsFile = (path / "ao.vert").string();
     std::string fsFile = (path / "ao.frag").string();
@@ -137,12 +152,22 @@ void ShaderManager::processShadersInFolder(std::string const &folder) {
   mShaderConfig->vertexLayout = firstGbufferPass->getVertexInputLayout();
 
   if (linePass) {
-    if (mShaderConfig->lineVertexLayout) {
-      ASSERT(*mShaderConfig->lineVertexLayout ==
-                 *linePass->getLineVertexInputLayout(),
-             "All line passes must share the same vertex layout");
+    if (mShaderConfig->primitiveVertexLayout) {
+      ASSERT(*mShaderConfig->primitiveVertexLayout ==
+                 *linePass->getVertexInputLayout(),
+             "All primitive passes must share the same vertex layout");
     } else {
-      mShaderConfig->lineVertexLayout = linePass->getLineVertexInputLayout();
+      mShaderConfig->primitiveVertexLayout = linePass->getVertexInputLayout();
+    }
+  }
+
+  if (pointPass) {
+    if (mShaderConfig->primitiveVertexLayout) {
+      ASSERT(*mShaderConfig->primitiveVertexLayout ==
+                 *pointPass->getVertexInputLayout(),
+             "All primitive passes must share the same vertex layout");
+    } else {
+      mShaderConfig->primitiveVertexLayout = linePass->getVertexInputLayout();
     }
   }
 

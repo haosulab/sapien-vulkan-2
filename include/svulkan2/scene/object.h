@@ -1,7 +1,7 @@
 #pragma once
 #include "node.h"
-#include "svulkan2/resource/lineset.h"
 #include "svulkan2/resource/model.h"
+#include "svulkan2/resource/primitive_set.h"
 #include <unordered_map>
 
 namespace svulkan2 {
@@ -79,6 +79,30 @@ public:
              std::string const &name = "");
   inline std::shared_ptr<resource::SVLineSet> getLineSet() const {
     return mLineSet;
+  }
+
+  void uploadToDevice(core::Buffer &objectBuffer,
+                      StructDataLayout const &objectLayout);
+
+  void setSegmentation(glm::uvec4 const &segmentation);
+  inline glm::uvec4 getSegmentation() const { return mSegmentation; }
+
+  void setTransparency(float transparency);
+  inline float getTransparency() const { return mTransparency; }
+};
+
+class PointObject : public Node {
+  std::shared_ptr<resource::SVPointSet> mPointSet;
+  glm::uvec4 mSegmentation{0};
+  float mTransparency{};
+
+public:
+  inline Type getType() const override { return Type::eObject; }
+
+  PointObject(std::shared_ptr<resource::SVPointSet> pointSet,
+              std::string const &name = "");
+  inline std::shared_ptr<resource::SVLineSet> getPointSet() const {
+    return mPointSet;
   }
 
   void uploadToDevice(core::Buffer &objectBuffer,

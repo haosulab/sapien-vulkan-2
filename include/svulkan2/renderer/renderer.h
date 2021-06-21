@@ -189,6 +189,7 @@ private:
 
   std::unordered_set<std::shared_ptr<resource::SVModel>> mModelCache;
   std::unordered_set<std::shared_ptr<resource::SVLineSet>> mLineSetCache;
+  std::unordered_set<std::shared_ptr<resource::SVPointSet>> mPointSetCache;
 
   vk::UniqueCommandBuffer mShadowCommandBuffer{};
   vk::UniqueCommandBuffer mRenderCommandBuffer{};
@@ -197,6 +198,9 @@ private:
   void prepareObjects(scene::Scene &scene);
   void recordShadows(scene::Scene &scene);
   void recordRenderPasses(scene::Scene &scene);
+
+  uint32_t mLineObjectIndex{};
+  uint32_t mPointObjectIndex{};
 };
 
 } // namespace renderer
