@@ -5,9 +5,11 @@
 #include <glslang/Public/ShaderLang.h>
 #include <unordered_map>
 #include <vulkan/vulkan.hpp>
+#include <mutex>
 
 namespace svulkan2 {
 
+static std::mutex mutex;
 static std::unordered_map<std::string, std::vector<std::uint32_t>>
     shaderCodeCache;
 
@@ -15,6 +17,7 @@ std::vector<std::uint32_t> const &
 GLSLCompiler::compileGlslFileCached(vk::ShaderStageFlagBits stage,
                                     fs::path const &filepath) {
   std::string path = fs::canonical(filepath).string();
+  std::lock_guard<std::mutex> guard(mutex);
   if (shaderCodeCache.contains(path)) {
     return shaderCodeCache[path];
   }
