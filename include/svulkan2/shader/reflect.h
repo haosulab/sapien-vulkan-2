@@ -1,8 +1,7 @@
 #pragma once
 
 #include "svulkan2/common/layout.h"
-// #include <spirv_cross.hpp>
-#include <spirv_cross/spirv_cross.hpp>
+#include <spirv_cross.hpp>
 
 namespace svulkan2 {
 
