@@ -4,6 +4,12 @@
 #include <GLFW/glfw3.h>
 #include <easy/profiler.h>
 
+#if !defined( VULKAN_HPP_STORAGE_SHARED )
+  #define VULKAN_HPP_STORAGE_SHARED
+  #define VULKAN_HPP_STORAGE_SHARED_EXPORT
+  VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
+#endif
+
 namespace svulkan2 {
 namespace core {
 
@@ -145,12 +151,18 @@ void Context::createInstance() {
       }
     }
   }
+  vk::DynamicLoader dl;
+  PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr =
+      dl.getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr");
+  VULKAN_HPP_DEFAULT_DISPATCHER.init(vkGetInstanceProcAddr);
+
   vk::InstanceCreateInfo createInfo(
       {}, &appInfo, enabledLayers.size(), enabledLayers.data(),
       instanceExtensions.size(), instanceExtensions.data());
   mVulkanAvailable = false;
   try {
     mInstance = vk::createInstanceUnique(createInfo);
+    VULKAN_HPP_DEFAULT_DISPATCHER.init(mInstance.get());
     mVulkanAvailable = true;
     log::info("Vulkan instance initialized");
   } catch (vk::OutOfHostMemoryError const &err) {
@@ -262,6 +274,7 @@ void Context::createDevice() {
   mDevice = mPhysicalDevice.createDeviceUnique(vk::DeviceCreateInfo(
       {}, 1, &deviceQueueCreateInfo, 0, nullptr, deviceExtensions.size(),
       deviceExtensions.data(), &features));
+  VULKAN_HPP_DEFAULT_DISPATCHER.init(mDevice.get());
 }
 
 void Context::createMemoryAllocator() {
