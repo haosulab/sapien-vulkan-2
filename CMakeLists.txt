@@ -71,7 +71,7 @@ file(GLOB GUI_SRC "3rd_party/imgui/*.cpp"
 
 add_library(svulkan2 STATIC ${RENDER_SRC} ${GUI_SRC})
 
-target_link_libraries(svulkan2 ${ASSIMP_LIBRARIES} glfw3 dl pthread Vulkan::Vulkan spdlog
+target_link_libraries(svulkan2 ${ASSIMP_LIBRARIES} glfw dl pthread Vulkan::Vulkan spdlog
     glslang SPIRV spirv-cross-cpp # ${CUDA_LIBRARIES}
     ${EASY_PROFILER_LIBRARIES})
 
