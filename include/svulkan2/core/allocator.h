@@ -21,7 +21,7 @@ public:
   VmaAllocator getVmaAllocator() const { return mMemoryAllocator; }
 
 public:
-  std::unique_ptr<class Buffer> allocateStagingBuffer(vk::DeviceSize size);
+  std::unique_ptr<class Buffer> allocateStagingBuffer(vk::DeviceSize size, bool readback = false);
   std::unique_ptr<class Buffer> allocateUniformBuffer(vk::DeviceSize size,
                                                       bool deviceOnly = false);
 };

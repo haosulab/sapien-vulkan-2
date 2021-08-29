@@ -24,10 +24,16 @@ std::shared_ptr<class Context> Allocator::getContext() const {
 
 Allocator::~Allocator() { vmaDestroyAllocator(mMemoryAllocator); }
 
-std::unique_ptr<Buffer> Allocator::allocateStagingBuffer(vk::DeviceSize size) {
+std::unique_ptr<Buffer> Allocator::allocateStagingBuffer(vk::DeviceSize size, bool readback) {
+  if (readback) {
+    return std::make_unique<Buffer>(mContext.shared_from_this(), size,
+                                    vk::BufferUsageFlagBits::eTransferSrc |
+                                    vk::BufferUsageFlagBits::eTransferDst,
+                                    VMA_MEMORY_USAGE_GPU_TO_CPU);
+  }
   return std::make_unique<Buffer>(mContext.shared_from_this(), size,
                                   vk::BufferUsageFlagBits::eTransferSrc |
-                                      vk::BufferUsageFlagBits::eTransferDst,
+                                  vk::BufferUsageFlagBits::eTransferDst,
                                   VMA_MEMORY_USAGE_CPU_ONLY);
 }
 

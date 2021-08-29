@@ -3,13 +3,6 @@
 #include "svulkan2/common/log.h"
 #include <filesystem>
 
-// #pragma GCC diagnostic push
-// #pragma GCC diagnostic ignored "-Wunused-function"
-// #define STB_IMAGE_IMPLEMENTATION
-// #define STB_IMAGE_STATIC
-// #include <stb_image.h>
-// #pragma GCC diagnostic pop
-
 namespace fs = std::filesystem;
 namespace svulkan2 {
 namespace resource {

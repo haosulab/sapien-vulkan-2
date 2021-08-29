@@ -2,6 +2,7 @@
 #include "svulkan2/core/allocator.h"
 #include "svulkan2/core/buffer.h"
 #include "svulkan2/core/context.h"
+#include "easy/profiler.h"
 
 namespace svulkan2 {
 namespace core {
@@ -242,6 +243,8 @@ void Image::copyToBuffer(vk::Buffer buffer, size_t size, vk::Offset3D offset,
 
 void Image::download(void *data, size_t size, vk::Offset3D offset,
                      vk::Extent3D extent, uint32_t arrayLayer) {
+  EASY_FUNCTION()
+
   size_t imageSize = extent.width * extent.height * extent.depth *
                      getFormatSize(mFormat);
   if (size != imageSize) {
@@ -294,7 +297,11 @@ void Image::download(void *data, size_t size, vk::Offset3D offset,
     throw std::runtime_error("failed to download image: invalid layout.");
   }
 
-  auto stagingBuffer = mContext->getAllocator().allocateStagingBuffer(size);
+  EASY_BLOCK("Allocating staging buffer");
+  auto stagingBuffer = mContext->getAllocator().allocateStagingBuffer(size, true);
+  EASY_END_BLOCK;
+
+  EASY_BLOCK("Record command buffer");
   auto cb = mContext->createCommandBuffer();
   cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
   if (mCurrentLayout != vk::ImageLayout::eTransferSrcOptimal) {
@@ -308,9 +315,12 @@ void Image::download(void *data, size_t size, vk::Offset3D offset,
   cb->copyImageToBuffer(mImage, vk::ImageLayout::eTransferSrcOptimal,
                         stagingBuffer->getVulkanBuffer(), copyRegion);
   cb->end();
+  EASY_END_BLOCK;
 
   auto fence = mContext->getDevice().createFenceUnique({});
   vk::PipelineStageFlags waitStage = vk::PipelineStageFlagBits::eTransfer;
+
+  EASY_BLOCK("Submit and wait");
   mContext->getQueue().submit(
       vk::SubmitInfo(0, nullptr, &waitStage, 1, &cb.get()), fence.get());
   auto result =
@@ -318,11 +328,14 @@ void Image::download(void *data, size_t size, vk::Offset3D offset,
   if (result != vk::Result::eSuccess) {
     throw std::runtime_error("failed to wait for fence");
   }
+  EASY_END_BLOCK;
 
   setCurrentLayout(vk::ImageLayout::eTransferSrcOptimal);
 
+  EASY_BLOCK("Copy data to CPU");
   std::memcpy(data, stagingBuffer->map(), size);
   stagingBuffer->unmap();
+  EASY_END_BLOCK;
 }
 
 void Image::download(void *data, size_t size, uint32_t arrayLayer) {
