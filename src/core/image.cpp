@@ -265,7 +265,7 @@ void Image::download(void *data, size_t size, vk::Offset3D offset,
     aspect = vk::ImageAspectFlagBits::eDepth;
     break;
   case vk::Format::eD24UnormS8Uint:
-    vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
+    aspect = vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
     break;
   default:
     throw std::runtime_error("failed to download image: unsupported format.");
