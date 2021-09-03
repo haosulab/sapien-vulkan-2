@@ -76,6 +76,12 @@ CudaBuffer::CudaBuffer(std::shared_ptr<Context> context, vk::DeviceSize size,
   mCudaDeviceId =
       getCudaDeviceIdFromPhysicalDevice(mContext->getPhysicalDevice());
 
+  if (mCudaDeviceId < 0) {
+    throw std::runtime_error("Vulkan Device is not visible to CUDA. You probably need to unset the CUDA_VISIBLE_DEVICES variable. Or you can try other CUDA_VISIBLE_DEVICES until you find a working one.");
+  }
+
+  checkCudaErrors(cudaSetDevice(mCudaDeviceId));
+
   cudaExternalMemoryHandleDesc externalMemoryHandleDesc = {};
   externalMemoryHandleDesc.type = cudaExternalMemoryHandleTypeOpaqueFd;
   externalMemoryHandleDesc.size = size;
