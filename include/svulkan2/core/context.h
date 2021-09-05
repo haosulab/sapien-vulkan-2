@@ -33,14 +33,13 @@ class Context : public std::enable_shared_from_this<Context> {
   vk::UniqueDescriptorSetLayout mMetallicDescriptorSetLayout;
 
 public:
-  static std::shared_ptr<Context>
-  Create(uint32_t apiVersion = VK_API_VERSION_1_1, bool present = true,
-         uint32_t maxNumMaterials = 5000, uint32_t maxNumTextures = 5000,
-         uint32_t defaultMipLevels = 1);
+  static std::shared_ptr<Context> Create(bool present = true,
+                                         uint32_t maxNumMaterials = 5000,
+                                         uint32_t maxNumTextures = 5000,
+                                         uint32_t defaultMipLevels = 1);
 
-  Context(uint32_t apiVersion = VK_API_VERSION_1_1, bool present = true,
-          uint32_t maxNumMaterials = 5000, uint32_t maxNumTextures = 5000,
-          uint32_t defaultMipLevels = 1);
+  Context(bool present = true, uint32_t maxNumMaterials = 5000,
+          uint32_t maxNumTextures = 5000, uint32_t defaultMipLevels = 1);
   ~Context();
 
   inline bool isVulkanAvailable() const { return mVulkanAvailable; }

@@ -4,10 +4,10 @@
 #include <GLFW/glfw3.h>
 #include <easy/profiler.h>
 
-#if !defined( VULKAN_HPP_STORAGE_SHARED )
-  #define VULKAN_HPP_STORAGE_SHARED
-  #define VULKAN_HPP_STORAGE_SHARED_EXPORT
-  VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
+#if !defined(VULKAN_HPP_STORAGE_SHARED)
+#define VULKAN_HPP_STORAGE_SHARED
+#define VULKAN_HPP_STORAGE_SHARED_EXPORT
+VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 #endif
 
 namespace svulkan2 {
@@ -42,17 +42,16 @@ static bool checkValidationLayerSupport() {
 }
 #endif
 
-std::shared_ptr<Context> Context::Create(uint32_t apiVersion, bool present,
-                                         uint32_t maxNumMaterials,
+std::shared_ptr<Context> Context::Create(bool present, uint32_t maxNumMaterials,
                                          uint32_t maxNumTextures,
                                          uint32_t defaultMipLevels) {
-  return std::make_shared<Context>(apiVersion, present, maxNumMaterials,
-                                   maxNumTextures, defaultMipLevels);
+  return std::make_shared<Context>(present, maxNumMaterials, maxNumTextures,
+                                   defaultMipLevels);
 }
 
-Context::Context(uint32_t apiVersion, bool present, uint32_t maxNumMaterials,
+Context::Context(bool present, uint32_t maxNumMaterials,
                  uint32_t maxNumTextures, uint32_t defaultMipLevels)
-    : mApiVersion(apiVersion), mPresent(present),
+    : mApiVersion(VK_API_VERSION_1_1), mPresent(present),
       mMaxNumMaterials(maxNumMaterials), mMaxNumTextures(maxNumTextures),
       mDefaultMipLevels(defaultMipLevels) {
   profiler::startListen();
@@ -282,11 +281,37 @@ void Context::createMemoryAllocator() {
     return;
   }
 
+  VmaVulkanFunctions vulkanFunctions{};
+  vulkanFunctions.vkGetPhysicalDeviceProperties           = (PFN_vkGetPhysicalDeviceProperties          )mInstance->getProcAddr("vkGetPhysicalDeviceProperties");
+  vulkanFunctions.vkGetPhysicalDeviceMemoryProperties     = (PFN_vkGetPhysicalDeviceMemoryProperties    )mInstance->getProcAddr("vkGetPhysicalDeviceMemoryProperties");
+  vulkanFunctions.vkGetPhysicalDeviceMemoryProperties2KHR = (PFN_vkGetPhysicalDeviceMemoryProperties2   )mInstance->getProcAddr("vkGetPhysicalDeviceMemoryProperties2");
+  vulkanFunctions.vkAllocateMemory                        = (PFN_vkAllocateMemory                       )mDevice->getProcAddr("vkAllocateMemory");
+  vulkanFunctions.vkFreeMemory                            = (PFN_vkFreeMemory                           )mDevice->getProcAddr("vkFreeMemory");
+  vulkanFunctions.vkMapMemory                             = (PFN_vkMapMemory                            )mDevice->getProcAddr("vkMapMemory");
+  vulkanFunctions.vkUnmapMemory                           = (PFN_vkUnmapMemory                          )mDevice->getProcAddr("vkUnmapMemory");
+  vulkanFunctions.vkFlushMappedMemoryRanges               = (PFN_vkFlushMappedMemoryRanges              )mDevice->getProcAddr("vkFlushMappedMemoryRanges");
+  vulkanFunctions.vkInvalidateMappedMemoryRanges          = (PFN_vkInvalidateMappedMemoryRanges         )mDevice->getProcAddr("vkInvalidateMappedMemoryRanges");
+  vulkanFunctions.vkBindBufferMemory                      = (PFN_vkBindBufferMemory                     )mDevice->getProcAddr("vkBindBufferMemory");
+  vulkanFunctions.vkBindImageMemory                       = (PFN_vkBindImageMemory                      )mDevice->getProcAddr("vkBindImageMemory");
+  vulkanFunctions.vkGetBufferMemoryRequirements           = (PFN_vkGetBufferMemoryRequirements          )mDevice->getProcAddr("vkGetBufferMemoryRequirements");
+  vulkanFunctions.vkGetImageMemoryRequirements            = (PFN_vkGetImageMemoryRequirements           )mDevice->getProcAddr("vkGetImageMemoryRequirements");
+  vulkanFunctions.vkCreateBuffer                          = (PFN_vkCreateBuffer                         )mDevice->getProcAddr("vkCreateBuffer");
+  vulkanFunctions.vkDestroyBuffer                         = (PFN_vkDestroyBuffer                        )mDevice->getProcAddr("vkDestroyBuffer");
+  vulkanFunctions.vkCreateImage                           = (PFN_vkCreateImage                          )mDevice->getProcAddr("vkCreateImage");
+  vulkanFunctions.vkDestroyImage                          = (PFN_vkDestroyImage                         )mDevice->getProcAddr("vkDestroyImage");
+  vulkanFunctions.vkCmdCopyBuffer                         = (PFN_vkCmdCopyBuffer                        )mDevice->getProcAddr("vkCmdCopyBuffer");
+  vulkanFunctions.vkGetBufferMemoryRequirements2KHR       = (PFN_vkGetBufferMemoryRequirements2KHR      )mDevice->getProcAddr("vkGetBufferMemoryRequirements2");
+  vulkanFunctions.vkGetImageMemoryRequirements2KHR        = (PFN_vkGetImageMemoryRequirements2KHR       )mDevice->getProcAddr("vkGetImageMemoryRequirements2");
+  vulkanFunctions.vkBindBufferMemory2KHR                  = (PFN_vkBindBufferMemory2KHR                 )mDevice->getProcAddr("vkBindBufferMemory2");
+  vulkanFunctions.vkBindImageMemory2KHR                   = (PFN_vkBindImageMemory2KHR                  )mDevice->getProcAddr("vkBindImageMemory2");
+
   VmaAllocatorCreateInfo allocatorInfo = {};
   allocatorInfo.vulkanApiVersion = mApiVersion;
   allocatorInfo.physicalDevice = mPhysicalDevice;
   allocatorInfo.device = mDevice.get();
   allocatorInfo.instance = mInstance.get();
+  allocatorInfo.pVulkanFunctions = &vulkanFunctions;
+
   mAllocator = std::make_unique<Allocator>(*this, allocatorInfo);
 }
 
