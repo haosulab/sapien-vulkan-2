@@ -157,8 +157,8 @@ std::future<void> SVModel::loadAsync() {
       float alpha = 1.f;
       float shininess = 0.f;
       m->Get(AI_MATKEY_OPACITY, alpha);
-      if (alpha < 1e-5 && (mDescription.filename.ends_with("dae") ||
-                           mDescription.filename.ends_with("DAE"))) {
+      if (alpha < 1e-5 && (mDescription.filename.ends_with(".dae") ||
+                           mDescription.filename.ends_with(".DAE"))) {
         log::warn("The DAE file {} is fully transparent. This is probably "
                   "due to modeling error. Setting opacity to 1 instead...",
                   mDescription.filename);
