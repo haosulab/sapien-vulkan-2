@@ -6,24 +6,19 @@
 #include <cuda_runtime.h>
 
 inline int getPCIBusIdFromCudaDeviceId(int cudaDeviceId) {
-  static std::unordered_map<int, int> pciBusIdToDeviceId;
+  int pciBusId = -1;
+  std::string pciBus(20, '\0');
+  cudaDeviceGetPCIBusId(pciBus.data(), 20, cudaDeviceId);
 
-  if (!pciBusIdToDeviceId.contains(cudaDeviceId)) {
-    int pciBusId;
-    std::string pciBus(20, '\0');
-    cudaDeviceGetPCIBusId(pciBus.data(), 20, cudaDeviceId);
-
-    if (pciBus[0] == '\0') // invalid cudaDeviceId
-      pciBusId = -1;
-    else {
-      std::stringstream ss;
-      ss << std::hex << pciBus.substr(5, 2);
-      ss >> pciBusId;
-    }
-    pciBusIdToDeviceId[cudaDeviceId] = pciBusId;
+  if (pciBus[0] == '\0') // invalid cudaDeviceId
+    pciBusId = -1;
+  else {
+    std::stringstream ss;
+    ss << std::hex << pciBus.substr(5, 2);
+    ss >> pciBusId;
   }
 
-  return pciBusIdToDeviceId[cudaDeviceId];
+  return pciBusId;
 }
 
 inline int getCudaDeviceIdFromPhysicalDevice(const vk::PhysicalDevice &device) {

@@ -248,7 +248,6 @@ Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
 
 #ifdef CUDA_INTEROP
     cudaId = getCudaDeviceIdFromPhysicalDevice(device);
-    std::cout << cudaId << std::endl;
 #endif
 
     bool supported = required_features && queueIdx != -1;
