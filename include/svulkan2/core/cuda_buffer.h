@@ -3,7 +3,7 @@
 
 #include "svulkan2/common/log.h"
 #include "svulkan2/common/vk.h"
-#include <cuda_runtime.h>
+#include "svulkan2/common/cuda_helper.h"
 
 namespace svulkan2 {
 namespace core {

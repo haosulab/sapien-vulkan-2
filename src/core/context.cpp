@@ -1,8 +1,10 @@
 #include "svulkan2/core/context.h"
+#include "svulkan2/common/cuda_helper.h"
 #include "svulkan2/common/log.h"
 #include "svulkan2/core/allocator.h"
 #include <GLFW/glfw3.h>
 #include <easy/profiler.h>
+#include <iomanip>
 
 #if !defined(VULKAN_HPP_STORAGE_SHARED)
 #define VULKAN_HPP_STORAGE_SHARED
@@ -50,10 +52,11 @@ std::shared_ptr<Context> Context::Create(bool present, uint32_t maxNumMaterials,
 }
 
 Context::Context(bool present, uint32_t maxNumMaterials,
-                 uint32_t maxNumTextures, uint32_t defaultMipLevels)
+                 uint32_t maxNumTextures, uint32_t defaultMipLevels,
+                 std::string device)
     : mApiVersion(VK_API_VERSION_1_1), mPresent(present),
       mMaxNumMaterials(maxNumMaterials), mMaxNumTextures(maxNumTextures),
-      mDefaultMipLevels(defaultMipLevels) {
+      mDefaultMipLevels(defaultMipLevels), mDeviceHint(device) {
   profiler::startListen();
   createInstance();
   pickSuitableGpuAndQueueFamilyIndex();
@@ -186,13 +189,210 @@ void Context::createInstance() {
   }
 }
 
+std::vector<Context::PhysicalDeviceInfo>
+Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
+  std::vector<Context::PhysicalDeviceInfo> devices;
+
+  std::stringstream ss;
+  ss << "Devices visible to Vulkan" << std::endl;
+  ss << std::setw(3) << "" << std::setw(20) << "name" << std::setw(10)
+     << "Present" << std::setw(10) << "Supported" << std::setw(10) << "PciBus"
+     << std::setw(10) << "CudaId" << std::endl;
+
+  int ord = 0;
+  for (auto device : mInstance->enumeratePhysicalDevices()) {
+    std::string name;
+    bool present = false;
+    bool required_features = false;
+    int cudaId = -1;
+    int busid = -1;
+    int queueIdxNoPresent = -1;
+    int queueIdxPresent = -1;
+    int queueIdx = -1;
+
+    std::vector<vk::QueueFamilyProperties> queueFamilyProperties =
+        device.getQueueFamilyProperties();
+    for (uint32_t i = 0; i < queueFamilyProperties.size(); ++i) {
+      if (queueFamilyProperties[i].queueFlags & vk::QueueFlagBits::eGraphics &&
+          queueFamilyProperties[i].queueFlags & vk::QueueFlagBits::eCompute) {
+        if (queueIdxNoPresent == -1) {
+          queueIdxNoPresent = i;
+        }
+        if (mPresent && device.getSurfaceSupportKHR(i, tmpSurface)) {
+          queueIdxPresent = i;
+          present = true;
+          break;
+        }
+      }
+    }
+
+    if (queueIdxPresent != -1) {
+      queueIdx = queueIdxPresent;
+    } else {
+      queueIdx = queueIdxNoPresent;
+    }
+
+    auto features = device.getFeatures();
+    if (features.independentBlend && features.wideLines) {
+      required_features = true;
+    }
+    auto properties = device.getProperties();
+    name = std::string(properties.deviceName);
+
+    vk::PhysicalDeviceProperties2KHR p2;
+    vk::PhysicalDevicePCIBusInfoPropertiesEXT pciInfo;
+    pciInfo.pNext = p2.pNext;
+    p2.pNext = &pciInfo;
+    device.getProperties2(&p2);
+    busid = pciInfo.pciBus;
+
+#ifdef CUDA_INTEROP
+    cudaId = getCudaDeviceIdFromPhysicalDevice(device);
+    std::cout << cudaId << std::endl;
+#endif
+
+    bool supported = required_features && queueIdx != -1;
+
+    ss << std::setw(3) << ord++ << std::setw(20) << name.substr(0, 20)
+       << std::setw(10) << present << std::setw(10) << supported << std::hex
+       << std::setw(10) << busid << std::dec << std::setw(10) << (cudaId == -1 ? "No Device" : std::to_string(cudaId))
+       << std::endl;
+
+    devices.push_back(
+        Context::PhysicalDeviceInfo{.device = device,
+                                    .present = present,
+                                    .supported = required_features,
+                                    .cudaId = cudaId,
+                                    .pciBus = busid,
+                                    .queueIndex = queueIdx});
+  }
+  log::info(ss.str());
+
+#ifdef CUDA_INTEROP
+  ss = {};
+  ss << "Devices visible to Cuda" << std::endl;
+  ss << std::setw(10) << "CudaId" << std::setw(10) << "PciBus" << std::setw(25)
+     << "PciBusString" << std::endl;
+  for (uint32_t i = 0; i < 20; ++i) {
+    int busId = getPCIBusIdFromCudaDeviceId(i);
+    std::string pciBus(20, '\0');
+    auto result = cudaDeviceGetPCIBusId(pciBus.data(), 20, i);
+
+    switch (result) {
+    case cudaErrorInvalidValue:
+      pciBus = "Invalid Value";
+      break;
+    case cudaErrorInvalidDevice:
+      pciBus = "Invalid Device";
+      break;
+    case cudaErrorInitializationError:
+      pciBus = "Not Initialized";
+      break;
+    case cudaErrorInsufficientDriver:
+      pciBus = "Insufficient Driver";
+      break;
+    case cudaErrorNoDevice:
+      pciBus = "No Device";
+      break;
+    default:
+      break;
+    }
+
+    ss << std::setw(10) << i << std::hex << std::setw(10) << busId << std::dec
+       << std::setw(25) << pciBus.c_str() << std::endl;
+  }
+  log::info(ss.str());
+#endif
+
+  return devices;
+}
+
+int pickCudaDevice(std::vector<Context::PhysicalDeviceInfo> devices, int id) {
+  int idx = 0;
+  for (auto &info : devices) {
+    if (info.cudaId == id && info.supported) {
+      return idx;
+    }
+    idx++;
+  }
+  return -1;
+}
+
+int pickCudaDevice(std::vector<Context::PhysicalDeviceInfo> devices) {
+  int idx = 0;
+  for (auto &info : devices) {
+    if (info.cudaId >= 0 && info.supported) {
+      return idx;
+    }
+    idx++;
+  }
+  return -1;
+}
+
+int pickCudaDeviceWithPresent(
+    std::vector<Context::PhysicalDeviceInfo> devices) {
+  int idx = 0;
+  for (auto &info : devices) {
+    if (info.cudaId >= 0 && info.present && info.supported) {
+      return idx;
+    }
+    idx++;
+  }
+  return -1;
+}
+
+int pickPciWithPresent(std::vector<Context::PhysicalDeviceInfo> devices,
+                       int pci) {
+  int idx = 0;
+  for (auto &info : devices) {
+    if (info.pciBus == pci && info.present && info.supported) {
+      return idx;
+    }
+    idx++;
+  }
+  return -1;
+}
+
+int pickPci(std::vector<Context::PhysicalDeviceInfo> devices, int pci) {
+  int idx = 0;
+  for (auto &info : devices) {
+    if (info.pciBus == pci && info.supported) {
+      return idx;
+    }
+    idx++;
+  }
+  return -1;
+}
+
+int pickPresent(std::vector<Context::PhysicalDeviceInfo> devices) {
+  int idx = 0;
+  for (auto &info : devices) {
+    if (info.present && info.supported) {
+      return idx;
+    }
+    idx++;
+  }
+  return -1;
+}
+
+int pickAny(std::vector<Context::PhysicalDeviceInfo> devices) {
+  int idx = 0;
+  for (auto &info : devices) {
+    if (info.supported) {
+      return idx;
+    }
+    idx++;
+  }
+  return -1;
+}
+
 void Context::pickSuitableGpuAndQueueFamilyIndex() {
   if (!mVulkanAvailable) {
     return;
   }
 
   GLFWwindow *window;
-  VkSurfaceKHR tmpSurface;
+  VkSurfaceKHR tmpSurface = nullptr;
   if (mPresent) {
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
@@ -206,44 +406,84 @@ void Context::pickSuitableGpuAndQueueFamilyIndex() {
     glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
   }
 
-  vk::PhysicalDevice pickedDevice;
-  uint32_t pickedIndex;
-  for (auto device : mInstance->enumeratePhysicalDevices()) {
-    std::vector<vk::QueueFamilyProperties> queueFamilyProperties =
-        device.getQueueFamilyProperties();
-    pickedIndex = queueFamilyProperties.size();
-    for (uint32_t i = 0; i < queueFamilyProperties.size(); ++i) {
-      if (queueFamilyProperties[i].queueFlags & vk::QueueFlagBits::eGraphics &&
-          queueFamilyProperties[i].queueFlags & vk::QueueFlagBits::eCompute) {
-        if (mPresent && !device.getSurfaceSupportKHR(i, tmpSurface)) {
-          continue;
-        }
-        pickedIndex = i;
-      }
-    }
-    if (pickedIndex == queueFamilyProperties.size()) {
-      continue;
-    }
-    auto features = device.getFeatures();
-    if (!features.independentBlend || !features.wideLines) {
-      continue;
-    }
-    pickedDevice = device;
-    auto properties = device.getProperties();
-    log::info("Vulkan picked device: {}", properties.deviceName);
-    break;
-  }
-  if (!pickedDevice) {
-    throw std::runtime_error(
-        "pickSuitableGpuAndQueue: no compatible GPU found. Required queue "
-        "properties: graphics, compute, present");
-  }
+  auto devices = summarizeDeviceInfo(tmpSurface);
+
   if (mPresent) {
     vkDestroySurfaceKHR(mInstance.get(), tmpSurface, nullptr);
     glfwDestroyWindow(window);
   }
+
+  int pickedDeviceIdx = -1;
+  if (mDeviceHint.starts_with("cuda:")) {
+    try {
+      int cudaId = std::stoi(mDeviceHint.substr(5));
+      pickedDeviceIdx = pickCudaDevice(devices, cudaId);
+      if (pickedDeviceIdx == -1) {
+        throw std::runtime_error(
+            "Cannot find cuda device suitable for rendering " + mDeviceHint);
+      }
+    } catch (std::invalid_argument const &e) {
+      throw std::runtime_error("Invalid device " + mDeviceHint);
+    }
+  } else if (mDeviceHint.starts_with("cuda")) {
+    if (mPresent) {
+      pickedDeviceIdx = pickCudaDeviceWithPresent(devices);
+    }
+    if (pickedDeviceIdx == -1) {
+      pickedDeviceIdx = pickCudaDevice(devices);
+    }
+    if (pickedDeviceIdx == -1) {
+      throw std::runtime_error(
+          "Cannot find any cuda device suitable for rendering.");
+    }
+  } else if (mDeviceHint.starts_with("pci:")) {
+    int pci = -1;
+    try {
+      pci = std::stoi(mDeviceHint.substr(4), 0, 16);
+    } catch (std::invalid_argument const &e) {
+      throw std::runtime_error("Invalid device " + mDeviceHint);
+    }
+    if (mPresent) {
+      pickedDeviceIdx = pickPciWithPresent(devices, pci);
+    }
+    if (pickedDeviceIdx == -1) {
+      pickedDeviceIdx = pickPci(devices, pci);
+    }
+    if (pickedDeviceIdx == -1) {
+      throw std::runtime_error("Cannot find " + mDeviceHint +
+                               " for rendering.");
+    }
+  } else if (mDeviceHint == "") {
+    if (mPresent) {
+      pickedDeviceIdx = pickCudaDeviceWithPresent(devices);
+      if (pickedDeviceIdx == -1) {
+        pickedDeviceIdx = pickPresent(devices);
+      }
+    }
+    if (pickedDeviceIdx == -1) {
+      pickedDeviceIdx = pickCudaDevice(devices);
+    }
+    if (pickedDeviceIdx == -1) {
+      pickedDeviceIdx = pickAny(devices);
+    }
+  }
+
+  if (pickedDeviceIdx == -1) {
+    throw std::runtime_error("Cannot find a suitable rendering device");
+  }
+
+  if (mPresent && !devices[pickedDeviceIdx].present) {
+    log::error("Present requested but the selected device does not support "
+               "present. Continue without present.");
+    mPresent = false;
+  }
+
+  log::info("Vulkan picked device: {}", pickedDeviceIdx);
+
+  vk::PhysicalDevice pickedDevice = devices[pickedDeviceIdx].device;
+
   mPhysicalDevice = pickedDevice;
-  mQueueFamilyIndex = pickedIndex;
+  mQueueFamilyIndex = devices[pickedDeviceIdx].queueIndex;
 }
 
 void Context::createDevice() {
@@ -282,28 +522,59 @@ void Context::createMemoryAllocator() {
   }
 
   VmaVulkanFunctions vulkanFunctions{};
-  vulkanFunctions.vkGetPhysicalDeviceProperties           = (PFN_vkGetPhysicalDeviceProperties          )mInstance->getProcAddr("vkGetPhysicalDeviceProperties");
-  vulkanFunctions.vkGetPhysicalDeviceMemoryProperties     = (PFN_vkGetPhysicalDeviceMemoryProperties    )mInstance->getProcAddr("vkGetPhysicalDeviceMemoryProperties");
-  vulkanFunctions.vkGetPhysicalDeviceMemoryProperties2KHR = (PFN_vkGetPhysicalDeviceMemoryProperties2   )mInstance->getProcAddr("vkGetPhysicalDeviceMemoryProperties2");
-  vulkanFunctions.vkAllocateMemory                        = (PFN_vkAllocateMemory                       )mDevice->getProcAddr("vkAllocateMemory");
-  vulkanFunctions.vkFreeMemory                            = (PFN_vkFreeMemory                           )mDevice->getProcAddr("vkFreeMemory");
-  vulkanFunctions.vkMapMemory                             = (PFN_vkMapMemory                            )mDevice->getProcAddr("vkMapMemory");
-  vulkanFunctions.vkUnmapMemory                           = (PFN_vkUnmapMemory                          )mDevice->getProcAddr("vkUnmapMemory");
-  vulkanFunctions.vkFlushMappedMemoryRanges               = (PFN_vkFlushMappedMemoryRanges              )mDevice->getProcAddr("vkFlushMappedMemoryRanges");
-  vulkanFunctions.vkInvalidateMappedMemoryRanges          = (PFN_vkInvalidateMappedMemoryRanges         )mDevice->getProcAddr("vkInvalidateMappedMemoryRanges");
-  vulkanFunctions.vkBindBufferMemory                      = (PFN_vkBindBufferMemory                     )mDevice->getProcAddr("vkBindBufferMemory");
-  vulkanFunctions.vkBindImageMemory                       = (PFN_vkBindImageMemory                      )mDevice->getProcAddr("vkBindImageMemory");
-  vulkanFunctions.vkGetBufferMemoryRequirements           = (PFN_vkGetBufferMemoryRequirements          )mDevice->getProcAddr("vkGetBufferMemoryRequirements");
-  vulkanFunctions.vkGetImageMemoryRequirements            = (PFN_vkGetImageMemoryRequirements           )mDevice->getProcAddr("vkGetImageMemoryRequirements");
-  vulkanFunctions.vkCreateBuffer                          = (PFN_vkCreateBuffer                         )mDevice->getProcAddr("vkCreateBuffer");
-  vulkanFunctions.vkDestroyBuffer                         = (PFN_vkDestroyBuffer                        )mDevice->getProcAddr("vkDestroyBuffer");
-  vulkanFunctions.vkCreateImage                           = (PFN_vkCreateImage                          )mDevice->getProcAddr("vkCreateImage");
-  vulkanFunctions.vkDestroyImage                          = (PFN_vkDestroyImage                         )mDevice->getProcAddr("vkDestroyImage");
-  vulkanFunctions.vkCmdCopyBuffer                         = (PFN_vkCmdCopyBuffer                        )mDevice->getProcAddr("vkCmdCopyBuffer");
-  vulkanFunctions.vkGetBufferMemoryRequirements2KHR       = (PFN_vkGetBufferMemoryRequirements2KHR      )mDevice->getProcAddr("vkGetBufferMemoryRequirements2");
-  vulkanFunctions.vkGetImageMemoryRequirements2KHR        = (PFN_vkGetImageMemoryRequirements2KHR       )mDevice->getProcAddr("vkGetImageMemoryRequirements2");
-  vulkanFunctions.vkBindBufferMemory2KHR                  = (PFN_vkBindBufferMemory2KHR                 )mDevice->getProcAddr("vkBindBufferMemory2");
-  vulkanFunctions.vkBindImageMemory2KHR                   = (PFN_vkBindImageMemory2KHR                  )mDevice->getProcAddr("vkBindImageMemory2");
+  vulkanFunctions.vkGetPhysicalDeviceProperties =
+      (PFN_vkGetPhysicalDeviceProperties)mInstance->getProcAddr(
+          "vkGetPhysicalDeviceProperties");
+  vulkanFunctions.vkGetPhysicalDeviceMemoryProperties =
+      (PFN_vkGetPhysicalDeviceMemoryProperties)mInstance->getProcAddr(
+          "vkGetPhysicalDeviceMemoryProperties");
+  vulkanFunctions.vkGetPhysicalDeviceMemoryProperties2KHR =
+      (PFN_vkGetPhysicalDeviceMemoryProperties2)mInstance->getProcAddr(
+          "vkGetPhysicalDeviceMemoryProperties2");
+  vulkanFunctions.vkAllocateMemory =
+      (PFN_vkAllocateMemory)mDevice->getProcAddr("vkAllocateMemory");
+  vulkanFunctions.vkFreeMemory =
+      (PFN_vkFreeMemory)mDevice->getProcAddr("vkFreeMemory");
+  vulkanFunctions.vkMapMemory =
+      (PFN_vkMapMemory)mDevice->getProcAddr("vkMapMemory");
+  vulkanFunctions.vkUnmapMemory =
+      (PFN_vkUnmapMemory)mDevice->getProcAddr("vkUnmapMemory");
+  vulkanFunctions.vkFlushMappedMemoryRanges =
+      (PFN_vkFlushMappedMemoryRanges)mDevice->getProcAddr(
+          "vkFlushMappedMemoryRanges");
+  vulkanFunctions.vkInvalidateMappedMemoryRanges =
+      (PFN_vkInvalidateMappedMemoryRanges)mDevice->getProcAddr(
+          "vkInvalidateMappedMemoryRanges");
+  vulkanFunctions.vkBindBufferMemory =
+      (PFN_vkBindBufferMemory)mDevice->getProcAddr("vkBindBufferMemory");
+  vulkanFunctions.vkBindImageMemory =
+      (PFN_vkBindImageMemory)mDevice->getProcAddr("vkBindImageMemory");
+  vulkanFunctions.vkGetBufferMemoryRequirements =
+      (PFN_vkGetBufferMemoryRequirements)mDevice->getProcAddr(
+          "vkGetBufferMemoryRequirements");
+  vulkanFunctions.vkGetImageMemoryRequirements =
+      (PFN_vkGetImageMemoryRequirements)mDevice->getProcAddr(
+          "vkGetImageMemoryRequirements");
+  vulkanFunctions.vkCreateBuffer =
+      (PFN_vkCreateBuffer)mDevice->getProcAddr("vkCreateBuffer");
+  vulkanFunctions.vkDestroyBuffer =
+      (PFN_vkDestroyBuffer)mDevice->getProcAddr("vkDestroyBuffer");
+  vulkanFunctions.vkCreateImage =
+      (PFN_vkCreateImage)mDevice->getProcAddr("vkCreateImage");
+  vulkanFunctions.vkDestroyImage =
+      (PFN_vkDestroyImage)mDevice->getProcAddr("vkDestroyImage");
+  vulkanFunctions.vkCmdCopyBuffer =
+      (PFN_vkCmdCopyBuffer)mDevice->getProcAddr("vkCmdCopyBuffer");
+  vulkanFunctions.vkGetBufferMemoryRequirements2KHR =
+      (PFN_vkGetBufferMemoryRequirements2KHR)mDevice->getProcAddr(
+          "vkGetBufferMemoryRequirements2");
+  vulkanFunctions.vkGetImageMemoryRequirements2KHR =
+      (PFN_vkGetImageMemoryRequirements2KHR)mDevice->getProcAddr(
+          "vkGetImageMemoryRequirements2");
+  vulkanFunctions.vkBindBufferMemory2KHR =
+      (PFN_vkBindBufferMemory2KHR)mDevice->getProcAddr("vkBindBufferMemory2");
+  vulkanFunctions.vkBindImageMemory2KHR =
+      (PFN_vkBindImageMemory2KHR)mDevice->getProcAddr("vkBindImageMemory2");
 
   VmaAllocatorCreateInfo allocatorInfo = {};
   allocatorInfo.vulkanApiVersion = mApiVersion;

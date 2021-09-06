@@ -28,6 +28,8 @@ class Context : public std::enable_shared_from_this<Context> {
   uint32_t mMaxNumTextures;
   uint32_t mDefaultMipLevels;
 
+  std::string mDeviceHint;
+
   std::weak_ptr<resource::SVResourceManager> mResourceManager;
 
   vk::UniqueDescriptorSetLayout mMetallicDescriptorSetLayout;
@@ -39,7 +41,7 @@ public:
                                          uint32_t defaultMipLevels = 1);
 
   Context(bool present = true, uint32_t maxNumMaterials = 5000,
-          uint32_t maxNumTextures = 5000, uint32_t defaultMipLevels = 1);
+          uint32_t maxNumTextures = 5000, uint32_t defaultMipLevels = 1, std::string device = "");
   ~Context();
 
   inline bool isVulkanAvailable() const { return mVulkanAvailable; }
@@ -90,6 +92,15 @@ public:
                      std::vector<glm::vec3> const &normals = {},
                      std::vector<glm::vec2> const &uvs = {});
 
+  struct PhysicalDeviceInfo {
+    vk::PhysicalDevice device{};
+    bool present{};
+    bool supported{};
+    int cudaId{-1};
+    int pciBus{-1};
+    int queueIndex{-1};
+  };
+
 private:
   void createInstance();
   void pickSuitableGpuAndQueueFamilyIndex();
@@ -98,6 +109,9 @@ private:
 
   void createCommandPool();
   void createDescriptorPool();
+
+  std::vector<PhysicalDeviceInfo>
+  summarizeDeviceInfo(VkSurfaceKHR tmpSurface = nullptr);
 };
 
 } // namespace core
