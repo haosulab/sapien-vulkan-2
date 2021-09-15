@@ -87,6 +87,7 @@ public:
     mManager = manager;
   };
 
+  inline std::shared_ptr<SVImage> getImage() const { return mImage; }
   inline vk::ImageView getImageView() const { return mImageView.get(); }
   inline vk::Sampler getSampler() const { return mSampler.get(); }
 

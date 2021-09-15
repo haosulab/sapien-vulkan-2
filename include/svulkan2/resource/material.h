@@ -61,6 +61,17 @@ public:
   void setMetallic(float metallic);
   float getMetallic() const;
 
+  void setDiffuseTexture(std::shared_ptr<SVTexture> texture);
+  void setRoughnessTexture(std::shared_ptr<SVTexture> texture);
+  void setNormalTexture(std::shared_ptr<SVTexture> texture);
+  void setMetallicTexture(std::shared_ptr<SVTexture> texture);
+
+  std::shared_ptr<SVTexture> getDiffuseTexture() const;
+  std::shared_ptr<SVTexture> getRoughnessTexture() const;
+  std::shared_ptr<SVTexture> getNormalTexture() const;
+  std::shared_ptr<SVTexture> getMetallicTexture() const;
+
+
   void setTextures(std::shared_ptr<SVTexture> baseColorTexture,
                    std::shared_ptr<SVTexture> roughnessTexture,
                    std::shared_ptr<SVTexture> normalTexture,

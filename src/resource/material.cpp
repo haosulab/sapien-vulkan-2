@@ -45,24 +45,97 @@ void SVMetallicMaterial::setBaseColor(glm::vec4 baseColor) {
   mRequiresBufferUpload = true;
   mBuffer.baseColor = baseColor;
 }
+
 glm::vec4 SVMetallicMaterial::getBaseColor() const { return mBuffer.baseColor; }
 void SVMetallicMaterial::setRoughness(float roughness) {
   mRequiresBufferUpload = true;
   mBuffer.roughness = roughness;
 }
+
 float SVMetallicMaterial::getRoughness() const { return mBuffer.roughness; }
 
 void SVMetallicMaterial::setFresnel(float fresnel) {
   mRequiresBufferUpload = true;
   mBuffer.fresnel = fresnel;
 }
+
 float SVMetallicMaterial::getFresnel() const { return mBuffer.fresnel; }
 
 void SVMetallicMaterial::setMetallic(float metallic) {
   mRequiresBufferUpload = true;
   mBuffer.metallic = metallic;
 }
+
 float SVMetallicMaterial::getMetallic() const { return mBuffer.metallic; }
+
+std::shared_ptr<SVTexture> SVMetallicMaterial::getDiffuseTexture() const {
+  if ((mBuffer.textureMask & 1) == 0) {
+    return nullptr;
+  }
+  return mBaseColorTexture;
+}
+
+std::shared_ptr<SVTexture> SVMetallicMaterial::getRoughnessTexture() const {
+  if ((mBuffer.textureMask & 2) == 0) {
+    return nullptr;
+  }
+  return mRoughnessTexture;
+}
+
+std::shared_ptr<SVTexture> SVMetallicMaterial::getNormalTexture() const {
+  if ((mBuffer.textureMask & 4) == 0) {
+    return nullptr;
+  }
+  return mNormalTexture;
+}
+
+std::shared_ptr<SVTexture> SVMetallicMaterial::getMetallicTexture() const {
+  if ((mBuffer.textureMask & 8) == 0) {
+    return nullptr;
+  }
+  return mMetallicTexture;
+}
+
+void SVMetallicMaterial::setDiffuseTexture(std::shared_ptr<SVTexture> texture) {
+  mRequiresTextureUpload = true;
+  mBaseColorTexture = texture;
+  if (mBaseColorTexture) {
+    setBit(mBuffer.textureMask, 0);
+  } else {
+    unsetBit(mBuffer.textureMask, 0);
+  }
+}
+void SVMetallicMaterial::setRoughnessTexture(
+    std::shared_ptr<SVTexture> texture) {
+  mRequiresTextureUpload = true;
+  mRoughnessTexture = texture;
+  if (mRoughnessTexture) {
+    setBit(mBuffer.textureMask, 1);
+  } else {
+    unsetBit(mBuffer.textureMask, 1);
+  }
+}
+
+void SVMetallicMaterial::setNormalTexture(std::shared_ptr<SVTexture> texture) {
+  mRequiresTextureUpload = true;
+  mNormalTexture = texture;
+  if (mNormalTexture) {
+    setBit(mBuffer.textureMask, 2);
+  } else {
+    unsetBit(mBuffer.textureMask, 2);
+  }
+}
+
+void SVMetallicMaterial::setMetallicTexture(
+    std::shared_ptr<SVTexture> texture) {
+  mRequiresTextureUpload = true;
+  mMetallicTexture = texture;
+  if (mMetallicTexture) {
+    setBit(mBuffer.textureMask, 3);
+  } else {
+    unsetBit(mBuffer.textureMask, 3);
+  }
+}
 
 void SVMetallicMaterial::setTextures(
     std::shared_ptr<SVTexture> baseColorTexture,
@@ -104,6 +177,9 @@ void SVMetallicMaterial::setTextures(
 void SVMetallicMaterial::uploadToDevice(
     std::shared_ptr<core::Context> context) {
   mContext = context;
+  if (!mContext) {
+    return;
+  }
   if (!mDeviceBuffer) {
     mDeviceBuffer = context->getAllocator().allocateUniformBuffer(
         sizeof(SVMetallicMaterial::Buffer));
