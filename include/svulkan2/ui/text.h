@@ -35,8 +35,8 @@ public:
 UI_CLASS(InputFloat) {
   UI_ATTRIBUTE(InputFloat, std::string, Label);
   UI_ATTRIBUTE(InputFloat, float, Value);
-  UI_ATTRIBUTE(InputText, bool, ReadOnly);
-  UI_ATTRIBUTE(InputText, std::function<void(std::shared_ptr<InputFloat>)>,
+  UI_ATTRIBUTE(InputFloat, bool, ReadOnly);
+  UI_ATTRIBUTE(InputFloat, std::function<void(std::shared_ptr<InputFloat>)>,
                Callback);
 
 public:
@@ -46,9 +46,9 @@ public:
 
 UI_CLASS(InputFloat2) {
   UI_ATTRIBUTE(InputFloat2, std::string, Label);
-  UI_ATTRIBUTE(InputFloat, glm::vec2, Value);
-  UI_ATTRIBUTE(InputText, bool, ReadOnly);
-  UI_ATTRIBUTE(InputText, std::function<void(std::shared_ptr<InputFloat2>)>,
+  UI_ATTRIBUTE(InputFloat2, glm::vec2, Value);
+  UI_ATTRIBUTE(InputFloat2, bool, ReadOnly);
+  UI_ATTRIBUTE(InputFloat2, std::function<void(std::shared_ptr<InputFloat2>)>,
                Callback);
 
 public:
@@ -58,9 +58,9 @@ public:
 
 UI_CLASS(InputFloat3) {
   UI_ATTRIBUTE(InputFloat3, std::string, Label);
-  UI_ATTRIBUTE(InputFloat, glm::vec3, Value);
-  UI_ATTRIBUTE(InputText, bool, ReadOnly);
-  UI_ATTRIBUTE(InputText, std::function<void(std::shared_ptr<InputFloat3>)>,
+  UI_ATTRIBUTE(InputFloat3, glm::vec3, Value);
+  UI_ATTRIBUTE(InputFloat3, bool, ReadOnly);
+  UI_ATTRIBUTE(InputFloat3, std::function<void(std::shared_ptr<InputFloat3>)>,
                Callback);
 
 public:
@@ -70,9 +70,9 @@ public:
 
 UI_CLASS(InputFloat4) {
   UI_ATTRIBUTE(InputFloat4, std::string, Label);
-  UI_ATTRIBUTE(InputFloat, glm::vec4, Value);
-  UI_ATTRIBUTE(InputText, bool, ReadOnly);
-  UI_ATTRIBUTE(InputText, std::function<void(std::shared_ptr<InputFloat4>)>,
+  UI_ATTRIBUTE(InputFloat4, glm::vec4, Value);
+  UI_ATTRIBUTE(InputFloat4, bool, ReadOnly);
+  UI_ATTRIBUTE(InputFloat4, std::function<void(std::shared_ptr<InputFloat4>)>,
                Callback);
 
 public:
