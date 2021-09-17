@@ -56,7 +56,7 @@ int main() {
   svulkan2::log::getLogger()->set_level(spdlog::level::info);
 
   auto context =
-      svulkan2::core::Context::Create(VK_API_VERSION_1_1, true, 5000, 5000, 4);
+      svulkan2::core::Context::Create(true, 5000, 5000, 4);
   auto manager = context->createResourceManager();
 
   if (srcBase.length() == 0) {

@@ -4,6 +4,8 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_FLAGS_DEBUG "-o0 -g3 -Wall -Wnon-virtual-dtor -Wno-deprecated-declarations")
 set(CMAKE_CXX_FLAGS_RELEASE "-o3 -g0 -Wall -Wnon-virtual-dtor -Wno-deprecated-declarations")
 
+add_definitions(-DVULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1)
+
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
   message("-- DEBUG Build")
   set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS_DEBUG})
@@ -23,6 +25,7 @@ endif ()
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 find_package(assimp 5.0.1 REQUIRED PACKAGE_FIND_VERSION)
 find_package(Vulkan REQUIRED)
+find_package(Ktx REQUIRED)
 file(GLOB_RECURSE RENDER_SRC "src/*.cpp")
 
 set(SVULKAN2_PROFILE FALSE CACHE BOOL "Profile with easy_profiler")
@@ -49,6 +52,7 @@ else()
 endif()
 
 link_directories("$ENV{VULKAN_SDK}/lib")
+
 add_subdirectory("3rd_party/glslang")
 add_subdirectory("3rd_party/SPIRV-Cross")
 
@@ -73,7 +77,7 @@ add_library(svulkan2 STATIC ${RENDER_SRC} ${GUI_SRC})
 
 target_link_libraries(svulkan2 ${ASSIMP_LIBRARIES} glfw dl pthread Vulkan::Vulkan spdlog
     glslang SPIRV spirv-cross-cpp # ${CUDA_LIBRARIES}
-    ${EASY_PROFILER_LIBRARIES})
+    ${EASY_PROFILER_LIBRARIES} ktx)
 
 if (${SVULKAN2_CUDA_INTEROP})
     target_link_libraries(svulkan2 cudart_static rt)
@@ -89,6 +93,13 @@ if (MACOS)
   target_link_libraries(svulkan2_main svulkan2 "-framework Cocoa -framework IOKit")
 else ()
   target_link_libraries(svulkan2_main svulkan2 stdc++fs)
+endif ()
+
+add_executable(svulkan2_manual_test app/test.cpp)
+if (MACOS)
+    target_link_libraries(svulkan2_manual_test svulkan2 "-framework Cocoa -framework IOKit")
+else ()
+    target_link_libraries(svulkan2_manual_test svulkan2 stdc++fs)
 endif ()
 
 add_executable(svulkan2_test ${TEST_SRC})
