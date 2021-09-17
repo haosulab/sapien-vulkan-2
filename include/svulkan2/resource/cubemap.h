@@ -7,16 +7,21 @@ namespace svulkan2 {
 namespace resource {
 
 struct SVCubemapDescription {
-  enum class SourceType { eFILES, eSINGLE_FILE, eCUSTOM } source;
-  std::array<std::string, 6> filenames;
-  uint32_t mipLevels;
-  vk::Filter magFilter;
-  vk::Filter minFilter;
+  enum class SourceType {
+    eFILES,
+    eSINGLE_FILE,
+    eCUSTOM
+  } source{SourceType::eCUSTOM};
+  std::array<std::string, 6> filenames{};
+  uint32_t mipLevels{1};
+  vk::Filter magFilter{vk::Filter::eLinear};
+  vk::Filter minFilter{vk::Filter::eLinear};
+  bool srgb{false};
 
   inline bool operator==(SVCubemapDescription const &other) const {
     return source == other.source && filenames == other.filenames &&
            mipLevels == other.mipLevels && magFilter == other.magFilter &&
-           minFilter == other.minFilter;
+           minFilter == other.minFilter && srgb == other.srgb;
   }
 };
 
@@ -39,13 +44,13 @@ public:
   static std::shared_ptr<SVCubemap>
   FromFile(std::array<std::string, 6> const &filenames, uint32_t mipLevels,
            vk::Filter magFilter = vk::Filter::eLinear,
-           vk::Filter minFilter = vk::Filter::eLinear);
+           vk::Filter minFilter = vk::Filter::eLinear, bool srgb = false);
 
   static std::shared_ptr<SVCubemap>
   FromData(uint32_t size, uint32_t channels,
            std::array<std::vector<uint8_t>, 6> const &data,
            uint32_t mipLevels = 1, vk::Filter magFilter = vk::Filter::eLinear,
-           vk::Filter minFilter = vk::Filter::eLinear);
+           vk::Filter minFilter = vk::Filter::eLinear, bool srgb = false);
 
   void uploadToDevice(std::shared_ptr<core::Context> context);
   void removeFromDevice();

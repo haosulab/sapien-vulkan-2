@@ -9,13 +9,14 @@ namespace resource {
 std::shared_ptr<SVCubemap>
 SVCubemap::FromFile(std::array<std::string, 6> const &filenames,
                     uint32_t mipLevels, vk::Filter magFilter,
-                    vk::Filter minFilter) {
+                    vk::Filter minFilter, bool srgb) {
   auto texture = std::shared_ptr<SVCubemap>(new SVCubemap);
   texture->mDescription = {.source = SVCubemapDescription::SourceType::eFILES,
                            .filenames = filenames,
                            .mipLevels = mipLevels,
                            .magFilter = magFilter,
-                           .minFilter = minFilter};
+                           .minFilter = minFilter,
+                           .srgb = srgb};
   return texture;
 }
 
@@ -23,13 +24,14 @@ std::shared_ptr<SVCubemap>
 SVCubemap::FromData(uint32_t size, uint32_t channels,
                     std::array<std::vector<uint8_t>, 6> const &data,
                     uint32_t mipLevels, vk::Filter magFilter,
-                    vk::Filter minFilter) {
+                    vk::Filter minFilter, bool srgb) {
   auto texture = std::shared_ptr<SVCubemap>(new SVCubemap);
   texture->mDescription = {.source = SVCubemapDescription::SourceType::eCUSTOM,
                            .filenames = {},
                            .mipLevels = mipLevels,
                            .magFilter = magFilter,
-                           .minFilter = minFilter};
+                           .minFilter = minFilter,
+                           .srgb = srgb};
   std::vector<std::vector<uint8_t>> vdata(data.begin(), data.end());
   texture->mImage = SVImage::FromData(size, size, channels, vdata, mipLevels);
   texture->mLoaded = true;
@@ -47,13 +49,22 @@ void SVCubemap::uploadToDevice(std::shared_ptr<core::Context> context) {
                      vk::ImageUsageFlagBits::eStorage);
     mImage->uploadToDevice(context, false);
   }
-  mImageView =
-      context->getDevice().createImageViewUnique(vk::ImageViewCreateInfo(
-          {}, mImage->getDeviceImage()->getVulkanImage(),
-          vk::ImageViewType::eCube, mImage->getDeviceImage()->getFormat(),
-          vk::ComponentSwizzle::eIdentity,
-          vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0,
-                                    mDescription.mipLevels, 0, 6)));
+
+  auto viewFormat = mImage->getDeviceImage()->getFormat();
+  if (viewFormat == vk::Format::eR8G8B8A8Unorm && mDescription.srgb) {
+    viewFormat = vk::Format::eR8G8B8A8Srgb;
+  }
+
+  vk::ImageViewUsageCreateInfo usageInfo(vk::ImageUsageFlagBits::eSampled);
+  vk::ImageViewCreateInfo viewInfo(
+      {}, mImage->getDeviceImage()->getVulkanImage(), vk::ImageViewType::eCube,
+      viewFormat, vk::ComponentSwizzle::eIdentity,
+      vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0,
+                                mDescription.mipLevels, 0, 6));
+  viewInfo.setPNext(&usageInfo);
+
+  mImageView = context->getDevice().createImageViewUnique(viewInfo);
+
   mSampler = context->getDevice().createSamplerUnique(vk::SamplerCreateInfo(
       {}, mDescription.magFilter, mDescription.minFilter,
       vk::SamplerMipmapMode::eLinear, vk::SamplerAddressMode::eRepeat,

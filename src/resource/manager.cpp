@@ -70,7 +70,7 @@ std::shared_ptr<SVTexture> SVResourceManager::CreateTextureFromFile(
 
 std::shared_ptr<SVCubemap> SVResourceManager::CreateCubemapFromFiles(
     std::array<std::string, 6> const &filenames, uint32_t mipLevels,
-    vk::Filter magFilter, vk::Filter minFilter) {
+    vk::Filter magFilter, vk::Filter minFilter, bool srgb) {
   std::lock_guard<std::mutex> lock(mCreateLock);
   SVCubemapDescription desc = {
       .source = SVCubemapDescription::SourceType::eFILES,
@@ -82,9 +82,10 @@ std::shared_ptr<SVCubemap> SVResourceManager::CreateCubemapFromFiles(
                     fs::canonical(filenames[5]).string()},
       .mipLevels = mipLevels,
       .magFilter = magFilter,
-      .minFilter = minFilter};
+      .minFilter = minFilter,
+      .srgb = srgb};
   auto cubemap = SVCubemap::FromFile(desc.filenames, desc.mipLevels,
-                                     desc.magFilter, desc.minFilter);
+                                     desc.magFilter, desc.minFilter, srgb);
   auto it = mCubemapRegistry.find(desc.filenames[0]);
   if (it != mCubemapRegistry.end()) {
     for (auto &tex : it->second) {
