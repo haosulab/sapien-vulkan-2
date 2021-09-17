@@ -26,6 +26,15 @@ public:
     mBuffer.resize(size);
     return std::static_pointer_cast<InputText>(shared_from_this());
   };
+
+  inline std::shared_ptr<InputText> Value(std::string const &value) {
+    if (mBuffer.size() <= value.length()) {
+      mBuffer.resize(value.size() + 1);
+    }
+    std::copy(value.begin(), value.end(), mBuffer.data());
+    return std::static_pointer_cast<InputText>(shared_from_this());
+  };
+
   inline std::string get() const {
     return std::string(mBuffer.begin(), mBuffer.end());
   }
