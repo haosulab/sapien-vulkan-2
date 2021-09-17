@@ -11,7 +11,7 @@ SVCubemap::FromFile(std::array<std::string, 6> const &filenames,
                     uint32_t mipLevels, vk::Filter magFilter,
                     vk::Filter minFilter) {
   auto texture = std::shared_ptr<SVCubemap>(new SVCubemap);
-  texture->mDescription = {.source = SVCubemapDescription::SourceType::eFILE,
+  texture->mDescription = {.source = SVCubemapDescription::SourceType::eFILES,
                            .filenames = filenames,
                            .mipLevels = mipLevels,
                            .magFilter = magFilter,
@@ -84,7 +84,7 @@ std::future<void> SVCubemap::loadAsync() {
   for (auto f : mDescription.filenames) {
     log::info("Loading: {}", f);
   }
-  if (mDescription.source != SVCubemapDescription::SourceType::eFILE) {
+  if (mDescription.source != SVCubemapDescription::SourceType::eFILES) {
     throw std::runtime_error(
         "failed to load texture: the texture is not specified by a file");
   }

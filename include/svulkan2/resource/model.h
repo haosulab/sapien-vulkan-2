@@ -6,7 +6,7 @@ namespace svulkan2 {
 namespace resource {
 
 struct ModelDescription {
-  enum SourceType { eFILE, eCUSTOM } source;
+  enum class SourceType { eFILE, eCUSTOM } source;
   std::string filename;
   inline bool operator==(ModelDescription const &other) const {
     return source == other.source && filename == other.filename;

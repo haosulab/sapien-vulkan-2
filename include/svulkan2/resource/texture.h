@@ -7,21 +7,22 @@ namespace svulkan2 {
 namespace resource {
 
 struct SVTextureDescription {
-  enum SourceType { eFILE, eCUSTOM } source{eCUSTOM};
-  enum Format { eUINT8, eFLOAT, eUNKNOWN } format{eUINT8};
+  enum class SourceType { eFILE, eCUSTOM } source{SourceType::eCUSTOM};
+  enum class Format { eUINT8, eFLOAT, eUNKNOWN } format{Format::eUINT8};
   std::string filename{};
   uint32_t mipLevels{1};
   vk::Filter magFilter{vk::Filter::eNearest};
   vk::Filter minFilter{vk::Filter::eNearest};
   vk::SamplerAddressMode addressModeU{vk::SamplerAddressMode::eRepeat};
   vk::SamplerAddressMode addressModeV{vk::SamplerAddressMode::eRepeat};
+  bool srgb{false};
 
   inline bool operator==(SVTextureDescription const &other) const {
     return source == other.source && filename == other.filename &&
            format == other.format && mipLevels == other.mipLevels &&
            magFilter == other.magFilter && minFilter == other.minFilter &&
            addressModeU == other.addressModeU &&
-           addressModeV == other.addressModeV;
+           addressModeV == other.addressModeV && srgb == other.srgb;
   }
 };
 
@@ -50,7 +51,8 @@ public:
       vk::Filter magFilter = vk::Filter::eLinear,
       vk::Filter minFilter = vk::Filter::eLinear,
       vk::SamplerAddressMode addressModeU = vk::SamplerAddressMode::eRepeat,
-      vk::SamplerAddressMode addressModeV = vk::SamplerAddressMode::eRepeat);
+      vk::SamplerAddressMode addressModeV = vk::SamplerAddressMode::eRepeat,
+      bool srgb = false);
 
   static std::shared_ptr<SVTexture> FromData(
       uint32_t width, uint32_t height, uint32_t channels,
@@ -58,7 +60,8 @@ public:
       vk::Filter magFilter = vk::Filter::eLinear,
       vk::Filter minFilter = vk::Filter::eLinear,
       vk::SamplerAddressMode addressModeU = vk::SamplerAddressMode::eRepeat,
-      vk::SamplerAddressMode addressModeV = vk::SamplerAddressMode::eRepeat);
+      vk::SamplerAddressMode addressModeV = vk::SamplerAddressMode::eRepeat,
+      bool srgb = false);
 
   static std::shared_ptr<SVTexture> FromData(
       uint32_t width, uint32_t height, uint32_t channels,

@@ -7,7 +7,7 @@ namespace svulkan2 {
 namespace resource {
 
 struct SVCubemapDescription {
-  enum SourceType { eFILE, eCUSTOM } source;
+  enum class SourceType { eFILES, eSINGLE_FILE, eCUSTOM } source;
   std::array<std::string, 6> filenames;
   uint32_t mipLevels;
   vk::Filter magFilter;

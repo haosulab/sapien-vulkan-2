@@ -6,8 +6,8 @@ namespace svulkan2 {
 namespace resource {
 
 struct SVImageDescription {
-  enum SourceType { eFILE, eCUSTOM, eDEVICE } source{eCUSTOM};
-  enum Format { eUINT8, eFLOAT } format{eUINT8};
+  enum class SourceType { eFILE, eCUSTOM, eDEVICE } source{SourceType::eCUSTOM};
+  enum class Format { eUINT8, eFLOAT } format{Format::eUINT8};
   std::vector<std::string> filenames{};
   uint32_t mipLevels{1};
 

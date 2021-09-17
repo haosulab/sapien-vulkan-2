@@ -53,7 +53,8 @@ static std::vector<uint8_t> loadCompressedTexture(aiTexture const *texture,
 
 static std::shared_ptr<SVTexture> loadEmbededTexture(aiTexture const *texture,
                                                      uint32_t mipLevels,
-                                                     uint32_t channels = 4) {
+                                                     uint32_t channels = 4,
+                                                     bool srgb = false) {
   if (channels != 1 && channels != 4) {
     throw std::runtime_error("Texture must contain 1 or 4 channels");
   }
@@ -69,7 +70,10 @@ static std::shared_ptr<SVTexture> loadEmbededTexture(aiTexture const *texture,
     } else {
       data = loaded;
     }
-    return SVTexture::FromData(width, height, channels, data, mipLevels);
+    return SVTexture::FromData(width, height, channels, data, mipLevels,
+                               vk::Filter::eLinear, vk::Filter::eLinear,
+                               vk::SamplerAddressMode::eRepeat,
+                               vk::SamplerAddressMode::eRepeat, srgb);
   }
   data = std::vector<uint8_t>(reinterpret_cast<uint8_t *>(texture->pcData),
                               reinterpret_cast<uint8_t *>(texture->pcData) +
@@ -183,13 +187,15 @@ std::future<void> SVModel::loadAsync() {
           } else {
             log::info("Loading embeded texture {}", path.C_Str());
             textureCache[std::string(path.C_Str())] = baseColorTexture =
-                loadEmbededTexture(texture, MIP_LEVEL);
+                loadEmbededTexture(texture, MIP_LEVEL, 4, true);
           }
         } else {
           std::string p = std::string(path.C_Str());
           std::string fullPath = (parentDir / p).string();
           baseColorTexture = mManager->CreateTextureFromFile(
-              fullPath, MIP_LEVEL); // TODO configurable mip levels
+              fullPath, MIP_LEVEL, vk::Filter::eLinear, vk::Filter::eLinear,
+              vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat,
+              true);
           futures.push_back(baseColorTexture->loadAsync());
         }
       }
@@ -230,7 +236,8 @@ std::future<void> SVModel::loadAsync() {
       }
 
       if (m->GetTextureCount(aiTextureType_DIFFUSE_ROUGHNESS) > 0 &&
-          m->GetTexture(aiTextureType_DIFFUSE_ROUGHNESS, 0, &path) == AI_SUCCESS) {
+          m->GetTexture(aiTextureType_DIFFUSE_ROUGHNESS, 0, &path) ==
+              AI_SUCCESS) {
         if (auto texture = scene->GetEmbeddedTexture(path.C_Str())) {
           if (textureCache.contains(std::string(path.C_Str()))) {
             roughnessTexture = textureCache[std::string(path.C_Str())];
@@ -264,7 +271,8 @@ std::future<void> SVModel::loadAsync() {
                     loadEmbededRoughnessMetallicTexture(texture, MIP_LEVEL);
           }
         } else {
-          log::warn("Loading non-embeded roughness metallic texture is currently not supported");
+          log::warn("Loading non-embeded roughness metallic texture is "
+                    "currently not supported");
         }
       }
 

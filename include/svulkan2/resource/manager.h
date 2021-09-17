@@ -40,7 +40,8 @@ public:
       vk::Filter magFilter = vk::Filter::eLinear,
       vk::Filter minFilter = vk::Filter::eLinear,
       vk::SamplerAddressMode addressModeU = vk::SamplerAddressMode::eRepeat,
-      vk::SamplerAddressMode addressModeV = vk::SamplerAddressMode::eRepeat);
+      vk::SamplerAddressMode addressModeV = vk::SamplerAddressMode::eRepeat,
+      bool srgb = false);
 
   std::shared_ptr<SVCubemap>
   CreateCubemapFromFiles(std::array<std::string, 6> const &filenames,

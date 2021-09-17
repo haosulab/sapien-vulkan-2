@@ -143,7 +143,8 @@ void SVImage::uploadToDevice(std::shared_ptr<core::Context> context,
         mChannels == 4 ? vk::Format::eR8G8B8A8Unorm : vk::Format::eR8Unorm,
         mUsage, VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY,
         vk::SampleCountFlagBits::e1, mDescription.mipLevels, mData.size(),
-        vk::ImageTiling::eOptimal, mCreateFlags);
+        vk::ImageTiling::eOptimal,
+        mCreateFlags | vk::ImageCreateFlagBits::eMutableFormat);
     for (uint32_t layer = 0; layer < mData.size(); ++layer) {
       mImage->upload(mData[layer].data(), mData[layer].size() * sizeof(uint8_t),
                      layer, generateMipmaps);

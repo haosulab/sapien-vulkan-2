@@ -9,7 +9,7 @@ std::shared_ptr<SVTexture>
 SVTexture::FromFile(std::string const &filename, uint32_t mipLevels,
                     vk::Filter magFilter, vk::Filter minFilter,
                     vk::SamplerAddressMode addressModeU,
-                    vk::SamplerAddressMode addressModeV) {
+                    vk::SamplerAddressMode addressModeV, bool srgb) {
   auto texture = std::shared_ptr<SVTexture>(new SVTexture);
   texture->mDescription =
       SVTextureDescription{.source = SVTextureDescription::SourceType::eFILE,
@@ -18,7 +18,8 @@ SVTexture::FromFile(std::string const &filename, uint32_t mipLevels,
                            .magFilter = magFilter,
                            .minFilter = minFilter,
                            .addressModeU = addressModeU,
-                           .addressModeV = addressModeV};
+                           .addressModeV = addressModeV,
+                           .srgb = srgb};
   return texture;
 }
 
@@ -27,7 +28,7 @@ SVTexture::FromData(uint32_t width, uint32_t height, uint32_t channels,
                     std::vector<uint8_t> const &data, uint32_t mipLevels,
                     vk::Filter magFilter, vk::Filter minFilter,
                     vk::SamplerAddressMode addressModeU,
-                    vk::SamplerAddressMode addressModeV) {
+                    vk::SamplerAddressMode addressModeV, bool srgb) {
   auto texture = std::shared_ptr<SVTexture>(new SVTexture);
   texture->mDescription =
       SVTextureDescription{.source = SVTextureDescription::SourceType::eCUSTOM,
@@ -37,7 +38,8 @@ SVTexture::FromData(uint32_t width, uint32_t height, uint32_t channels,
                            .magFilter = magFilter,
                            .minFilter = minFilter,
                            .addressModeU = addressModeU,
-                           .addressModeV = addressModeV};
+                           .addressModeV = addressModeV,
+                           .srgb = srgb};
   texture->mImage = SVImage::FromData(width, height, channels, data, mipLevels);
   texture->mLoaded = true;
   return texture;
@@ -85,11 +87,19 @@ void SVTexture::uploadToDevice(std::shared_ptr<core::Context> context) {
     mImage->uploadToDevice(context);
   }
   if (!mImageView) {
+    auto format = mImage->getDeviceImage()->getFormat();
+    if (mDescription.srgb) {
+      if (format == vk::Format::eR8G8B8A8Unorm) {
+        format = vk::Format::eR8G8B8A8Srgb;
+      } else if (format == vk::Format::eR8Unorm) {
+        format = vk::Format::eR8Srgb;
+      }
+    }
+
     mImageView =
         context->getDevice().createImageViewUnique(vk::ImageViewCreateInfo(
             {}, mImage->getDeviceImage()->getVulkanImage(),
-            vk::ImageViewType::e2D, mImage->getDeviceImage()->getFormat(),
-            vk::ComponentSwizzle::eIdentity,
+            vk::ImageViewType::e2D, format, vk::ComponentSwizzle::eIdentity,
             vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0,
                                       mDescription.mipLevels, 0, 1)));
   }
