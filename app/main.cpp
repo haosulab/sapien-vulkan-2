@@ -70,22 +70,22 @@ int main() {
   config->colorFormat = vk::Format::eR32G32B32A32Sfloat;
   renderer::Renderer renderer(context, config);
 
-  auto image = shader::generateBRDFLUT(context, 512);
-  auto sampler = context->getDevice().createSamplerUnique(vk::SamplerCreateInfo(
-      {}, vk::Filter::eLinear, vk::Filter::eLinear,
-      vk::SamplerMipmapMode::eNearest, vk::SamplerAddressMode::eClampToEdge,
-      vk::SamplerAddressMode::eClampToEdge,
-      vk::SamplerAddressMode::eClampToEdge, 0.f, false, 0.f, false,
-      vk::CompareOp::eNever, 0.f, 0.f, vk::BorderColor::eFloatOpaqueWhite));
-  auto view =
-      context->getDevice().createImageViewUnique(vk::ImageViewCreateInfo(
-          {}, image->getVulkanImage(), vk::ImageViewType::e2D,
-          image->getFormat(), vk::ComponentSwizzle::eIdentity,
-          vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0,
-                                    1)));
-  auto lutTexture = resource::SVTexture::FromImage(
-      resource::SVImage::FromDeviceImage(std::move(image)), std::move(view),
-      std::move(sampler));
+  // auto image = shader::generateBRDFLUT(context, 512);
+  // auto sampler = context->getDevice().createSamplerUnique(vk::SamplerCreateInfo(
+  //     {}, vk::Filter::eLinear, vk::Filter::eLinear,
+  //     vk::SamplerMipmapMode::eNearest, vk::SamplerAddressMode::eClampToEdge,
+  //     vk::SamplerAddressMode::eClampToEdge,
+  //     vk::SamplerAddressMode::eClampToEdge, 0.f, false, 0.f, false,
+  //     vk::CompareOp::eNever, 0.f, 0.f, vk::BorderColor::eFloatOpaqueWhite));
+  // auto view =
+  //     context->getDevice().createImageViewUnique(vk::ImageViewCreateInfo(
+  //         {}, image->getVulkanImage(), vk::ImageViewType::e2D,
+  //         image->getFormat(), vk::ComponentSwizzle::eIdentity,
+  //         vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0,
+  //                                   1)));
+  // auto lutTexture = resource::SVTexture::FromImage(
+  //     resource::SVImage::FromDeviceImage(std::move(image)), std::move(view),
+  //     std::move(sampler));
 
   svulkan2::scene::Scene scene;
 
@@ -200,7 +200,7 @@ int main() {
   //                           context.getResourceManager().CreateTextureFromFile(
   //                               "../test/assets/image/flashlight.jpg", 1));
 
-  renderer.setCustomTexture("BRDFLUT", lutTexture);
+  // renderer.setCustomTexture("BRDFLUT", lutTexture);
 
   auto cubemap = context->getResourceManager()->CreateCubemapFromKTX("input.ktx", 5);
   cubemap->load();
@@ -220,7 +220,7 @@ int main() {
   // cubemap->uploadToDevice(context);
   // cubemap->exportKTX("output.ktx");
 
-  renderer.setCustomCubemap("Environment", cubemap);
+  // renderer.setCustomCubemap("Environment", cubemap);
 
   auto window = context->createWindow(512, 512);
   // glfwGetFramebufferSize(window->getGLFWWindow(), &gSwapchainResizeWidth,

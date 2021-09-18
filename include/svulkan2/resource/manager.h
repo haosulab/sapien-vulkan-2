@@ -23,6 +23,8 @@ class SVResourceManager {
   std::shared_ptr<InputDataLayout> mLineVertexLayout{};
 
   std::shared_ptr<SVTexture> mDefaultTexture;
+  std::shared_ptr<SVCubemap> mDefaultCubemap;
+  std::shared_ptr<SVTexture> mDefaultBRDFLUT;
 
   uint32_t mDefaultMipLevels{1};
 
@@ -57,10 +59,17 @@ public:
   std::shared_ptr<SVTexture>
   generateBRDFLUT(std::shared_ptr<core::Context> context, uint32_t size);
 
+  std::shared_ptr<SVTexture>
+  getDefaultBRDFLUT(std::shared_ptr<core::Context> context);
+
   std::shared_ptr<SVTexture> CreateRandomTexture(std::string const &name);
 
   inline std::shared_ptr<SVTexture> getDefaultTexture() const {
     return mDefaultTexture;
+  };
+
+  inline std::shared_ptr<SVCubemap> getDefaultCubemap() const {
+    return mDefaultCubemap;
   };
 
   std::shared_ptr<SVModel> CreateModelFromFile(std::string const &filename);

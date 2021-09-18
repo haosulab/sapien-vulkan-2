@@ -49,6 +49,7 @@ SVCubemap::FromData(uint32_t size, uint32_t channels,
                            .srgb = srgb};
   std::vector<std::vector<uint8_t>> vdata(data.begin(), data.end());
   texture->mImage = SVImage::FromData(size, size, channels, vdata, mipLevels);
+  texture->mImage->setCreateFlags(vk::ImageCreateFlagBits::eCubeCompatible);
   texture->mLoaded = true;
   return texture;
 }

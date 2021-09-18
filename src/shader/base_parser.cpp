@@ -471,23 +471,6 @@ parseLightSpaceBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
   return layout;
 }
 
-std::shared_ptr<CombinedSamplerLayout>
-parseCombinedSampler(spirv_cross::Compiler &compiler) {
-  auto resources = compiler.get_shader_resources();
-  auto samplers = resources.sampled_images;
-  auto layout = std::make_shared<CombinedSamplerLayout>();
-
-  for (auto &sampler : samplers) {
-    uint32_t binding =
-        compiler.get_decoration(sampler.id, spv::Decoration::DecorationBinding);
-    uint32_t set = compiler.get_decoration(
-        sampler.id, spv::Decoration::DecorationDescriptorSet);
-    std::string name = sampler.name;
-    layout->elements[name] = {.name = name, .binding = binding, .set = set};
-  }
-  return layout;
-};
-
 std::shared_ptr<SpecializationConstantLayout>
 parseSpecializationConstant(spirv_cross::Compiler &compiler) {
   auto layout = std::make_shared<SpecializationConstantLayout>();
@@ -537,6 +520,7 @@ getDescriptorSetDescription(spirv_cross::Compiler &compiler,
       uint32_t bindingNumber =
           compiler.get_decoration(r.id, spv::Decoration::DecorationBinding);
       result.samplers.push_back(r.name);
+      // compiler.get_type(r.type_id).image.dim == spv::DimCube);
       result.bindings[bindingNumber] = {
           .name = r.name,
           .type = vk::DescriptorType::eCombinedImageSampler,

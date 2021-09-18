@@ -695,7 +695,8 @@ void Renderer::recordRenderPasses(scene::Scene &scene) {
         if (objectBinding >= 0) {
           mRenderCommandBuffer->bindDescriptorSets(
               vk::PipelineBindPoint::eGraphics, pass->getPipelineLayout(),
-              objectBinding, mObjectSet[mLineObjectIndex + index].get(), nullptr);
+              objectBinding, mObjectSet[mLineObjectIndex + index].get(),
+              nullptr);
         }
         if (lineObj->getTransparency() < 1) {
           mLineSetCache.insert(lineObj->getLineSet());
@@ -713,7 +714,8 @@ void Renderer::recordRenderPasses(scene::Scene &scene) {
         if (objectBinding >= 0) {
           mRenderCommandBuffer->bindDescriptorSets(
               vk::PipelineBindPoint::eGraphics, pass->getPipelineLayout(),
-              objectBinding, mObjectSet[mPointObjectIndex + index].get(), nullptr);
+              objectBinding, mObjectSet[mPointObjectIndex + index].get(),
+              nullptr);
         }
         if (pointObj->getTransparency() < 1) {
           mPointSetCache.insert(pointObj->getPointSet());
@@ -1096,6 +1098,12 @@ void Renderer::prepareSceneBuffer() {
             {{mCustomTextures[customTextureName]->getImageView(),
               mCustomTextures[customTextureName]->getSampler()}},
             bindingIndex);
+      } else if (customTextureName == "BRDFLUT") {
+        // generate if BRDFLUT is not supplied
+        auto tex = mContext->getResourceManager()->getDefaultBRDFLUT(mContext);
+        updateDescriptorSets(mContext->getDevice(), mSceneSet.get(), {},
+                             {{tex->getImageView(), tex->getSampler()}},
+                             bindingIndex);
       } else if (mCustomCubemaps.find(customTextureName) !=
                  mCustomCubemaps.end()) {
         mCustomCubemaps[customTextureName]->uploadToDevice(mContext);
@@ -1104,6 +1112,12 @@ void Renderer::prepareSceneBuffer() {
             {{mCustomCubemaps[customTextureName]->getImageView(),
               mCustomCubemaps[customTextureName]->getSampler()}},
             bindingIndex);
+      } else if (customTextureName == "Environment") {
+        auto cube = mContext->getResourceManager()->getDefaultCubemap();
+        cube->uploadToDevice(mContext);
+        updateDescriptorSets(mContext->getDevice(), mSceneSet.get(), {},
+                             {{cube->getImageView(), cube->getSampler()}},
+                             bindingIndex);
       } else {
         throw std::runtime_error("custom sampler \"" + customTextureName +
                                  "\" is not set in the renderer");
@@ -1113,7 +1127,7 @@ void Renderer::prepareSceneBuffer() {
                                binding.name + "\"");
     }
   }
-}
+} // namespace renderer
 
 void Renderer::prepareObjectBuffers(uint32_t numObjects) {
   // we have too many object buffers
@@ -1197,10 +1211,19 @@ void Renderer::prepareInputTextureDescriptorSets() {
           mCustomTextures[name]->uploadToDevice(mContext);
           textureData.push_back({mCustomTextures[name]->getImageView(),
                                  mCustomTextures[name]->getSampler()});
+        } else if (name == "BRDFLUT") {
+          // generate if BRDFLUT is not supplied
+          auto tex =
+              mContext->getResourceManager()->getDefaultBRDFLUT(mContext);
+          textureData.push_back({tex->getImageView(), tex->getSampler()});
         } else if (mCustomCubemaps.find(name) != mCustomCubemaps.end()) {
           mCustomCubemaps[name]->uploadToDevice(mContext);
           textureData.push_back({mCustomCubemaps[name]->getImageView(),
                                  mCustomCubemaps[name]->getSampler()});
+        } else if (name == "Environment") {
+          auto cube = mContext->getResourceManager()->getDefaultCubemap();
+          cube->uploadToDevice(mContext);
+          textureData.push_back({cube->getImageView(), cube->getSampler()});
         } else {
           throw std::runtime_error("custom sampler \"" + name +
                                    "\" is not set in the renderer");

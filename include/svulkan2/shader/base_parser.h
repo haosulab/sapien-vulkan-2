@@ -99,9 +99,6 @@ std::shared_ptr<StructDataLayout>
 parseLightSpaceBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
                       uint32_t setNumber);
 
-std::shared_ptr<CombinedSamplerLayout>
-parseCombinedSampler(spirv_cross::Compiler &compiler);
-
 std::shared_ptr<SpecializationConstantLayout>
 parseSpecializationConstant(spirv_cross::Compiler &compiler);
 

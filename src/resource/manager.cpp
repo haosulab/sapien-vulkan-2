@@ -12,6 +12,15 @@ namespace resource {
 SVResourceManager::SVResourceManager() {
   mDefaultTexture =
       SVTexture::FromData(1, 1, 4, std::vector<uint8_t>{255, 255, 255, 255});
+  mDefaultCubemap = SVCubemap::FromData(1, 4,
+                                        {
+                                            std::vector<uint8_t>{0, 0, 0, 0},
+                                            std::vector<uint8_t>{0, 0, 0, 0},
+                                            std::vector<uint8_t>{0, 0, 0, 0},
+                                            std::vector<uint8_t>{0, 0, 0, 0},
+                                            std::vector<uint8_t>{0, 0, 0, 0},
+                                            std::vector<uint8_t>{0, 0, 0, 0},
+                                        });
 }
 
 std::shared_ptr<SVImage>
@@ -123,6 +132,14 @@ std::shared_ptr<SVCubemap> SVResourceManager::CreateCubemapFromFiles(
   cubemap->setManager(this);
   mCubemapRegistry[desc.filenames[0]].push_back(cubemap);
   return cubemap;
+}
+
+std::shared_ptr<SVTexture>
+SVResourceManager::getDefaultBRDFLUT(std::shared_ptr<core::Context> context) {
+  if (mDefaultBRDFLUT) {
+    return mDefaultBRDFLUT;
+  }
+  return mDefaultBRDFLUT = generateBRDFLUT(context, 512);
 }
 
 std::shared_ptr<SVTexture>
