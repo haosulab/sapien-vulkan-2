@@ -28,7 +28,7 @@ private:
   vk::Image mImage;
   VmaAllocation mAllocation;
 
-  vk::ImageLayout mCurrentLayout;
+  vk::ImageLayout mCurrentLayout{vk::ImageLayout::eUndefined};
 
   void generateMipmaps(vk::CommandBuffer cb, uint32_t arrayLayer = 0);
 
@@ -52,6 +52,9 @@ public:
 
   vk::Image getVulkanImage() const { return mImage; }
 
+  void uploadLevel(void const *data, size_t size, uint32_t arrayLayer,
+                   uint32_t mipLevel);
+
   void upload(void const *data, size_t size, uint32_t arrayLayer = 0,
               bool mipmaps = true);
   template <typename DataType>
@@ -63,7 +66,8 @@ public:
   void copyToBuffer(vk::Buffer buffer, size_t size, vk::Offset3D offset,
                     vk::Extent3D extent, uint32_t arrayLayer = 0);
   void download(void *data, size_t size, vk::Offset3D offset,
-                vk::Extent3D extent, uint32_t arrayLayer = 0);
+                vk::Extent3D extent, uint32_t arrayLayer = 0,
+                uint32_t mipLevel = 0);
   void download(void *data, size_t size, uint32_t arrayLayer = 0);
   void downloadPixel(void *data, size_t pixelSize, vk::Offset3D offset,
                      uint32_t arrayLayer = 0);

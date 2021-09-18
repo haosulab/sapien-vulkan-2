@@ -202,16 +202,24 @@ int main() {
 
   renderer.setCustomTexture("BRDFLUT", lutTexture);
 
-  auto cubemap = context->getResourceManager()->CreateCubemapFromFiles(
-      {
-          "../test/assets/image/cube2/px.png",
-          "../test/assets/image/cube2/nx.png",
-          "../test/assets/image/cube2/py.png",
-          "../test/assets/image/cube2/ny.png",
-          "../test/assets/image/cube2/pz.png",
-          "../test/assets/image/cube2/nz.png",
-      },
-      1);
+  auto cubemap = context->getResourceManager()->CreateCubemapFromKTX("input.ktx", 5);
+  cubemap->load();
+  cubemap->uploadToDevice(context);
+
+  // auto cubemap = context->getResourceManager()->CreateCubemapFromFiles(
+  //     {
+  //         "../test/assets/image/cube2/px.png",
+  //         "../test/assets/image/cube2/nx.png",
+  //         "../test/assets/image/cube2/py.png",
+  //         "../test/assets/image/cube2/ny.png",
+  //         "../test/assets/image/cube2/pz.png",
+  //         "../test/assets/image/cube2/nz.png",
+  //     },
+  //     5);
+  // cubemap->load();
+  // cubemap->uploadToDevice(context);
+  // cubemap->exportKTX("output.ktx");
+
   renderer.setCustomCubemap("Environment", cubemap);
 
   auto window = context->createWindow(512, 512);

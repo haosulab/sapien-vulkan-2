@@ -1,6 +1,7 @@
 #include "svulkan2/resource/image.h"
 #include "svulkan2/common/image.h"
 #include "svulkan2/common/log.h"
+#include "svulkan2/core/context.h"
 #include <filesystem>
 
 namespace fs = std::filesystem;
@@ -145,9 +146,45 @@ void SVImage::uploadToDevice(std::shared_ptr<core::Context> context,
         vk::SampleCountFlagBits::e1, mDescription.mipLevels, mData.size(),
         vk::ImageTiling::eOptimal,
         mCreateFlags | vk::ImageCreateFlagBits::eMutableFormat);
-    for (uint32_t layer = 0; layer < mData.size(); ++layer) {
-      mImage->upload(mData[layer].data(), mData[layer].size() * sizeof(uint8_t),
-                     layer, generateMipmaps);
+
+    if (mMipLoaded) {
+      auto cb = mContext->createCommandBuffer();
+      cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+      mImage->transitionLayout(cb.get(), vk::ImageLayout::eUndefined,
+                               vk::ImageLayout::eTransferDstOptimal, {},
+                               vk::AccessFlagBits::eTransferWrite,
+                               vk::PipelineStageFlagBits::eTopOfPipe,
+                               vk::PipelineStageFlagBits::eTransfer);
+      cb->end();
+      mContext->submitCommandBufferAndWait(cb.get());
+
+      for (uint32_t layer = 0; layer < mData.size(); ++layer) {
+        uint32_t idx = 0;
+        for (uint32_t l = 0; l < mDescription.mipLevels; ++l) {
+          auto size = computeMipLevelSize({mWidth, mHeight, 1}, l) * mChannels;
+          mImage->uploadLevel(mData[layer].data() + idx, size * sizeof(uint8_t),
+                              layer, l);
+          idx += size;
+        }
+      }
+
+      cb = context->createCommandBuffer();
+      cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+      mImage->transitionLayout(cb.get(), vk::ImageLayout::eTransferDstOptimal,
+                               vk::ImageLayout::eShaderReadOnlyOptimal,
+                               vk::AccessFlagBits::eTransferWrite,
+                               vk::AccessFlagBits::eShaderRead,
+                               vk::PipelineStageFlagBits::eTransfer,
+                               vk::PipelineStageFlagBits::eFragmentShader);
+      cb->end();
+      context->submitCommandBufferAndWait(cb.get());
+
+    } else {
+      for (uint32_t layer = 0; layer < mData.size(); ++layer) {
+        mImage->upload(mData[layer].data(),
+                       mData[layer].size() * sizeof(uint8_t), layer,
+                       generateMipmaps);
+      }
     }
   } else {
     mImage = std::make_unique<core::Image>(
@@ -157,6 +194,10 @@ void SVImage::uploadToDevice(std::shared_ptr<core::Context> context,
         mUsage, VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY,
         vk::SampleCountFlagBits::e1, mDescription.mipLevels, mFloatData.size(),
         vk::ImageTiling::eOptimal, mCreateFlags);
+    if (mMipLoaded) {
+      throw std::runtime_error(
+          "precomputed mipmaps are not supported for float textures");
+    }
     for (uint32_t layer = 0; layer < mFloatData.size(); ++layer) {
       mImage->upload(mFloatData[layer].data(),
                      mFloatData[layer].size() * sizeof(float), layer,
@@ -189,28 +230,81 @@ std::future<void> SVImage::loadAsync() {
     mHeight = 0;
     mChannels = 4;
 
-    for (uint32_t i = 0; i < mDescription.filenames.size(); ++i) {
-      int width, height;
-      auto dataVector = loadImage(mDescription.filenames[i], width, height);
-
-      if ((mWidth != 0 && mWidth != static_cast<uint32_t>(width)) ||
-          (mHeight != 0 && mHeight != static_cast<uint32_t>(height))) {
-        throw std::runtime_error(
-            "image load failed: provided files have different sizes");
+    // load ktx file
+    if (mDescription.filenames.size() &&
+        mDescription.filenames[0].ends_with(".ktx")) {
+      if (mDescription.format != SVImageDescription::Format::eUINT8) {
+        throw std::runtime_error("Only unity is supported for ktx texture");
       }
+
+      int width, height, levels, faces, layers;
+      vk::Format format;
+      auto data = loadKTXImage(mDescription.filenames[0], width, height, levels,
+                               faces, layers, format);
+      if (format != vk::Format::eR8G8B8A8Unorm) {
+        throw std::runtime_error(
+            "Only uint8 RGBA texture is currently supported for ktx");
+      }
+
       mWidth = width;
       mHeight = height;
-      if (mDescription.format == SVImageDescription::Format::eUINT8) {
-        mData.push_back(dataVector);
-      } else {
-        std::vector<float> floatDataVector;
-        floatDataVector.reserve(dataVector.size());
-        for (uint8_t x : dataVector) {
-          floatDataVector.push_back(x);
+
+      size_t stride = 0;
+      for (uint32_t l = 0; l < static_cast<uint32_t>(levels); ++l) {
+        stride += width * height;
+        width /= 2;
+        height /= 2;
+        if (width == 0) {
+          width = 1;
         }
-        mFloatData.push_back(floatDataVector);
+        if (height == 0) {
+          height = 1;
+        }
+      }
+      stride *= getFormatSize(format);
+
+      if (mDescription.mipLevels != static_cast<uint32_t>(levels)) {
+        // levels do not match, only take base level
+        log::warn("ktx texture has {} levels but {} levels requested", levels,
+                  mDescription.mipLevels);
+        for (uint32_t i = 0; i < static_cast<uint32_t>(faces * layers); ++i) {
+          mData.push_back(std::vector<uint8_t>(
+              data.begin() + i * stride,
+              data.begin() +
+                  (i * stride + width * height * getFormatSize(format))));
+        }
+      } else {
+        for (uint32_t i = 0; i < static_cast<uint32_t>(faces * layers); ++i) {
+          mData.push_back(std::vector<uint8_t>(
+              data.begin() + i * stride, data.begin() + ((i + 1) * stride)));
+        }
+        mMipLoaded = true;
       }
       mLoaded = true;
+    } else {
+      for (uint32_t i = 0; i < mDescription.filenames.size(); ++i) {
+        int width, height;
+        auto dataVector = loadImage(mDescription.filenames[i], width, height);
+
+        if ((mWidth != 0 && mWidth != static_cast<uint32_t>(width)) ||
+            (mHeight != 0 && mHeight != static_cast<uint32_t>(height))) {
+          throw std::runtime_error(
+              "image load failed: provided files have different sizes");
+        }
+        mWidth = width;
+        mHeight = height;
+        if (mDescription.format == SVImageDescription::Format::eUINT8) {
+          mData.push_back(dataVector);
+        } else {
+          std::vector<float> floatDataVector;
+          floatDataVector.reserve(dataVector.size());
+          for (uint8_t x : dataVector) {
+            floatDataVector.push_back(x);
+          }
+          mFloatData.push_back(floatDataVector);
+        }
+        mLoaded = true;
+      }
     }
   });
 }

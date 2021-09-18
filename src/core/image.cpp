@@ -1,8 +1,9 @@
 #include "svulkan2/core/image.h"
+#include "easy/profiler.h"
+#include "svulkan2/common/image.h"
 #include "svulkan2/core/allocator.h"
 #include "svulkan2/core/buffer.h"
 #include "svulkan2/core/context.h"
-#include "easy/profiler.h"
 
 namespace svulkan2 {
 namespace core {
@@ -49,10 +50,37 @@ Image::~Image() {
                   mAllocation);
 }
 
+void Image::uploadLevel(void const *data, size_t size, uint32_t arrayLayer,
+                        uint32_t mipLevel) {
+  auto extent = computeMipLevelExtent(mExtent, mipLevel);
+  size_t imageSize =
+      extent.width * extent.height * extent.depth * getFormatSize(mFormat);
+  if (size != imageSize) {
+    throw std::runtime_error("image upload failed: expecting size " +
+                             std::to_string(imageSize) + ", got " +
+                             std::to_string(size));
+  }
+  auto stagingBuffer = mContext->getAllocator().allocateStagingBuffer(size);
+  stagingBuffer->upload(data, size);
+
+  vk::BufferImageCopy copyRegion(
+      0, extent.width, extent.height,
+      vk::ImageSubresourceLayers(getImageAspectFlags(mFormat), mipLevel,
+                                 arrayLayer, 1),
+      vk::Offset3D(0, 0, 0), extent);
+
+  auto cb = mContext->createCommandBuffer();
+  cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+  cb->copyBufferToImage(stagingBuffer->getVulkanBuffer(), mImage,
+                        vk::ImageLayout::eTransferDstOptimal, copyRegion);
+  cb->end();
+  mContext->submitCommandBufferAndWait(cb.get());
+}
+
 void Image::upload(void const *data, size_t size, uint32_t arrayLayer,
                    bool mipmaps) {
-  size_t imageSize = mExtent.width * mExtent.height * mExtent.depth *
-                     getFormatSize(mFormat);
+  size_t imageSize =
+      mExtent.width * mExtent.height * mExtent.depth * getFormatSize(mFormat);
   if (size != imageSize) {
     throw std::runtime_error("image upload failed: expecting size " +
                              std::to_string(imageSize) + ", got " +
@@ -163,8 +191,8 @@ void Image::generateMipmaps(vk::CommandBuffer cb, uint32_t arrayLayer) {
 
 void Image::copyToBuffer(vk::Buffer buffer, size_t size, vk::Offset3D offset,
                          vk::Extent3D extent, uint32_t arrayLayer) {
-  size_t imageSize = extent.width * extent.height * extent.depth *
-                     getFormatSize(mFormat);
+  size_t imageSize =
+      extent.width * extent.height * extent.depth * getFormatSize(mFormat);
   if (size != imageSize) {
     throw std::runtime_error("copy to buffer failed: expecting size " +
                              std::to_string(imageSize) + ", got " +
@@ -242,11 +270,13 @@ void Image::copyToBuffer(vk::Buffer buffer, size_t size, vk::Offset3D offset,
 }
 
 void Image::download(void *data, size_t size, vk::Offset3D offset,
-                     vk::Extent3D extent, uint32_t arrayLayer) {
-  EASY_FUNCTION()
+                     vk::Extent3D extent, uint32_t arrayLayer,
+                     uint32_t mipLevel) {
+  EASY_FUNCTION();
 
-  size_t imageSize = extent.width * extent.height * extent.depth *
-                     getFormatSize(mFormat);
+  size_t imageSize =
+      computeMipLevelSize(mExtent, mipLevel) * getFormatSize(mFormat);
+
   if (size != imageSize) {
     throw std::runtime_error("image download failed: expecting size " +
                              std::to_string(imageSize) + ", got " +
@@ -268,7 +298,8 @@ void Image::download(void *data, size_t size, vk::Offset3D offset,
     aspect = vk::ImageAspectFlagBits::eDepth;
     break;
   case vk::Format::eD24UnormS8Uint:
-    aspect = vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
+    aspect =
+        vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
     break;
   default:
     throw std::runtime_error("failed to download image: unsupported format.");
@@ -298,7 +329,8 @@ void Image::download(void *data, size_t size, vk::Offset3D offset,
   }
 
   EASY_BLOCK("Allocating staging buffer");
-  auto stagingBuffer = mContext->getAllocator().allocateStagingBuffer(size, true);
+  auto stagingBuffer =
+      mContext->getAllocator().allocateStagingBuffer(size, true);
   EASY_END_BLOCK;
 
   EASY_BLOCK("Record command buffer");
@@ -310,8 +342,8 @@ void Image::download(void *data, size_t size, vk::Offset3D offset,
                      vk::AccessFlagBits::eTransferRead, sourceStage,
                      vk::PipelineStageFlagBits::eTransfer);
   }
-  vk::BufferImageCopy copyRegion(0, mExtent.width, mExtent.height,
-                                 {aspect, 0, 0, 1}, offset, extent);
+  vk::BufferImageCopy copyRegion(0, extent.width, extent.height,
+                                 {aspect, mipLevel, arrayLayer, 1}, offset, extent);
   cb->copyImageToBuffer(mImage, vk::ImageLayout::eTransferSrcOptimal,
                         stagingBuffer->getVulkanBuffer(), copyRegion);
   cb->end();

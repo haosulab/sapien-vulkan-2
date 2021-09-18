@@ -42,6 +42,11 @@ class SVCubemap {
 
 public:
   static std::shared_ptr<SVCubemap>
+  FromFile(std::string const &filename, uint32_t mipLevels,
+           vk::Filter magFilter = vk::Filter::eLinear,
+           vk::Filter minFilter = vk::Filter::eLinear, bool srgb = false);
+
+  static std::shared_ptr<SVCubemap>
   FromFile(std::array<std::string, 6> const &filenames, uint32_t mipLevels,
            vk::Filter magFilter = vk::Filter::eLinear,
            vk::Filter minFilter = vk::Filter::eLinear, bool srgb = false);
@@ -71,6 +76,8 @@ public:
   inline std::shared_ptr<SVImage> getImage() const { return mImage; }
   inline vk::ImageView getImageView() const { return mImageView.get(); }
   inline vk::Sampler getSampler() const { return mSampler.get(); }
+
+  void exportKTX(std::string const &filename);
 
 private:
   SVCubemap() = default;

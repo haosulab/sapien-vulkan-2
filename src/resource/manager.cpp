@@ -68,6 +68,32 @@ std::shared_ptr<SVTexture> SVResourceManager::CreateTextureFromFile(
   return tex;
 }
 
+std::shared_ptr<SVCubemap> SVResourceManager::CreateCubemapFromKTX(
+    std::string const &filename, uint32_t mipLevels, vk::Filter magFilter,
+    vk::Filter minFilter, bool srgb) {
+  std::lock_guard<std::mutex> lock(mCreateLock);
+  SVCubemapDescription desc = {
+      .source = SVCubemapDescription::SourceType::eSINGLE_FILE,
+      .filenames = {fs::canonical(filename).string(), "", "", "", "", ""},
+      .mipLevels = mipLevels,
+      .magFilter = magFilter,
+      .minFilter = minFilter,
+      .srgb = srgb};
+  auto cubemap = SVCubemap::FromFile(desc.filenames[0], desc.mipLevels,
+                                     desc.magFilter, desc.minFilter, srgb);
+  auto it = mCubemapRegistry.find(desc.filenames[0]);
+  if (it != mCubemapRegistry.end()) {
+    for (auto &tex : it->second) {
+      if (tex->getDescription() == desc) {
+        return tex;
+      }
+    }
+  }
+  cubemap->setManager(this);
+  mCubemapRegistry[desc.filenames[0]].push_back(cubemap);
+  return cubemap;
+}
+
 std::shared_ptr<SVCubemap> SVResourceManager::CreateCubemapFromFiles(
     std::array<std::string, 6> const &filenames, uint32_t mipLevels,
     vk::Filter magFilter, vk::Filter minFilter, bool srgb) {

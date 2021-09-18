@@ -37,6 +37,9 @@ class SVImage {
   bool mLoaded{};
   bool mOnDevice{};
 
+  /** mipmap levels are provided on host */
+  bool mMipLoaded{false};
+
   std::mutex mLoadingMutex;
 
 public:
@@ -94,6 +97,9 @@ public:
   inline uint32_t getWidth() const { return mWidth; };
   inline uint32_t getHeight() const { return mHeight; };
   inline uint32_t getChannels() const { return mChannels; };
+
+  /** Indicate that the image loads mipmap into the data and does not require generation */
+  bool mipmapIsLoaded() const { return mMipLoaded; }
 
 private:
   SVImage() = default;
