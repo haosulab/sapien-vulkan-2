@@ -203,8 +203,9 @@ int main() {
   // renderer.setCustomTexture("BRDFLUT", lutTexture);
 
   auto cubemap = context->getResourceManager()->CreateCubemapFromKTX("input.ktx", 5);
-  cubemap->load();
-  cubemap->uploadToDevice(context);
+  // cubemap->load();
+  // cubemap->uploadToDevice(context);
+  scene.setEnvironmentMap(cubemap);
 
   // auto cubemap = context->getResourceManager()->CreateCubemapFromFiles(
   //     {

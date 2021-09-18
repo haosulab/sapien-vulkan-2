@@ -7,6 +7,11 @@
 #include <vector>
 
 namespace svulkan2 {
+
+namespace resource {
+class SVCubemap;
+}
+
 namespace scene {
 
 class Scene {
@@ -25,6 +30,8 @@ class Scene {
   bool mRequireForceRemove{};
 
   glm::vec4 mAmbientLight{};
+
+  std::shared_ptr<resource::SVCubemap> mEnvironmentMap{};
 
   /** when anything is added or removed, the version changes */
   uint64_t mVersion{1l};
@@ -80,6 +87,14 @@ public:
   std::vector<DirectionalLight *> getDirectionalLights();
   std::vector<SpotLight *> getSpotLights();
   std::vector<CustomLight *> getCustomLights();
+
+  void setEnvironmentMap(std::shared_ptr<resource::SVCubemap> map) {
+    mEnvironmentMap = map;
+  }
+
+  std::shared_ptr<resource::SVCubemap> getEnvironmentMap() const {
+    return mEnvironmentMap;
+  }
 
   Scene();
   Scene(Scene const &other) = delete;

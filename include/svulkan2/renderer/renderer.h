@@ -60,6 +60,8 @@ class Renderer {
   std::map<std::string, std::shared_ptr<resource::SVTexture>> mCustomTextures;
   std::map<std::string, std::shared_ptr<resource::SVCubemap>> mCustomCubemaps;
 
+  std::shared_ptr<resource::SVCubemap> mEnvironmentMap{};
+
   int mWidth{};
   int mHeight{};
   bool mRequiresRebuild{true};

@@ -114,14 +114,20 @@ std::future<void> SVCubemap::loadAsync() {
   if (mLoaded) {
     return std::async(std::launch::deferred, []() {});
   }
-  for (auto f : mDescription.filenames) {
-    log::info("Loading: {}", f);
-  }
-  if (mDescription.source != SVCubemapDescription::SourceType::eFILES &&
-      mDescription.source != SVCubemapDescription::SourceType::eSINGLE_FILE) {
+  switch (mDescription.source) {
+  case SVCubemapDescription::SourceType::eFILES:
+    for (auto f : mDescription.filenames) {
+      log::info("Loading: {}", f);
+    }
+    break;
+  case (SVCubemapDescription::SourceType::eSINGLE_FILE):
+    log::info("Loading: {}", mDescription.filenames[0]);
+    break;
+  default:
     throw std::runtime_error(
         "failed to load texture: the texture is not specified by a file");
   }
+
   return std::async(std::launch::async, [this]() {
     std::lock_guard<std::mutex> lock(mLoadingMutex);
     if (mLoaded) {
@@ -139,9 +145,6 @@ std::future<void> SVCubemap::loadAsync() {
     mImage->setCreateFlags(vk::ImageCreateFlagBits::eCubeCompatible);
     mImage->loadAsync().get();
     mLoaded = true;
-    for (auto f : mDescription.filenames) {
-      log::info("Loaded: {}", f);
-    }
   });
 }
 

@@ -748,6 +748,12 @@ void Renderer::render(scene::Camera &camera,
     mRequiresRecord = true;
   }
 
+  if (mEnvironmentMap != mScene->getEnvironmentMap()) {
+    mEnvironmentMap = mScene->getEnvironmentMap();
+    mEnvironmentMap->load();
+    mRequiresRebuild = true;
+  }
+
   if (!mContext->isVulkanAvailable()) {
     return;
   }
@@ -1113,7 +1119,10 @@ void Renderer::prepareSceneBuffer() {
               mCustomCubemaps[customTextureName]->getSampler()}},
             bindingIndex);
       } else if (customTextureName == "Environment") {
-        auto cube = mContext->getResourceManager()->getDefaultCubemap();
+        auto cube = mEnvironmentMap;
+        if (!cube) {
+          cube = mContext->getResourceManager()->getDefaultCubemap();
+        }
         cube->uploadToDevice(mContext);
         updateDescriptorSets(mContext->getDevice(), mSceneSet.get(), {},
                              {{cube->getImageView(), cube->getSampler()}},
@@ -1221,7 +1230,10 @@ void Renderer::prepareInputTextureDescriptorSets() {
           textureData.push_back({mCustomCubemaps[name]->getImageView(),
                                  mCustomCubemaps[name]->getSampler()});
         } else if (name == "Environment") {
-          auto cube = mContext->getResourceManager()->getDefaultCubemap();
+          auto cube = mEnvironmentMap;
+          if (!cube) {
+            cube = mContext->getResourceManager()->getDefaultCubemap();
+          }
           cube->uploadToDevice(mContext);
           textureData.push_back({cube->getImageView(), cube->getSampler()});
         } else {

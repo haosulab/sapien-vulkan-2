@@ -274,8 +274,10 @@ void Image::download(void *data, size_t size, vk::Offset3D offset,
                      uint32_t mipLevel) {
   EASY_FUNCTION();
 
-  size_t imageSize =
-      computeMipLevelSize(mExtent, mipLevel) * getFormatSize(mFormat);
+  // size_t imageSize =
+  //     computeMipLevelSize(mExtent, mipLevel) * getFormatSize(mFormat);
+
+  size_t imageSize = extent.width * extent.height * extent.width * getFormatSize(mFormat);
 
   if (size != imageSize) {
     throw std::runtime_error("image download failed: expecting size " +
