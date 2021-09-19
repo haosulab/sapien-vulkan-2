@@ -254,8 +254,8 @@ Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
 
     ss << std::setw(3) << ord++ << std::setw(20) << name.substr(0, 20)
        << std::setw(10) << present << std::setw(10) << supported << std::hex
-       << std::setw(10) << busid << std::dec << std::setw(10) << (cudaId == -1 ? "No Device" : std::to_string(cudaId))
-       << std::endl;
+       << std::setw(10) << busid << std::dec << std::setw(10)
+       << (cudaId == -1 ? "No Device" : std::to_string(cudaId)) << std::endl;
 
     devices.push_back(
         Context::PhysicalDeviceInfo{.device = device,
@@ -614,7 +614,7 @@ void Context::createDescriptorPool() {
     bindings.push_back(
         vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eUniformBuffer, 1,
                                        vk::ShaderStageFlagBits::eFragment));
-    for (uint32_t i = 0; i < 4; ++i) {
+    for (uint32_t i = 0; i < 5; ++i) {
       bindings.push_back(vk::DescriptorSetLayoutBinding(
           i + 1, vk::DescriptorType::eCombinedImageSampler, 1,
           vk::ShaderStageFlagBits::eFragment));
@@ -622,17 +622,6 @@ void Context::createDescriptorPool() {
     mMetallicDescriptorSetLayout = mDevice->createDescriptorSetLayoutUnique(
         vk::DescriptorSetLayoutCreateInfo({}, bindings.size(),
                                           bindings.data()));
-  }
-  {
-    std::vector<vk::DescriptorSetLayoutBinding> bindings;
-    bindings.push_back(
-        vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eUniformBuffer, 1,
-                                       vk::ShaderStageFlagBits::eFragment));
-    for (uint32_t i = 0; i < 3; ++i) {
-      bindings.push_back(vk::DescriptorSetLayoutBinding(
-          i + 1, vk::DescriptorType::eCombinedImageSampler, 1,
-          vk::ShaderStageFlagBits::eFragment));
-    }
   }
 }
 
@@ -711,11 +700,11 @@ std::unique_ptr<renderer::GuiWindow> Context::createWindow(uint32_t width,
 };
 
 std::shared_ptr<resource::SVMetallicMaterial>
-Context::createMetallicMaterial(glm::vec4 baseColor, float fresnel,
-                                float roughness, float metallic,
+Context::createMetallicMaterial(glm::vec4 emission, glm::vec4 baseColor,
+                                float fresnel, float roughness, float metallic,
                                 float transparency) {
   return std::make_shared<resource::SVMetallicMaterial>(
-      baseColor, fresnel, roughness, metallic, transparency);
+      emission, baseColor, fresnel, roughness, metallic, transparency);
 }
 
 std::shared_ptr<resource::SVModel> Context::createModel(

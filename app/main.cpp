@@ -35,7 +35,8 @@ static void createSphereArray(svulkan2::scene::Scene &scene) {
       auto shape = resource::SVShape::Create(
           resource::SVMesh::CreateUVSphere(32, 16),
           std::make_shared<resource::SVMetallicMaterial>(
-              glm::vec4{1, 1, 1, 1}, 0, roughness, metallic));
+              glm::vec4{0, 0, 0, 1}, glm::vec4{1, 1, 1, 1}, 0, roughness,
+              metallic));
       scene.addObject(
           resource::SVModel::FromData({shape}),
           {.position = {i / 8.f, j / 8.f, 0}, .scale = {0.05, 0.05, 0.05}});
@@ -45,8 +46,8 @@ static void createSphereArray(svulkan2::scene::Scene &scene) {
   {
     auto shape = resource::SVShape::Create(
         resource::SVMesh::CreateCube(),
-        std::make_shared<resource::SVMetallicMaterial>(glm::vec4{1, 1, 1, 1}, 0,
-                                                       1, 0));
+        std::make_shared<resource::SVMetallicMaterial>(
+            glm::vec4{0, 0, 0, 1}, glm::vec4{1, 1, 1, 1}, 0, 1, 0));
     scene.addObject(resource::SVModel::FromData({shape}),
                     {.position = {0, -0.1, 0}, .scale = {10, 0.1, 10}});
   }
@@ -55,8 +56,7 @@ static void createSphereArray(svulkan2::scene::Scene &scene) {
 int main() {
   svulkan2::log::getLogger()->set_level(spdlog::level::info);
 
-  auto context =
-      svulkan2::core::Context::Create(true, 5000, 5000, 4);
+  auto context = svulkan2::core::Context::Create(true, 5000, 5000, 4);
   auto manager = context->createResourceManager();
 
   if (srcBase.length() == 0) {
@@ -71,7 +71,8 @@ int main() {
   renderer::Renderer renderer(context, config);
 
   // auto image = shader::generateBRDFLUT(context, 512);
-  // auto sampler = context->getDevice().createSamplerUnique(vk::SamplerCreateInfo(
+  // auto sampler =
+  // context->getDevice().createSamplerUnique(vk::SamplerCreateInfo(
   //     {}, vk::Filter::eLinear, vk::Filter::eLinear,
   //     vk::SamplerMipmapMode::eNearest, vk::SamplerAddressMode::eClampToEdge,
   //     vk::SamplerAddressMode::eClampToEdge,
@@ -159,31 +160,49 @@ int main() {
   scene.addObject(model);
 
   // auto model = context->getResourceManager()->CreateModelFromFile(
-  //     "/home/fx/blender-data/scene120.gltf");
+  //     "/home/fx/datasets/RIS/objects/glass.gltf");
   // scene.addObject(model);
 
-  // auto dragon = context.getResourceManager().CreateModelFromFile(
-  //     "../test/assets/scene/dragon/dragon.obj");
-  // scene.addObject(dragon).setTransform(
-  //     scene::Transform{.position = {0, 0.1, 0}, .scale = {0.3, 0.3, 0.3}});
-
   auto lineset = std::make_shared<resource::SVLineSet>();
-  lineset->setVertexAttribute("position", {0.1, 0.1, 0.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 0.1, 0.1});
+  lineset->setVertexAttribute(
+      "position", {0.1, 0.1, 0.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 0.1, 0.1});
   lineset->setVertexAttribute("color", {
-      1,0,0,1,
-      1,0,0,1,
-      1,0,0,1,
-      1,0,0,1,
-    });
+                                           1,
+                                           0,
+                                           0,
+                                           1,
+                                           1,
+                                           0,
+                                           0,
+                                           1,
+                                           1,
+                                           0,
+                                           0,
+                                           1,
+                                           1,
+                                           0,
+                                           0,
+                                           1,
+                                       });
   scene.addLineObject(lineset).setPosition({0, 1, 0});
 
   auto pointset = std::make_shared<resource::SVPointSet>();
-  pointset->setVertexAttribute("position", {0.1, 0.1, 0.1, 1.1, 1.1, 1.1, 1.1, 0.1, 0.1});
+  pointset->setVertexAttribute("position",
+                               {0.1, 0.1, 0.1, 1.1, 1.1, 1.1, 1.1, 0.1, 0.1});
   pointset->setVertexAttribute("color", {
-      0,1,0,1,
-      0,1,0,1,
-      0,1,0,1,
-    });
+                                            0,
+                                            1,
+                                            0,
+                                            1,
+                                            0,
+                                            1,
+                                            0,
+                                            1,
+                                            0,
+                                            1,
+                                            0,
+                                            1,
+                                        });
   scene.addPointObject(pointset);
 
   auto &cameraNode = scene.addCamera();
@@ -202,9 +221,8 @@ int main() {
 
   // renderer.setCustomTexture("BRDFLUT", lutTexture);
 
-  auto cubemap = context->getResourceManager()->CreateCubemapFromKTX("input.ktx", 5);
-  // cubemap->load();
-  // cubemap->uploadToDevice(context);
+  auto cubemap =
+      context->getResourceManager()->CreateCubemapFromKTX("input.ktx", 5);
   scene.setEnvironmentMap(cubemap);
 
   // auto cubemap = context->getResourceManager()->CreateCubemapFromFiles(
@@ -219,6 +237,8 @@ int main() {
   //     5);
   // cubemap->load();
   // cubemap->uploadToDevice(context);
+  // scene.setEnvironmentMap(cubemap);
+
   // cubemap->exportKTX("output.ktx");
 
   // renderer.setCustomCubemap("Environment", cubemap);

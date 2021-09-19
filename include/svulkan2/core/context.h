@@ -41,7 +41,8 @@ public:
                                          uint32_t defaultMipLevels = 1);
 
   Context(bool present = true, uint32_t maxNumMaterials = 5000,
-          uint32_t maxNumTextures = 5000, uint32_t defaultMipLevels = 1, std::string device = "");
+          uint32_t maxNumTextures = 5000, uint32_t defaultMipLevels = 1,
+          std::string device = "");
   ~Context();
 
   inline bool isVulkanAvailable() const { return mVulkanAvailable; }
@@ -79,8 +80,8 @@ public:
                                                     uint32_t height);
 
   std::shared_ptr<resource::SVMetallicMaterial>
-  createMetallicMaterial(glm::vec4 baseColor, float fresnel, float roughness,
-                         float metallic, float transparency);
+  createMetallicMaterial(glm::vec4 emission, glm::vec4 baseColor, float fresnel,
+                         float roughness, float metallic, float transparency);
 
   std::shared_ptr<resource::SVModel> createModel(
       std::vector<std::shared_ptr<resource::SVMesh>> const &meshes,

@@ -274,9 +274,11 @@ void verifyCameraBuffer(std::shared_ptr<StructDataLayout> layout) {
 }
 
 void verifyMaterialBuffer(std::shared_ptr<StructDataLayout> layout) {
-  ASSERT(layout->elements.size() == 6,
-         "Material should contain exactly 6 member variables");
+  ASSERT(layout->elements.size() == 7,
+         "Material should contain exactly 7 member variables");
   // required variables
+  ASSERT(CONTAINS(layout->elements, "emission"),
+         "material requires variable emission");
   ASSERT(CONTAINS(layout->elements, "baseColor"),
          "material requires variable baseColor");
   ASSERT(CONTAINS(layout->elements, "fresnel"),
@@ -291,6 +293,8 @@ void verifyMaterialBuffer(std::shared_ptr<StructDataLayout> layout) {
          "material requires variable textureMask");
 
   // variable  types
+  ASSERT(layout->elements["emission"].dtype == eFLOAT4,
+         "material emission should be float4");
   ASSERT(layout->elements["baseColor"].dtype == eFLOAT4,
          "material baseColor should be float4");
   ASSERT(layout->elements["fresnel"].dtype == eFLOAT,

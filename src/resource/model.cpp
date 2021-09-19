@@ -145,7 +145,7 @@ std::future<void> SVModel::loadAsync() {
 
     fs::path parentDir = fs::path(path).parent_path();
 
-    std::vector<std::future<void>> futures; // futures of subtasks
+    std::vector<std::future<void>> futures; // futures of sub tasks
 
     const uint32_t MIP_LEVEL = mManager->getDefaultMipLevels();
     std::vector<std::shared_ptr<SVMaterial>> materials;
@@ -156,6 +156,7 @@ std::future<void> SVModel::loadAsync() {
 
     for (uint32_t mat_idx = 0; mat_idx < scene->mNumMaterials; ++mat_idx) {
       auto *m = scene->mMaterials[mat_idx];
+      aiColor3D emission{0, 0, 0};
       aiColor3D diffuse{0, 0, 0};
       aiColor3D specular{0, 0, 0};
       float alpha = 1.f;
@@ -168,6 +169,7 @@ std::future<void> SVModel::loadAsync() {
                   mDescription.filename);
         alpha = 1.f;
       }
+      m->Get(AI_MATKEY_COLOR_EMISSIVE, emission);
       m->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse);
       m->Get(AI_MATKEY_COLOR_SPECULAR, specular);
       m->Get(AI_MATKEY_SHININESS, shininess);
@@ -176,6 +178,7 @@ std::future<void> SVModel::loadAsync() {
       std::shared_ptr<SVTexture> normalTexture{};
       std::shared_ptr<SVTexture> roughnessTexture{};
       std::shared_ptr<SVTexture> metallicTexture{};
+      std::shared_ptr<SVTexture> emissionTexture{};
 
       aiString path;
       if (m->GetTextureCount(aiTextureType_DIFFUSE) > 0 &&
@@ -217,6 +220,7 @@ std::future<void> SVModel::loadAsync() {
           futures.push_back(metallicTexture->loadAsync());
         }
       }
+
       if (m->GetTextureCount(aiTextureType_NORMALS) > 0 &&
           m->GetTexture(aiTextureType_NORMALS, 0, &path) == AI_SUCCESS) {
         if (auto texture = scene->GetEmbeddedTexture(path.C_Str())) {
@@ -277,11 +281,12 @@ std::future<void> SVModel::loadAsync() {
       }
 
       auto material = std::make_shared<SVMetallicMaterial>(
+          glm::vec4{emission.r, emission.g, emission.b, 1},
           glm::vec4{diffuse.r, diffuse.g, diffuse.b, alpha},
           (specular.r + specular.g + specular.b) / 3,
           shininessToRoughness(shininess), 0, 0);
       material->setTextures(baseColorTexture, roughnessTexture, normalTexture,
-                            metallicTexture);
+                            metallicTexture, emissionTexture);
       materials.push_back(material);
     }
 

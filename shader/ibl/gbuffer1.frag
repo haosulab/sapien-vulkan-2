@@ -27,6 +27,7 @@ layout(set = 1, binding = 0) uniform ObjectBuffer {
 } objectBuffer;
 
 layout(set = 2, binding = 0) uniform MaterialBuffer {
+  vec4 emission;
   vec4 baseColor;
   float fresnel;
   float roughness;
