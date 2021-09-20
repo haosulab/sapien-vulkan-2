@@ -13,15 +13,15 @@ namespace fs = std::filesystem;
 namespace svulkan2 {
 namespace resource {
 
-static float shininessToRoughness(float ns) {
-  if (ns <= 5.f) {
-    return 1.f;
-  }
-  if (ns >= 1605.f) {
-    return 0.f;
-  }
-  return 1.f - (std::sqrt(ns - 5.f) * 0.025f);
-}
+// static float shininessToRoughness(float ns) {
+//   if (ns <= 5.f) {
+//     return 1.f;
+//   }
+//   if (ns >= 1605.f) {
+//     return 0.f;
+//   }
+//   return 1.f - (std::sqrt(ns - 5.f) * 0.025f);
+// }
 
 std::shared_ptr<SVModel> SVModel::FromFile(std::string const &filename) {
   auto model = std::shared_ptr<SVModel>(new SVModel);
@@ -158,9 +158,14 @@ std::future<void> SVModel::loadAsync() {
       auto *m = scene->mMaterials[mat_idx];
       aiColor3D emission{0, 0, 0};
       aiColor3D diffuse{0, 0, 0};
-      aiColor3D specular{0, 0, 0};
+      // aiColor3D specular{0, 0, 0};
+      float glossiness = 0.f;
+
       float alpha = 1.f;
-      float shininess = 0.f;
+      float metallic = 0.f;
+
+      float roughness = 1.f;
+
       m->Get(AI_MATKEY_OPACITY, alpha);
       if (alpha < 1e-5 && (mDescription.filename.ends_with(".dae") ||
                            mDescription.filename.ends_with(".DAE"))) {
@@ -171,8 +176,41 @@ std::future<void> SVModel::loadAsync() {
       }
       m->Get(AI_MATKEY_COLOR_EMISSIVE, emission);
       m->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse);
-      m->Get(AI_MATKEY_COLOR_SPECULAR, specular);
-      m->Get(AI_MATKEY_SHININESS, shininess);
+
+      // assimp code for reading roughness, metallic, and glossiness
+      if (m->Get(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLIC_FACTOR,
+                 metallic) != AI_SUCCESS) {
+        metallic = 0.f;
+      }
+
+      if (m->Get(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_ROUGHNESS_FACTOR,
+                 roughness) != AI_SUCCESS) {
+        aiColor4D specularColor;
+        ai_real shininess;
+        if (m->Get(AI_MATKEY_COLOR_SPECULAR, specularColor) == AI_SUCCESS &&
+            m->Get(AI_MATKEY_SHININESS, shininess) == AI_SUCCESS) {
+          float specularIntensity = specularColor[0] * 0.2125f +
+                                    specularColor[1] * 0.7154f +
+                                    specularColor[2] * 0.0721f;
+          float normalizedShininess = std::sqrt(shininess / 1000);
+          normalizedShininess =
+              std::min(std::max(normalizedShininess, 0.0f), 1.0f);
+          normalizedShininess = normalizedShininess * specularIntensity;
+          roughness = 1 - normalizedShininess;
+        }
+      }
+
+      bool hasPbrSpecularGlossiness = false;
+      m->Get(AI_MATKEY_GLTF_PBRSPECULARGLOSSINESS, hasPbrSpecularGlossiness);
+      if (hasPbrSpecularGlossiness) {
+        if (m->Get(AI_MATKEY_GLTF_PBRSPECULARGLOSSINESS_GLOSSINESS_FACTOR,
+                   glossiness) != AI_SUCCESS) {
+          float shininess;
+          if (m->Get(AI_MATKEY_SHININESS, shininess)) {
+            glossiness = shininess / 1000;
+          }
+        }
+      }
 
       std::shared_ptr<SVTexture> baseColorTexture{};
       std::shared_ptr<SVTexture> normalTexture{};
@@ -202,6 +240,7 @@ std::future<void> SVModel::loadAsync() {
           futures.push_back(baseColorTexture->loadAsync());
         }
       }
+
       if (m->GetTextureCount(aiTextureType_METALNESS) > 0 &&
           m->GetTexture(aiTextureType_METALNESS, 0, &path) == AI_SUCCESS) {
         if (auto texture = scene->GetEmbeddedTexture(path.C_Str())) {
@@ -282,9 +321,8 @@ std::future<void> SVModel::loadAsync() {
 
       auto material = std::make_shared<SVMetallicMaterial>(
           glm::vec4{emission.r, emission.g, emission.b, 1},
-          glm::vec4{diffuse.r, diffuse.g, diffuse.b, alpha},
-          (specular.r + specular.g + specular.b) / 3,
-          shininessToRoughness(shininess), 0, 0);
+          glm::vec4{diffuse.r, diffuse.g, diffuse.b, alpha}, glossiness,
+          roughness, metallic, 0);
       material->setTextures(baseColorTexture, roughnessTexture, normalTexture,
                             metallicTexture, emissionTexture);
       materials.push_back(material);
