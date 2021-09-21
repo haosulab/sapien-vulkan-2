@@ -1,8 +1,8 @@
-cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.16 FATAL_ERROR)
 project(sapienvulkan2 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_FLAGS_DEBUG "-o0 -g3 -Wall -Wnon-virtual-dtor -Wno-deprecated-declarations")
-set(CMAKE_CXX_FLAGS_RELEASE "-o3 -g0 -Wall -Wnon-virtual-dtor -Wno-deprecated-declarations")
+set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g3 -Wall -Wnon-virtual-dtor -Wno-deprecated-declarations")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -g0 -Wall -Wnon-virtual-dtor -Wno-deprecated-declarations")
 
 add_definitions(-DVULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1)
 
@@ -30,7 +30,7 @@ file(GLOB_RECURSE RENDER_SRC "src/*.cpp")
 
 set(SVULKAN2_PROFILE FALSE CACHE BOOL "Profile with easy_profiler")
 set(SVULKAN2_BUILD_TEST TRUE CACHE BOOL "Build sapien-vulkan-2 unit test")
-set(SVULKAN2_CUDA_INTEROP FALSE CACHE BOOL "Allow CUDA to use Vulkan buffer")
+set(SVULKAN2_CUDA_INTEROP TRUE CACHE BOOL "Allow CUDA to use Vulkan buffer")
 
 set(BUILD_SHARED_LIBS OFF)
 
@@ -41,12 +41,11 @@ include_directories("3rd_party/SPIRV-Cross")
 include_directories("3rd_party/VulkanMemoryAllocator")
 include_directories("$ENV{VULKAN_SDK}/include")
 include_directories("3rd_party/stb")
-include_directories("3rd_party/cuda_include")
 
 if (${SVULKAN2_CUDA_INTEROP})
     message("-- CUDA enabled in SVulkan2 ")
-    link_directories("3rd_party/cuda_lib")
     add_definitions(-DCUDA_INTEROP)
+    include_directories("$ENV{CUDA_PATH}/include")
 else()
     message("-- CUDA not enabled in SVulkan2 ")
 endif()
@@ -76,11 +75,11 @@ file(GLOB GUI_SRC "3rd_party/imgui/*.cpp"
 add_library(svulkan2 STATIC ${RENDER_SRC} ${GUI_SRC})
 
 target_link_libraries(svulkan2 ${ASSIMP_LIBRARIES} glfw dl pthread Vulkan::Vulkan spdlog
-    glslang SPIRV spirv-cross-cpp # ${CUDA_LIBRARIES}
+    glslang SPIRV spirv-cross-cpp
     ${EASY_PROFILER_LIBRARIES} ktx)
 
 if (${SVULKAN2_CUDA_INTEROP})
-    target_link_libraries(svulkan2 cudart_static rt)
+    target_link_libraries(svulkan2 rt "$ENV{CUDA_PATH}/lib64/libcudart_static.a")
 endif()
 
 set_target_properties(svulkan2 PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
