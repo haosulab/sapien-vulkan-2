@@ -6,14 +6,15 @@ namespace scene {
 
 Camera::Camera(std::string const &name) : Node(name) {}
 
-void Camera::setFullPerspectiveParameters(float near, float far, float fx,
-                                          float fy, float cx, float cy,
-                                          float width, float height,
-                                          float skew) {
-  mType = Camera::Type::eFullPerspective;
+void Camera::setPerspectiveParameters(float near, float far, float fx, float fy,
+                                      float cx, float cy, float width,
+                                      float height, float skew) {
+  mType = Camera::Type::ePerspective;
+
+  mWidth = width;
+  mHeight = height;
   mNear = near;
   mFar = far;
-  mAspect = width / height;
 
   mFx = fx;
   mFy = fy;
@@ -21,47 +22,34 @@ void Camera::setFullPerspectiveParameters(float near, float far, float fx,
   mCy = cy;
   mSkew = skew;
 
-  glm::mat4 mat(1);
-  mat[0][0] = (2.f * fx) / width;
-  mat[1][1] = -(2.f * fy) / height;
-
-  mat[2][2] = -far / (far - near);
-  mat[3][2] = -far * near / (far - near);
-  mat[2][3] = -1.f;
-  mat[2][0] = -2.f * cx / width + 1;
-  mat[2][1] = -2.f * cy / height + 1;
-  mat[3][3] = 0.f;
-
-  mat[1][0] = -2 * skew / width;
-
-  mProjectionMatrix = mat;
+  mProjectionMatrix =
+      math::fullPerspective(near, far, fx, fy, cx, cy, width, height, skew);
 }
 
 void Camera::setIntrinsicMatrix(glm::mat3 const &intrinsic, float near,
                                 float far, float width, float height) {
-  setFullPerspectiveParameters(near, far, intrinsic[0][0], intrinsic[1][1],
-                               intrinsic[2][0], intrinsic[2][1], width, height,
-                               intrinsic[1][0]);
+  setPerspectiveParameters(near, far, intrinsic[0][0], intrinsic[1][1],
+                           intrinsic[2][0], intrinsic[2][1], width, height,
+                           intrinsic[1][0]);
 }
 
 void Camera::setPerspectiveParameters(float near, float far, float fovy,
-                                      float aspect) {
+                                      float width, float height) {
   mType = Camera::Type::ePerspective;
-
-  mNear = near;
-  mFar = far;
-  mFovy = fovy;
-  mAspect = aspect;
-  mProjectionMatrix = math::perspective(fovy, aspect, near, far);
+  float f = math::fov2focal(fovy, height);
+  setPerspectiveParameters(near, far, f, f, width / 2, height / 2, width,
+                           height, 0);
 }
 
-void Camera::setOrthographicParameters(float near, float far, float aspect,
-                                       float scaling) {
+void Camera::setOrthographicParameters(float near, float far, float scaling,
+                                       float width, float height) {
   mType = Camera::Type::eOrthographic;
 
   mNear = near;
   mFar = far;
-  mAspect = aspect;
+
+  float aspect = width / height;
+
   mScaling = scaling;
   mProjectionMatrix = math::ortho(-scaling * aspect, scaling * aspect, -scaling,
                                   scaling, near, far);
@@ -116,7 +104,7 @@ void Camera::uploadToDevice(core::Buffer &cameraBuffer, uint32_t width,
   cameraBuffer.upload<char>(mBuffer);
 }
 
-float Camera::getNear() const {
+float Camera::getWidth() const {
   if (mType == Camera::Type::eUndefined) {
     throw std::runtime_error("Camera is not initialized with parameters.");
   }
@@ -125,6 +113,29 @@ float Camera::getNear() const {
         "Camera initialized by projection matrix does not have this property");
   }
 
+  return mWidth;
+}
+
+float Camera::getHeight() const {
+  if (mType == Camera::Type::eUndefined) {
+    throw std::runtime_error("Camera is not initialized with parameters.");
+  }
+  if (mType == Camera::Type::eMatrix) {
+    throw std::runtime_error(
+        "Camera initialized by projection matrix does not have this property");
+  }
+
+  return mHeight;
+}
+
+float Camera::getNear() const {
+  if (mType == Camera::Type::eUndefined) {
+    throw std::runtime_error("Camera is not initialized with parameters.");
+  }
+  if (mType == Camera::Type::eMatrix) {
+    throw std::runtime_error(
+        "Camera initialized by projection matrix does not have this property");
+  }
   return mNear;
 }
 
@@ -139,7 +150,7 @@ float Camera::getFar() const {
   return mFar;
 }
 
-float Camera::getAspect() const {
+float Camera::getFovx() const {
   if (mType == Camera::Type::eUndefined) {
     throw std::runtime_error("Camera is not initialized with parameters.");
   }
@@ -147,7 +158,7 @@ float Camera::getAspect() const {
     throw std::runtime_error(
         "Camera initialized by projection matrix does not have this property");
   }
-  return mAspect;
+  return math::focal2fov(mFx, mWidth);
 }
 
 float Camera::getFovy() const {
@@ -158,7 +169,7 @@ float Camera::getFovy() const {
     throw std::runtime_error(
         "Camera initialized by projection matrix does not have this property");
   }
-  return mFovy;
+  return math::focal2fov(mFy, mHeight);
 }
 
 float Camera::getOrthographicScaling() const {
@@ -175,7 +186,7 @@ float Camera::getFx() const {
   if (mType == Camera::Type::eUndefined) {
     throw std::runtime_error("Camera is not initialized with parameters.");
   }
-  if (mType != Camera::Type::eFullPerspective) {
+  if (mType != Camera::Type::ePerspective) {
     throw std::runtime_error("Only camera created by full intrinsic matrix "
                              "properties has this property.");
   }
@@ -187,7 +198,7 @@ float Camera::getFy() const {
   if (mType == Camera::Type::eUndefined) {
     throw std::runtime_error("Camera is not initialized with parameters.");
   }
-  if (mType != Camera::Type::eFullPerspective) {
+  if (mType != Camera::Type::ePerspective) {
     throw std::runtime_error("Only camera created by full intrinsic matrix "
                              "properties has this property.");
   }
@@ -197,7 +208,7 @@ float Camera::getCx() const {
   if (mType == Camera::Type::eUndefined) {
     throw std::runtime_error("Camera is not initialized with parameters.");
   }
-  if (mType != Camera::Type::eFullPerspective) {
+  if (mType != Camera::Type::ePerspective) {
     throw std::runtime_error("Only camera created by full intrinsic matrix "
                              "properties has this property.");
   }
@@ -207,7 +218,7 @@ float Camera::getCy() const {
   if (mType == Camera::Type::eUndefined) {
     throw std::runtime_error("Camera is not initialized with parameters.");
   }
-  if (mType != Camera::Type::eFullPerspective) {
+  if (mType != Camera::Type::ePerspective) {
     throw std::runtime_error("Only camera created by full intrinsic matrix "
                              "properties has this property.");
   }
@@ -218,7 +229,7 @@ float Camera::getSkew() const {
   if (mType == Camera::Type::eUndefined) {
     throw std::runtime_error("Camera is not initialized with parameters.");
   }
-  if (mType != Camera::Type::eFullPerspective) {
+  if (mType != Camera::Type::ePerspective) {
     throw std::runtime_error("Only camera created by full intrinsic matrix "
                              "properties has this property.");
   }

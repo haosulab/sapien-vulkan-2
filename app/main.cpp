@@ -206,7 +206,7 @@ int main() {
   scene.addPointObject(pointset);
 
   auto &cameraNode = scene.addCamera();
-  cameraNode.setPerspectiveParameters(0.05, 50, 1, 4.f / 3);
+  cameraNode.setPerspectiveParameters(0.05, 50, 1, 400, 300);
   FPSCameraController controller(cameraNode, {0, 0, -1}, {0, 1, 0});
   controller.setXYZ(0, 0.5, 3);
 
@@ -306,9 +306,8 @@ int main() {
       gSwapchainRebuild = false;
       renderer.resize(width, height);
       context->getDevice().waitIdle();
-      cameraNode.setPerspectiveParameters(
-          0.05, 50, 1,
-          static_cast<float>(window->getWidth()) / window->getHeight());
+      cameraNode.setPerspectiveParameters(0.05, 50, 1, window->getWidth(),
+                                          window->getHeight());
       continue;
     }
     try {

@@ -79,7 +79,7 @@ target_link_libraries(svulkan2 ${ASSIMP_LIBRARIES} glfw dl pthread Vulkan::Vulka
     ${EASY_PROFILER_LIBRARIES} ktx)
 
 if (${SVULKAN2_CUDA_INTEROP})
-    target_link_libraries(svulkan2 rt "$ENV{CUDA_PATH}/lib64/libcudart_static.a")
+    target_link_libraries(svulkan2 "$ENV{CUDA_PATH}/lib64/libcudart_static.a" rt)
 endif()
 
 set_target_properties(svulkan2 PROPERTIES POSITION_INDEPENDENT_CODE TRUE)

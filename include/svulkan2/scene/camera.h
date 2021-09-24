@@ -11,7 +11,6 @@ public:
   enum Type {
     eOrthographic,
     ePerspective,
-    eFullPerspective,
     eMatrix,
     eUndefined
   };
@@ -19,45 +18,43 @@ public:
 private:
   glm::mat4 mProjectionMatrix{1};
 
-  // shared by all cameras
-  float mNear{0.05};
+  float mWidth{1};
+  float mHeight{1};
+  float mNear{0.01};
   float mFar{10};
-  float mAspect{1};
 
-  // used by perspective
-  float mFovy{glm::radians(45.f)};
-
-  // used by orthographic
-  float mScaling{1};
-
-  // used by full
   float mFx{0};
   float mFy{0};
   float mCx{0};
   float mCy{0};
   float mSkew{0};
 
+  // used by orthographic
+  float mScaling{1};
+
   Camera::Type mType{eUndefined};
 
 public:
   Camera(std::string const &name = "");
-  // TODO: test all these functions
-  void setFullPerspectiveParameters(float near, float far, float fx, float fy,
-                                    float cx, float cy, float width,
-                                    float height, float skew);
+
+  void setPerspectiveParameters(float near, float far, float fovy, float width,
+                                float height);
+
+  void setPerspectiveParameters(float near, float far, float fx, float fy,
+                                float cx, float cy, float width, float height,
+                                float skew);
 
   void setIntrinsicMatrix(glm::mat3 const &intrinsic, float near, float far,
                           float width, float height);
 
-  void setPerspectiveParameters(float near, float far, float fovy,
-                                float aspect);
+  void setOrthographicParameters(float near, float far, float scaling,
+                                 float width, float height);
 
-  void setOrthographicParameters(float near, float far, float aspect,
-                                 float scaling);
-
+  float getWidth() const;
+  float getHeight() const;
   float getNear() const;
   float getFar() const;
-  float getAspect() const;
+  float getFovx() const;
   float getFovy() const;
   float getOrthographicScaling() const;
 
