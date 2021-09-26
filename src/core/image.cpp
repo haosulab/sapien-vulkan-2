@@ -200,9 +200,9 @@ void Image::copyToBuffer(vk::Buffer buffer, size_t size, vk::Offset3D offset,
                              std::to_string(size));
   }
 
-  vk::ImageLayout sourceLayout;
-  vk::AccessFlags sourceAccessFlag;
-  vk::PipelineStageFlags sourceStage;
+  vk::ImageLayout sourceLayout = vk::ImageLayout::eUndefined;
+  vk::AccessFlags sourceAccessFlag {};
+  vk::PipelineStageFlags sourceStage {};
 
   vk::ImageAspectFlags aspect;
   switch (mFormat) {
