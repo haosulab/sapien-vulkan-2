@@ -67,8 +67,9 @@ if (${SVULKAN2_PROFILE})
 endif()
 
 find_package(glfw3 REQUIRED)
-include_directories("3rd_party/imgui" "3rd_party/imgui/backends")
+include_directories("3rd_party/imgui" "3rd_party/imgui/backends" "3rd_party/ImGuizmo")
 file(GLOB GUI_SRC "3rd_party/imgui/*.cpp"
+  "3rd_party/ImGuizmo/*.cpp"
   "3rd_party/imgui/backends/imgui_impl_glfw.cpp"
   "3rd_party/imgui/backends/imgui_impl_vulkan.cpp" )
 

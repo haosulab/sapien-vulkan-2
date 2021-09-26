@@ -243,7 +243,7 @@ int main() {
 
   // renderer.setCustomCubemap("Environment", cubemap);
 
-  auto window = context->createWindow(512, 512);
+  auto window = context->createWindow(1024, 1024);
   // glfwGetFramebufferSize(window->getGLFWWindow(), &gSwapchainResizeWidth,
   //                        &gSwapchainResizeHeight);
   // renderer.resize(gSwapchainResizeWidth, gSwapchainResizeHeight);
@@ -259,29 +259,35 @@ int main() {
   glfwSetFramebufferSizeCallback(window->getGLFWWindow(), glfw_resize_callback);
   glfwSetWindowCloseCallback(window->getGLFWWindow(), window_close_callback);
 
-  auto uiWindow =
-      ui::Widget::Create<ui::Window>()
-          ->Size({400, 400})
-          ->Label("main window")
-          ->append(ui::Widget::Create<ui::DisplayText>()->Text("Hello!"))
-          ->append(ui::Widget::Create<ui::InputText>()->Label("Input##1"))
-          ->append(ui::Widget::Create<ui::InputFloat>()->Label("Input##2"))
-          ->append(ui::Widget::Create<ui::InputFloat2>()->Label("Input##3"))
-          ->append(ui::Widget::Create<ui::InputFloat3>()->Label("Input##4"))
-          ->append(ui::Widget::Create<ui::InputFloat4>()->Label("Input##5"))
-          ->append(ui::Widget::Create<ui::SliderFloat>()
-                       ->Label("SliderFloat")
-                       ->Min(10)
-                       ->Max(20)
-                       ->Value(15))
-          ->append(ui::Widget::Create<ui::SliderAngle>()
-                       ->Label("SliderAngle")
-                       ->Min(1)
-                       ->Max(90)
-                       ->Value(1))
-          ->append(ui::Widget::Create<ui::Checkbox>()
-                       ->Label("Checkbox")
-                       ->Checked(true));
+  // auto uiWindow =
+  //     ui::Widget::Create<ui::Window>()
+  //         ->Size({400, 400})
+  //         ->Label("main window")
+  //         ->append(ui::Widget::Create<ui::DisplayText>()->Text("Hello!"))
+  //         ->append(ui::Widget::Create<ui::InputText>()->Label("Input##1"))
+  //         ->append(ui::Widget::Create<ui::InputFloat>()->Label("Input##2"))
+  //         ->append(ui::Widget::Create<ui::InputFloat2>()->Label("Input##3"))
+  //         ->append(ui::Widget::Create<ui::InputFloat3>()->Label("Input##4"))
+  //         ->append(ui::Widget::Create<ui::InputFloat4>()->Label("Input##5"))
+  //         ->append(ui::Widget::Create<ui::SliderFloat>()
+  //                      ->Label("SliderFloat")
+  //                      ->Min(10)
+  //                      ->Max(20)
+  //                      ->Value(15))
+  //         ->append(ui::Widget::Create<ui::SliderAngle>()
+  //                      ->Label("SliderAngle")
+  //                      ->Min(1)
+  //                      ->Max(90)
+  //                      ->Value(1))
+  //         ->append(ui::Widget::Create<ui::Checkbox>()
+  //                      ->Label("Checkbox")
+  //                      ->Checked(true));
+
+  auto gizmo = ui::Widget::Create<ui::Gizmo>()->Matrix(glm::mat4(1));
+  auto uiWindow = ui::Widget::Create<ui::Window>()
+                      ->Size({400, 400})
+                      ->Label("main window")
+                      ->append(gizmo);
 
   renderer.setScene(scene);
 
@@ -319,6 +325,8 @@ int main() {
     }
 
     ImGui::NewFrame();
+    ImGuizmo::BeginFrame();
+
     // float scaling = ImGui::GetWindowDpiScale();
     // // log::info("Window DPI scale: {}", scaling);
     // applyStyle(1.f);
@@ -413,6 +421,13 @@ int main() {
     if (window->isKeyDown("d")) {
       controller.move(0, -r, 0);
     }
+
+    auto model = cameraNode.computeWorldModelMatrix();
+    auto view = glm::affineInverse(model);
+    auto proj = cameraNode.getProjectionMatrix();
+    proj[1][1] *= -1;
+    proj[2][1] *= -1;
+    gizmo->setCameraParameters(view, proj);
   }
 
   context->getDevice().waitIdle();

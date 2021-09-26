@@ -9,3 +9,4 @@
 #include "treenode.h"
 #include "widget.h"
 #include "window.h"
+#include "gizmo.h"
