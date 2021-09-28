@@ -520,7 +520,19 @@ static int findKeyCode(std::string const &key) {
       {"up", ImGui::GetKeyIndex(ImGuiKey_UpArrow)},
       {"down", ImGui::GetKeyIndex(ImGuiKey_DownArrow)},
       {"left", ImGui::GetKeyIndex(ImGuiKey_LeftArrow)},
-      {"right", ImGui::GetKeyIndex(ImGuiKey_RightArrow)}};
+      {"right", ImGui::GetKeyIndex(ImGuiKey_RightArrow)},
+      {"0", GLFW_KEY_0},
+      {"1", GLFW_KEY_1},
+      {"2", GLFW_KEY_2},
+      {"3", GLFW_KEY_3},
+      {"4", GLFW_KEY_4},
+      {"5", GLFW_KEY_5},
+      {"6", GLFW_KEY_6},
+      {"7", GLFW_KEY_7},
+      {"8", GLFW_KEY_8},
+      {"9", GLFW_KEY_9}};
+
+
   if (keyMap.find(key) == keyMap.end()) {
     throw std::runtime_error("unknown key " + key);
   }
