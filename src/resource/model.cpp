@@ -158,8 +158,7 @@ std::future<void> SVModel::loadAsync() {
       auto *m = scene->mMaterials[mat_idx];
       aiColor3D emission{0, 0, 0};
       aiColor3D diffuse{0, 0, 0};
-      // aiColor3D specular{0, 0, 0};
-      float glossiness = 0.f;
+      float glossiness = 0.5f;
 
       float alpha = 1.f;
       float metallic = 0.f;
