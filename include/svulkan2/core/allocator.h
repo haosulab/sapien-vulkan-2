@@ -6,22 +6,21 @@ namespace svulkan2 {
 namespace core {
 
 class Allocator {
-  class Context &mContext;
   VmaAllocator mMemoryAllocator;
 
 public:
-  Allocator(Context &context, VmaAllocatorCreateInfo const &info);
+  Allocator(VmaAllocatorCreateInfo const &info);
   ~Allocator();
   Allocator(Allocator &other) = delete;
   Allocator(Allocator &&other) = delete;
   Allocator &operator=(Allocator &other) = delete;
   Allocator &operator=(Allocator &&other) = delete;
 
-  std::shared_ptr<class Context> getContext() const;
   VmaAllocator getVmaAllocator() const { return mMemoryAllocator; }
 
 public:
-  std::unique_ptr<class Buffer> allocateStagingBuffer(vk::DeviceSize size, bool readback = false);
+  std::unique_ptr<class Buffer> allocateStagingBuffer(vk::DeviceSize size,
+                                                      bool readback = false);
   std::unique_ptr<class Buffer> allocateUniformBuffer(vk::DeviceSize size,
                                                       bool deviceOnly = false);
 };

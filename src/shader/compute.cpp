@@ -7,10 +7,10 @@
 namespace svulkan2 {
 namespace shader {
 
-std::unique_ptr<core::Image>
-generateBRDFLUT(std::shared_ptr<core::Context> context, uint32_t size) {
+std::unique_ptr<core::Image> generateBRDFLUT(uint32_t size) {
+  auto context = core::Context::Get();
   auto image = std::make_unique<core::Image>(
-      context, vk::Extent3D{size, size, 1}, vk::Format::eR16G16Sfloat,
+      vk::Extent3D{size, size, 1}, vk::Format::eR16G16Sfloat,
       vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferSrc |
           vk::ImageUsageFlagBits::eStorage,
       VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY);
@@ -89,7 +89,7 @@ void prefilterCubemap(core::Image &image) {
     return;
   }
 
-  auto context = image.getContext();
+  auto context = core::Context::Get();
   auto device = context->getDevice();
 
   auto binding0 = vk::DescriptorSetLayoutBinding(

@@ -72,7 +72,6 @@ std::shared_ptr<SVTexture> SVResourceManager::CreateTextureFromFile(
   }
   auto tex = SVTexture::FromFile(path, mipLevels, magFilter, minFilter,
                                  addressModeU, addressModeV, srgb);
-  tex->setManager(this);
   mTextureRegistry[path].push_back(tex);
   return tex;
 }
@@ -98,7 +97,6 @@ std::shared_ptr<SVCubemap> SVResourceManager::CreateCubemapFromKTX(
       }
     }
   }
-  cubemap->setManager(this);
   mCubemapRegistry[desc.filenames[0]].push_back(cubemap);
   return cubemap;
 }
@@ -129,26 +127,23 @@ std::shared_ptr<SVCubemap> SVResourceManager::CreateCubemapFromFiles(
       }
     }
   }
-  cubemap->setManager(this);
   mCubemapRegistry[desc.filenames[0]].push_back(cubemap);
   return cubemap;
 }
 
-std::shared_ptr<SVTexture>
-SVResourceManager::getDefaultBRDFLUT(std::shared_ptr<core::Context> context) {
+std::shared_ptr<SVTexture> SVResourceManager::getDefaultBRDFLUT() {
   if (mDefaultBRDFLUT) {
     return mDefaultBRDFLUT;
   }
-  return mDefaultBRDFLUT = generateBRDFLUT(context, 512);
+  return mDefaultBRDFLUT = generateBRDFLUT(512);
 }
 
-std::shared_ptr<SVTexture>
-SVResourceManager::generateBRDFLUT(std::shared_ptr<core::Context> context,
-                                   uint32_t size) {
+std::shared_ptr<SVTexture> SVResourceManager::generateBRDFLUT(uint32_t size) {
+  auto context = core::Context::Get();
   if (!context->isVulkanAvailable()) {
     return nullptr;
   }
-  auto image = shader::generateBRDFLUT(context, 512);
+  auto image = shader::generateBRDFLUT(512);
   auto sampler = context->getDevice().createSamplerUnique(vk::SamplerCreateInfo(
       {}, vk::Filter::eLinear, vk::Filter::eLinear,
       vk::SamplerMipmapMode::eNearest, vk::SamplerAddressMode::eClampToEdge,
@@ -234,7 +229,6 @@ SVResourceManager::CreateModelFromFile(std::string const &filename) {
     }
   }
   auto model = SVModel::FromFile(path);
-  model->setManager(this);
   mModelRegistry[path].push_back(model);
   return model;
 }

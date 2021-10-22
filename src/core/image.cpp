@@ -15,13 +15,13 @@ static vk::ImageType findImageTypeFromExtent(vk::Extent3D extent) {
   return vk::ImageType::e2D;
 }
 
-Image::Image(std::shared_ptr<Context> context, vk::Extent3D extent,
-             vk::Format format, vk::ImageUsageFlags usageFlags,
-             VmaMemoryUsage memoryUsage, vk::SampleCountFlagBits sampleCount,
-             uint32_t mipLevels, uint32_t arrayLayers, vk::ImageTiling tiling,
+Image::Image(vk::Extent3D extent, vk::Format format,
+             vk::ImageUsageFlags usageFlags, VmaMemoryUsage memoryUsage,
+             vk::SampleCountFlagBits sampleCount, uint32_t mipLevels,
+             uint32_t arrayLayers, vk::ImageTiling tiling,
              vk::ImageCreateFlags flags)
-    : mContext(context), mExtent(extent), mFormat(format),
-      mUsageFlags(usageFlags), mSampleCount(sampleCount), mMipLevels(mipLevels),
+    : mExtent(extent), mFormat(format), mUsageFlags(usageFlags),
+      mSampleCount(sampleCount), mMipLevels(mipLevels),
       mArrayLayers(arrayLayers), mTiling(tiling) {
   vk::ImageCreateInfo imageInfo(flags, findImageTypeFromExtent(mExtent), format,
                                 extent, mipLevels, arrayLayers, sampleCount,
@@ -30,6 +30,8 @@ Image::Image(std::shared_ptr<Context> context, vk::Extent3D extent,
   memoryInfo.usage = memoryUsage;
 
   VmaAllocationInfo allocInfo;
+
+  mContext = Context::Get();
 
   if (vmaCreateImage(mContext->getAllocator().getVmaAllocator(),
                      reinterpret_cast<VkImageCreateInfo *>(&imageInfo),
@@ -201,8 +203,8 @@ void Image::copyToBuffer(vk::Buffer buffer, size_t size, vk::Offset3D offset,
   }
 
   vk::ImageLayout sourceLayout = vk::ImageLayout::eUndefined;
-  vk::AccessFlags sourceAccessFlag {};
-  vk::PipelineStageFlags sourceStage {};
+  vk::AccessFlags sourceAccessFlag{};
+  vk::PipelineStageFlags sourceStage{};
 
   vk::ImageAspectFlags aspect;
   switch (mFormat) {
@@ -275,7 +277,8 @@ void Image::download(void *data, size_t size, vk::Offset3D offset,
                      uint32_t mipLevel) {
   EASY_FUNCTION();
 
-  size_t imageSize = extent.width * extent.height * extent.depth * getFormatSize(mFormat);
+  size_t imageSize =
+      extent.width * extent.height * extent.depth * getFormatSize(mFormat);
 
   if (size != imageSize) {
     throw std::runtime_error("image download failed: expecting size " +
@@ -283,7 +286,7 @@ void Image::download(void *data, size_t size, vk::Offset3D offset,
                              std::to_string(size));
   }
 
-  vk::ImageLayout sourceLayout;
+  vk::ImageLayout sourceLayout = vk::ImageLayout::eUndefined;
   vk::AccessFlags sourceAccessFlag;
   vk::PipelineStageFlags sourceStage;
 
@@ -343,7 +346,8 @@ void Image::download(void *data, size_t size, vk::Offset3D offset,
                      vk::PipelineStageFlagBits::eTransfer);
   }
   vk::BufferImageCopy copyRegion(0, extent.width, extent.height,
-                                 {aspect, mipLevel, arrayLayer, 1}, offset, extent);
+                                 {aspect, mipLevel, arrayLayer, 1}, offset,
+                                 extent);
   cb->copyImageToBuffer(mImage, vk::ImageLayout::eTransferSrcOptimal,
                         stagingBuffer->getVulkanBuffer(), copyRegion);
   cb->end();

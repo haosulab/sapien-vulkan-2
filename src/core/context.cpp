@@ -15,6 +15,15 @@ VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 namespace svulkan2 {
 namespace core {
 
+static std::weak_ptr<Context> gInstance{};
+std::shared_ptr<Context> Context::Get() {
+  if (gInstance.expired()) {
+    throw std::runtime_error("Renderer is not created. Renderer creation is "
+                             "required before any other operation.");
+  }
+  return gInstance.lock();
+}
+
 static void glfwErrorCallback(int error_code, const char *description) {
   log::error("GLFW error: {}", description);
 }
@@ -46,9 +55,16 @@ static bool checkValidationLayerSupport() {
 
 std::shared_ptr<Context> Context::Create(bool present, uint32_t maxNumMaterials,
                                          uint32_t maxNumTextures,
-                                         uint32_t defaultMipLevels) {
-  return std::make_shared<Context>(present, maxNumMaterials, maxNumTextures,
-                                   defaultMipLevels);
+                                         uint32_t defaultMipLevels,
+                                         std::string device) {
+  if (!gInstance.expired()) {
+    log::warn("Only 1 renderer is allowed per process. All previously created renderer resources are now invalid");
+  }
+  auto context = std::shared_ptr<Context>(new Context(
+      present, maxNumMaterials, maxNumTextures, defaultMipLevels, device));
+  gInstance = context;
+  context->init();
+  return context;
 }
 
 Context::Context(bool present, uint32_t maxNumMaterials,
@@ -56,7 +72,9 @@ Context::Context(bool present, uint32_t maxNumMaterials,
                  std::string device)
     : mApiVersion(VK_API_VERSION_1_1), mPresent(present),
       mMaxNumMaterials(maxNumMaterials), mMaxNumTextures(maxNumTextures),
-      mDefaultMipLevels(defaultMipLevels), mDeviceHint(device) {
+      mDefaultMipLevels(defaultMipLevels), mDeviceHint(device) {}
+
+void Context::init() {
   profiler::startListen();
   createInstance();
   pickSuitableGpuAndQueueFamilyIndex();
@@ -67,26 +85,26 @@ Context::Context(bool present, uint32_t maxNumMaterials,
 }
 
 Context::~Context() {
+  if (mDevice) {
+    mDevice->waitIdle();
+  }
   if (mPresent) {
     glfwTerminate();
     log::info("GLFW terminated");
   }
+
   log::info("Vulkan finished");
 }
 
 std::shared_ptr<resource::SVResourceManager>
 Context::getResourceManager() const {
   if (mResourceManager.expired()) {
-    throw std::runtime_error(
-        "A externally owned resource manager is required.");
+    throw std::runtime_error("failed to get resource manager: destroyed or not created");
   }
   return mResourceManager.lock();
 }
 
 std::shared_ptr<resource::SVResourceManager> Context::createResourceManager() {
-  if (!mResourceManager.expired()) {
-    return mResourceManager.lock();
-  }
   auto manager = std::make_shared<resource::SVResourceManager>();
   manager->setDefaultMipLevels(mDefaultMipLevels);
   mResourceManager = manager;
@@ -390,7 +408,7 @@ void Context::pickSuitableGpuAndQueueFamilyIndex() {
     return;
   }
 
-  GLFWwindow *window;
+  GLFWwindow *window{};
   VkSurfaceKHR tmpSurface = nullptr;
   if (mPresent) {
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -582,7 +600,7 @@ void Context::createMemoryAllocator() {
   allocatorInfo.instance = mInstance.get();
   allocatorInfo.pVulkanFunctions = &vulkanFunctions;
 
-  mAllocator = std::make_unique<Allocator>(*this, allocatorInfo);
+  mAllocator = std::make_unique<Allocator>(allocatorInfo);
 }
 
 void Context::createCommandPool() {
@@ -691,7 +709,6 @@ std::unique_ptr<renderer::GuiWindow> Context::createWindow(uint32_t width,
         "Create window failed: width and height must be positive.");
   }
   return std::make_unique<renderer::GuiWindow>(
-      shared_from_this(),
       std::vector<vk::Format>{
           vk::Format::eB8G8R8A8Unorm, vk::Format::eR8G8B8A8Unorm,
           vk::Format::eB8G8R8Unorm, vk::Format::eR8G8B8Unorm},

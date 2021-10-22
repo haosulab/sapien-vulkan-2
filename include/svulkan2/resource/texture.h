@@ -27,8 +27,7 @@ struct SVTextureDescription {
 };
 
 class SVTexture {
-  std::shared_ptr<core::Context> mContext{};
-
+  std::shared_ptr<core::Context> mContext;  // keep alive for sampler and image view
   SVTextureDescription mDescription{};
   std::shared_ptr<SVImage> mImage{};
 
@@ -37,11 +36,6 @@ class SVTexture {
   vk::UniqueSampler mSampler{};
 
   bool mLoaded{};
-
-  /** When manager is not null, it is used to avoid loading duplicated
-   * subresources
-   */
-  class SVResourceManager *mManager{};
 
   std::mutex mLoadingMutex{};
 
@@ -75,7 +69,7 @@ public:
                                               vk::UniqueImageView imageView,
                                               vk::UniqueSampler sampler);
 
-  void uploadToDevice(std::shared_ptr<core::Context> context);
+  void uploadToDevice();
   void removeFromDevice();
 
   inline bool isOnDevice() const { return mOnDevice && mImage->isOnDevice(); }
@@ -85,10 +79,6 @@ public:
   inline SVTextureDescription const &getDescription() const {
     return mDescription;
   }
-
-  inline void setManager(class SVResourceManager *manager) {
-    mManager = manager;
-  };
 
   inline std::shared_ptr<SVImage> getImage() const { return mImage; }
   inline vk::ImageView getImageView() const { return mImageView.get(); }

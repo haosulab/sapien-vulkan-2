@@ -18,8 +18,8 @@ class Buffer {
   void *mMappedData;
 
 public:
-  Buffer(std::shared_ptr<class Context> context, vk::DeviceSize size,
-         vk::BufferUsageFlags usageFlags, VmaMemoryUsage memoryUsage,
+  Buffer(vk::DeviceSize size, vk::BufferUsageFlags usageFlags,
+         VmaMemoryUsage memoryUsage,
          VmaAllocationCreateFlags allocationFlags = {});
 
   Buffer(const Buffer &) = delete;

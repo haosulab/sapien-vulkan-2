@@ -17,7 +17,7 @@ SVRenderTarget::SVRenderTarget(std::string const &name, uint32_t width,
       mImage(image), mImageView(std::move(imageView)),
       mSampler(std::move(sampler)) {}
 
-void SVRenderTarget::createDeviceResources(std::shared_ptr<core::Context> context) {
+void SVRenderTarget::createDeviceResources() {
   bool isDepth = false;
   vk::ImageUsageFlags usage;
   if (mFormat == vk::Format::eR8G8B8A8Unorm ||
@@ -38,8 +38,9 @@ void SVRenderTarget::createDeviceResources(std::shared_ptr<core::Context> contex
         "R32G32B32A32Uint, D32Sfloat, D24UnormS8Uint");
   }
 
+  mContext = core::Context::Get();
   mImage = std::make_shared<core::Image>(
-      context, vk::Extent3D{mWidth, mHeight, 1}, mFormat, usage,
+      vk::Extent3D{mWidth, mHeight, 1}, mFormat, usage,
       VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, vk::SampleCountFlagBits::e1,
       1);
   vk::ComponentMapping componentMapping(
@@ -52,8 +53,8 @@ void SVRenderTarget::createDeviceResources(std::shared_ptr<core::Context> contex
       vk::ImageSubresourceRange(isDepth ? vk::ImageAspectFlagBits::eDepth
                                         : vk::ImageAspectFlagBits::eColor,
                                 0, 1, 0, 1));
-  mImageView = context->getDevice().createImageViewUnique(info);
-  mSampler = context->getDevice().createSamplerUnique(vk::SamplerCreateInfo(
+  mImageView = mContext->getDevice().createImageViewUnique(info);
+  mSampler = mContext->getDevice().createSamplerUnique(vk::SamplerCreateInfo(
       {}, vk::Filter::eNearest, vk::Filter::eNearest,
       vk::SamplerMipmapMode::eNearest, vk::SamplerAddressMode::eClampToEdge,
       vk::SamplerAddressMode::eClampToEdge,

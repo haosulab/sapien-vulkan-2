@@ -4,10 +4,12 @@
 
 namespace svulkan2 {
 namespace core {
-Buffer::Buffer(std::shared_ptr<Context> context, vk::DeviceSize size,
-               vk::BufferUsageFlags usageFlags, VmaMemoryUsage memoryUsage,
+
+Buffer::Buffer(vk::DeviceSize size, vk::BufferUsageFlags usageFlags,
+               VmaMemoryUsage memoryUsage,
                VmaAllocationCreateFlags allocationFlags)
-    : mContext(context), mSize(size) {
+    : mSize(size) {
+  mContext = Context::Get();
 
   vk::BufferCreateInfo bufferInfo({}, size, usageFlags);
 

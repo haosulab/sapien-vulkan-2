@@ -417,8 +417,8 @@ ShaderManager::getDepthAttachmentLayoutsForPass(
   std::string texName = name.value();
   auto prevOp = getPrevOperation(texName, pass);
   auto nextOp = getNextOperation(texName, pass);
-  vk::ImageLayout prev;
-  vk::ImageLayout next;
+  vk::ImageLayout prev = vk::ImageLayout::eUndefined;
+  vk::ImageLayout next = vk::ImageLayout::eUndefined;
   switch (prevOp) {
   case RenderTargetOperation::eNoOp:
     prev = vk::ImageLayout::eUndefined;
@@ -519,10 +519,11 @@ void ShaderManager::createDescriptorSetLayouts(vk::Device device) {
 }
 
 void ShaderManager::createPipelines(
-    std::shared_ptr<core::Context> context,
     std::map<std::string, SpecializationConstantValue> const
         &specializationConstantInfo) {
-  auto device = context->getDevice();
+  mContext = core::Context::Get();
+
+  auto device = mContext->getDevice();
 
   if (not mDescriptorSetLayoutsCreated) {
     createDescriptorSetLayouts(device);
@@ -546,7 +547,7 @@ void ShaderManager::createPipelines(
         break;
       case UniformBindingType::eMaterial:
         descriptorSetLayouts.push_back(
-            context->getMetallicDescriptorSetLayout());
+            mContext->getMetallicDescriptorSetLayout());
         break;
       case UniformBindingType::eTextures:
         descriptorSetLayouts.push_back(mInputTextureLayouts[passIdx].get());

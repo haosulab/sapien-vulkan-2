@@ -3,18 +3,22 @@
 #include "svulkan2/core/context.h"
 #include "svulkan2/shader/deferred.h"
 #include "svulkan2/shader/gbuffer.h"
-#include "svulkan2/shader/shadow.h"
 #include "svulkan2/shader/line.h"
+#include "svulkan2/shader/shadow.h"
 #include <map>
 #include <memory>
 #include <string>
 
 namespace svulkan2 {
+namespace core {
+class Context;
+}
 
 namespace shader {
 enum class RenderTargetOperation { eNoOp, eRead, eColorWrite, eDepthWrite };
 
 class ShaderManager {
+  std::shared_ptr<core::Context> mContext;
   std::shared_ptr<RendererConfig> mRenderConfig;
   std::shared_ptr<ShaderConfig> mShaderConfig;
 
@@ -81,8 +85,7 @@ public:
 
   std::vector<vk::DescriptorSetLayout> getInputTextureLayouts() const;
 
-  void createPipelines(std::shared_ptr<core::Context> context,
-                       std::map<std::string, SpecializationConstantValue> const
+  void createPipelines(std::map<std::string, SpecializationConstantValue> const
                            &specializationConstantInfo);
   std::vector<std::shared_ptr<BaseParser>> getAllPasses() const;
   inline std::shared_ptr<BaseParser> getShadowPass() const {

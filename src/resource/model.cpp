@@ -1,6 +1,7 @@
 #include "svulkan2/resource/model.h"
 #include "svulkan2/common/image.h"
 #include "svulkan2/common/log.h"
+#include "svulkan2/core/context.h"
 #include "svulkan2/resource/manager.h"
 #include <assimp/Importer.hpp>
 #include <assimp/pbrmaterial.h>
@@ -112,12 +113,10 @@ std::future<void> SVModel::loadAsync() {
     throw std::runtime_error(
         "loading failed: only mesh created from files can be loaded");
   }
-  if (!mManager) {
-    throw std::runtime_error(
-        "loading failed: resource manager is required for model loading.");
-  }
+  auto context = core::Context::Get();
+  auto manager = context->getResourceManager();
 
-  return std::async(std::launch::async, [this]() {
+  return std::async(std::launch::async, [this, manager]() {
     std::lock_guard<std::mutex> lock(mLoadingMutex);
     if (mLoaded) {
       return;
@@ -147,7 +146,7 @@ std::future<void> SVModel::loadAsync() {
 
     std::vector<std::future<void>> futures; // futures of sub tasks
 
-    const uint32_t MIP_LEVEL = mManager->getDefaultMipLevels();
+    const uint32_t MIP_LEVEL = manager->getDefaultMipLevels();
     std::vector<std::shared_ptr<SVMaterial>> materials;
     std::unordered_map<std::string, std::shared_ptr<SVTexture>> textureCache;
     std::unordered_map<std::string, std::tuple<std::shared_ptr<SVTexture>,
@@ -232,7 +231,7 @@ std::future<void> SVModel::loadAsync() {
         } else {
           std::string p = std::string(path.C_Str());
           std::string fullPath = (parentDir / p).string();
-          baseColorTexture = mManager->CreateTextureFromFile(
+          baseColorTexture = manager->CreateTextureFromFile(
               fullPath, MIP_LEVEL, vk::Filter::eLinear, vk::Filter::eLinear,
               vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat,
               true);
@@ -253,8 +252,7 @@ std::future<void> SVModel::loadAsync() {
         } else {
           std::string p = std::string(path.C_Str());
           std::string fullPath = (parentDir / p).string();
-          metallicTexture =
-              mManager->CreateTextureFromFile(fullPath, MIP_LEVEL);
+          metallicTexture = manager->CreateTextureFromFile(fullPath, MIP_LEVEL);
           futures.push_back(metallicTexture->loadAsync());
         }
       }
@@ -272,7 +270,7 @@ std::future<void> SVModel::loadAsync() {
         } else {
           std::string p = std::string(path.C_Str());
           std::string fullPath = (parentDir / p).string();
-          normalTexture = mManager->CreateTextureFromFile(fullPath, MIP_LEVEL);
+          normalTexture = manager->CreateTextureFromFile(fullPath, MIP_LEVEL);
           futures.push_back(normalTexture->loadAsync());
         }
       }
@@ -292,7 +290,7 @@ std::future<void> SVModel::loadAsync() {
           std::string p = std::string(path.C_Str());
           std::string fullPath = (parentDir / p).string();
           roughnessTexture =
-              mManager->CreateTextureFromFile(fullPath, MIP_LEVEL);
+              manager->CreateTextureFromFile(fullPath, MIP_LEVEL);
           futures.push_back(roughnessTexture->loadAsync());
         }
       }
@@ -406,7 +404,7 @@ std::future<void> SVModel::loadAsync() {
         log::warn("A mesh in the file has no triangles: {}", path);
         continue;
       }
-      auto layout = mManager->getVertexLayout();
+      auto layout = manager->getVertexLayout();
       auto svmesh = std::make_shared<SVMesh>();
       svmesh->setIndices(indices);
       svmesh->setVertexAttribute("position", positions);

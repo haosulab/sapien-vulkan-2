@@ -208,20 +208,16 @@ void SVMetallicMaterial::setTextures(
   }
 }
 
-void SVMetallicMaterial::uploadToDevice(
-    std::shared_ptr<core::Context> context) {
-  mContext = context;
-  if (!mContext) {
-    return;
-  }
+void SVMetallicMaterial::uploadToDevice() {
+  mContext = core::Context::Get();
   if (!mDeviceBuffer) {
-    mDeviceBuffer = context->getAllocator().allocateUniformBuffer(
+    mDeviceBuffer = mContext->getAllocator().allocateUniformBuffer(
         sizeof(SVMetallicMaterial::Buffer));
-    auto layout = context->getMetallicDescriptorSetLayout();
+    auto layout = mContext->getMetallicDescriptorSetLayout();
     mDescriptorSet = std::move(
-        context->getDevice()
+        mContext->getDevice()
             .allocateDescriptorSetsUnique(vk::DescriptorSetAllocateInfo(
-                context->getDescriptorPool(), 1, &layout))
+                mContext->getDescriptorPool(), 1, &layout))
             .front());
   }
 
@@ -231,54 +227,54 @@ void SVMetallicMaterial::uploadToDevice(
   }
 
   if (mRequiresTextureUpload) {
-    auto defaultTexture = context->getResourceManager()->getDefaultTexture();
+    auto defaultTexture = mContext->getResourceManager()->getDefaultTexture();
     std::vector<std::tuple<vk::ImageView, vk::Sampler>> textures;
     if (mBaseColorTexture) {
-      mBaseColorTexture->uploadToDevice(context);
+      mBaseColorTexture->uploadToDevice();
       textures.push_back(
           {mBaseColorTexture->getImageView(), mBaseColorTexture->getSampler()});
     } else {
-      defaultTexture->uploadToDevice(context);
+      defaultTexture->uploadToDevice();
       textures.push_back(
           {defaultTexture->getImageView(), defaultTexture->getSampler()});
     }
     if (mRoughnessTexture) {
-      mRoughnessTexture->uploadToDevice(context);
+      mRoughnessTexture->uploadToDevice();
       textures.push_back(
           {mRoughnessTexture->getImageView(), mRoughnessTexture->getSampler()});
     } else {
-      defaultTexture->uploadToDevice(context);
+      defaultTexture->uploadToDevice();
       textures.push_back(
           {defaultTexture->getImageView(), defaultTexture->getSampler()});
     }
     if (mNormalTexture) {
-      mNormalTexture->uploadToDevice(context);
+      mNormalTexture->uploadToDevice();
       textures.push_back(
           {mNormalTexture->getImageView(), mNormalTexture->getSampler()});
     } else {
-      defaultTexture->uploadToDevice(context);
+      defaultTexture->uploadToDevice();
       textures.push_back(
           {defaultTexture->getImageView(), defaultTexture->getSampler()});
     }
     if (mMetallicTexture) {
-      mMetallicTexture->uploadToDevice(context);
+      mMetallicTexture->uploadToDevice();
       textures.push_back(
           {mMetallicTexture->getImageView(), mMetallicTexture->getSampler()});
     } else {
-      defaultTexture->uploadToDevice(context);
+      defaultTexture->uploadToDevice();
       textures.push_back(
           {defaultTexture->getImageView(), defaultTexture->getSampler()});
     }
     if (mEmissionTexture) {
-      mEmissionTexture->uploadToDevice(context);
+      mEmissionTexture->uploadToDevice();
       textures.push_back(
           {mEmissionTexture->getImageView(), mEmissionTexture->getSampler()});
     } else {
-      defaultTexture->uploadToDevice(context);
+      defaultTexture->uploadToDevice();
       textures.push_back(
           {defaultTexture->getImageView(), defaultTexture->getSampler()});
     }
-    updateDescriptorSets(context->getDevice(), mDescriptorSet.get(),
+    updateDescriptorSets(mContext->getDevice(), mDescriptorSet.get(),
                          {{vk::DescriptorType::eUniformBuffer,
                            mDeviceBuffer->getVulkanBuffer(), nullptr}},
                          textures, 0);

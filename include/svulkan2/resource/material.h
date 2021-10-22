@@ -11,17 +11,17 @@ inline void unsetBit(int &number, int bit) { number &= ~(1 << bit); }
 
 class SVMaterial {
 protected:
+  std::shared_ptr<core::Context> mContext;  // keep alive for descriptor set
   bool mRequiresBufferUpload{true};
   bool mRequiresTextureUpload{true};
 
-  std::shared_ptr<core::Context> mContext{};
   vk::UniqueDescriptorSet mDescriptorSet;
 
 public:
   inline vk::DescriptorSet getDescriptorSet() const {
     return mDescriptorSet.get();
   }
-  virtual void uploadToDevice(std::shared_ptr<core::Context> context) = 0;
+  virtual void uploadToDevice() = 0;
   virtual float getOpacity() const = 0;
   virtual ~SVMaterial() = default;
 };
@@ -86,7 +86,7 @@ public:
                    std::shared_ptr<SVTexture> metallicTexture,
                    std::shared_ptr<SVTexture> emissionTexture);
 
-  virtual void uploadToDevice(std::shared_ptr<core::Context> context) override;
+  virtual void uploadToDevice() override;
   inline float getOpacity() const override { return mBuffer.baseColor.a; }
 };
 

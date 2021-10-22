@@ -1,9 +1,9 @@
 #pragma once
 #ifdef CUDA_INTEROP
 
+#include "svulkan2/common/cuda_helper.h"
 #include "svulkan2/common/log.h"
 #include "svulkan2/common/vk.h"
-#include "svulkan2/common/cuda_helper.h"
 
 namespace svulkan2 {
 namespace core {
@@ -20,9 +20,8 @@ class CudaBuffer {
   int mCudaDeviceId;
 
 public:
-  CudaBuffer(
-      std::shared_ptr<class Context> context, vk::DeviceSize size,
-      vk::BufferUsageFlags usageFlags = vk::BufferUsageFlagBits::eTransferDst);
+  CudaBuffer(vk::DeviceSize size, vk::BufferUsageFlags usageFlags =
+                                      vk::BufferUsageFlagBits::eTransferDst);
   ~CudaBuffer();
 
   inline vk::DeviceSize getSize() const { return mSize; }

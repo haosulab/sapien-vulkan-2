@@ -34,15 +34,21 @@ class Context : public std::enable_shared_from_this<Context> {
 
   vk::UniqueDescriptorSetLayout mMetallicDescriptorSetLayout;
 
-public:
-  static std::shared_ptr<Context> Create(bool present = true,
-                                         uint32_t maxNumMaterials = 5000,
-                                         uint32_t maxNumTextures = 5000,
-                                         uint32_t defaultMipLevels = 1);
-
   Context(bool present = true, uint32_t maxNumMaterials = 5000,
           uint32_t maxNumTextures = 5000, uint32_t defaultMipLevels = 1,
           std::string device = "");
+
+  void init();
+
+public:
+  static std::shared_ptr<Context> Get();
+  static std::shared_ptr<Context> Create(bool present = true,
+                                         uint32_t maxNumMaterials = 5000,
+                                         uint32_t maxNumTextures = 5000,
+                                         uint32_t defaultMipLevels = 1,
+                                         std::string device = "");
+  std::shared_ptr<resource::SVResourceManager> createResourceManager();
+
   ~Context();
 
   inline bool isVulkanAvailable() const { return mVulkanAvailable; }
@@ -74,7 +80,6 @@ public:
   }
 
   std::shared_ptr<resource::SVResourceManager> getResourceManager() const;
-  std::shared_ptr<resource::SVResourceManager> createResourceManager();
 
   std::unique_ptr<renderer::GuiWindow> createWindow(uint32_t width,
                                                     uint32_t height);

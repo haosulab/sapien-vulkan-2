@@ -68,7 +68,7 @@ int main() {
   config->shaderDir = srcBase + "shader/ibl";
 
   config->colorFormat = vk::Format::eR32G32B32A32Sfloat;
-  renderer::Renderer renderer(context, config);
+  renderer::Renderer renderer(config);
 
   // auto image = shader::generateBRDFLUT(context, 512);
   // auto sampler =

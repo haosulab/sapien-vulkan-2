@@ -7,7 +7,7 @@ namespace svulkan2 {
 namespace shader {
 
 std::unique_ptr<core::Image>
-generateBRDFLUT(std::shared_ptr<core::Context> context, uint32_t size);
+generateBRDFLUT(uint32_t size);
 
 void prefilterCubemap(core::Image &image);
 

@@ -56,11 +56,9 @@ public:
       vk::Filter magFilter = vk::Filter::eLinear,
       vk::Filter minFilter = vk::Filter::eLinear, bool srgb = true);
 
-  std::shared_ptr<SVTexture>
-  generateBRDFLUT(std::shared_ptr<core::Context> context, uint32_t size);
+  std::shared_ptr<SVTexture> generateBRDFLUT(uint32_t size);
 
-  std::shared_ptr<SVTexture>
-  getDefaultBRDFLUT(std::shared_ptr<core::Context> context);
+  std::shared_ptr<SVTexture> getDefaultBRDFLUT();
 
   std::shared_ptr<SVTexture> CreateRandomTexture(std::string const &name);
 
@@ -80,8 +78,9 @@ public:
   void setVertexLayout(std::shared_ptr<InputDataLayout> layout);
   inline std::shared_ptr<InputDataLayout> getVertexLayout() const {
     if (!mVertexLayout) {
-      throw std::runtime_error("[resource manager] getVertexLayout called "
-                               "before setVertexLayout is not allowed");
+      throw std::runtime_error(
+          "[resource manager] you need to load the shader (e.g. by creating a "
+          "camera) before loading objects");
     }
     return mVertexLayout;
   }
@@ -89,8 +88,9 @@ public:
   void setLineVertexLayout(std::shared_ptr<InputDataLayout> layout);
   inline std::shared_ptr<InputDataLayout> getLineVertexLayout() const {
     if (!mLineVertexLayout) {
-      throw std::runtime_error("[resource manager] getLineVertexLayout called "
-                               "before setLineVertexLayout is not allowed");
+      throw std::runtime_error(
+          "[resource manager] you need to load the shader (e.g. by creating a "
+          "camera) before loading objects");
     }
     return mLineVertexLayout;
   }

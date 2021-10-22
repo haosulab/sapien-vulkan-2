@@ -23,8 +23,7 @@ int main(int argc, char *argv[]) {
   auto cubemap = context->getResourceManager()->CreateCubemapFromFiles(
       {argv[1], argv[2], argv[3], argv[4], argv[5], argv[6]}, 5);
   cubemap->load();
-  cubemap->uploadToDevice(context);
-
+  cubemap->uploadToDevice();
   cubemap->exportKTX("out.ktx");
 
   return 0;

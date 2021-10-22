@@ -40,9 +40,8 @@ static void updateDescriptorSets(
   device.updateDescriptorSets(writeDescriptorSets, nullptr);
 }
 
-Renderer::Renderer(std::shared_ptr<core::Context> context,
-                   std::shared_ptr<RendererConfig> config)
-    : mContext(context), mConfig(config) {
+Renderer::Renderer(std::shared_ptr<RendererConfig> config) : mConfig(config) {
+  mContext = core::Context::Get();
   if (!mContext->isVulkanAvailable()) {
     return;
   }
@@ -66,8 +65,8 @@ Renderer::Renderer(std::shared_ptr<core::Context> context,
   mDescriptorPool = mContext->getDevice().createDescriptorPoolUnique(info);
 
   mObjectPool = std::make_unique<core::DynamicDescriptorPool>(
-      mContext, std::vector<vk::DescriptorPoolSize>{
-                    {vk::DescriptorType::eUniformBuffer, 1000}});
+      std::vector<vk::DescriptorPoolSize>{
+          {vk::DescriptorType::eUniformBuffer, 1000}});
 }
 
 void Renderer::prepareRenderTargets(uint32_t width, uint32_t height) {
@@ -79,7 +78,7 @@ void Renderer::prepareRenderTargets(uint32_t width, uint32_t height) {
   for (auto &[name, format] : renderTargetFormats) {
     mRenderTargets[name] =
         std::make_shared<resource::SVRenderTarget>(name, width, height, format);
-    mRenderTargets[name]->createDeviceResources(mContext);
+    mRenderTargets[name]->createDeviceResources();
   }
   mRenderTargetFinalLayouts = mShaderManager->getRenderTargetFinalLayouts();
 }
@@ -108,7 +107,7 @@ void Renderer::prepareShadowRenderTargets() {
     uint32_t size = mNumPointLightShadows ? shadowSize : 1;
     uint32_t num = mNumPointLightShadows ? mNumPointLightShadows : 1;
     auto pointShadowImage = std::make_shared<core::Image>(
-        mContext, vk::Extent3D{size, size, 1}, format,
+        vk::Extent3D{size, size, 1}, format,
         vk::ImageUsageFlagBits::eDepthStencilAttachment |
             vk::ImageUsageFlagBits::eSampled,
         VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, vk::SampleCountFlagBits::e1,
@@ -163,7 +162,7 @@ void Renderer::prepareShadowRenderTargets() {
     uint32_t num =
         mNumDirectionalLightShadows ? mNumDirectionalLightShadows : 1;
     auto directionalShadowImage = std::make_shared<core::Image>(
-        mContext, vk::Extent3D{size, size, 1}, format,
+        vk::Extent3D{size, size, 1}, format,
         vk::ImageUsageFlagBits::eDepthStencilAttachment |
             vk::ImageUsageFlagBits::eSampled,
         VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, vk::SampleCountFlagBits::e1,
@@ -212,7 +211,7 @@ void Renderer::prepareShadowRenderTargets() {
     uint32_t size = mNumSpotLightShadows ? shadowSize : 1;
     uint32_t num = mNumSpotLightShadows ? mNumSpotLightShadows : 1;
     auto spotShadowImage = std::make_shared<core::Image>(
-        mContext, vk::Extent3D{size, size, 1}, format,
+        vk::Extent3D{size, size, 1}, format,
         vk::ImageUsageFlagBits::eDepthStencilAttachment |
             vk::ImageUsageFlagBits::eSampled,
         VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, vk::SampleCountFlagBits::e1,
@@ -261,7 +260,7 @@ void Renderer::prepareShadowRenderTargets() {
     uint32_t size = mNumCustomShadows ? shadowSize : 1;
     uint32_t num = mNumCustomShadows ? mNumCustomShadows : 1;
     auto customShadowImage = std::make_shared<core::Image>(
-        mContext, vk::Extent3D{size, size, 1}, format,
+        vk::Extent3D{size, size, 1}, format,
         vk::ImageUsageFlagBits::eDepthStencilAttachment |
             vk::ImageUsageFlagBits::eSampled,
         VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, vk::SampleCountFlagBits::e1,
@@ -313,7 +312,7 @@ void Renderer::preparePipelines() {
   if (!mContext->isVulkanAvailable()) {
     return;
   }
-  mShaderManager->createPipelines(mContext, mSpecializationConstants);
+  mShaderManager->createPipelines(mSpecializationConstants);
 }
 
 void Renderer::prepareFramebuffers(uint32_t width, uint32_t height) {
@@ -335,8 +334,7 @@ void Renderer::prepareFramebuffers(uint32_t width, uint32_t height) {
     vk::FramebufferCreateInfo info({}, parsers[i]->getRenderPass(),
                                    attachments.size(), attachments.data(),
                                    width, height, 1);
-    mFramebuffers.push_back(
-        mContext->getDevice().createFramebufferUnique(info));
+    mFramebuffers.push_back(mContext->getDevice().createFramebufferUnique(info));
   }
 }
 
@@ -366,9 +364,6 @@ void Renderer::prepareShadowFramebuffers() {
 }
 
 void Renderer::resize(int width, int height) {
-  if (!mContext->isVulkanAvailable()) {
-    return;
-  }
   if (width <= 0 || height <= 0) {
     throw std::runtime_error(
         "failed to resize: width and height must be positive.");
@@ -534,18 +529,18 @@ void Renderer::prepareObjects(scene::Scene &scene) {
     // upload objects to GPU, if not up-to-date
     for (auto obj : objects) {
       for (auto shape : obj->getModel()->getShapes()) {
-        shape->material->uploadToDevice(mContext);
-        shape->mesh->uploadToDevice(mContext);
+        shape->material->uploadToDevice();
+        shape->mesh->uploadToDevice();
       }
     }
     if (mShaderManager->isLineEnabled()) {
       for (auto obj : lineObjects) {
-        obj->getLineSet()->uploadToDevice(mContext);
+        obj->getLineSet()->uploadToDevice();
       }
     }
     if (mShaderManager->isPointEnabled()) {
       for (auto obj : pointObjects) {
-        obj->getPointSet()->uploadToDevice(mContext);
+        obj->getPointSet()->uploadToDevice();
       }
     }
   }
@@ -739,6 +734,10 @@ void Renderer::render(scene::Camera &camera,
                       std::vector<vk::PipelineStageFlags> const &waitStages,
                       std::vector<vk::Semaphore> const &signalSemaphores,
                       vk::Fence fence) {
+  if (!mContext->isVulkanAvailable()) {
+    return;
+  }
+
   if (!mScene) {
     throw std::runtime_error("setScene must be called before rendering");
   }
@@ -754,9 +753,6 @@ void Renderer::render(scene::Camera &camera,
     mRequiresRebuild = true;
   }
 
-  if (!mContext->isVulkanAvailable()) {
-    return;
-  }
   if (mWidth <= 0 || mHeight <= 0) {
     throw std::runtime_error(
         "failed to render: resize must be called before rendering.");
@@ -1091,14 +1087,14 @@ void Renderer::prepareSceneBuffer() {
       if (customTextureName.substr(0, 6) == "Random") {
         auto randomTex = mContext->getResourceManager()->CreateRandomTexture(
             customTextureName);
-        randomTex->uploadToDevice(mContext);
+        randomTex->uploadToDevice();
         updateDescriptorSets(
             mContext->getDevice(), mSceneSet.get(), {},
             {{randomTex->getImageView(), randomTex->getSampler()}},
             bindingIndex);
       } else if (mCustomTextures.find(customTextureName) !=
                  mCustomTextures.end()) {
-        mCustomTextures[customTextureName]->uploadToDevice(mContext);
+        mCustomTextures[customTextureName]->uploadToDevice();
         updateDescriptorSets(
             mContext->getDevice(), mSceneSet.get(), {},
             {{mCustomTextures[customTextureName]->getImageView(),
@@ -1106,13 +1102,13 @@ void Renderer::prepareSceneBuffer() {
             bindingIndex);
       } else if (customTextureName == "BRDFLUT") {
         // generate if BRDFLUT is not supplied
-        auto tex = mContext->getResourceManager()->getDefaultBRDFLUT(mContext);
+        auto tex = mContext->getResourceManager()->getDefaultBRDFLUT();
         updateDescriptorSets(mContext->getDevice(), mSceneSet.get(), {},
                              {{tex->getImageView(), tex->getSampler()}},
                              bindingIndex);
       } else if (mCustomCubemaps.find(customTextureName) !=
                  mCustomCubemaps.end()) {
-        mCustomCubemaps[customTextureName]->uploadToDevice(mContext);
+        mCustomCubemaps[customTextureName]->uploadToDevice();
         updateDescriptorSets(
             mContext->getDevice(), mSceneSet.get(), {},
             {{mCustomCubemaps[customTextureName]->getImageView(),
@@ -1123,7 +1119,7 @@ void Renderer::prepareSceneBuffer() {
         if (!cube) {
           cube = mContext->getResourceManager()->getDefaultCubemap();
         }
-        cube->uploadToDevice(mContext);
+        cube->uploadToDevice();
         updateDescriptorSets(mContext->getDevice(), mSceneSet.get(), {},
                              {{cube->getImageView(), cube->getSampler()}},
                              bindingIndex);
@@ -1213,20 +1209,19 @@ void Renderer::prepareInputTextureDescriptorSets() {
         } else if (name.substr(0, 6) == "Random") {
           auto randomTex =
               mContext->getResourceManager()->CreateRandomTexture(name);
-          randomTex->uploadToDevice(mContext);
+          randomTex->uploadToDevice();
           textureData.push_back(
               {randomTex->getImageView(), randomTex->getSampler()});
         } else if (mCustomTextures.find(name) != mCustomTextures.end()) {
-          mCustomTextures[name]->uploadToDevice(mContext);
+          mCustomTextures[name]->uploadToDevice();
           textureData.push_back({mCustomTextures[name]->getImageView(),
                                  mCustomTextures[name]->getSampler()});
         } else if (name == "BRDFLUT") {
           // generate if BRDFLUT is not supplied
-          auto tex =
-              mContext->getResourceManager()->getDefaultBRDFLUT(mContext);
+          auto tex = mContext->getResourceManager()->getDefaultBRDFLUT();
           textureData.push_back({tex->getImageView(), tex->getSampler()});
         } else if (mCustomCubemaps.find(name) != mCustomCubemaps.end()) {
-          mCustomCubemaps[name]->uploadToDevice(mContext);
+          mCustomCubemaps[name]->uploadToDevice();
           textureData.push_back({mCustomCubemaps[name]->getImageView(),
                                  mCustomCubemaps[name]->getSampler()});
         } else if (name == "Environment") {
@@ -1234,15 +1229,15 @@ void Renderer::prepareInputTextureDescriptorSets() {
           if (!cube) {
             cube = mContext->getResourceManager()->getDefaultCubemap();
           }
-          cube->uploadToDevice(mContext);
+          cube->uploadToDevice();
           textureData.push_back({cube->getImageView(), cube->getSampler()});
         } else {
           throw std::runtime_error("custom sampler \"" + name +
                                    "\" is not set in the renderer");
         }
       }
-      updateDescriptorSets(mContext->getDevice(),
-                           mInputTextureSets.back().get(), {}, textureData, 0);
+      updateDescriptorSets(mContext->getDevice(), mInputTextureSets.back().get(),
+                           {}, textureData, 0);
     } else {
       mInputTextureSets.push_back({});
     }
@@ -1293,8 +1288,7 @@ Renderer::transferToCuda(std::string const &targetName) {
     auto it = mCudaBuffers.find(targetName);
     if (it == mCudaBuffers.end() || it->second->getSize() != size) {
       EASY_BLOCK("Create Vulkan-cuda buffer");
-      mCudaBuffers[targetName] =
-          std::make_shared<core::CudaBuffer>(mContext, size);
+      mCudaBuffers[targetName] = std::make_shared<core::CudaBuffer>(size);
       EASY_END_BLOCK;
     }
   }

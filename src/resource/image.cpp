@@ -128,19 +128,18 @@ void SVImage::setCreateFlags(vk::ImageCreateFlags flags) {
   mCreateFlags = flags;
 }
 
-void SVImage::uploadToDevice(std::shared_ptr<core::Context> context,
-                             bool generateMipmaps) {
+void SVImage::uploadToDevice(bool generateMipmaps) {
   if (mOnDevice) {
     return;
   }
-  mContext = context;
+  auto context = core::Context::Get();
   if (!mLoaded) {
     throw std::runtime_error(
         "failed to upload to device: image does not exist in memory");
   }
   if (mDescription.format == SVImageDescription::Format::eUINT8) {
     mImage = std::make_unique<core::Image>(
-        context, vk::Extent3D{mWidth, mHeight, 1},
+        vk::Extent3D{mWidth, mHeight, 1},
         mChannels == 4 ? vk::Format::eR8G8B8A8Unorm : vk::Format::eR8Unorm,
         mUsage, VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY,
         vk::SampleCountFlagBits::e1, mDescription.mipLevels, mData.size(),
@@ -148,7 +147,7 @@ void SVImage::uploadToDevice(std::shared_ptr<core::Context> context,
         mCreateFlags | vk::ImageCreateFlagBits::eMutableFormat);
 
     if (mMipLoaded) {
-      auto cb = mContext->createCommandBuffer();
+      auto cb = context->createCommandBuffer();
       cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
       mImage->transitionLayout(cb.get(), vk::ImageLayout::eUndefined,
                                vk::ImageLayout::eTransferDstOptimal, {},
@@ -156,7 +155,7 @@ void SVImage::uploadToDevice(std::shared_ptr<core::Context> context,
                                vk::PipelineStageFlagBits::eTopOfPipe,
                                vk::PipelineStageFlagBits::eTransfer);
       cb->end();
-      mContext->submitCommandBufferAndWait(cb.get());
+      context->submitCommandBufferAndWait(cb.get());
 
       for (uint32_t layer = 0; layer < mData.size(); ++layer) {
         uint32_t idx = 0;
@@ -188,7 +187,7 @@ void SVImage::uploadToDevice(std::shared_ptr<core::Context> context,
     }
   } else {
     mImage = std::make_unique<core::Image>(
-        context, vk::Extent3D{mWidth, mHeight, 1},
+        vk::Extent3D{mWidth, mHeight, 1},
         mChannels == 4 ? vk::Format::eR32G32B32A32Sfloat
                        : vk::Format::eR32Sfloat,
         mUsage, VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY,

@@ -54,17 +54,17 @@ SVCubemap::FromData(uint32_t size, uint32_t channels,
   return texture;
 }
 
-void SVCubemap::uploadToDevice(std::shared_ptr<core::Context> context) {
+void SVCubemap::uploadToDevice() {
+  mContext = core::Context::Get();
   if (mOnDevice) {
     return;
   }
-  mContext = context;
   if (!mImage->isOnDevice()) {
     mImage->setUsage(vk::ImageUsageFlagBits::eSampled |
                      vk::ImageUsageFlagBits::eTransferDst |
                      vk::ImageUsageFlagBits::eTransferSrc |
                      vk::ImageUsageFlagBits::eStorage);
-    mImage->uploadToDevice(context, false);
+    mImage->uploadToDevice(false);
   }
 
   auto viewFormat = mImage->getDeviceImage()->getFormat();
@@ -80,9 +80,9 @@ void SVCubemap::uploadToDevice(std::shared_ptr<core::Context> context) {
                                 mDescription.mipLevels, 0, 6));
   viewInfo.setPNext(&usageInfo);
 
-  mImageView = context->getDevice().createImageViewUnique(viewInfo);
+  mImageView = mContext->getDevice().createImageViewUnique(viewInfo);
 
-  mSampler = context->getDevice().createSamplerUnique(vk::SamplerCreateInfo(
+  mSampler = mContext->getDevice().createSamplerUnique(vk::SamplerCreateInfo(
       {}, mDescription.magFilter, mDescription.minFilter,
       vk::SamplerMipmapMode::eLinear, vk::SamplerAddressMode::eRepeat,
       vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat, 0.f,
@@ -198,7 +198,8 @@ void SVCubemap::exportKTX(std::string const &filename) {
   ktxTexture_WriteToNamedFile(ktxTexture(texture), filename.c_str());
   ktxTexture_Destroy(ktxTexture(texture));
 
-  auto buffer = mContext->createCommandBuffer();
+  auto context = core::Context::Get();
+  auto buffer = context->createCommandBuffer();
   buffer->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
   img->transitionLayout(buffer.get(), vk::ImageLayout::eTransferSrcOptimal,
                         vk::ImageLayout::eShaderReadOnlyOptimal,
@@ -207,7 +208,7 @@ void SVCubemap::exportKTX(std::string const &filename) {
                         vk::PipelineStageFlagBits::eTransfer,
                         vk::PipelineStageFlagBits::eFragmentShader);
   buffer->end();
-  mContext->submitCommandBufferAndWait(buffer.get());
+  context->submitCommandBufferAndWait(buffer.get());
 }
 
 } // namespace resource

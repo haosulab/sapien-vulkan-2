@@ -11,8 +11,7 @@ class DynamicDescriptorPool {
   std::vector<vk::UniqueDescriptorPool> mPools;
 
 public:
-  DynamicDescriptorPool(std::shared_ptr<class Context> context,
-                        std::vector<vk::DescriptorPoolSize> const &sizes);
+  DynamicDescriptorPool(std::vector<vk::DescriptorPoolSize> const &sizes);
   DynamicDescriptorPool(DynamicDescriptorPool &other) = delete;
   DynamicDescriptorPool(DynamicDescriptorPool &&other) = default;
   DynamicDescriptorPool &operator=(DynamicDescriptorPool &other) = delete;

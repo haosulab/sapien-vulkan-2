@@ -18,7 +18,6 @@ struct SVImageDescription {
 };
 
 class SVImage {
-  std::shared_ptr<core::Context> mContext{};
 
   SVImageDescription mDescription{};
   std::unique_ptr<core::Image> mImage{};
@@ -71,8 +70,7 @@ public:
   void setUsage(vk::ImageUsageFlags usage);
   void setCreateFlags(vk::ImageCreateFlags flags);
 
-  void uploadToDevice(std::shared_ptr<core::Context> context,
-                      bool generateMipmaps = true);
+  void uploadToDevice(bool generateMipmaps = true);
   void removeFromDevice();
   inline bool isLoaded() const { return mLoaded; }
   inline bool isOnDevice() const { return mOnDevice; }

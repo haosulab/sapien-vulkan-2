@@ -39,11 +39,11 @@ bool SVMesh::hasVertexAttribute(std::string const &name) const {
   return mAttributes.find(name) != mAttributes.end();
 }
 
-void SVMesh::uploadToDevice(std::shared_ptr<core::Context> context) {
+void SVMesh::uploadToDevice() {
   if (!mDirty) {
     return;
   }
-  mContext = context;
+  auto context = core::Context::Get();
 
   auto layout = context->getResourceManager()->getVertexLayout();
 
@@ -88,13 +88,13 @@ void SVMesh::uploadToDevice(std::shared_ptr<core::Context> context) {
 
   if (!mVertexBuffer) {
     mVertexBuffer = std::make_unique<core::Buffer>(
-        context, bufferSize,
+        bufferSize,
         vk::BufferUsageFlagBits::eVertexBuffer |
             vk::BufferUsageFlagBits::eTransferDst |
             vk::BufferUsageFlagBits::eTransferSrc,
         VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY);
     mIndexBuffer = std::make_unique<core::Buffer>(
-        context, indexBufferSize,
+        indexBufferSize,
         vk::BufferUsageFlagBits::eIndexBuffer |
             vk::BufferUsageFlagBits::eTransferDst |
             vk::BufferUsageFlagBits::eTransferSrc,

@@ -26,7 +26,7 @@ struct SVCubemapDescription {
 };
 
 class SVCubemap {
-  std::shared_ptr<core::Context> mContext{};
+  std::shared_ptr<core::Context> mContext;  // keep alive for sampler and image view
   SVCubemapDescription mDescription;
   std::shared_ptr<SVImage> mImage;
 
@@ -35,8 +35,6 @@ class SVCubemap {
   vk::UniqueSampler mSampler;
 
   bool mLoaded{};
-
-  class SVResourceManager *mManager;
 
   std::mutex mLoadingMutex;
 
@@ -57,7 +55,7 @@ public:
            uint32_t mipLevels = 1, vk::Filter magFilter = vk::Filter::eLinear,
            vk::Filter minFilter = vk::Filter::eLinear, bool srgb = false);
 
-  void uploadToDevice(std::shared_ptr<core::Context> context);
+  void uploadToDevice();
   void removeFromDevice();
 
   inline bool isOnDevice() const { return mOnDevice && mImage->isOnDevice(); }
@@ -67,10 +65,6 @@ public:
 
   inline SVCubemapDescription const &getDescription() const {
     return mDescription;
-  }
-
-  inline void setManager(class SVResourceManager *manager) {
-    mManager = manager;
   }
 
   inline std::shared_ptr<SVImage> getImage() const { return mImage; }

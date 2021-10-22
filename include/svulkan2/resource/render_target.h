@@ -4,13 +4,11 @@
 #include <vector>
 
 namespace svulkan2 {
-namespace core {
-class Context;
-}
 
 namespace resource {
 
 class SVRenderTarget {
+  std::shared_ptr<core::Context> mContext;
   std::string mName;
 
   vk::Format mFormat;
@@ -31,7 +29,7 @@ public:
                  std::shared_ptr<core::Image> image,
                  vk::UniqueImageView imageView, vk::UniqueSampler sampler);
 
-  void createDeviceResources(std::shared_ptr<core::Context> context);
+  void createDeviceResources();
   template <typename T> std::vector<T> download() {
     return mImage->download<T>();
   }

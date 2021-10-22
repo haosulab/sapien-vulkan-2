@@ -19,11 +19,6 @@ class SVModel {
 
   bool mLoaded{};
 
-  /** When manager is not null, it is used to avoid loading duplicated
-   * subresources
-   */
-  class SVResourceManager *mManager;
-
   std::mutex mLoadingMutex;
 
 public:
@@ -42,10 +37,6 @@ public:
   std::future<void> loadAsync();
 
   inline ModelDescription const &getDescription() const { return mDescription; }
-
-  inline void setManager(class SVResourceManager *manager) {
-    mManager = manager;
-  };
 
 private:
   SVModel() = default;

@@ -23,11 +23,11 @@ SVPrimitiveSet::getVertexAttribute(std::string const &name) const {
   return mAttributes.at(name);
 }
 
-void SVPrimitiveSet::uploadToDevice(std::shared_ptr<core::Context> context) {
+void SVPrimitiveSet::uploadToDevice() {
   if (!mDirty) {
     return;
   }
-  mContext = context;
+  auto context = core::Context::Get();
 
   auto layout = context->getResourceManager()->getLineVertexLayout();
 
@@ -59,7 +59,7 @@ void SVPrimitiveSet::uploadToDevice(std::shared_ptr<core::Context> context) {
 
   if (!mVertexBuffer) {
     mVertexBuffer = std::make_unique<core::Buffer>(
-        context, bufferSize,
+        bufferSize,
         vk::BufferUsageFlagBits::eVertexBuffer |
             vk::BufferUsageFlagBits::eTransferDst |
             vk::BufferUsageFlagBits::eTransferSrc,

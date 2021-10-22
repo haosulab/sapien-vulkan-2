@@ -8,7 +8,6 @@ namespace svulkan2 {
 namespace resource {
 
 class SVPrimitiveSet {
-  std::shared_ptr<core::Context> mContext{};
   std::unordered_map<std::string, std::vector<float>> mAttributes;
 
   bool mOnDevice{false};
@@ -25,7 +24,7 @@ public:
   inline core::Buffer &getVertexBuffer() const { return *mVertexBuffer; }
   inline uint32_t getVertexCount() const { return mVertexCount; }
 
-  void uploadToDevice(std::shared_ptr<core::Context> context);
+  void uploadToDevice();
   void removeFromDevice();
 };
 

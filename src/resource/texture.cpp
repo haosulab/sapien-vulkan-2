@@ -69,6 +69,7 @@ std::shared_ptr<SVTexture> SVTexture::FromImage(std::shared_ptr<SVImage> image,
                                                 vk::UniqueImageView imageView,
                                                 vk::UniqueSampler sampler) {
   auto texture = std::shared_ptr<SVTexture>(new SVTexture);
+  texture->mContext = core::Context::Get();
   texture->mDescription = {.source = SVTextureDescription::SourceType::eCUSTOM};
   texture->mImage = image;
   texture->mImageView = std::move(imageView);
@@ -77,14 +78,14 @@ std::shared_ptr<SVTexture> SVTexture::FromImage(std::shared_ptr<SVImage> image,
   return texture;
 }
 
-void SVTexture::uploadToDevice(std::shared_ptr<core::Context> context) {
+void SVTexture::uploadToDevice() {
+  mContext = core::Context::Get();
   if (mOnDevice) {
     return;
   }
-  mContext = context;
 
   if (!mImage->isOnDevice()) {
-    mImage->uploadToDevice(context);
+    mImage->uploadToDevice();
   }
   if (!mImageView) {
     auto format = mImage->getDeviceImage()->getFormat();
@@ -97,14 +98,14 @@ void SVTexture::uploadToDevice(std::shared_ptr<core::Context> context) {
     }
 
     mImageView =
-        context->getDevice().createImageViewUnique(vk::ImageViewCreateInfo(
+        mContext->getDevice().createImageViewUnique(vk::ImageViewCreateInfo(
             {}, mImage->getDeviceImage()->getVulkanImage(),
             vk::ImageViewType::e2D, format, vk::ComponentSwizzle::eIdentity,
             vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0,
                                       mDescription.mipLevels, 0, 1)));
   }
   if (!mSampler) {
-    mSampler = context->getDevice().createSamplerUnique(vk::SamplerCreateInfo(
+    mSampler = mContext->getDevice().createSamplerUnique(vk::SamplerCreateInfo(
         {}, mDescription.magFilter, mDescription.minFilter,
         vk::SamplerMipmapMode::eLinear, mDescription.addressModeU,
         mDescription.addressModeV, vk::SamplerAddressMode::eRepeat, 0.f, false,
@@ -125,18 +126,22 @@ std::future<void> SVTexture::loadAsync() {
   if (mLoaded) {
     return std::async(std::launch::deferred, []() {});
   }
+
+  auto context = core::Context::Get();
+  auto manager = context->getResourceManager();
+
   log::info("Loading: {}", mDescription.filename);
   if (mDescription.source != SVTextureDescription::SourceType::eFILE) {
     throw std::runtime_error(
         "failed to load texture: the texture is not specified by a file");
   }
-  return std::async(std::launch::async, [this]() {
+  return std::async(std::launch::async, [this, manager]() {
     std::lock_guard<std::mutex> lock(mLoadingMutex);
     if (mLoaded) {
       return;
     }
-    mImage = mManager->CreateImageFromFile(mDescription.filename,
-                                           mDescription.mipLevels);
+    mImage = manager->CreateImageFromFile(mDescription.filename,
+                                          mDescription.mipLevels);
     mImage->loadAsync().get();
     mLoaded = true;
     log::info("Loaded: {}", mDescription.filename);

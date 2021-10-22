@@ -26,9 +26,10 @@ uint32_t findMemoryType(vk::PhysicalDevice physicalDevice,
   throw std::runtime_error("failed to find memory type");
 }
 
-CudaBuffer::CudaBuffer(std::shared_ptr<Context> context, vk::DeviceSize size,
-                       vk::BufferUsageFlags usageFlags)
-    : mContext(context), mSize(size) {
+CudaBuffer::CudaBuffer(vk::DeviceSize size, vk::BufferUsageFlags usageFlags)
+    : mSize(size) {
+  mContext = Context::Get();
+
   mMemory = mContext->getDevice().allocateMemoryUnique(vk::MemoryAllocateInfo(
       size, findMemoryType(mContext->getPhysicalDevice(),
                            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)));
@@ -41,7 +42,10 @@ CudaBuffer::CudaBuffer(std::shared_ptr<Context> context, vk::DeviceSize size,
       getCudaDeviceIdFromPhysicalDevice(mContext->getPhysicalDevice());
 
   if (mCudaDeviceId < 0) {
-    throw std::runtime_error("Vulkan Device is not visible to CUDA. You probably need to unset the CUDA_VISIBLE_DEVICES variable. Or you can try other CUDA_VISIBLE_DEVICES until you find a working one.");
+    throw std::runtime_error(
+        "Vulkan Device is not visible to CUDA. You probably need to unset the "
+        "CUDA_VISIBLE_DEVICES variable. Or you can try other "
+        "CUDA_VISIBLE_DEVICES until you find a working one.");
   }
 
   checkCudaErrors(cudaSetDevice(mCudaDeviceId));

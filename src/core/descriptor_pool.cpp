@@ -5,9 +5,9 @@ namespace svulkan2 {
 namespace core {
 
 DynamicDescriptorPool::DynamicDescriptorPool(
-    std::shared_ptr<Context> context,
     std::vector<vk::DescriptorPoolSize> const &sizes)
-    : mContext(context), mSizes(sizes) {
+    : mSizes(sizes) {
+  mContext = Context::Get();
   expand();
 }
 
@@ -21,7 +21,8 @@ void DynamicDescriptorPool::expand() {
   auto info = vk::DescriptorPoolCreateInfo(
       vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, count, sizes.size(),
       sizes.data());
-  mPools.push_back(mContext->getDevice().createDescriptorPoolUnique(info));
+  mPools.push_back(
+      Context::Get()->getDevice().createDescriptorPoolUnique(info));
 }
 
 vk::UniqueDescriptorSet
@@ -29,7 +30,8 @@ DynamicDescriptorPool::allocateSet(vk::DescriptorSetLayout layout) {
   for (auto &pool : mPools) {
     try {
       return std::move(
-          mContext->getDevice()
+          Context::Get()
+              ->getDevice()
               .allocateDescriptorSetsUnique(
                   vk::DescriptorSetAllocateInfo(pool.get(), 1, &layout))
               .front());
@@ -38,7 +40,8 @@ DynamicDescriptorPool::allocateSet(vk::DescriptorSetLayout layout) {
   }
   expand();
   return std::move(
-      mContext->getDevice()
+      Context::Get()
+          ->getDevice()
           .allocateDescriptorSetsUnique(
               vk::DescriptorSetAllocateInfo(mPools.back().get(), 1, &layout))
           .front());
