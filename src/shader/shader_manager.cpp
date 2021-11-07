@@ -463,6 +463,7 @@ void ShaderManager::createDescriptorSetLayouts(vk::Device device) {
   }
   {
     std::vector<vk::DescriptorSetLayoutBinding> bindings;
+    std::vector<vk::DescriptorBindingFlags> bindingFlags;
     for (uint32_t bindingIndex = 0;
          bindingIndex < mSceneSetDesc.bindings.size(); ++bindingIndex) {
       if (mSceneSetDesc.bindings.at(bindingIndex).type ==
@@ -470,19 +471,37 @@ void ShaderManager::createDescriptorSetLayouts(vk::Device device) {
         bindings.push_back({bindingIndex, vk::DescriptorType::eUniformBuffer, 1,
                             vk::ShaderStageFlagBits::eVertex |
                                 vk::ShaderStageFlagBits::eFragment});
+        bindingFlags.push_back({});
       } else if (mSceneSetDesc.bindings.at(bindingIndex).type ==
                  vk::DescriptorType::eCombinedImageSampler) {
-        bindings.push_back({bindingIndex,
-                            vk::DescriptorType::eCombinedImageSampler, 1,
-                            vk::ShaderStageFlagBits::eVertex |
-                                vk::ShaderStageFlagBits::eFragment});
+        if (mSceneSetDesc.bindings.at(bindingIndex).dim == 0) {
+          bindings.push_back({bindingIndex,
+                              vk::DescriptorType::eCombinedImageSampler, 1,
+                              vk::ShaderStageFlagBits::eVertex |
+                                  vk::ShaderStageFlagBits::eFragment});
+          bindingFlags.push_back({});
+        } else {
+          uint32_t arraySize =
+              mSceneSetDesc.bindings.at(bindingIndex).arraySize;
+          bindings.push_back({bindingIndex,
+                              vk::DescriptorType::eCombinedImageSampler,
+                              arraySize,
+                              vk::ShaderStageFlagBits::eVertex |
+                                  vk::ShaderStageFlagBits::eFragment});
+          bindingFlags.push_back(
+              vk::DescriptorBindingFlagBits::ePartiallyBound);
+        }
       } else {
         throw std::runtime_error("invalid scene descriptor set");
       }
     }
-    mSceneLayout = device.createDescriptorSetLayoutUnique(
-        vk::DescriptorSetLayoutCreateInfo({}, bindings.size(),
-                                          bindings.data()));
+
+    vk::DescriptorSetLayoutBindingFlagsCreateInfo flagInfo(bindingFlags.size(),
+                                                           bindingFlags.data());
+    vk::DescriptorSetLayoutCreateInfo layoutInfo({}, bindings.size(),
+                                                 bindings.data());
+    layoutInfo.setPNext(&flagInfo);
+    mSceneLayout = device.createDescriptorSetLayoutUnique(layoutInfo);
   }
   {
     vk::DescriptorSetLayoutBinding binding(0,

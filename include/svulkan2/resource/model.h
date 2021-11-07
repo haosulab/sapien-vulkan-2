@@ -14,6 +14,7 @@ struct ModelDescription {
 };
 
 class SVModel {
+  std::shared_ptr<SVModel> mPrototype;
   ModelDescription mDescription;
   std::vector<std::shared_ptr<SVShape>> mShapes;
 
@@ -22,6 +23,12 @@ class SVModel {
   std::mutex mLoadingMutex;
 
 public:
+  /** create a model based on a prototype model. Their meshes and textures will
+   * be shared but materials will be copied to allow modifications. It also
+   * keeps a shared_ptr to the prototype model. */
+  static std::shared_ptr<SVModel>
+  FromPrototype(std::shared_ptr<SVModel> prototype);
+
   static std::shared_ptr<SVModel> FromFile(std::string const &filename);
   static std::shared_ptr<SVModel>
   FromData(std::vector<std::shared_ptr<SVShape>> shapes);
@@ -30,7 +37,9 @@ public:
   std::vector<std::shared_ptr<SVShape>> const &getShapes();
 
   /** Determine whether this model is loaded. If a model is specified by a file,
-   *  it is not loaded into shapes by default
+   *  it will only be loaded from disk when calling loadAsync. If it is
+   *  specified by a prototype, the loading also only happens when calling
+   *  loadAsync.
    */
   inline bool isLoaded() const { return mLoaded; }
 

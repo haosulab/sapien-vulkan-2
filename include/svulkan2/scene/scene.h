@@ -23,7 +23,7 @@ class Scene {
   std::vector<std::unique_ptr<PointLight>> mPointLights{};
   std::vector<std::unique_ptr<DirectionalLight>> mDirectionalLights{};
   std::vector<std::unique_ptr<SpotLight>> mSpotLights{};
-  std::vector<std::unique_ptr<CustomLight>> mCustomLights{};
+  std::vector<std::unique_ptr<TexturedLight>> mTexturedLights{};
 
   Node *mRootNode{nullptr};
 
@@ -69,8 +69,8 @@ public:
   SpotLight &addSpotLight();
   SpotLight &addSpotLight(Node &parent);
 
-  CustomLight &addCustomLight();
-  CustomLight &addCustomLight(Node &parent);
+  TexturedLight &addTexturedLight();
+  TexturedLight &addTexturedLight(Node &parent);
 
   void removeNode(Node &node);
   void clearNodes();
@@ -86,7 +86,7 @@ public:
   std::vector<PointLight *> getPointLights();
   std::vector<DirectionalLight *> getDirectionalLights();
   std::vector<SpotLight *> getSpotLights();
-  std::vector<CustomLight *> getCustomLights();
+  std::vector<TexturedLight *> getTexturedLights();
 
   void setEnvironmentMap(std::shared_ptr<resource::SVCubemap> map) {
     mEnvironmentMap = map;

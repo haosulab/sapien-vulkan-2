@@ -29,25 +29,29 @@ class Renderer {
       mRenderTargets;
 
   // shadow targets ================================
-  uint32_t mNumPointLightShadows{};
-  uint32_t mNumDirectionalLightShadows{};
-  uint32_t mNumSpotLightShadows{};
-  uint32_t mNumCustomShadows{};
-  std::shared_ptr<resource::SVRenderTarget> mDirectionalShadowReadTarget;
+  std::vector<uint32_t> mPointLightShadowSizes{};
+  std::vector<uint32_t> mDirectionalLightShadowSizes{};
+  std::vector<uint32_t> mSpotLightShadowSizes{};
+  std::vector<uint32_t> mTexturedLightShadowSizes{};
+
+  std::vector<std::shared_ptr<resource::SVRenderTarget>>
+      mDirectionalShadowReadTargets;
   std::vector<std::shared_ptr<resource::SVRenderTarget>>
       mDirectionalShadowWriteTargets;
 
-  std::shared_ptr<resource::SVRenderTarget> mPointShadowReadTarget;
   std::vector<std::shared_ptr<resource::SVRenderTarget>>
       mPointShadowWriteTargets;
+  std::vector<std::shared_ptr<resource::SVRenderTarget>>
+      mPointShadowReadTargets;
 
-  std::shared_ptr<resource::SVRenderTarget> mSpotShadowReadTarget;
+  std::vector<std::shared_ptr<resource::SVRenderTarget>> mSpotShadowReadTargets;
   std::vector<std::shared_ptr<resource::SVRenderTarget>>
       mSpotShadowWriteTargets;
 
-  std::shared_ptr<resource::SVRenderTarget> mCustomShadowReadTarget;
   std::vector<std::shared_ptr<resource::SVRenderTarget>>
-      mCustomShadowWriteTargets;
+      mTexturedLightShadowReadTargets;
+  std::vector<std::shared_ptr<resource::SVRenderTarget>>
+      mTexturedLightShadowWriteTargets;
 
   std::vector<vk::UniqueDescriptorSet> mLightSets;
   std::vector<std::unique_ptr<core::Buffer>> mLightBuffers;
@@ -59,6 +63,7 @@ class Renderer {
 
   std::vector<vk::UniqueFramebuffer> mFramebuffers;
   std::vector<vk::UniqueFramebuffer> mShadowFramebuffers;
+  std::vector<uint32_t> mShadowSizes;
 
   std::map<std::string, std::shared_ptr<resource::SVTexture>> mCustomTextures;
   std::map<std::string, std::shared_ptr<resource::SVCubemap>> mCustomCubemaps;

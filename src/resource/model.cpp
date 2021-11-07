@@ -14,15 +14,13 @@ namespace fs = std::filesystem;
 namespace svulkan2 {
 namespace resource {
 
-// static float shininessToRoughness(float ns) {
-//   if (ns <= 5.f) {
-//     return 1.f;
-//   }
-//   if (ns >= 1605.f) {
-//     return 0.f;
-//   }
-//   return 1.f - (std::sqrt(ns - 5.f) * 0.025f);
-// }
+std::shared_ptr<SVModel>
+SVModel::FromPrototype(std::shared_ptr<SVModel> prototype) {
+  auto model = std::shared_ptr<SVModel>(new SVModel);
+  model->mPrototype = prototype;
+  model->mDescription = prototype->mDescription;
+  return model;
+}
 
 std::shared_ptr<SVModel> SVModel::FromFile(std::string const &filename) {
   auto model = std::shared_ptr<SVModel>(new SVModel);
@@ -121,6 +119,29 @@ std::future<void> SVModel::loadAsync() {
     if (mLoaded) {
       return;
     }
+
+    if (mPrototype) {
+      auto shapes = mPrototype->getShapes();
+      for (auto s : shapes) {
+        auto newShape = std::make_shared<SVShape>();
+
+        auto mat = std::dynamic_pointer_cast<SVMetallicMaterial>(s->material);
+        auto newMat = std::make_shared<SVMetallicMaterial>(
+            mat->getEmission(), mat->getBaseColor(), mat->getFresnel(),
+            mat->getRoughness(), mat->getMetallic(), 0);
+        newMat->setTextures(mat->getDiffuseTexture(),
+                            mat->getRoughnessTexture(), mat->getNormalTexture(),
+                            mat->getMetallicTexture(),
+                            mat->getEmissionTexture());
+
+        newShape->mesh = s->mesh;
+        newShape->material = newMat;
+        mShapes.push_back(newShape);
+      }
+      mLoaded = true;
+      return;
+    }
+
     log::info("Loading: {}", mDescription.filename);
 
     std::string path = mDescription.filename;

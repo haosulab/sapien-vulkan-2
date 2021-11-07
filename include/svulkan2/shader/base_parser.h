@@ -33,14 +33,15 @@ struct DescriptorSetDescription {
   struct Binding {
     std::string name;
     vk::DescriptorType type;
-    uint32_t arrayIndex;
+    int dim;
+    int arraySize;
+    uint32_t arrayIndex;  // index in the buffers/samplers vector
   };
   UniformBindingType type{eUnknown};
   std::vector<std::shared_ptr<StructDataLayout>> buffers;
   std::vector<std::string> samplers;
   std::map<uint32_t, Binding> bindings;
 
-  // TODO: need a bit testing
   DescriptorSetDescription merge(DescriptorSetDescription const &other) const;
 };
 

@@ -17,11 +17,12 @@ namespace core {
 
 static std::weak_ptr<Context> gInstance{};
 std::shared_ptr<Context> Context::Get() {
-  if (gInstance.expired()) {
+  auto instance = gInstance.lock();
+  if (!instance) {
     throw std::runtime_error("Renderer is not created. Renderer creation is "
                              "required before any other operation.");
   }
-  return gInstance.lock();
+  return instance;
 }
 
 static void glfwErrorCallback(int error_code, const char *description) {
@@ -58,7 +59,8 @@ std::shared_ptr<Context> Context::Create(bool present, uint32_t maxNumMaterials,
                                          uint32_t defaultMipLevels,
                                          std::string device) {
   if (!gInstance.expired()) {
-    log::warn("Only 1 renderer is allowed per process. All previously created renderer resources are now invalid");
+    log::warn("Only 1 renderer is allowed per process. All previously created "
+              "renderer resources are now invalid");
   }
   auto context = std::shared_ptr<Context>(new Context(
       present, maxNumMaterials, maxNumTextures, defaultMipLevels, device));
@@ -99,7 +101,8 @@ Context::~Context() {
 std::shared_ptr<resource::SVResourceManager>
 Context::getResourceManager() const {
   if (mResourceManager.expired()) {
-    throw std::runtime_error("failed to get resource manager: destroyed or not created");
+    throw std::runtime_error(
+        "failed to get resource manager: destroyed or not created");
   }
   return mResourceManager.lock();
 }
@@ -217,6 +220,10 @@ Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
      << "Present" << std::setw(10) << "Supported" << std::setw(10) << "PciBus"
      << std::setw(10) << "CudaId" << std::endl;
 
+  vk::PhysicalDeviceFeatures2 features{};
+  vk::PhysicalDeviceDescriptorIndexingFeatures descriptorFeatures{};
+  features.setPNext(&descriptorFeatures);
+
   int ord = 0;
   for (auto device : mInstance->enumeratePhysicalDevices()) {
     std::string name;
@@ -250,10 +257,12 @@ Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
       queueIdx = queueIdxNoPresent;
     }
 
-    auto features = device.getFeatures();
-    if (features.independentBlend && features.wideLines) {
+    device.getFeatures2(&features);
+    if (features.features.independentBlend && features.features.wideLines &&
+        descriptorFeatures.descriptorBindingPartiallyBound) {
       required_features = true;
     }
+
     auto properties = device.getProperties();
     name = std::string(properties.deviceName);
 
@@ -512,10 +521,14 @@ void Context::createDevice() {
   vk::DeviceQueueCreateInfo deviceQueueCreateInfo({}, mQueueFamilyIndex, 1,
                                                   &queuePriority);
   std::vector<const char *> deviceExtensions{};
-  vk::PhysicalDeviceFeatures features;
-  features.independentBlend = true;
-  features.wideLines = true;
-  features.imageCubeArray = true;
+
+  vk::PhysicalDeviceFeatures2 features{};
+  vk::PhysicalDeviceDescriptorIndexingFeatures descriptorFeatures{};
+  features.setPNext(&descriptorFeatures);
+
+  features.features.setIndependentBlend(true);
+  features.features.setWideLines(true);
+  descriptorFeatures.setDescriptorBindingPartiallyBound(true);
 
 #ifdef CUDA_INTEROP
   deviceExtensions.push_back(VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME);
@@ -527,9 +540,11 @@ void Context::createDevice() {
   if (mPresent) {
     deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
   }
-  mDevice = mPhysicalDevice.createDeviceUnique(vk::DeviceCreateInfo(
-      {}, 1, &deviceQueueCreateInfo, 0, nullptr, deviceExtensions.size(),
-      deviceExtensions.data(), &features));
+
+  vk::DeviceCreateInfo deviceInfo({}, deviceQueueCreateInfo, {},
+                                  deviceExtensions);
+  deviceInfo.setPNext(&features);
+  mDevice = mPhysicalDevice.createDeviceUnique(deviceInfo);
   VULKAN_HPP_DEFAULT_DISPATCHER.init(mDevice.get());
 }
 

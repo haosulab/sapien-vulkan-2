@@ -11,7 +11,6 @@ struct RendererConfig {
       vk::Format::eR8G8B8A8Unorm}; // R8G8B8A8Unorm, R32G32B32A32Sfloat
   vk::Format depthFormat{vk::Format::eD32Sfloat}; // D32Sfloat
   vk::CullModeFlags culling{vk::CullModeFlagBits::eBack};
-  uint32_t shadowMapSize{2048};
 };
 
 /** Options configured by the shaders  */

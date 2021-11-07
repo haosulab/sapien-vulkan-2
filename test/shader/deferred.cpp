@@ -7,115 +7,60 @@ using namespace svulkan2::shader;
 TEST(Deferred, Minimal) {
   DeferredPassParser deferred;
   GLSLCompiler::InitializeProcess();
-  deferred.loadGLSLFiles("../test/assets/shader/deferred_minimal.vert",
-                         "../test/assets/shader/deferred_minimal.frag");
+  deferred.loadGLSLFiles("../shader/test/deferred.vert",
+                         "../shader/test/deferred.frag");
   GLSLCompiler::FinalizeProcess();
 
   // specialization Constant
-  auto specializationConstant =
-      deferred.getSpecializationConstantLayout();
-  ASSERT_TRUE(CONTAINS(specializationConstantLayout->elements,
-                       "NUM_DIRECTIONAL_LIGHTS"));
-  ASSERT_TRUE(
-      CONTAINS(specializationConstantLayout->elements, "NUM_POINT_LIGHTS"));
+  auto specializationConstant = deferred.getSpecializationConstantLayout();
 
-  ASSERT_EQ(
-      specializationConstantLayout->elements["NUM_DIRECTIONAL_LIGHTS"].dtype,
-      eINT);
-  ASSERT_EQ(specializationConstantLayout->elements["NUM_POINT_LIGHTS"].dtype,
+  ASSERT_TRUE(
+      specializationConstant->elements.contains("NUM_DIRECTIONAL_LIGHTS"));
+  ASSERT_TRUE(specializationConstant->elements.contains("NUM_POINT_LIGHTS"));
+
+  ASSERT_EQ(specializationConstant->elements["NUM_DIRECTIONAL_LIGHTS"].dtype,
             eINT);
+  ASSERT_EQ(specializationConstant->elements["NUM_POINT_LIGHTS"].dtype, eINT);
+
+  auto desc = deferred.getDescriptorSetDescriptions();
+  DescriptorSetDescription d;
+  // scene
+  d = desc[0];
+  ASSERT_EQ(d.type, UniformBindingType::eScene);
+  ASSERT_EQ(d.bindings.at(0).type, vk::DescriptorType::eUniformBuffer);
+  ASSERT_EQ(d.bindings.at(0).name, "SceneBuffer");
+  ASSERT_EQ(d.bindings.at(1).type, vk::DescriptorType::eUniformBuffer);
+  ASSERT_EQ(d.bindings.at(1).name, "ShadowBuffer");
+
+  ASSERT_EQ(d.bindings.at(2).type, vk::DescriptorType::eCombinedImageSampler);
+  ASSERT_EQ(d.bindings.at(2).name, "samplerPointLightDepths");
+  ASSERT_EQ(d.bindings.at(2).dim, 1);
+
+  ASSERT_EQ(d.bindings.at(3).type, vk::DescriptorType::eCombinedImageSampler);
+  ASSERT_EQ(d.bindings.at(3).name, "samplerDirectionalLightDepths");
+  ASSERT_EQ(d.bindings.at(3).dim, 1);
+
+  ASSERT_EQ(d.bindings.at(4).type, vk::DescriptorType::eCombinedImageSampler);
+  ASSERT_EQ(d.bindings.at(4).name, "samplerTexturedLightDepths");
+  ASSERT_EQ(d.bindings.at(4).dim, 1);
+
+  ASSERT_EQ(d.bindings.at(5).type, vk::DescriptorType::eCombinedImageSampler);
+  ASSERT_EQ(d.bindings.at(5).name, "samplerSpotLightDepths");
+  ASSERT_EQ(d.bindings.at(5).dim, 1);
 
   // camera
-  auto cameraLayout = deferred.getCameraBufferLayout();
-  ASSERT_TRUE(CONTAINS(cameraLayout->elements, "viewMatrix"));
-  ASSERT_TRUE(CONTAINS(cameraLayout->elements, "projectionMatrix"));
-  ASSERT_TRUE(CONTAINS(cameraLayout->elements, "viewMatrixInverse"));
-  ASSERT_TRUE(CONTAINS(cameraLayout->elements, "projectionMatrixInverse"));
+  d = desc[1];
+  ASSERT_EQ(d.type, UniformBindingType::eCamera);
+  ASSERT_EQ(d.bindings.at(0).type, vk::DescriptorType::eUniformBuffer);
+  ASSERT_EQ(d.bindings.at(0).name, "CameraBuffer");
 
-  ASSERT_EQ(cameraLayout->elements["viewMatrix"].dtype, eFLOAT44);
-  ASSERT_EQ(cameraLayout->elements["viewMatrix"].size, sizeof(float) * 16);
-  ASSERT_EQ(cameraLayout->elements["viewMatrix"].arrayDim, 0);
-  ASSERT_EQ(cameraLayout->elements["viewMatrix"].member, nullptr);
-  ASSERT_EQ(cameraLayout->elements["viewMatrix"].offset, 0);
-  ASSERT_EQ(cameraLayout->elements["projectionMatrix"].offset, 64);
-  ASSERT_EQ(cameraLayout->elements["viewMatrixInverse"].offset, 128);
-  ASSERT_EQ(cameraLayout->elements["projectionMatrixInverse"].offset, 192);
-  ASSERT_EQ(cameraLayout->size, 256);
-
-  // scene
-  auto sceneLayout = deferred.getSceneBufferLayout();
-  ASSERT_TRUE(CONTAINS(sceneLayout->elements, "ambientLight"));
-  ASSERT_TRUE(CONTAINS(sceneLayout->elements, "directionalLights"));
-  ASSERT_TRUE(CONTAINS(sceneLayout->elements, "pointLights"));
-  ASSERT_TRUE(
-      CONTAINS(sceneLayout->elements["directionalLights"].member->elements,
-               "direction"));
-  ASSERT_TRUE(CONTAINS(
-      sceneLayout->elements["directionalLights"].member->elements, "emission"));
-  ASSERT_TRUE(CONTAINS(sceneLayout->elements["pointLights"].member->elements,
-                       "position"));
-  ASSERT_TRUE(CONTAINS(sceneLayout->elements["pointLights"].member->elements,
-                       "emission"));
-
-  ASSERT_EQ(sceneLayout->elements["ambientLight"].dtype, eFLOAT4);
-  ASSERT_EQ(sceneLayout->elements["directionalLights"].dtype, eSTRUCT);
-  ASSERT_EQ(sceneLayout->elements["directionalLights"].size, 32);
-  ASSERT_EQ(sceneLayout->elements["directionalLights"].member->elements.size(),
-            2);
-  ASSERT_EQ(sceneLayout->elements["directionalLights"]
-                .member->elements["direction"]
-                .offset,
-            0);
-  ASSERT_EQ(sceneLayout->elements["directionalLights"]
-                .member->elements["direction"]
-                .dtype,
-            eFLOAT4);
-  ASSERT_EQ(sceneLayout->elements["directionalLights"]
-                .member->elements["emission"]
-                .offset,
-            16);
-  ASSERT_EQ(sceneLayout->elements["directionalLights"]
-                .member->elements["emission"]
-                .dtype,
-            eFLOAT4);
-
-  ASSERT_EQ(sceneLayout->elements["pointLights"].dtype, eSTRUCT);
-  ASSERT_EQ(sceneLayout->elements["pointLights"].size, 32);
-  ASSERT_EQ(sceneLayout->elements["pointLights"].member->elements.size(), 2);
-  ASSERT_EQ(
-      sceneLayout->elements["pointLights"].member->elements["position"].offset,
-      0);
-  ASSERT_EQ(
-      sceneLayout->elements["pointLights"].member->elements["position"].dtype,
-      eFLOAT4);
-  ASSERT_EQ(
-      sceneLayout->elements["pointLights"].member->elements["emission"].offset,
-      16);
-  ASSERT_EQ(
-      sceneLayout->elements["pointLights"].member->elements["emission"].dtype,
-      eFLOAT4);
-
-  // texture
-  auto samplerLayout = deferred.getCombinedSamplerLayout();
-  ASSERT_TRUE(CONTAINS(samplerLayout->elements, "samplerAlbedo"));
-  ASSERT_TRUE(CONTAINS(samplerLayout->elements, "samplerPosition"));
-  ASSERT_TRUE(CONTAINS(samplerLayout->elements, "samplerSpecular"));
-  ASSERT_TRUE(CONTAINS(samplerLayout->elements, "samplerNormal"));
-
-  ASSERT_EQ(samplerLayout->elements["samplerAlbedo"].binding, 0);
-  ASSERT_EQ(samplerLayout->elements["samplerPosition"].binding, 1);
-  ASSERT_EQ(samplerLayout->elements["samplerSpecular"].binding, 2);
-  ASSERT_EQ(samplerLayout->elements["samplerNormal"].binding, 3);
-
-  ASSERT_EQ(samplerLayout->elements["samplerNormal"].set, 2);
-  ASSERT_EQ(samplerLayout->elements["samplerPosition"].set, 2);
-  ASSERT_EQ(samplerLayout->elements["samplerSpecular"].set, 2);
-  ASSERT_EQ(samplerLayout->elements["samplerNormal"].set, 2);
-
-  // output
-  auto outputLayout = deferred.getTextureOutputLayout();
-  ASSERT_TRUE(CONTAINS(outputLayout->elements, "outLighting2"));
-
-  ASSERT_EQ(outputLayout->elements["outLighting2"].location, 0);
-  ASSERT_EQ(outputLayout->elements["outLighting2"].dtype, eFLOAT4);
+  auto buffer = d.buffers[d.bindings.at(0).arrayIndex];
+  ASSERT_TRUE(buffer->elements.contains("viewMatrix"));
+  ASSERT_TRUE(buffer->elements.contains("viewMatrixInverse"));
+  ASSERT_TRUE(buffer->elements.contains("projectionMatrix"));
+  ASSERT_TRUE(buffer->elements.contains("projectionMatrixInverse"));
+  ASSERT_TRUE(buffer->elements.contains("prevViewMatrix"));
+  ASSERT_TRUE(buffer->elements.contains("prevViewMatrixInverse"));
+  ASSERT_TRUE(buffer->elements.contains("width"));
+  ASSERT_TRUE(buffer->elements.contains("height"));
 }

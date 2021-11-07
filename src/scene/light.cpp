@@ -36,9 +36,10 @@ void PointLight::enableShadow(bool enable) {
   mScene->reorderLights();
 }
 
-void PointLight::setShadowParameters(float near, float far) {
+void PointLight::setShadowParameters(float near, float far, uint32_t size) {
   mShadowNear = near;
   mShadowFar = far;
+  mShadowMapSize = size;
 }
 
 glm::mat4 PointLight::getShadowProjectionMatrix() const {
@@ -71,11 +72,12 @@ void DirectionalLight::setDirection(glm::vec3 const &dir) {
   mTransform.rotation = glm::quat(glm::mat3(x, y, z));
 }
 
-void DirectionalLight::setShadowParameters(float near, float far,
-                                           float scaling) {
+void DirectionalLight::setShadowParameters(float near, float far, float scaling,
+                                           uint32_t size) {
   mShadowNear = near;
   mShadowFar = far;
   mShadowScaling = scaling;
+  mShadowMapSize = size;
 }
 
 glm::mat4 DirectionalLight::getShadowProjectionMatrix() const {
@@ -83,17 +85,16 @@ glm::mat4 DirectionalLight::getShadowProjectionMatrix() const {
                      mShadowScaling, mShadowNear, mShadowFar);
 }
 
-CustomLight::CustomLight(std::string const &name) : Node(name) {}
-
 SpotLight::SpotLight(std::string const &name) : Node(name){};
 void SpotLight::enableShadow(bool enable) {
   mCastShadow = enable;
   mScene->reorderLights();
 }
 
-void SpotLight::setShadowParameters(float near, float far) {
+void SpotLight::setShadowParameters(float near, float far, uint32_t size) {
   mShadowNear = near;
   mShadowFar = far;
+  mShadowMapSize = size;
 }
 
 void SpotLight::setDirection(glm::vec3 const &dir) {
@@ -123,6 +124,10 @@ glm::mat4 SpotLight::getShadowProjectionMatrix() const {
   auto mat = glm::perspective(mFov, 1.f, mShadowNear, mShadowFar);
   mat[1][1] *= -1;
   return mat;
+}
+
+void TexturedLight::setTexture(std::shared_ptr<resource::SVTexture> texture) {
+  mTexture = texture;
 }
 
 } // namespace scene

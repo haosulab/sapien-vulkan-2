@@ -8,12 +8,7 @@ namespace scene {
 
 class Camera : public Node {
 public:
-  enum Type {
-    eOrthographic,
-    ePerspective,
-    eMatrix,
-    eUndefined
-  };
+  enum Type { eOrthographic, ePerspective, eMatrix, eUndefined };
 
 private:
   glm::mat4 mProjectionMatrix{1};
@@ -50,6 +45,9 @@ public:
   void setOrthographicParameters(float near, float far, float scaling,
                                  float width, float height);
 
+  void setWidth(float width);
+  void setHeight(float height);
+
   float getWidth() const;
   float getHeight() const;
   float getNear() const;
@@ -66,8 +64,8 @@ public:
 
   Camera::Type getCameraType() const { return mType; };
 
-  void uploadToDevice(core::Buffer &cameraBuffer, uint32_t width,
-                      uint32_t height, StructDataLayout const &cameraLayout);
+  void uploadToDevice(core::Buffer &cameraBuffer,
+                      StructDataLayout const &cameraLayout);
 
   inline glm::mat4 getProjectionMatrix() const { return mProjectionMatrix; }
 };

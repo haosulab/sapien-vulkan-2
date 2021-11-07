@@ -55,8 +55,10 @@ void Camera::setOrthographicParameters(float near, float far, float scaling,
                                   scaling, near, far);
 }
 
-void Camera::uploadToDevice(core::Buffer &cameraBuffer, uint32_t width,
-                            uint32_t height,
+void Camera::setWidth(float width) { mWidth = width; }
+void Camera::setHeight(float height) { mHeight = height; }
+
+void Camera::uploadToDevice(core::Buffer &cameraBuffer,
                             StructDataLayout const &cameraLayout) {
   std::vector<char> mBuffer(cameraLayout.size);
 
@@ -89,14 +91,14 @@ void Camera::uploadToDevice(core::Buffer &cameraBuffer, uint32_t width,
 
   it = cameraLayout.elements.find("width");
   if (it != cameraLayout.elements.end()) {
-    float fwidth = static_cast<float>(width);
+    float fwidth = static_cast<float>(mWidth);
     std::memcpy(mBuffer.data() + cameraLayout.elements.at("width").offset,
                 &fwidth, sizeof(float));
   }
 
   it = cameraLayout.elements.find("height");
   if (it != cameraLayout.elements.end()) {
-    float fheight = static_cast<float>(height);
+    float fheight = static_cast<float>(mHeight);
     std::memcpy(mBuffer.data() + cameraLayout.elements.at("height").offset,
                 &fheight, sizeof(float));
   }

@@ -220,17 +220,21 @@ SVResourceManager::CreateModelFromFile(std::string const &filename) {
   ModelDescription desc = {.source = ModelDescription::SourceType::eFILE,
                            .filename = path};
 
-  auto it = mModelRegistry.find(path);
-  if (it != mModelRegistry.end()) {
-    for (auto &model : it->second) {
-      if (model->getDescription() == desc) {
-        return model;
+  auto prototype = [&]() {
+    auto it = mModelRegistry.find(path);
+    if (it != mModelRegistry.end()) {
+      for (auto &model : it->second) {
+        if (model->getDescription() == desc) {
+          return model;
+        }
       }
     }
-  }
-  auto model = SVModel::FromFile(path);
-  mModelRegistry[path].push_back(model);
-  return model;
+    auto model = SVModel::FromFile(path);
+    mModelRegistry[path].push_back(model);
+    return model;
+  }();
+
+  return SVModel::FromPrototype(prototype);
 }
 
 void SVResourceManager::setVertexLayout(

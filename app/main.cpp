@@ -29,7 +29,7 @@ static void window_close_callback(GLFWwindow *window) {
 
 static void createSphereArray(svulkan2::scene::Scene &scene) {
   for (uint32_t i = 0; i < 10; ++i) {
-    for (uint32_t j = 0; j < 2; ++j) {
+    for (uint32_t j = 0; j < 1; ++j) {
       float metallic = i / 9.f;
       float roughness = j / 9.f;
       auto shape = resource::SVShape::Create(
@@ -65,54 +65,50 @@ int main() {
   }
 
   auto config = std::make_shared<RendererConfig>();
-  config->shaderDir = srcBase + "shader/ibl";
+  config->shaderDir = srcBase + "shader/test";
 
   config->colorFormat = vk::Format::eR32G32B32A32Sfloat;
   renderer::Renderer renderer(config);
 
-  // auto image = shader::generateBRDFLUT(context, 512);
-  // auto sampler =
-  // context->getDevice().createSamplerUnique(vk::SamplerCreateInfo(
-  //     {}, vk::Filter::eLinear, vk::Filter::eLinear,
-  //     vk::SamplerMipmapMode::eNearest, vk::SamplerAddressMode::eClampToEdge,
-  //     vk::SamplerAddressMode::eClampToEdge,
-  //     vk::SamplerAddressMode::eClampToEdge, 0.f, false, 0.f, false,
-  //     vk::CompareOp::eNever, 0.f, 0.f, vk::BorderColor::eFloatOpaqueWhite));
-  // auto view =
-  //     context->getDevice().createImageViewUnique(vk::ImageViewCreateInfo(
-  //         {}, image->getVulkanImage(), vk::ImageViewType::e2D,
-  //         image->getFormat(), vk::ComponentSwizzle::eIdentity,
-  //         vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0,
-  //                                   1)));
-  // auto lutTexture = resource::SVTexture::FromImage(
-  //     resource::SVImage::FromDeviceImage(std::move(image)), std::move(view),
-  //     std::move(sampler));
-
   svulkan2::scene::Scene scene;
 
-  // createSphereArray(scene);
+  createSphereArray(scene);
 
   auto &spotLight1 = scene.addSpotLight();
-  spotLight1.setPosition({0, 0.5, 0});
-  spotLight1.setDirection({1, 0, 0});
+  spotLight1.setPosition({0.5, 0.5, 1.0});
+  spotLight1.setDirection({0, 0, -1});
   spotLight1.setFov(1);
-  spotLight1.setColor({1, 0, 0});
+  spotLight1.setFovSmall(1);
+  spotLight1.setColor({4, 4, 4});
   spotLight1.enableShadow(true);
-  spotLight1.setShadowParameters(0.05, 5);
+  spotLight1.setShadowParameters(0.05, 5, 2048);
 
-  auto &spotLight2 = scene.addSpotLight();
-  spotLight2.setPosition({0.5, 0.5, 0.7});
-  spotLight2.setDirection({0, 0, -1});
-  spotLight2.setFov(2);
-  spotLight2.setColor({4, 4, 4});
+  // auto &spotLight2 = scene.addSpotLight();
+  // spotLight2.setPosition({0.5, 0.5, 0.7});
+  // spotLight2.setDirection({0, 0, -1});
+  // spotLight2.setFov(2);
+  // spotLight2.setColor({4, 4, 4});
+  // spotLight2.enableShadow(true);
+  // spotLight2.setShadowParameters(0.05, 10, 2048);
+
+  auto &spotLight2 = scene.addTexturedLight();
+  spotLight2.setPosition({1, 0.5, 1});
+  spotLight2.setDirection({0, -1, 0});
+  spotLight2.setFov(1.5);
+  spotLight2.setFovSmall(1.5);
+  spotLight2.setColor({1, 0, 0});
   spotLight2.enableShadow(true);
-  spotLight2.setShadowParameters(0.05, 10);
+  spotLight2.setShadowParameters(0.05, 10, 2048);
+  spotLight2.setTexture(context->getResourceManager()->CreateTextureFromFile(
+      "../test/assets/image/flashlight.jpg", 1, vk::Filter::eLinear,
+      vk::Filter::eLinear, vk::SamplerAddressMode::eClampToBorder,
+      vk::SamplerAddressMode::eClampToBorder, true));
 
   // auto &p2 = scene.addPointLight();
-  // p2.setTransform({.position = glm::vec4{0.5, 0.5, 0, 1}});
-  // p2.setColor({0, 1, 0, 1});
+  // p2.setTransform({.position = glm::vec4{0.0, 0.5, 0.5, 1}});
+  // p2.setColor({0, 1, 0});
   // p2.enableShadow(true);
-  // p2.setShadowParameters(0.05, 5);
+  // p2.setShadowParameters(0.05, 5, 2048);
 
   // auto &p3 = scene.addPointLight();
   // p3.setTransform({.position = glm::vec4{-0.5, 0.5, 0, 1}});
@@ -127,12 +123,12 @@ int main() {
   // dl.enableShadow(true);
   // dl.setShadowParameters(-10, 10, 5);
 
-  auto &dl2 = scene.addDirectionalLight();
-  dl2.setTransform({.position = {0, 0, 0}});
-  dl2.setDirection({1, -1, 0.1});
-  dl2.setColor({1, 0, 0});
-  dl2.enableShadow(true);
-  dl2.setShadowParameters(-5, 5, 3);
+  // auto &dl2 = scene.addDirectionalLight();
+  // dl2.setTransform({.position = {0, 0, 0}});
+  // dl2.setDirection({1, -1, 1});
+  // dl2.setColor({1, 1, 1});
+  // dl2.enableShadow(true);
+  // dl2.setShadowParameters(-5, 5, 3, 2048);
 
   scene.setAmbientLight({0.f, 0.f, 0.f, 0});
 
@@ -155,55 +151,57 @@ int main() {
   // scene.addObject(model).setTransform(
   //     scene::Transform{.scale = {0.001, 0.001, 0.001}});
 
-  auto model = context->getResourceManager()->CreateModelFromFile(
-      "/home/fx/blender-data/test_pbr.glb");
-  scene.addObject(model);
+  // auto model = context->getResourceManager()->CreateModelFromFile(
+  //     "/home/fx/blender-data/test_pbr.glb");
+  // scene.addObject(model);
 
   // auto model = context->getResourceManager()->CreateModelFromFile(
   //     "/home/fx/datasets/RIS/objects/glass.gltf");
   // scene.addObject(model);
 
-  auto lineset = std::make_shared<resource::SVLineSet>();
-  lineset->setVertexAttribute(
-      "position", {0.1, 0.1, 0.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 0.1, 0.1});
-  lineset->setVertexAttribute("color", {
-                                           1,
-                                           0,
-                                           0,
-                                           1,
-                                           1,
-                                           0,
-                                           0,
-                                           1,
-                                           1,
-                                           0,
-                                           0,
-                                           1,
-                                           1,
-                                           0,
-                                           0,
-                                           1,
-                                       });
-  scene.addLineObject(lineset).setPosition({0, 1, 0});
+  // auto lineset = std::make_shared<resource::SVLineSet>();
+  // lineset->setVertexAttribute(
+  //     "position", {0.1, 0.1, 0.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 0.1,
+  //     0.1});
+  // lineset->setVertexAttribute("color", {
+  //                                          1,
+  //                                          0,
+  //                                          0,
+  //                                          1,
+  //                                          1,
+  //                                          0,
+  //                                          0,
+  //                                          1,
+  //                                          1,
+  //                                          0,
+  //                                          0,
+  //                                          1,
+  //                                          1,
+  //                                          0,
+  //                                          0,
+  //                                          1,
+  //                                      });
+  // scene.addLineObject(lineset).setPosition({0, 1, 0});
 
-  auto pointset = std::make_shared<resource::SVPointSet>();
-  pointset->setVertexAttribute("position",
-                               {0.1, 0.1, 0.1, 1.1, 1.1, 1.1, 1.1, 0.1, 0.1});
-  pointset->setVertexAttribute("color", {
-                                            0,
-                                            1,
-                                            0,
-                                            1,
-                                            0,
-                                            1,
-                                            0,
-                                            1,
-                                            0,
-                                            1,
-                                            0,
-                                            1,
-                                        });
-  scene.addPointObject(pointset);
+  // auto pointset = std::make_shared<resource::SVPointSet>();
+  // pointset->setVertexAttribute("position",
+  //                              {0.1, 0.1, 0.1, 1.1, 1.1, 1.1, 1.1, 0.1,
+  //                              0.1});
+  // pointset->setVertexAttribute("color", {
+  //                                           0,
+  //                                           1,
+  //                                           0,
+  //                                           1,
+  //                                           0,
+  //                                           1,
+  //                                           0,
+  //                                           1,
+  //                                           0,
+  //                                           1,
+  //                                           0,
+  //                                           1,
+  //                                       });
+  // scene.addPointObject(pointset);
 
   auto &cameraNode = scene.addCamera();
   cameraNode.setPerspectiveParameters(0.05, 50, 1, 400, 300);

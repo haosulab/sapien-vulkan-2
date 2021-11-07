@@ -57,6 +57,7 @@ add_subdirectory("3rd_party/SPIRV-Cross")
 
 if (${SVULKAN2_BUILD_TEST})
   add_subdirectory("3rd_party/googletest")
+  include_directories("3rd_party/googletest/googletest/include")
 endif()
 
 if (${SVULKAN2_PROFILE})
@@ -99,3 +100,8 @@ if (MACOS)
 else ()
     target_link_libraries(gencube svulkan2 stdc++fs)
 endif ()
+
+if (${SVULKAN2_BUILD_TEST})
+    add_executable(unittest "test/shader/deferred.cpp")
+    target_link_libraries(unittest svulkan2 gtest_main)
+endif()

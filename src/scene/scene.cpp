@@ -178,16 +178,18 @@ SpotLight &Scene::addSpotLight(Node &parent) {
   return result;
 }
 
-CustomLight &Scene::addCustomLight() { return addCustomLight(getRootNode()); }
-CustomLight &Scene::addCustomLight(Node &parent) {
+TexturedLight &Scene::addTexturedLight() {
+  return addTexturedLight(getRootNode());
+}
+TexturedLight &Scene::addTexturedLight(Node &parent) {
   updateVersion();
   forceRemove();
-  auto customLight = std::make_unique<CustomLight>();
-  auto &result = *customLight;
-  mCustomLights.push_back(std::move(customLight));
-  mCustomLights.back()->setScene(this);
-  mCustomLights.back()->setParent(parent);
-  parent.addChild(*mCustomLights.back());
+  auto texturedLight = std::make_unique<TexturedLight>();
+  auto &result = *texturedLight;
+  mTexturedLights.push_back(std::move(texturedLight));
+  mTexturedLights.back()->setScene(this);
+  mTexturedLights.back()->setParent(parent);
+  parent.addChild(*mTexturedLights.back());
   return result;
 }
 
@@ -255,11 +257,12 @@ void Scene::forceRemove() {
                                    }),
                     mSpotLights.end());
 
-  mCustomLights.erase(std::remove_if(mCustomLights.begin(), mCustomLights.end(),
-                                     [](std::unique_ptr<CustomLight> &node) {
-                                       return node->isMarkedRemoved();
-                                     }),
-                      mCustomLights.end());
+  mTexturedLights.erase(
+      std::remove_if(mTexturedLights.begin(), mTexturedLights.end(),
+                     [](std::unique_ptr<TexturedLight> &node) {
+                       return node->isMarkedRemoved();
+                     }),
+      mTexturedLights.end());
 
   mRequireForceRemove = false;
 }
@@ -327,10 +330,10 @@ std::vector<SpotLight *> Scene::getSpotLights() {
   return result;
 }
 
-std::vector<CustomLight *> Scene::getCustomLights() {
+std::vector<TexturedLight *> Scene::getTexturedLights() {
   forceRemove();
-  std::vector<CustomLight *> result;
-  for (auto &light : mCustomLights) {
+  std::vector<TexturedLight *> result;
+  for (auto &light : mTexturedLights) {
     result.push_back(light.get());
   }
   return result;
@@ -345,10 +348,12 @@ void Scene::uploadToDevice(core::Buffer &sceneBuffer,
   auto pointLights = getPointLights();
   auto directionalLights = getDirectionalLights();
   auto spotLights = getSpotLights();
+  auto texturedLights = getTexturedLights();
 
   std::vector<PointLightData> pointLightData;
   std::vector<DirectionalLightData> directionalLightData;
   std::vector<SpotLightData> spotLightData;
+  std::vector<SpotLightData> texturedLightData;
   for (auto light : pointLights) {
     pointLightData.push_back(
         {.position =
@@ -370,11 +375,19 @@ void Scene::uploadToDevice(core::Buffer &sceneBuffer,
          .color = glm::vec4(light->getColor(), light->getFovSmall())});
   }
 
+  for (auto light : texturedLights) {
+    texturedLightData.push_back(
+        {.position = glm::vec4(light->getPosition(), 1),
+         .direction = glm::vec4(light->getDirection(), light->getFov()),
+         .color = glm::vec4(light->getColor(), light->getFovSmall())});
+  }
+
   sceneBuffer.upload(&mAmbientLight, 16,
                      sceneLayout.elements.at("ambientLight").offset);
   uint32_t numPointLights = mPointLights.size();
   uint32_t numDirectionalLights = mDirectionalLights.size();
   uint32_t numSpotLights = mSpotLights.size();
+  uint32_t numTexturedLights = mTexturedLights.size();
   uint32_t maxNumPointLights =
       sceneLayout.elements.at("pointLights").size /
       sceneLayout.elements.at("pointLights").member->size;
@@ -384,6 +397,9 @@ void Scene::uploadToDevice(core::Buffer &sceneBuffer,
   uint32_t maxNumSpotLights =
       sceneLayout.elements.at("spotLights").size /
       sceneLayout.elements.at("spotLights").member->size;
+  uint32_t maxNumTexturedLights =
+      sceneLayout.elements.at("texturedLights").size /
+      sceneLayout.elements.at("texturedLights").member->size;
 
   if (maxNumPointLights < mPointLights.size()) {
     log::warn("The scene contains more point lights than the maximum number of "
@@ -401,6 +417,11 @@ void Scene::uploadToDevice(core::Buffer &sceneBuffer,
               "spot lights in the shader. Truncated.");
     numSpotLights = maxNumSpotLights;
   }
+  if (maxNumTexturedLights < mTexturedLights.size()) {
+    log::warn("The scene contains more textured lights than the maximum number of "
+              "textured lights in the shader. Truncated.");
+    numTexturedLights = maxNumTexturedLights;
+  }
 
   sceneBuffer.upload(pointLightData.data(),
                      numPointLights * sizeof(PointLightData),
@@ -411,6 +432,9 @@ void Scene::uploadToDevice(core::Buffer &sceneBuffer,
   sceneBuffer.upload(spotLightData.data(),
                      numSpotLights * sizeof(SpotLightData),
                      sceneLayout.elements.at("spotLights").offset);
+  sceneBuffer.upload(texturedLightData.data(),
+                     numTexturedLights * sizeof(SpotLightData),
+                     sceneLayout.elements.at("texturedLights").offset);
 }
 
 void Scene::uploadShadowToDevice(
@@ -427,9 +451,9 @@ void Scene::uploadShadowToDevice(
   uint32_t maxNumSpotLightShadows =
       shadowLayout.elements.at("spotLightBuffers").size /
       shadowLayout.elements.at("spotLightBuffers").member->size;
-  uint32_t maxNumCustomLightShadows =
-      shadowLayout.elements.at("customLightBuffers").size /
-      shadowLayout.elements.at("customLightBuffers").member->size;
+  uint32_t maxNumTexturedLightShadows =
+      shadowLayout.elements.at("texturedLightBuffers").size /
+      shadowLayout.elements.at("texturedLightBuffers").member->size;
 
   uint32_t lightBufferIndex = 0;
   {
@@ -532,28 +556,30 @@ void Scene::uploadShadowToDevice(
   }
 
   {
-    std::vector<LightBufferData> customLightShadowData;
-    uint32_t numCustomLightShadows = 0;
-    for (auto &l : getCustomLights()) {
-      if (numCustomLightShadows >= maxNumCustomLightShadows) {
-        throw std::runtime_error("The scene contains too many custom lights.");
+    std::vector<LightBufferData> texturedLightShadowData;
+    uint32_t numTexturedLightShadows = 0;
+    for (auto l : getTexturedLights()) {
+      if (numTexturedLightShadows >= maxNumTexturedLightShadows) {
+        throw std::runtime_error(
+            "The scene contains too many textured lights.");
       }
-      numCustomLightShadows++;
+      numTexturedLightShadows++;
       auto modelMat = l->getTransform().worldModelMatrix;
       auto projMat = l->getShadowProjectionMatrix();
 
-      customLightShadowData.push_back({
+      texturedLightShadowData.push_back({
           .viewMatrix = glm::affineInverse(modelMat),
           .viewMatrixInverse = modelMat,
           .projectionMatrix = projMat,
           .projectionMatrixInverse = glm::inverse(projMat),
       });
-      lightBuffers[lightBufferIndex++]->upload(&customLightShadowData.back(),
+      lightBuffers[lightBufferIndex++]->upload(&texturedLightShadowData.back(),
                                                sizeof(LightBufferData));
     }
-    shadowBuffer.upload(customLightShadowData.data(),
-                        customLightShadowData.size() * sizeof(LightBufferData),
-                        shadowLayout.elements.at("customLightBuffers").offset);
+    shadowBuffer.upload(
+        texturedLightShadowData.data(),
+        texturedLightShadowData.size() * sizeof(LightBufferData),
+        shadowLayout.elements.at("texturedLightBuffers").offset);
   }
 }
 
