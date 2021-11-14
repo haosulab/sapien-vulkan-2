@@ -11,7 +11,7 @@ inline void unsetBit(int &number, int bit) { number &= ~(1 << bit); }
 
 class SVMaterial {
 protected:
-  std::shared_ptr<core::Context> mContext;  // keep alive for descriptor set
+  std::shared_ptr<core::Context> mContext; // keep alive for descriptor set
   bool mRequiresBufferUpload{true};
   bool mRequiresTextureUpload{true};
 

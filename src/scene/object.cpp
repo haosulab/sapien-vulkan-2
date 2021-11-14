@@ -40,6 +40,16 @@ void Object::uploadToDevice(core::Buffer &objectBuffer,
     }
     std::memcpy(buffer.data() + elem.offset, &mTransparency, 4);
   }
+
+  if (objectLayout.elements.find("shadeFlat") != objectLayout.elements.end()) {
+    auto &elem = objectLayout.elements.at("shadeFlat");
+    if (elem.dtype != DataType::eINT) {
+      throw std::runtime_error("Upload object failed: object attribute "
+                               "\"shadeFlat\" must be an int");
+    }
+    int shadeFlat = mShadeFlat;
+    std::memcpy(buffer.data() + elem.offset, &shadeFlat, 4);
+  }
   objectBuffer.upload(buffer);
 }
 

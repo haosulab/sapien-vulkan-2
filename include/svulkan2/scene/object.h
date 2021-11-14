@@ -31,6 +31,7 @@ class Object : public Node {
   int mShadingMode{};
   float mTransparency{};
   bool mCastShadow{true};
+  bool mShadeFlat{false};
 
 public:
   inline Type getType() const override { return Type::eObject; }
@@ -64,6 +65,9 @@ public:
 
   void setCastShadow(bool castShadow);
   inline bool getCastShadow() const { return mCastShadow; }
+
+  void setShadeFlat(bool shadeFlat) { mShadeFlat = shadeFlat; };
+  inline bool getShadeFlat() const { return mShadeFlat; }
 };
 
 class LineObject : public Node {

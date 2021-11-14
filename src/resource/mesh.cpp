@@ -7,7 +7,7 @@
 namespace svulkan2 {
 namespace resource {
 
-SVMesh::SVMesh() {}
+SVMesh::SVMesh(bool dynamic) : mDynamic(dynamic) {}
 
 void SVMesh::setIndices(std::vector<uint32_t> const &indices) {
   if (indices.size() % 3 != 0) {
@@ -22,9 +22,12 @@ void SVMesh::setIndices(std::vector<uint32_t> const &indices) {
 std::vector<uint32_t> const &SVMesh::getIndices() const { return mIndices; }
 
 void SVMesh::setVertexAttribute(std::string const &name,
-                                std::vector<float> const &attrib) {
+                                std::vector<float> const &attrib, bool upload) {
   mDirty = true;
   mAttributes[name] = attrib;
+  if (upload) {
+    uploadToDevice();
+  }
 }
 
 std::vector<float> const &
@@ -79,7 +82,6 @@ void SVMesh::uploadToDevice() {
         throw std::runtime_error("vertex attribute " + elem.name +
                                  " has incorrect size");
       }
-      // TODO: test this
       strided_memcpy(buffer.data() + offset, mAttributes[elem.name].data(),
                      elem.getSize(), vertexCount, vertexSize);
     }
@@ -92,7 +94,8 @@ void SVMesh::uploadToDevice() {
         vk::BufferUsageFlagBits::eVertexBuffer |
             vk::BufferUsageFlagBits::eTransferDst |
             vk::BufferUsageFlagBits::eTransferSrc,
-        VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY);
+        mDynamic ? VmaMemoryUsage::VMA_MEMORY_USAGE_CPU_TO_GPU
+                 : VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY);
     mIndexBuffer = std::make_unique<core::Buffer>(
         indexBufferSize,
         vk::BufferUsageFlagBits::eIndexBuffer |

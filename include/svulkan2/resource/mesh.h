@@ -9,6 +9,7 @@ namespace svulkan2 {
 namespace resource {
 
 class SVMesh {
+  bool mDynamic;
   std::vector<uint32_t> mIndices;
   uint32_t mIndexCount{};
   std::unordered_map<std::string, std::vector<float>> mAttributes;
@@ -19,13 +20,13 @@ class SVMesh {
   std::unique_ptr<core::Buffer> mIndexBuffer;
 
 public:
-  SVMesh();
+  SVMesh(bool dynamic = false);
 
   void setIndices(std::vector<uint32_t> const &indices);
   std::vector<uint32_t> const &getIndices() const;
 
   void setVertexAttribute(std::string const &name,
-                          std::vector<float> const &attrib);
+                          std::vector<float> const &attrib, bool upload = false);
   std::vector<float> const &getVertexAttribute(std::string const &name) const;
   bool hasVertexAttribute(std::string const &name) const;
 

@@ -310,7 +310,7 @@ void verifyMaterialBuffer(std::shared_ptr<StructDataLayout> layout) {
   ASSERT(layout->elements["transparency"].dtype == eFLOAT,
          "material transparency should be float");
   ASSERT(layout->elements["textureMask"].dtype == eINT,
-         "material textureMask should be float");
+         "material textureMask should be int");
 }
 
 void verifyObjectBuffer(std::shared_ptr<StructDataLayout> layout) {

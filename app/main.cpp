@@ -39,7 +39,7 @@ static void createSphereArray(svulkan2::scene::Scene &scene) {
               metallic));
       scene.addObject(
           resource::SVModel::FromData({shape}),
-          {.position = {i / 8.f, j / 8.f, 0}, .scale = {0.05, 0.05, 0.05}});
+          {.position = {i / 8.f, j / 8.f, 0}, .scale = {0.05, 0.05, 0.05}}).setShadeFlat(true);
     }
   }
 
