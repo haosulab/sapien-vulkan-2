@@ -1,4 +1,5 @@
 #ifdef CUDA_INTEROP
+#pragma once
 
 #include "vk.h"
 #include <map>

@@ -35,7 +35,7 @@ struct DescriptorSetDescription {
     vk::DescriptorType type;
     int dim;
     int arraySize;
-    uint32_t arrayIndex;  // index in the buffers/samplers vector
+    uint32_t arrayIndex; // index in the buffers/samplers vector
   };
   UniformBindingType type{eUnknown};
   std::vector<std::shared_ptr<StructDataLayout>> buffers;
@@ -109,18 +109,22 @@ protected:
   std::string mName;
   std::vector<uint32_t> mVertSPVCode;
   std::vector<uint32_t> mFragSPVCode;
+  std::vector<uint32_t> mGeomSPVCode;
   vk::UniquePipelineLayout mPipelineLayout;
+  float mResolutionScale{1.f};
 
   bool mAlphaBlend{};
 
 public:
-  void loadGLSLFiles(std::string const &vertFile, std::string const &fragFile);
+  void loadGLSLFiles(std::string const &vertFile, std::string const &fragFile,
+                     std::string const &geomFile = "");
   void loadSPVFiles(std::string const &vertFile, std::string const &fragFile);
   void loadSPVCode(std::vector<uint32_t> const &vertCode,
                    std::vector<uint32_t> const &fragCode);
 
   std::future<void> loadGLSLFilesAsync(std::string const &vertFile,
-                                       std::string const &fragFile);
+                                       std::string const &fragFile,
+                                       std::string const &geomFile = "");
 
   vk::PipelineLayout getPipelineLayout() const { return mPipelineLayout.get(); }
 
@@ -154,6 +158,8 @@ public:
 
   virtual std::vector<DescriptorSetDescription>
   getDescriptorSetDescriptions() const = 0;
+
+  inline float getResolutionScale() const { return mResolutionScale; }
 
   virtual ~BaseParser() = default;
 

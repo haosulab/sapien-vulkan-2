@@ -97,9 +97,12 @@ void Renderer::prepareRenderTargets(uint32_t width, uint32_t height) {
   }
 
   auto renderTargetFormats = mShaderManager->getRenderTargetFormats();
+  auto renderTargetScales = mShaderManager->getRenderTargetScales();
   for (auto &[name, format] : renderTargetFormats) {
-    mRenderTargets[name] =
-        std::make_shared<resource::SVRenderTarget>(name, width, height, format);
+    float scale = renderTargetScales[name];
+    mRenderTargets[name] = std::make_shared<resource::SVRenderTarget>(
+        name, static_cast<uint32_t>(width * scale),
+        static_cast<uint32_t>(height * scale), format);
     mRenderTargets[name]->createDeviceResources();
   }
   mRenderTargetFinalLayouts = mShaderManager->getRenderTargetFinalLayouts();
@@ -364,6 +367,7 @@ void Renderer::prepareFramebuffers(uint32_t width, uint32_t height) {
   mFramebuffers.clear();
   auto parsers = mShaderManager->getAllPasses();
   for (uint32_t i = 0; i < parsers.size(); ++i) {
+    float scale = parsers[i]->getResolutionScale();
     auto names = parsers[i]->getColorRenderTargetNames();
     std::vector<vk::ImageView> attachments;
     for (auto &name : names) {
@@ -375,7 +379,8 @@ void Renderer::prepareFramebuffers(uint32_t width, uint32_t height) {
     }
     vk::FramebufferCreateInfo info({}, parsers[i]->getRenderPass(),
                                    attachments.size(), attachments.data(),
-                                   width, height, 1);
+                                   static_cast<uint32_t>(scale * width),
+                                   static_cast<uint32_t>(scale * height), 1);
     mFramebuffers.push_back(
         mContext->getDevice().createFramebufferUnique(info));
   }
@@ -640,7 +645,6 @@ void Renderer::recordRenderPasses(scene::Scene &scene) {
   for (uint32_t objectIndex = 0; objectIndex < objects.size(); ++objectIndex) {
     int shadingMode = objects[objectIndex]->getShadingMode();
     if (static_cast<uint32_t>(shadingMode) >= shapes.size()) {
-      // shadingMode = defaultShadingMode;
       continue; // do not render
     }
     if (shadingMode == 0 && objects[objectIndex]->getTransparency() != 0) {
@@ -649,7 +653,6 @@ void Renderer::recordRenderPasses(scene::Scene &scene) {
     if (objects[objectIndex]->getTransparency() >= 1) {
       continue;
     }
-
     /* HACK: hold onto the models to make sure the underlying buffers are not
      * released until command buffer reset */
     mModelCache.insert(objects[objectIndex]->getModel());
@@ -668,28 +671,47 @@ void Renderer::recordRenderPasses(scene::Scene &scene) {
   }
 
   auto linesetObjects = mScene->getLineObjects();
+
+  // classify point sets
+  uint32_t numPointPasses = mShaderManager->getNumPointPasses();
   auto pointsetObjects = mScene->getPointObjects();
+  std::vector<std::vector<uint32_t>> pointsets(numPointPasses);
+  for (uint32_t objectIndex = 0; objectIndex < pointsetObjects.size();
+       ++objectIndex) {
+    auto mode = pointsetObjects[objectIndex]->getShadingMode();
+    if (static_cast<uint32_t>(mode) >= pointsets.size()) {
+      continue;
+    }
+    pointsets[mode].push_back(objectIndex);
+  }
 
   uint32_t gbufferIndex = 0;
+  uint32_t pointIndex = 0;
   auto passes = mShaderManager->getAllPasses();
-  vk::Viewport viewport{
-      0.f, 0.f, static_cast<float>(mWidth), static_cast<float>(mHeight),
-      0.f, 1.f};
-  vk::Rect2D scissor{vk::Offset2D{0u, 0u},
-                     vk::Extent2D{static_cast<uint32_t>(mWidth),
-                                  static_cast<uint32_t>(mHeight)}};
   for (uint32_t pass_index = 0; pass_index < passes.size(); ++pass_index) {
     EASY_BLOCK("Record render pass" + std::to_string(pass_index));
 
     auto pass = passes[pass_index];
+
+    float scale = pass->getResolutionScale();
+    uint32_t passWidth = static_cast<uint32_t>(mWidth * scale);
+    uint32_t passHeight = static_cast<uint32_t>(mHeight * scale);
+
+    vk::Viewport viewport{
+        0.f, 0.f, static_cast<float>(passWidth), static_cast<float>(passHeight),
+        0.f, 1.f};
+    vk::Rect2D scissor{vk::Offset2D{0u, 0u},
+                       vk::Extent2D{static_cast<uint32_t>(passWidth),
+                                    static_cast<uint32_t>(passHeight)}};
+
     std::vector<vk::ClearValue> clearValues(
         pass->getTextureOutputLayout()->elements.size(),
         vk::ClearColorValue(std::array<float, 4>{0.f, 0.f, 0.f, 0.f}));
     clearValues.push_back(vk::ClearDepthStencilValue(1.0f, 0));
     vk::RenderPassBeginInfo renderPassBeginInfo{
         pass->getRenderPass(), mFramebuffers[pass_index].get(),
-        vk::Rect2D({0, 0}, {static_cast<uint32_t>(mWidth),
-                            static_cast<uint32_t>(mHeight)}),
+        vk::Rect2D({0, 0}, {static_cast<uint32_t>(passWidth),
+                            static_cast<uint32_t>(passHeight)}),
         static_cast<uint32_t>(clearValues.size()), clearValues.data()};
     mRenderCommandBuffer->beginRenderPass(renderPassBeginInfo,
                                           vk::SubpassContents::eInline);
@@ -775,13 +797,13 @@ void Renderer::recordRenderPasses(scene::Scene &scene) {
       }
     } else if (auto pointPass =
                    std::dynamic_pointer_cast<shader::PointPassParser>(pass)) {
-      for (uint32_t index = 0; index < pointsetObjects.size(); ++index) {
-        auto &pointObj = pointsetObjects[index];
+      for (uint32_t i = 0; i < pointsets[pointIndex].size(); ++i) {
+        uint32_t objectIndex = pointsets[pointIndex][i];
+        auto &pointObj = pointsetObjects[objectIndex];
         if (objectBinding >= 0) {
           mRenderCommandBuffer->bindDescriptorSets(
               vk::PipelineBindPoint::eGraphics, pass->getPipelineLayout(),
-              objectBinding, mObjectSet[mPointObjectIndex + index].get(),
-              nullptr);
+              objectBinding, mObjectSet[mPointObjectIndex + i].get(), nullptr);
         }
         if (pointObj->getTransparency() < 1) {
           mPointSetCache.insert(pointObj->getPointSet());
@@ -792,6 +814,7 @@ void Renderer::recordRenderPasses(scene::Scene &scene) {
                                      1, 0, 0);
         }
       }
+      pointIndex++;
     } else {
       mRenderCommandBuffer->draw(3, 1, 0, 0);
     }
@@ -1390,35 +1413,35 @@ Renderer::getRenderTarget(std::string const &name) const {
   return mRenderTargets.at(name);
 }
 
-#ifdef CUDA_INTEROP
-std::tuple<std::shared_ptr<core::CudaBuffer>, std::array<uint32_t, 2>,
-           vk::Format>
-Renderer::transferToCuda(std::string const &targetName) {
+std::tuple<std::shared_ptr<core::Buffer>, std::array<uint32_t, 2>, vk::Format>
+Renderer::transferToBuffer(std::string const &targetName) {
   auto target = mRenderTargets.at(targetName);
   auto &img = target->getImage();
   auto extent = img.getExtent();
   vk::DeviceSize size = extent.width * extent.height * extent.depth *
                         getFormatSize(img.getFormat());
-
   {
-    auto it = mCudaBuffers.find(targetName);
-    if (it == mCudaBuffers.end() || it->second->getSize() != size) {
+    auto it = mTransferBuffers.find(targetName);
+    if (it == mTransferBuffers.end() || it->second->getSize() != size) {
       EASY_BLOCK("Create Vulkan-cuda buffer");
-      mCudaBuffers[targetName] = std::make_shared<core::CudaBuffer>(size);
+      mTransferBuffers[targetName] = std::make_shared<core::Buffer>(
+          size,
+          vk::BufferUsageFlagBits::eTransferSrc |
+              vk::BufferUsageFlagBits::eTransferDst,
+          VMA_MEMORY_USAGE_GPU_ONLY);
       EASY_END_BLOCK;
     }
   }
 
   EASY_BLOCK("Wait for render and copy to Vulkan-Cuda buffer");
-  img.copyToBuffer(mCudaBuffers[targetName]->getVulkanBuffer(), size, {0, 0, 0},
-                   extent);
+  img.copyToBuffer(mTransferBuffers[targetName]->getVulkanBuffer(), size,
+                   {0, 0, 0}, extent);
   EASY_END_BLOCK;
 
-  return {mCudaBuffers[targetName],
+  return {mTransferBuffers[targetName],
           std::array<uint32_t, 2>{extent.width, extent.height},
           img.getFormat()};
 }
-#endif
 
 } // namespace renderer
 } // namespace svulkan2

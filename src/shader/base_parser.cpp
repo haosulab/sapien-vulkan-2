@@ -496,7 +496,7 @@ parseSpecializationConstant(spirv_cross::Compiler &compiler) {
     if (dataType == eINT) {
       layout->elements[name].intValue = constant.scalar_i32();
     } else if (dataType == eFLOAT) {
-      layout->elements[name].intValue = constant.scalar_f32();
+      layout->elements[name].floatValue = constant.scalar_f32();
     } else {
       throw std::runtime_error(
           "only int and float are supported specialization constant types");
@@ -595,13 +595,16 @@ getDescriptorSetDescription(spirv_cross::Compiler &compiler,
 }
 
 std::future<void> BaseParser::loadGLSLFilesAsync(std::string const &vertFile,
-                                                 std::string const &fragFile) {
-  return std::async(std::launch::async,
-                    [=, this]() { loadGLSLFiles(vertFile, fragFile); });
+                                                 std::string const &fragFile,
+                                                 std::string const &geomFile) {
+  return std::async(std::launch::async, [=, this]() {
+    loadGLSLFiles(vertFile, fragFile, geomFile);
+  });
 }
 
 void BaseParser::loadGLSLFiles(std::string const &vertFile,
-                               std::string const &fragFile) {
+                               std::string const &fragFile,
+                               std::string const &geomFile) {
   log::info("Compiling: " + vertFile);
   mVertSPVCode = GLSLCompiler::compileGlslFileCached(
       vk::ShaderStageFlagBits::eVertex, vertFile);
@@ -612,6 +615,13 @@ void BaseParser::loadGLSLFiles(std::string const &vertFile,
     mFragSPVCode = GLSLCompiler::compileGlslFileCached(
         vk::ShaderStageFlagBits::eFragment, fragFile);
     log::info("Compiled: " + fragFile);
+  }
+
+  if (geomFile.length()) {
+    log::info("Compiling: " + geomFile);
+    mGeomSPVCode = GLSLCompiler::compileGlslFileCached(
+        vk::ShaderStageFlagBits::eGeometry, geomFile);
+    log::info("Compiled: " + geomFile);
   }
 
   try {

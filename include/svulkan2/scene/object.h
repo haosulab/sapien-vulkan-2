@@ -98,7 +98,8 @@ public:
 class PointObject : public Node {
   std::shared_ptr<resource::SVPointSet> mPointSet;
   glm::uvec4 mSegmentation{0};
-  float mTransparency{};
+  int mShadingMode{0};
+  float mTransparency{0};
 
 public:
   inline Type getType() const override { return Type::eObject; }
@@ -108,6 +109,10 @@ public:
   inline std::shared_ptr<resource::SVLineSet> getPointSet() const {
     return mPointSet;
   }
+
+  /** used to choose pipelines */
+  inline void setShadingMode(int mode) { mShadingMode = mode; }
+  inline int getShadingMode() const { return mShadingMode; }
 
   void uploadToDevice(core::Buffer &objectBuffer,
                       StructDataLayout const &objectLayout);

@@ -181,6 +181,8 @@ static EShLanguage GetEShLanguage(vk::ShaderStageFlagBits stage) {
     return EShLanguage::EShLangVertex;
   case vk::ShaderStageFlagBits::eFragment:
     return EShLanguage::EShLangFragment;
+  case vk::ShaderStageFlagBits::eGeometry:
+    return EShLanguage::EShLangGeometry;
   default:
     throw std::invalid_argument("GetEShLanguage: invalid shader stage.");
   }

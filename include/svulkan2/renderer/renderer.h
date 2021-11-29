@@ -7,9 +7,9 @@
 #include "svulkan2/shader/shader_manager.h"
 #include <map>
 
-#ifdef CUDA_INTEROP
-#include "svulkan2/core/cuda_buffer.h"
-#endif
+// #ifdef CUDA_INTEROP
+// #include "svulkan2/core/cuda_buffer.h"
+// #endif
 
 namespace svulkan2 {
 namespace core {
@@ -93,7 +93,7 @@ class Renderer {
   scene::Scene *mScene{nullptr};
 
 #ifdef CUDA_INTEROP
-  std::map<std::string, std::shared_ptr<core::CudaBuffer>> mCudaBuffers;
+  std::map<std::string, std::shared_ptr<core::Buffer>> mTransferBuffers;
 #endif
 public:
   Renderer(std::shared_ptr<RendererConfig> config);
@@ -176,11 +176,8 @@ public:
   Renderer(Renderer &&other) = default;
   Renderer &operator=(Renderer &&other) = default;
 
-#ifdef CUDA_INTEROP
-  std::tuple<std::shared_ptr<core::CudaBuffer>, std::array<uint32_t, 2>,
-             vk::Format>
-  transferToCuda(std::string const &targetName);
-#endif
+  std::tuple<std::shared_ptr<core::Buffer>, std::array<uint32_t, 2>, vk::Format>
+  transferToBuffer(std::string const &targetName);
 
 private:
   void prepareRenderTargets(uint32_t width, uint32_t height);
@@ -208,8 +205,8 @@ private:
   void recordShadows(scene::Scene &scene);
   void recordRenderPasses(scene::Scene &scene);
 
-  uint32_t mLineObjectIndex{};
-  uint32_t mPointObjectIndex{};
+  uint32_t mLineObjectIndex{};  // starting object index for line objects
+  uint32_t mPointObjectIndex{}; // starting object index for point objects
 };
 
 } // namespace renderer

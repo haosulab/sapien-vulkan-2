@@ -46,17 +46,21 @@ void ShaderManager::processShadersInFolder(std::string const &folder) {
   mAllPasses = {};
 
   mNumGbufferPasses = 0;
+  mNumPointPasses = 0;
   for (const auto &entry : fs::directory_iterator(path)) {
     std::string filename = entry.path().filename().string();
     if (filename.starts_with("gbuffer") && filename.ends_with(".frag")) {
       mNumGbufferPasses++;
     }
+    if (filename.starts_with("point") && filename.ends_with(".frag")) {
+      mNumPointPasses++;
+    }
   }
 
+  // gbuffer passes
   std::shared_ptr<GbufferPassParser> firstGbufferPass;
   for (uint32_t i = 0; i < mNumGbufferPasses; ++i) {
     std::string suffix = i == 0 ? "" : std::to_string(i);
-    // load gbuffer pass
     auto gbufferPass = std::make_shared<GbufferPassParser>();
     if (i == 0) {
       firstGbufferPass = gbufferPass;
@@ -73,6 +77,27 @@ void ShaderManager::processShadersInFolder(std::string const &folder) {
     futures.push_back(gbufferPass->loadGLSLFilesAsync(vsFile, fsFile));
   }
 
+  // point pass
+  std::shared_ptr<PointPassParser> firstPointPass{};
+  for (uint32_t i = 0; i < mNumPointPasses; ++i) {
+    std::string suffix = i == 0 ? "" : std::to_string(i);
+    auto pointPass = std::make_shared<PointPassParser>();
+    if (i == 0) {
+      firstPointPass = pointPass;
+    }
+    pointPass->setName("Point" + suffix);
+    mAllPasses.push_back(pointPass);
+    mPassIndex[pointPass] = mAllPasses.size() - 1;
+
+    std::string vsFile = (path / ("point" + suffix + ".vert")).string();
+    std::string fsFile = (path / ("point" + suffix + ".frag")).string();
+    std::string gsFile = (path / ("point" + suffix + ".geom")).string();
+    if (!fs::is_regular_file(gsFile)) {
+      gsFile = "";
+    }
+    futures.push_back(pointPass->loadGLSLFilesAsync(vsFile, fsFile, gsFile));
+  }
+
   std::shared_ptr<LinePassParser> linePass{};
   // line pass
   {
@@ -86,21 +111,6 @@ void ShaderManager::processShadersInFolder(std::string const &folder) {
       mPassIndex[linePass] = mAllPasses.size() - 1;
       futures.push_back(linePass->loadGLSLFilesAsync(vsFile, fsFile));
       mLineEnabled = true;
-    }
-  }
-
-  std::shared_ptr<PointPassParser> pointPass{};
-  // point pass
-  {
-    std::string vsFile = (path / "point.vert").string();
-    std::string fsFile = (path / "point.frag").string();
-    if (fs::is_regular_file(vsFile) && fs::is_regular_file(fsFile)) {
-      pointPass = std::make_shared<PointPassParser>();
-      pointPass->setName("Point");
-      mAllPasses.push_back(pointPass);
-      mPassIndex[pointPass] = mAllPasses.size() - 1;
-      futures.push_back(pointPass->loadGLSLFilesAsync(vsFile, fsFile));
-      mPointEnabled = true;
     }
   }
 
@@ -161,13 +171,14 @@ void ShaderManager::processShadersInFolder(std::string const &folder) {
     }
   }
 
-  if (pointPass) {
+  if (mNumPointPasses > 0) {
     if (mShaderConfig->primitiveVertexLayout) {
       ASSERT(*mShaderConfig->primitiveVertexLayout ==
-                 *pointPass->getVertexInputLayout(),
+                 *firstPointPass->getVertexInputLayout(),
              "All primitive passes must share the same vertex layout");
     } else {
-      mShaderConfig->primitiveVertexLayout = linePass->getVertexInputLayout();
+      mShaderConfig->primitiveVertexLayout =
+          firstPointPass->getVertexInputLayout();
     }
   }
 
@@ -249,9 +260,11 @@ void ShaderManager::populateShaderConfig() {
 void ShaderManager::prepareRenderTargetFormats() {
   auto allPasses = getAllPasses();
   for (auto pass : allPasses) {
+    float scale = pass->getResolutionScale();
     auto depthName = pass->getDepthRenderTargetName();
     if (depthName.has_value()) {
       mRenderTargetFormats[depthName.value()] = mRenderConfig->depthFormat;
+      mRenderTargetScale[depthName.value()] = scale;
     }
     for (auto &elem : pass->getTextureOutputLayout()->elements) {
       std::string texName = getOutTextureName(elem.second.name);
@@ -275,8 +288,13 @@ void ShaderManager::prepareRenderTargetFormats() {
           std::runtime_error("Inconsistent texture format for \"" + texName +
                              "\"");
         }
+        if (mRenderTargetScale[texName] != scale) {
+          std::runtime_error("Inconsistent texture scale for \"" + texName +
+                             "\"");
+        }
       }
       mRenderTargetFormats[texName] = texFormat;
+      mRenderTargetScale[texName] = scale;
     }
   }
 }

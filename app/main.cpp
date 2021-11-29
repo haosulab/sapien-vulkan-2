@@ -37,9 +37,11 @@ static void createSphereArray(svulkan2::scene::Scene &scene) {
           std::make_shared<resource::SVMetallicMaterial>(
               glm::vec4{0, 0, 0, 1}, glm::vec4{1, 1, 1, 1}, 0, roughness,
               metallic));
-      scene.addObject(
-          resource::SVModel::FromData({shape}),
-          {.position = {i / 8.f, j / 8.f, 0}, .scale = {0.05, 0.05, 0.05}}).setShadeFlat(true);
+      scene
+          .addObject(
+              resource::SVModel::FromData({shape}),
+              {.position = {i / 8.f, j / 8.f, 0}, .scale = {0.05, 0.05, 0.05}})
+          .setShadeFlat(true);
     }
   }
 
@@ -116,12 +118,12 @@ int main() {
   // p3.enableShadow(true);
   // p3.setShadowParameters(0.05, 5);
 
-  // auto &dl = scene.addDirectionalLight();
-  // dl.setPosition({0, 0, 0});
-  // dl.setDirection({-1, -5, -1});
-  // dl.setColor({1, 1, 1, 1});
-  // dl.enableShadow(true);
-  // dl.setShadowParameters(-10, 10, 5);
+  auto &dl = scene.addDirectionalLight();
+  dl.setPosition({0, 0, 0});
+  dl.setDirection({-1, -5, -1});
+  dl.setColor({1, 1, 1});
+  dl.enableShadow(true);
+  dl.setShadowParameters(-10, 10, 5, 2048);
 
   // auto &dl2 = scene.addDirectionalLight();
   // dl2.setTransform({.position = {0, 0, 0}});
@@ -130,7 +132,7 @@ int main() {
   // dl2.enableShadow(true);
   // dl2.setShadowParameters(-5, 5, 3, 2048);
 
-  scene.setAmbientLight({0.f, 0.f, 0.f, 0});
+  scene.setAmbientLight({0.1f, 0.1f, 0.1f, 0});
 
   // auto material =
   //     std::make_shared<resource::SVMetallicMaterial>(glm::vec4{1, 1, 1, 1});
@@ -183,25 +185,48 @@ int main() {
   //                                      });
   // scene.addLineObject(lineset).setPosition({0, 1, 0});
 
-  // auto pointset = std::make_shared<resource::SVPointSet>();
-  // pointset->setVertexAttribute("position",
-  //                              {0.1, 0.1, 0.1, 1.1, 1.1, 1.1, 1.1, 0.1,
-  //                              0.1});
-  // pointset->setVertexAttribute("color", {
-  //                                           0,
-  //                                           1,
-  //                                           0,
-  //                                           1,
-  //                                           0,
-  //                                           1,
-  //                                           0,
-  //                                           1,
-  //                                           0,
-  //                                           1,
-  //                                           0,
-  //                                           1,
-  //                                       });
-  // scene.addPointObject(pointset);
+  std::vector<float> positions;
+  std::vector<float> scales;
+  std::vector<float> colors;
+  float r = 0.01;
+  for (uint32_t i = 0; i < 20; ++i) {
+    for (uint32_t j = 0; j < 20; ++j) {
+      positions.push_back(i * r);
+      positions.push_back(0.01);
+      positions.push_back(j * r);
+      scales.push_back(r);
+      scales.push_back(r);
+      scales.push_back(r);
+      colors.push_back(0);
+      colors.push_back(1);
+      colors.push_back(1);
+      colors.push_back(1);
+    }
+  }
+
+  // random buffer
+  svulkan2::core::Buffer b1(100, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_GPU_ONLY);
+  b1.getCudaPtr();
+  svulkan2::core::Buffer b2(200, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_GPU_ONLY);
+  b2.getCudaPtr();
+
+  auto pointset = std::make_shared<resource::SVPointSet>();
+  pointset->setVertexAttribute("position", positions);
+  pointset->setVertexAttribute("scale", scales);
+  pointset->setVertexAttribute("color", colors);
+  pointset->uploadToDevice();
+
+  void *cudaPtr =
+      static_cast<core::Buffer *>(&pointset->getVertexBuffer())->getCudaPtr();
+  uint8_t data[100];
+  cudaMemcpy(data, cudaPtr, 100, cudaMemcpyDeviceToHost);
+  // pointset->getVertexBuffer().download(data, 100, 0);
+  for (uint32_t i = 0; i < 100; ++i) {
+    printf("%02x ", data[i]);
+  }
+  std::cout << std::endl;
+
+  scene.addPointObject(pointset).setShadingMode(1);
 
   auto &cameraNode = scene.addCamera();
   cameraNode.setPerspectiveParameters(0.05, 50, 1, 400, 300);

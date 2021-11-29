@@ -2,10 +2,15 @@
 #include "svulkan2/common/log.h"
 #include "svulkan2/common/vk.h"
 
+#ifdef CUDA_INTEROP
+#include "svulkan2/common/cuda_helper.h"
+#endif
+
 namespace svulkan2 {
 namespace core {
 
 class Buffer {
+protected:
   std::shared_ptr<class Context> mContext;
   vk::DeviceSize mSize;
   bool mHostVisible;
@@ -13,6 +18,7 @@ class Buffer {
 
   vk::Buffer mBuffer;
   VmaAllocation mAllocation;
+  VmaAllocationInfo mAllocationInfo;
 
   bool mMapped{};
   void *mMappedData;
@@ -57,6 +63,29 @@ public:
   }
 
   inline vk::DeviceSize getSize() const { return mSize; }
+
+#ifdef CUDA_INTEROP
+
+#define checkCudaErrors(call)                                                  \
+  do {                                                                         \
+    cudaError_t err = call;                                                    \
+    if (err != cudaSuccess) {                                                  \
+      fprintf(stderr, "CUDA error at %s %d: %s\n", __FILE__, __LINE__,         \
+              cudaGetErrorString(err));                                        \
+      exit(EXIT_FAILURE);                                                      \
+    }                                                                          \
+  } while (0)
+
+private:
+  int mCudaFd{-1};
+  void *mCudaPtr{};
+  cudaExternalMemory_t mCudaMem{};
+  int mCudaDeviceId{-1};
+
+public:
+  void *getCudaPtr();
+  int getCudaDeviceId();
+#endif
 };
 
 } // namespace core

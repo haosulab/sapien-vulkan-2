@@ -60,31 +60,31 @@ void Camera::setHeight(float height) { mHeight = height; }
 
 void Camera::uploadToDevice(core::Buffer &cameraBuffer,
                             StructDataLayout const &cameraLayout) {
-  std::vector<char> mBuffer(cameraLayout.size);
+  std::vector<char> buffer(cameraLayout.size);
 
   auto viewMatrix = glm::affineInverse(mTransform.worldModelMatrix);
   auto projInv = glm::inverse(mProjectionMatrix);
-  std::memcpy(mBuffer.data() + cameraLayout.elements.at("viewMatrix").offset,
+  std::memcpy(buffer.data() + cameraLayout.elements.at("viewMatrix").offset,
               &viewMatrix[0][0], 64);
-  std::memcpy(mBuffer.data() +
+  std::memcpy(buffer.data() +
                   cameraLayout.elements.at("viewMatrixInverse").offset,
               &mTransform.worldModelMatrix[0][0], 64);
-  std::memcpy(mBuffer.data() +
+  std::memcpy(buffer.data() +
                   cameraLayout.elements.at("projectionMatrix").offset,
               &mProjectionMatrix[0][0], 64);
-  std::memcpy(mBuffer.data() +
+  std::memcpy(buffer.data() +
                   cameraLayout.elements.at("projectionMatrixInverse").offset,
               &projInv[0][0], 64);
 
   auto it = cameraLayout.elements.find("prevViewMatrix");
   if (it != cameraLayout.elements.end()) {
     auto prevViewMatrix = glm::affineInverse(mTransform.prevWorldModelMatrix);
-    std::memcpy(mBuffer.data() + it->second.offset, &prevViewMatrix[0][0], 64);
+    std::memcpy(buffer.data() + it->second.offset, &prevViewMatrix[0][0], 64);
   }
 
   it = cameraLayout.elements.find("prevViewMatrixInverse");
   if (it != cameraLayout.elements.end()) {
-    std::memcpy(mBuffer.data() +
+    std::memcpy(buffer.data() +
                     cameraLayout.elements.at("prevViewMatrixInverse").offset,
                 &mTransform.prevWorldModelMatrix[0][0], 64);
   }
@@ -92,18 +92,18 @@ void Camera::uploadToDevice(core::Buffer &cameraBuffer,
   it = cameraLayout.elements.find("width");
   if (it != cameraLayout.elements.end()) {
     float fwidth = static_cast<float>(mWidth);
-    std::memcpy(mBuffer.data() + cameraLayout.elements.at("width").offset,
+    std::memcpy(buffer.data() + cameraLayout.elements.at("width").offset,
                 &fwidth, sizeof(float));
   }
 
   it = cameraLayout.elements.find("height");
   if (it != cameraLayout.elements.end()) {
     float fheight = static_cast<float>(mHeight);
-    std::memcpy(mBuffer.data() + cameraLayout.elements.at("height").offset,
+    std::memcpy(buffer.data() + cameraLayout.elements.at("height").offset,
                 &fheight, sizeof(float));
   }
 
-  cameraBuffer.upload<char>(mBuffer);
+  cameraBuffer.upload<char>(buffer);
 }
 
 float Camera::getWidth() const {

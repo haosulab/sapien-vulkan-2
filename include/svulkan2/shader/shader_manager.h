@@ -3,7 +3,7 @@
 #include "svulkan2/core/context.h"
 #include "svulkan2/shader/deferred.h"
 #include "svulkan2/shader/gbuffer.h"
-#include "svulkan2/shader/line.h"
+#include "svulkan2/shader/primitive.h"
 #include "svulkan2/shader/shadow.h"
 #include <map>
 #include <memory>
@@ -30,6 +30,7 @@ class ShaderManager {
   std::unordered_map<std::string, std::vector<RenderTargetOperation>>
       mTextureOperationTable;
   std::unordered_map<std::string, vk::Format> mRenderTargetFormats;
+  std::unordered_map<std::string, float> mRenderTargetScale;
 
   DescriptorSetDescription mCameraSetDesc;
   DescriptorSetDescription mObjectSetDesc;
@@ -46,9 +47,10 @@ class ShaderManager {
   std::vector<vk::UniqueDescriptorSetLayout> mInputTextureLayouts;
 
   uint32_t mNumGbufferPasses{};
+  uint32_t mNumPointPasses{};
+
   bool mShadowEnabled{};
   bool mLineEnabled{};
-  bool mPointEnabled{};
 
 public:
   ShaderManager(std::shared_ptr<RendererConfig> config = nullptr);
@@ -56,6 +58,7 @@ public:
   std::shared_ptr<RendererConfig> getConfig() const { return mRenderConfig; }
 
   inline uint32_t getNumGbufferPasses() const { return mNumGbufferPasses; }
+  inline uint32_t getNumPointPasses() const { return mNumPointPasses; }
 
   inline vk::DescriptorSetLayout getSceneDescriptorSetLayout() const {
     return mSceneLayout.get();
@@ -97,6 +100,10 @@ public:
     return mRenderTargetFormats;
   };
 
+  inline std::unordered_map<std::string, float> getRenderTargetScales() const {
+    return mRenderTargetScale;
+  };
+
   std::unordered_map<std::string, vk::ImageLayout>
   getRenderTargetFinalLayouts() const;
 
@@ -106,7 +113,7 @@ public:
 
   bool isShadowEnabled() const { return mShadowEnabled; }
   bool isLineEnabled() const { return mLineEnabled; }
-  bool isPointEnabled() const { return mPointEnabled; }
+  bool isPointEnabled() const { return mNumPointPasses > 0; }
 
 private:
   void processShadersInFolder(std::string const &folder);

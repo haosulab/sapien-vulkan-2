@@ -259,6 +259,7 @@ Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
 
     device.getFeatures2(&features);
     if (features.features.independentBlend && features.features.wideLines &&
+        features.features.geometryShader &&
         descriptorFeatures.descriptorBindingPartiallyBound) {
       required_features = true;
     }
@@ -528,6 +529,7 @@ void Context::createDevice() {
 
   features.features.setIndependentBlend(true);
   features.features.setWideLines(true);
+  features.features.setGeometryShader(true);
   descriptorFeatures.setDescriptorBindingPartiallyBound(true);
 
 #ifdef CUDA_INTEROP

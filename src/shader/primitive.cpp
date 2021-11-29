@@ -1,4 +1,5 @@
-#include "svulkan2/shader/line.h"
+#include "svulkan2/shader/primitive.h"
+#include "svulkan2/common/log.h"
 
 namespace svulkan2 {
 namespace shader {
@@ -19,6 +20,12 @@ void PrimitivePassParser::reflectSPV() {
   spirv_cross::Compiler fragComp(mFragSPVCode);
   try {
     mSpecializationConstantLayout = parseSpecializationConstant(fragComp);
+    if (mSpecializationConstantLayout->elements.contains("RESOLUTION_SCALE")) {
+      mResolutionScale =
+          mSpecializationConstantLayout->elements["RESOLUTION_SCALE"]
+              .floatValue;
+    }
+
     mTextureOutputLayout = parseTextureOutput(fragComp);
     for (uint32_t i = 0; i < 4; ++i) {
       fragDesc.push_back(getDescriptorSetDescription(fragComp, i));
@@ -165,6 +172,11 @@ vk::Pipeline PrimitivePassParser::createGraphicsPipelineHelper(
       {{}, mVertSPVCode.size() * sizeof(uint32_t), mVertSPVCode.data()});
   auto fsm = device.createShaderModuleUnique(
       {{}, mFragSPVCode.size() * sizeof(uint32_t), mFragSPVCode.data()});
+  vk::UniqueShaderModule gsm;
+  if (mGeomSPVCode.size()) {
+    gsm = device.createShaderModuleUnique(
+        {{}, mGeomSPVCode.size() * sizeof(uint32_t), mGeomSPVCode.data()});
+  }
 
   auto elems = mSpecializationConstantLayout->getElementsSorted();
   vk::SpecializationInfo fragSpecializationInfo;
@@ -204,8 +216,8 @@ vk::Pipeline PrimitivePassParser::createGraphicsPipelineHelper(
         specializationData.data());
   }
 
-  std::array<vk::PipelineShaderStageCreateInfo, 2>
-      pipelineShaderStageCreateInfos{
+  std::vector<vk::PipelineShaderStageCreateInfo>
+      pipelineShaderStageCreateInfos = {
           vk::PipelineShaderStageCreateInfo(
               vk::PipelineShaderStageCreateFlags(),
               vk::ShaderStageFlagBits::eVertex, vsm.get(), "main", nullptr),
@@ -213,6 +225,11 @@ vk::Pipeline PrimitivePassParser::createGraphicsPipelineHelper(
               vk::PipelineShaderStageCreateFlags(),
               vk::ShaderStageFlagBits::eFragment, fsm.get(), "main",
               elems.size() ? &fragSpecializationInfo : nullptr)};
+  if (gsm) {
+    pipelineShaderStageCreateInfos.push_back(vk::PipelineShaderStageCreateInfo(
+        vk::PipelineShaderStageCreateFlags(),
+        vk::ShaderStageFlagBits::eGeometry, gsm.get(), "main", nullptr));
+  }
 
   // vertex input
   auto vertexInputBindingDescriptions =
