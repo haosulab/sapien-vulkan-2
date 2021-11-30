@@ -157,7 +157,7 @@ void *Buffer::getCudaPtr() {
 
 int Buffer::getCudaDeviceId() {
   if (!mCudaPtr) {
-    throw std::runtime_error("failed to get cuda device id: Buffer::getCudaPtr must be called first");
+    return getCudaDeviceIdFromPhysicalDevice(mContext->getPhysicalDevice());
   }
   return mCudaDeviceId;
 }

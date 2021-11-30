@@ -67,9 +67,9 @@ void SVMesh::uploadToDevice() {
         "mesh upload failed: size of vertex indices is not a multiple of 3");
   }
 
-  size_t vertexCount = mAttributes["position"].size() / 3;
+  mVertexCount = mAttributes["position"].size() / 3;
   size_t vertexSize = layout->getSize();
-  size_t bufferSize = vertexSize * vertexCount;
+  size_t bufferSize = vertexSize * mVertexCount;
   size_t indexBufferSize = sizeof(uint32_t) * mIndices.size();
 
   std::vector<char> buffer(bufferSize, 0);
@@ -78,12 +78,12 @@ void SVMesh::uploadToDevice() {
   for (auto &elem : elements) {
     if (mAttributes.find(elem.name) != mAttributes.end()) {
       if (mAttributes[elem.name].size() * sizeof(float) !=
-          vertexCount * elem.getSize()) {
+          mVertexCount * elem.getSize()) {
         throw std::runtime_error("vertex attribute " + elem.name +
                                  " has incorrect size");
       }
       strided_memcpy(buffer.data() + offset, mAttributes[elem.name].data(),
-                     elem.getSize(), vertexCount, vertexSize);
+                     elem.getSize(), mVertexCount, vertexSize);
     }
     offset += elem.getSize();
   }
@@ -107,6 +107,34 @@ void SVMesh::uploadToDevice() {
   mIndexBuffer->upload<uint32_t>(mIndices);
   mOnDevice = true;
   mDirty = false;
+}
+
+uint32_t SVMesh::getVertexSize() const {
+  return core::Context::Get()
+      ->getResourceManager()
+      ->getVertexLayout()
+      ->getSize();
+}
+
+size_t SVMesh::getVertexCount() {
+  if (mVertexCount == 0) {
+    uploadToDevice();
+  }
+  return mVertexCount;
+}
+
+core::Buffer &SVMesh::getVertexBuffer() {
+  if (!mVertexBuffer) {
+    uploadToDevice();
+  }
+  return *mVertexBuffer;
+}
+
+core::Buffer &SVMesh::getIndexBuffer() {
+  if (!mIndexBuffer) {
+    uploadToDevice();
+  }
+  return *mIndexBuffer;
 }
 
 void SVMesh::removeFromDevice() {
