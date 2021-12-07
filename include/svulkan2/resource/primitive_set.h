@@ -21,7 +21,9 @@ public:
   void setVertexAttribute(std::string const &name,
                           std::vector<float> const &attrib);
   std::vector<float> const &getVertexAttribute(std::string const &name) const;
-  inline core::Buffer &getVertexBuffer() const { return *mVertexBuffer; }
+  core::Buffer &getVertexBuffer();
+
+  size_t getVertexSize();
   inline uint32_t getVertexCount() const { return mVertexCount; }
 
   void uploadToDevice();

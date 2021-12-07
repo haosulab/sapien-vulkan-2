@@ -23,6 +23,19 @@ SVPrimitiveSet::getVertexAttribute(std::string const &name) const {
   return mAttributes.at(name);
 }
 
+size_t SVPrimitiveSet::getVertexSize() {
+  auto layout =
+      core::Context::Get()->getResourceManager()->getLineVertexLayout();
+  return layout->getSize();
+}
+
+core::Buffer &SVPrimitiveSet::getVertexBuffer() {
+  if (!mVertexBuffer) {
+    uploadToDevice();
+  }
+  return *mVertexBuffer;
+}
+
 void SVPrimitiveSet::uploadToDevice() {
   if (!mDirty) {
     return;

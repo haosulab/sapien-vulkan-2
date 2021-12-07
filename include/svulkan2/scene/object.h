@@ -106,7 +106,7 @@ public:
 
   PointObject(std::shared_ptr<resource::SVPointSet> pointSet,
               std::string const &name = "");
-  inline std::shared_ptr<resource::SVLineSet> getPointSet() const {
+  inline std::shared_ptr<resource::SVPointSet> getPointSet() const {
     return mPointSet;
   }
 
