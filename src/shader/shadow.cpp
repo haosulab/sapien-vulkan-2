@@ -114,8 +114,8 @@ vk::RenderPass ShadowPassParser::createRenderPass(
 }
 
 vk::Pipeline ShadowPassParser::createGraphicsPipeline(
-    vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
-    vk::CullModeFlags cullMode, vk::FrontFace frontFace,
+    vk::Device device, std::vector<vk::Format> const &colorFormats,
+    vk::Format depthFormat, vk::CullModeFlags cullMode, vk::FrontFace frontFace,
     std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
         &colorTargetLayouts,
     std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,

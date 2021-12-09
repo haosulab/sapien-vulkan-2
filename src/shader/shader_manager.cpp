@@ -274,8 +274,11 @@ void ShaderManager::prepareRenderTargetFormats() {
       }
       vk::Format texFormat;
       switch (elem.second.dtype) {
+      case eFLOAT:
+        texFormat = mRenderConfig->colorFormat1;
+        break;
       case eFLOAT4:
-        texFormat = mRenderConfig->colorFormat;
+        texFormat = mRenderConfig->colorFormat4;
         break;
       case eUINT4:
         texFormat = vk::Format::eR32G32B32A32Uint;
@@ -594,9 +597,32 @@ void ShaderManager::createPipelines(
                                  "implemented uniform binding type");
       }
     }
+    std::vector<vk::Format> formats;
+    for (auto layout : pass->getTextureOutputLayout()->getElementsSorted()) {
+      switch (layout.dtype) {
+      case DataType::eFLOAT:
+        formats.push_back(mRenderConfig->colorFormat1);
+        break;
+      case DataType::eFLOAT4:
+        formats.push_back(mRenderConfig->colorFormat4);
+        break;
+      case DataType::eUINT4:
+        formats.push_back(vk::Format::eR32G32B32A32Uint);
+        break;
+      default:
+        throw std::runtime_error(
+            "only float, float4 and uint4 are allowed in output attachments");
+      }
+    }
+    // pass->createGraphicsPipeline(
+    //     device, mRenderConfig->colorFormat4, mRenderConfig->depthFormat,
+    //     mRenderConfig->culling, vk::FrontFace::eCounterClockwise,
+    //     getColorAttachmentLayoutsForPass(pass),
+    //     getDepthAttachmentLayoutsForPass(pass), descriptorSetLayouts,
+    //     specializationConstantInfo);
     pass->createGraphicsPipeline(
-        device, mRenderConfig->colorFormat, mRenderConfig->depthFormat,
-        mRenderConfig->culling, vk::FrontFace::eCounterClockwise,
+        device, formats, mRenderConfig->depthFormat, mRenderConfig->culling,
+        vk::FrontFace::eCounterClockwise,
         getColorAttachmentLayoutsForPass(pass),
         getDepthAttachmentLayoutsForPass(pass), descriptorSetLayouts,
         specializationConstantInfo);
@@ -624,8 +650,8 @@ void ShaderManager::createPipelines(
       }
     }
     mShadowPass->createGraphicsPipeline(
-        device, mRenderConfig->colorFormat, mRenderConfig->depthFormat,
-        vk::CullModeFlagBits::eFront, vk::FrontFace::eCounterClockwise, {},
+        device, {}, mRenderConfig->depthFormat, vk::CullModeFlagBits::eFront,
+        vk::FrontFace::eCounterClockwise, {},
         {vk::ImageLayout::eUndefined, vk::ImageLayout::eShaderReadOnlyOptimal},
         descriptorSetLayouts, specializationConstantInfo);
   }

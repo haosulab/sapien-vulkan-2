@@ -12,6 +12,8 @@
 #include "camera_controller.hpp"
 #include <stb_image_write.h>
 
+#include <chrono>
+
 using namespace svulkan2;
 
 static bool gSwapchainRebuild = true;
@@ -67,14 +69,14 @@ int main() {
   }
 
   auto config = std::make_shared<RendererConfig>();
-  config->shaderDir = srcBase + "shader/test";
+  config->shaderDir = srcBase + "shader/point";
 
-  config->colorFormat = vk::Format::eR32G32B32A32Sfloat;
+  config->colorFormat4 = vk::Format::eR32G32B32A32Sfloat;
   renderer::Renderer renderer(config);
 
   svulkan2::scene::Scene scene;
 
-  createSphereArray(scene);
+  // createSphereArray(scene);
 
   auto &spotLight1 = scene.addSpotLight();
   spotLight1.setPosition({0.5, 0.5, 1.0});
@@ -189,26 +191,20 @@ int main() {
   std::vector<float> scales;
   std::vector<float> colors;
   float r = 0.01;
-  for (uint32_t i = 0; i < 20; ++i) {
-    for (uint32_t j = 0; j < 20; ++j) {
-      positions.push_back(i * r);
-      positions.push_back(0.01);
-      positions.push_back(j * r);
-      scales.push_back(r);
-      scales.push_back(r);
-      scales.push_back(r);
-      colors.push_back(0);
-      colors.push_back(1);
-      colors.push_back(1);
-      colors.push_back(1);
+  for (uint32_t i = 0; i < 40; ++i) {
+    for (uint32_t j = 0; j < 40; ++j) {
+      for (uint32_t k = 0; k < 20; ++k) {
+        positions.push_back(i * r);
+        positions.push_back(j * r);
+        positions.push_back(k * r);
+        scales.push_back(r);
+        colors.push_back(0);
+        colors.push_back(1);
+        colors.push_back(1);
+        colors.push_back(1);
+      }
     }
   }
-
-  // random buffer
-  svulkan2::core::Buffer b1(100, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_GPU_ONLY);
-  b1.getCudaPtr();
-  svulkan2::core::Buffer b2(200, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_GPU_ONLY);
-  b2.getCudaPtr();
 
   auto pointset = std::make_shared<resource::SVPointSet>();
   pointset->setVertexAttribute("position", positions);
@@ -216,17 +212,7 @@ int main() {
   pointset->setVertexAttribute("color", colors);
   pointset->uploadToDevice();
 
-  void *cudaPtr =
-      static_cast<core::Buffer *>(&pointset->getVertexBuffer())->getCudaPtr();
-  uint8_t data[100];
-  cudaMemcpy(data, cudaPtr, 100, cudaMemcpyDeviceToHost);
-  // pointset->getVertexBuffer().download(data, 100, 0);
-  for (uint32_t i = 0; i < 100; ++i) {
-    printf("%02x ", data[i]);
-  }
-  std::cout << std::endl;
-
-  scene.addPointObject(pointset).setShadingMode(1);
+  scene.addPointObject(pointset).setShadingMode(0);
 
   auto &cameraNode = scene.addCamera();
   cameraNode.setPerspectiveParameters(0.05, 50, 1, 400, 300);
@@ -418,8 +404,28 @@ int main() {
     }
     // required since we only use 1 set of uniform buffers
     context->getDevice().waitIdle();
-    // auto cuda = renderer.transferToCuda("Color");
+
+
+
+    // auto [buffer, size, _] = renderer.transferToBuffer("Color");
+    // auto now1 = std::chrono::system_clock::now();
+    // auto through_transfer = buffer->download<float>();
+    // auto now2 = std::chrono::system_clock::now();
+    // std::chrono::duration<double> dur = now2 - now1;
+    // std::cout << "transfer" << dur.count() << std::endl;
+
+    // // time
+    // now1 = std::chrono::system_clock::now();
+    // void *cudaPtr = buffer->getCudaPtr();
+    // float *dest = new float[buffer->getSize() / 4];
+    // cudaMemcpy(dest, cudaPtr, buffer->getSize(), cudaMemcpyDeviceToHost);
+    // now2 = std::chrono::system_clock::now();
+    // dur = now2 - now1;
+    // std::cout << "cuda copy" << dur.count() << std::endl;
     // break;
+
+
+
     if (gClosed) {
       window->close();
     }

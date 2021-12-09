@@ -29,14 +29,16 @@ public:
                        std::vector<vk::DescriptorSetLayout> layouts);
 
   vk::RenderPass createRenderPass(
-      vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
+      vk::Device device, std::vector<vk::Format> const &colorFormats,
+      vk::Format depthFormat,
       std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
           &colorTargetLayouts,
       std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout);
 
   virtual vk::Pipeline createGraphicsPipeline(
-      vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
-      vk::CullModeFlags cullMode, vk::FrontFace frontFace,
+      vk::Device device, std::vector<vk::Format> const &colorFormats,
+      vk::Format depthFormat, vk::CullModeFlags cullMode,
+      vk::FrontFace frontFace,
       std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
           &colorTargetLayouts,
       std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,

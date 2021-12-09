@@ -146,9 +146,20 @@ public:
   inline void setName(std::string const &name) { mName = name; }
   inline std::string getName() const { return mName; }
 
+  // virtual vk::Pipeline createGraphicsPipeline(
+  //     vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
+  //     vk::CullModeFlags cullMode, vk::FrontFace frontFace,
+  //     std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
+  //         &colorTargetLayouts,
+  //     std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,
+  //     std::vector<vk::DescriptorSetLayout> const &descriptorSetLayouts,
+  //     std::map<std::string, SpecializationConstantValue> const
+  //         &specializationConstantInfo) = 0;
+
   virtual vk::Pipeline createGraphicsPipeline(
-      vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
-      vk::CullModeFlags cullMode, vk::FrontFace frontFace,
+      vk::Device device, std::vector<vk::Format> const &colorFormats,
+      vk::Format depthFormat, vk::CullModeFlags cullMode,
+      vk::FrontFace frontFace,
       std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
           &colorTargetLayouts,
       std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,

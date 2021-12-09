@@ -28,7 +28,8 @@ public:
                        std::vector<vk::DescriptorSetLayout> layouts);
 
   vk::RenderPass createRenderPass(
-      vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
+      vk::Device device, std::vector<vk::Format> const &colorFormats,
+      vk::Format depthFormat,
       std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
           &colorTargetLayouts,
       std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout);
@@ -54,8 +55,9 @@ private:
 protected:
   // primitiveType 0 for point, 1 for line
   vk::Pipeline createGraphicsPipelineHelper(
-      vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
-      vk::CullModeFlags cullMode, vk::FrontFace frontFace,
+      vk::Device device, std::vector<vk::Format> const &colorFormats,
+      vk::Format depthFormat, vk::CullModeFlags cullMode,
+      vk::FrontFace frontFace,
       std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
           &colorTargetLayouts,
       std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,
@@ -73,8 +75,9 @@ public:
   inline void setLineWidth(float w) { mLineWidth = w; }
 
   inline vk::Pipeline createGraphicsPipeline(
-      vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
-      vk::CullModeFlags cullMode, vk::FrontFace frontFace,
+      vk::Device device, std::vector<vk::Format> const &colorFormats,
+      vk::Format depthFormat, vk::CullModeFlags cullMode,
+      vk::FrontFace frontFace,
       std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
           &colorTargetLayouts,
       std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,
@@ -82,7 +85,7 @@ public:
       std::map<std::string, SpecializationConstantValue> const
           &specializationConstantInfo) override {
     return createGraphicsPipelineHelper(
-        device, colorFormat, depthFormat, cullMode, frontFace,
+        device, colorFormats, depthFormat, cullMode, frontFace,
         colorTargetLayouts, depthLayout, descriptorSetLayouts,
         specializationConstantInfo, 1, mLineWidth);
   }
@@ -96,15 +99,16 @@ public:
   inline void setLineWidth(float w) { mLineWidth = w; }
 
   inline vk::Pipeline createGraphicsPipeline(
-      vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
-      vk::CullModeFlags cullMode, vk::FrontFace frontFace,
+      vk::Device device, std::vector<vk::Format> const &colorFormats,
+      vk::Format depthFormat, vk::CullModeFlags cullMode,
+      vk::FrontFace frontFace,
       std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
           &colorTargetLayouts,
       std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,
       std::vector<vk::DescriptorSetLayout> const &descriptorSetLayouts,
       std::map<std::string, SpecializationConstantValue> const
           &specializationConstantInfo) override {
-    return createGraphicsPipelineHelper(device, colorFormat, depthFormat,
+    return createGraphicsPipelineHelper(device, colorFormats, depthFormat,
                                         cullMode, frontFace, colorTargetLayouts,
                                         depthLayout, descriptorSetLayouts,
                                         specializationConstantInfo, 0, 0);

@@ -68,7 +68,8 @@ vk::PipelineLayout GbufferPassParser::createPipelineLayout(
 }
 
 vk::RenderPass GbufferPassParser::createRenderPass(
-    vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
+    vk::Device device, std::vector<vk::Format> const &colorFormats,
+    vk::Format depthFormat,
     std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
         &colorTargetLayouts,
     std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout) {
@@ -78,18 +79,23 @@ vk::RenderPass GbufferPassParser::createRenderPass(
   auto elems = mTextureOutputLayout->getElementsSorted();
   for (uint32_t i = 0; i < elems.size(); ++i) {
     colorAttachments.push_back({i, vk::ImageLayout::eColorAttachmentOptimal});
-    vk::Format format;
-    if (elems[i].dtype == eFLOAT4) {
-      format = colorFormat;
-    } else if (elems[i].dtype == eUINT4) {
-      format = vk::Format::eR32G32B32A32Uint;
-    } else {
-      throw std::runtime_error(
-          "only float4 and uint4 are allowed in output attachments");
-    }
+    // vk::Format format;
+    // if (elems[i].dtype == eFLOAT) {
+    //   // HACK
+    //   format = colorFormat == vk::Format::eR32G32B32A32Sfloat
+    //                ? vk::Format::eR32Sfloat
+    //                : vk::Format::eR8Unorm;
+    // } else if (elems[i].dtype == eFLOAT4) {
+    //   format = colorFormat;
+    // } else if (elems[i].dtype == eUINT4) {
+    //   format = vk::Format::eR32G32B32A32Uint;
+    // } else {
+    //   throw std::runtime_error(
+    //       "only float, float4 and uint4 are allowed in output attachments");
+    // }
 
     attachmentDescriptions.push_back(vk::AttachmentDescription(
-        {}, format, vk::SampleCountFlagBits::e1,
+        {}, colorFormats.at(i), vk::SampleCountFlagBits::e1,
         colorTargetLayouts[i].first == vk::ImageLayout::eUndefined
             ? vk::AttachmentLoadOp::eClear
             : vk::AttachmentLoadOp::eLoad,
@@ -148,8 +154,8 @@ vk::RenderPass GbufferPassParser::createRenderPass(
 }
 
 vk::Pipeline GbufferPassParser::createGraphicsPipeline(
-    vk::Device device, vk::Format colorFormat, vk::Format depthFormat,
-    vk::CullModeFlags cullMode, vk::FrontFace frontFace,
+    vk::Device device, std::vector<vk::Format> const &colorFormats,
+    vk::Format depthFormat, vk::CullModeFlags cullMode, vk::FrontFace frontFace,
     std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
         &colorTargetLayouts,
     std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,
@@ -157,7 +163,7 @@ vk::Pipeline GbufferPassParser::createGraphicsPipeline(
     std::map<std::string, SpecializationConstantValue> const
         &specializationConstantInfo) {
   // render pass
-  auto renderPass = createRenderPass(device, colorFormat, depthFormat,
+  auto renderPass = createRenderPass(device, colorFormats, depthFormat,
                                      colorTargetLayouts, depthLayout);
 
   // shaders
