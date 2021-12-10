@@ -614,12 +614,6 @@ void ShaderManager::createPipelines(
             "only float, float4 and uint4 are allowed in output attachments");
       }
     }
-    // pass->createGraphicsPipeline(
-    //     device, mRenderConfig->colorFormat4, mRenderConfig->depthFormat,
-    //     mRenderConfig->culling, vk::FrontFace::eCounterClockwise,
-    //     getColorAttachmentLayoutsForPass(pass),
-    //     getDepthAttachmentLayoutsForPass(pass), descriptorSetLayouts,
-    //     specializationConstantInfo);
     pass->createGraphicsPipeline(
         device, formats, mRenderConfig->depthFormat, mRenderConfig->culling,
         vk::FrontFace::eCounterClockwise,

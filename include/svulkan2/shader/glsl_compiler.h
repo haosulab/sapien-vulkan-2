@@ -13,10 +13,13 @@ public:
   compileGlslFileCached(vk::ShaderStageFlagBits stage,
                         fs::path const &filepath);
 
+  static std::tuple<std::string, std::vector<std::tuple<std::string, int>>>
+  loadGlslCodeWithDebugInfo(fs::path const &filepath);
   static std::string loadGlslCode(fs::path const &filepath);
   static std::vector<std::uint32_t>
   compileToSpirv(vk::ShaderStageFlagBits shaderStage,
-                 std::string const &glslCode);
+                 std::string const &glslCode,
+                 std::vector<std::tuple<std::string, int>> const &debugInfo = {});
   static void InitializeProcess();
   static void FinalizeProcess();
 
