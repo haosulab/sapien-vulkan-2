@@ -75,6 +75,11 @@ public:
   /** release all cached resources */
   void clearCachedResources();
 
+  /** release gpu resources.
+    * NOTE: This MUST be called when no rendering is running!
+    * NOTE: All renders become invalid after calling this function!*/
+  void releaseGPUResourcesUnsafe();
+
   void setVertexLayout(std::shared_ptr<InputDataLayout> layout);
   inline std::shared_ptr<InputDataLayout> getVertexLayout() const {
     if (!mVertexLayout) {

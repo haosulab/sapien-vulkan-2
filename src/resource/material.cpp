@@ -304,5 +304,26 @@ void SVMetallicMaterial::uploadToDevice() {
   }
 }
 
+void SVMetallicMaterial::removeFromDevice() {
+  mRequiresBufferUpload = true;
+  if (mBaseColorTexture) {
+    mBaseColorTexture->removeFromDevice();
+  }
+  if (mRoughnessTexture) {
+    mRoughnessTexture->removeFromDevice();
+  }
+  if (mNormalTexture) {
+    mNormalTexture->removeFromDevice();
+  }
+  if (mMetallicTexture) {
+    mMetallicTexture->removeFromDevice();
+  }
+  if (mEmissionTexture) {
+    mEmissionTexture->removeFromDevice();
+  }
+  mDescriptorSet.reset();
+  mDeviceBuffer.reset();
+}
+
 } // namespace resource
 } // namespace svulkan2

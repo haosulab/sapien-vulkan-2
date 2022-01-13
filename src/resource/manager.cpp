@@ -270,5 +270,32 @@ void SVResourceManager::clearCachedResources() {
   mRandomTextureRegistry.clear();
 }
 
+void SVResourceManager::releaseGPUResourcesUnsafe() {
+  std::lock_guard<std::mutex> lock(mCreateLock);
+  for (auto &it : mModelRegistry) {
+    for (auto &m : it.second) {
+      for (auto &s : m->getShapes()) {
+        s->mesh->removeFromDevice();
+        s->material->removeFromDevice();
+      }
+    }
+  }
+  for (auto &it : mTextureRegistry) {
+    for (auto &t : it.second) {
+      t->removeFromDevice();
+    }
+  }
+  for (auto &it : mCubemapRegistry) {
+    for (auto &t : it.second) {
+      t->removeFromDevice();
+    }
+  }
+  for (auto &it : mImageRegistry) {
+    for (auto &t : it.second) {
+      t->removeFromDevice();
+    }
+  }
+}
+
 } // namespace resource
 } // namespace svulkan2

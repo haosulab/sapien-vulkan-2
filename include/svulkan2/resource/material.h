@@ -22,6 +22,7 @@ public:
     return mDescriptorSet.get();
   }
   virtual void uploadToDevice() = 0;
+  virtual void removeFromDevice() = 0;
   virtual float getOpacity() const = 0;
   virtual ~SVMaterial() = default;
 };
@@ -87,7 +88,8 @@ public:
                    std::shared_ptr<SVTexture> metallicTexture,
                    std::shared_ptr<SVTexture> emissionTexture);
 
-  virtual void uploadToDevice() override;
+  void uploadToDevice() override;
+  void removeFromDevice() override;
   inline float getOpacity() const override { return mBuffer.baseColor.a; }
 
   virtual ~SVMetallicMaterial();

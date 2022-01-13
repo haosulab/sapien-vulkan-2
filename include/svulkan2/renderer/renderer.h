@@ -7,10 +7,6 @@
 #include "svulkan2/shader/shader_manager.h"
 #include <map>
 
-// #ifdef CUDA_INTEROP
-// #include "svulkan2/core/cuda_buffer.h"
-// #endif
-
 namespace svulkan2 {
 namespace core {
 class Context;
