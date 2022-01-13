@@ -5,6 +5,11 @@
 namespace svulkan2 {
 namespace core {
 
+#ifdef TRACK_ALLOCATION
+static uint64_t gBufferId = 1;
+static uint64_t gBufferCount = 0;
+#endif
+
 Buffer::Buffer(vk::DeviceSize size, vk::BufferUsageFlags usageFlags,
                VmaMemoryUsage memoryUsage,
                VmaAllocationCreateFlags allocationFlags)
@@ -29,6 +34,11 @@ Buffer::Buffer(vk::DeviceSize size, vk::BufferUsageFlags usageFlags,
                              mAllocationInfo.memoryType, &memFlags);
   mHostVisible = (memFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0;
   mHostCoherent = (memFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0;
+
+#ifdef TRACK_ALLOCATION
+  mBufferId = gBufferId++;
+  log::info("Create Buffer {}; Total {}", mBufferId, ++gBufferCount);
+#endif
 }
 
 Buffer::~Buffer() {
@@ -41,6 +51,11 @@ Buffer::~Buffer() {
 #endif
   vmaDestroyBuffer(mContext->getAllocator().getVmaAllocator(), mBuffer,
                    mAllocation);
+
+#ifdef TRACK_ALLOCATION
+  mBufferId = gBufferId++;
+  log::info("Destroy Buffer {}, Total {}", mBufferId, --gBufferCount);
+#endif
 }
 
 void *Buffer::map() {

@@ -8,6 +8,11 @@
 namespace svulkan2 {
 namespace core {
 
+#ifdef TRACK_ALLOCATION
+  static uint64_t gImageId = 1;
+  static uint64_t gImageCount = 0;
+#endif
+
 static vk::ImageType findImageTypeFromExtent(vk::Extent3D extent) {
   if (extent.depth > 1) {
     return vk::ImageType::e3D;
@@ -45,11 +50,19 @@ Image::Image(vk::Extent3D extent, vk::Format format,
                              allocInfo.memoryType, &memFlags);
   mHostVisible = (memFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0;
   mHostCoherent = (memFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0;
+
+#ifdef TRACK_ALLOCATION
+  mImageId = gImageId++;
+  log::info("Create Image {}; Total {}", mImageId, ++gImageCount);
+#endif
 }
 
 Image::~Image() {
   vmaDestroyImage(mContext->getAllocator().getVmaAllocator(), mImage,
                   mAllocation);
+#ifdef TRACK_ALLOCATION
+  log::info("Destroy Image {}, Total {}", mImageId, --gImageCount);
+#endif
 }
 
 void Image::uploadLevel(void const *data, size_t size, uint32_t arrayLayer,

@@ -44,14 +44,15 @@ class SVMetallicMaterial : public SVMaterial {
 
   std::unique_ptr<core::Buffer> mDeviceBuffer;
 
+#ifdef TRACK_ALLOCATION
+  uint64_t mMaterialId{};
+#endif
+
 public:
-  inline SVMetallicMaterial(glm::vec4 emission = {0, 0, 0, 1},
-                            glm::vec4 baseColor = {0, 0, 0, 1},
-                            float fresnel = 0, float roughness = 1,
-                            float metallic = 0, float transparency = 0) {
-    mBuffer = {emission, baseColor,    fresnel, roughness,
-               metallic, transparency, 0};
-  }
+  SVMetallicMaterial(glm::vec4 emission = {0, 0, 0, 1},
+                     glm::vec4 baseColor = {0, 0, 0, 1}, float fresnel = 0,
+                     float roughness = 1, float metallic = 0,
+                     float transparency = 0);
 
   void setEmission(glm::vec4 emission);
   glm::vec4 getEmission() const;
@@ -88,6 +89,8 @@ public:
 
   virtual void uploadToDevice() override;
   inline float getOpacity() const override { return mBuffer.baseColor.a; }
+
+  virtual ~SVMetallicMaterial();
 };
 
 } // namespace resource

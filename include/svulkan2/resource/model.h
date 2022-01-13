@@ -17,10 +17,12 @@ class SVModel {
   std::shared_ptr<SVModel> mPrototype;
   ModelDescription mDescription;
   std::vector<std::shared_ptr<SVShape>> mShapes;
-
   bool mLoaded{};
-
   std::mutex mLoadingMutex;
+
+#ifdef TRACK_ALLOCATION
+  uint64_t mModelId{};
+#endif
 
 public:
   /** create a model based on a prototype model. Their meshes and textures will
@@ -47,8 +49,10 @@ public:
 
   inline ModelDescription const &getDescription() const { return mDescription; }
 
+  ~SVModel();
+
 private:
-  SVModel() = default;
+  SVModel();
 };
 
 } // namespace resource

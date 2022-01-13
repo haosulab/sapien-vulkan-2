@@ -5,6 +5,11 @@
 namespace svulkan2 {
 namespace resource {
 
+#ifdef TRACK_ALLOCATION
+static uint64_t gMaterialId = 1;
+static uint64_t gMaterialCount = 0;
+#endif
+
 static void updateDescriptorSets(
     vk::Device device, vk::DescriptorSet descriptorSet,
     std::vector<std::tuple<vk::DescriptorType, vk::Buffer,
@@ -39,6 +44,23 @@ static void updateDescriptorSets(
         vk::DescriptorType::eCombinedImageSampler, imageInfos.data()));
   }
   device.updateDescriptorSets(writeDescriptorSets, nullptr);
+}
+
+SVMetallicMaterial::SVMetallicMaterial(glm::vec4 emission, glm::vec4 baseColor,
+                                       float fresnel, float roughness,
+                                       float metallic, float transparency) {
+  mBuffer = {emission, baseColor,    fresnel, roughness,
+             metallic, transparency, 0};
+#ifdef TRACK_ALLOCATION
+  mMaterialId = gMaterialId++;
+  log::info("Create Material {}; Total {}", mMaterialId, ++gMaterialCount);
+#endif
+}
+
+SVMetallicMaterial::~SVMetallicMaterial() {
+#ifdef TRACK_ALLOCATION
+  log::info("Destroy Material {}, Total {}", mMaterialId, --gMaterialCount);
+#endif
 }
 
 void SVMetallicMaterial::setEmission(glm::vec4 emission) {

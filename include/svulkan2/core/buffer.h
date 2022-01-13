@@ -23,6 +23,10 @@ protected:
   bool mMapped{};
   void *mMappedData;
 
+#ifdef TRACK_ALLOCATION
+  uint64_t mBufferId{};
+#endif
+
 public:
   Buffer(vk::DeviceSize size, vk::BufferUsageFlags usageFlags,
          VmaMemoryUsage memoryUsage,
