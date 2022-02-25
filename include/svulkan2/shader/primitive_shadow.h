@@ -1,13 +1,11 @@
 #pragma once
 #include "base_parser.h"
-#include "svulkan2/common/config.h"
+
 namespace svulkan2 {
 namespace shader {
 
-class PrimitivePassParser : public BaseParser {
-  std::shared_ptr<SpecializationConstantLayout> mSpecializationConstantLayout;
+class PrimitiveShadowPassParser : public BaseParser {
   std::shared_ptr<InputDataLayout> mVertexInputLayout;
-  std::shared_ptr<OutputDataLayout> mTextureOutputLayout;
   std::vector<DescriptorSetDescription> mDescriptorSetDescriptions;
 
   vk::UniqueRenderPass mRenderPass;
@@ -20,27 +18,26 @@ public:
 
   inline std::shared_ptr<OutputDataLayout>
   getTextureOutputLayout() const override {
-    return mTextureOutputLayout;
-  }
+    return std::make_shared<OutputDataLayout>();
+  };
+
+  inline std::vector<std::string> getColorRenderTargetNames() const override {
+    return {};
+  };
+  std::optional<std::string> getDepthRenderTargetName() const override;
 
   vk::PipelineLayout
   createPipelineLayout(vk::Device device,
                        std::vector<vk::DescriptorSetLayout> layouts);
 
   vk::RenderPass createRenderPass(
-      vk::Device device, std::vector<vk::Format> const &colorFormats,
-      vk::Format depthFormat,
-      std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
-          &colorTargetLayouts,
+      vk::Device device, vk::Format depthFormat,
       std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout);
 
   inline vk::RenderPass getRenderPass() const override {
     return mRenderPass.get();
   }
-
   inline vk::Pipeline getPipeline() const override { return mPipeline.get(); }
-  std::vector<std::string> getColorRenderTargetNames() const override;
-  std::optional<std::string> getDepthRenderTargetName() const override;
   std::vector<UniformBindingType> getUniformBindingTypes() const override;
 
   inline std::vector<DescriptorSetDescription>
@@ -48,12 +45,7 @@ public:
     return mDescriptorSetDescriptions;
   };
 
-private:
-  void reflectSPV() override;
-  void validate() const;
-
 protected:
-  // primitiveType 0 for point, 1 for line
   vk::Pipeline createGraphicsPipelineHelper(
       vk::Device device, std::vector<vk::Format> const &colorFormats,
       vk::Format depthFormat, vk::CullModeFlags cullMode,
@@ -65,16 +57,15 @@ protected:
       std::map<std::string, SpecializationConstantValue> const
           &specializationConstantInfo,
       int primitiveType, float primitiveSize);
+
+private:
+  void reflectSPV() override;
+  void validate() const;
 };
 
-class LinePassParser : public PrimitivePassParser {
-
-  float mLineWidth{1.f};
-
+class PointShadowParser : public PrimitiveShadowPassParser {
 public:
-  inline void setLineWidth(float w) { mLineWidth = w; }
-
-  inline vk::Pipeline createGraphicsPipeline(
+  vk::Pipeline createGraphicsPipeline(
       vk::Device device, std::vector<vk::Format> const &colorFormats,
       vk::Format depthFormat, vk::CullModeFlags cullMode,
       vk::FrontFace frontFace,
@@ -83,31 +74,11 @@ public:
       std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,
       std::vector<vk::DescriptorSetLayout> const &descriptorSetLayouts,
       std::map<std::string, SpecializationConstantValue> const
-          &specializationConstantInfo) override {
-    return createGraphicsPipelineHelper(
-        device, colorFormats, depthFormat, cullMode, frontFace,
-        colorTargetLayouts, depthLayout, descriptorSetLayouts,
-        specializationConstantInfo, 1, mLineWidth);
-  }
-};
-
-class PointPassParser : public PrimitivePassParser {
-
-public:
-  inline vk::Pipeline createGraphicsPipeline(
-      vk::Device device, std::vector<vk::Format> const &colorFormats,
-      vk::Format depthFormat, vk::CullModeFlags cullMode,
-      vk::FrontFace frontFace,
-      std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
-          &colorTargetLayouts,
-      std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,
-      std::vector<vk::DescriptorSetLayout> const &descriptorSetLayouts,
-      std::map<std::string, SpecializationConstantValue> const
-          &specializationConstantInfo) override {
+          &specializationConstantInfo) {
     return createGraphicsPipelineHelper(device, colorFormats, depthFormat,
                                         cullMode, frontFace, colorTargetLayouts,
                                         depthLayout, descriptorSetLayouts,
-                                        specializationConstantInfo, 0, 0);
+                                        specializationConstantInfo, 0, 0.f);
   }
 };
 

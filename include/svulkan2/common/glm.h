@@ -20,7 +20,7 @@ inline float focal2fov(float f, float length) {
   return 2.f * glm::atan(length / 2.f / f);
 }
 
-inline glm::mat4 ortho(float left, float right, float top, float bottom,
+inline glm::mat4 ortho(float left, float right, float bottom, float top,
                        float near, float far) {
   float tx = -(right + left) / (right - left);
   float ty = -(bottom + top) / (bottom - top);

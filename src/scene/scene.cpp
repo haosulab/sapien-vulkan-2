@@ -25,6 +25,8 @@ struct LightBufferData {
   glm::mat4 viewMatrixInverse;
   glm::mat4 projectionMatrix;
   glm::mat4 projectionMatrixInverse;
+  int width;
+  int height;
 };
 
 Scene::Scene() {
@@ -418,8 +420,9 @@ void Scene::uploadToDevice(core::Buffer &sceneBuffer,
     numSpotLights = maxNumSpotLights;
   }
   if (maxNumTexturedLights < mTexturedLights.size()) {
-    log::warn("The scene contains more textured lights than the maximum number of "
-              "textured lights in the shader. Truncated.");
+    log::warn(
+        "The scene contains more textured lights than the maximum number of "
+        "textured lights in the shader. Truncated.");
     numTexturedLights = maxNumTexturedLights;
   }
 
@@ -470,12 +473,13 @@ void Scene::uploadShadowToDevice(
 
         auto modelMat = l->getTransform().worldModelMatrix;
         auto projMat = l->getShadowProjectionMatrix();
-        directionalLightShadowData.push_back({
-            .viewMatrix = glm::affineInverse(modelMat),
-            .viewMatrixInverse = modelMat,
-            .projectionMatrix = projMat,
-            .projectionMatrixInverse = glm::inverse(projMat),
-        });
+        directionalLightShadowData.push_back(
+            {.viewMatrix = glm::affineInverse(modelMat),
+             .viewMatrixInverse = modelMat,
+             .projectionMatrix = projMat,
+             .projectionMatrixInverse = glm::inverse(projMat),
+             .width = static_cast<int>(l->getShadowMapSize()),
+             .height = static_cast<int>(l->getShadowMapSize())});
         lightBuffers[lightBufferIndex++]->upload(
             &directionalLightShadowData.back(), sizeof(LightBufferData));
       } else {
@@ -506,12 +510,13 @@ void Scene::uploadShadowToDevice(
             glm::vec3(l->getTransform().worldModelMatrix[3]));
         auto projMat = l->getShadowProjectionMatrix();
         for (uint32_t i = 0; i < 6; ++i) {
-          pointLightShadowData.push_back({
-              .viewMatrix = glm::affineInverse(modelMats[i]),
-              .viewMatrixInverse = modelMats[i],
-              .projectionMatrix = projMat,
-              .projectionMatrixInverse = glm::inverse(projMat),
-          });
+          pointLightShadowData.push_back(
+              {.viewMatrix = glm::affineInverse(modelMats[i]),
+               .viewMatrixInverse = modelMats[i],
+               .projectionMatrix = projMat,
+               .projectionMatrixInverse = glm::inverse(projMat),
+               .width = static_cast<int>(l->getShadowMapSize()),
+               .height = static_cast<int>(l->getShadowMapSize())});
           lightBuffers[lightBufferIndex++]->upload(&pointLightShadowData.back(),
                                                    sizeof(LightBufferData));
         }
@@ -538,12 +543,13 @@ void Scene::uploadShadowToDevice(
 
         auto modelMat = l->getTransform().worldModelMatrix;
         auto projMat = l->getShadowProjectionMatrix();
-        spotLightShadowData.push_back({
-            .viewMatrix = glm::affineInverse(modelMat),
-            .viewMatrixInverse = modelMat,
-            .projectionMatrix = projMat,
-            .projectionMatrixInverse = glm::inverse(projMat),
-        });
+        spotLightShadowData.push_back(
+            {.viewMatrix = glm::affineInverse(modelMat),
+             .viewMatrixInverse = modelMat,
+             .projectionMatrix = projMat,
+             .projectionMatrixInverse = glm::inverse(projMat),
+             .width = static_cast<int>(l->getShadowMapSize()),
+             .height = static_cast<int>(l->getShadowMapSize())});
         lightBuffers[lightBufferIndex++]->upload(&spotLightShadowData.back(),
                                                  sizeof(LightBufferData));
       } else {
@@ -567,12 +573,13 @@ void Scene::uploadShadowToDevice(
       auto modelMat = l->getTransform().worldModelMatrix;
       auto projMat = l->getShadowProjectionMatrix();
 
-      texturedLightShadowData.push_back({
-          .viewMatrix = glm::affineInverse(modelMat),
-          .viewMatrixInverse = modelMat,
-          .projectionMatrix = projMat,
-          .projectionMatrixInverse = glm::inverse(projMat),
-      });
+      texturedLightShadowData.push_back(
+          {.viewMatrix = glm::affineInverse(modelMat),
+           .viewMatrixInverse = modelMat,
+           .projectionMatrix = projMat,
+           .projectionMatrixInverse = glm::inverse(projMat),
+           .width = static_cast<int>(l->getShadowMapSize()),
+           .height = static_cast<int>(l->getShadowMapSize())});
       lightBuffers[lightBufferIndex++]->upload(&texturedLightShadowData.back(),
                                                sizeof(LightBufferData));
     }

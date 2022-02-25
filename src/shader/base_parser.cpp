@@ -412,31 +412,37 @@ void verifySceneBuffer(std::shared_ptr<StructDataLayout> layout) {
 }
 
 void verifyLightSpaceBuffer(std::shared_ptr<StructDataLayout> layout) {
-  ASSERT(layout->elements.size() == 4, "Space buffer should contain the "
-                                       "following elements: ViewMatrix, "
-                                       "ProjectionMatrix, ViewMatrixInverse, "
-                                       "ProjectionMatrixInverse");
+  ASSERT(layout->elements.size() == 6,
+         "light buffer should contain the "
+         "following elements: viewMatrix, "
+         "projectionMatrix, viewMatrixInverse, "
+         "projectionMatrixInverse, width, height");
 
   // required fields
   ASSERT(CONTAINS(layout->elements, "viewMatrix"),
-         "camera buffer requires viewMatrix");
+         "light buffer requires viewMatrix");
   ASSERT(CONTAINS(layout->elements, "projectionMatrix"),
-         "camera buffer requires projectionMatrix");
-
+         "light buffer requires projectionMatrix");
   ASSERT(CONTAINS(layout->elements, "viewMatrixInverse"),
-         "camera buffer requires viewMatrixInverse");
+         "light buffer requires viewMatrixInverse");
   ASSERT(CONTAINS(layout->elements, "projectionMatrixInverse"),
-         "camera buffer requires projectionMatrixInverse");
+         "light buffer requires projectionMatrixInverse");
+  ASSERT(CONTAINS(layout->elements, "width"), "light buffer requires width");
+  ASSERT(CONTAINS(layout->elements, "height"), "light buffer requires height");
 
   // required types
   ASSERT(layout->elements["viewMatrix"].dtype == eFLOAT44,
-         "camera ViewMatrix should have type float44");
+         "light ViewMatrix should have type float44");
   ASSERT(layout->elements["projectionMatrix"].dtype == eFLOAT44,
-         "camera ProjectionMatrix should have type float44");
+         "light ProjectionMatrix should have type float44");
   ASSERT(layout->elements["viewMatrixInverse"].dtype == eFLOAT44,
-         "camera ViewMatrixInverse should have type float44");
+         "light ViewMatrixInverse should have type float44");
   ASSERT(layout->elements["projectionMatrixInverse"].dtype == eFLOAT44,
-         "camera ProjectionMatrixInverse should have type float44");
+         "light ProjectionMatrixInverse should have type float44");
+  ASSERT(layout->elements["width"].dtype == eINT,
+         "light width should have type int");
+  ASSERT(layout->elements["height"].dtype == eINT,
+         "light height should have type int");
 }
 
 std::shared_ptr<StructDataLayout>

@@ -4,6 +4,7 @@
 #include "svulkan2/shader/deferred.h"
 #include "svulkan2/shader/gbuffer.h"
 #include "svulkan2/shader/primitive.h"
+#include "svulkan2/shader/primitive_shadow.h"
 #include "svulkan2/shader/shadow.h"
 #include <map>
 #include <memory>
@@ -23,6 +24,7 @@ class ShaderManager {
   std::shared_ptr<ShaderConfig> mShaderConfig;
 
   std::shared_ptr<ShadowPassParser> mShadowPass{};
+  std::shared_ptr<PointShadowParser> mPointShadowPass{};
   std::vector<std::shared_ptr<BaseParser>> mAllPasses;
   std::map<std::weak_ptr<BaseParser>, unsigned int, std::owner_less<>>
       mPassIndex;
@@ -50,6 +52,7 @@ class ShaderManager {
   uint32_t mNumPointPasses{};
 
   bool mShadowEnabled{};
+  bool mPointShadowEnabled{};
   bool mLineEnabled{};
 
 public:
@@ -94,6 +97,9 @@ public:
   inline std::shared_ptr<BaseParser> getShadowPass() const {
     return mShadowPass;
   };
+  inline std::shared_ptr<BaseParser> getPointShadowPass() const {
+    return mPointShadowPass;
+  };
 
   inline std::unordered_map<std::string, vk::Format>
   getRenderTargetFormats() const {
@@ -112,6 +118,7 @@ public:
   }
 
   bool isShadowEnabled() const { return mShadowEnabled; }
+  bool isPointShadowEnabled() const { return mPointShadowEnabled; }
   bool isLineEnabled() const { return mLineEnabled; }
   bool isPointEnabled() const { return mNumPointPasses > 0; }
 

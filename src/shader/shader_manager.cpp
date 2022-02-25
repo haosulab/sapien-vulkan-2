@@ -33,12 +33,32 @@ void ShaderManager::processShadersInFolder(std::string const &folder) {
 
   std::vector<std::future<void>> futures;
 
+  // shadow pass
   if (fs::is_regular_file(path / "shadow.vert")) {
     mShadowEnabled = true;
     mShadowPass = std::make_shared<ShadowPassParser>();
     mShadowPass->setName("Shadow");
     futures.push_back(
         mShadowPass->loadGLSLFilesAsync((path / "shadow.vert").string(), ""));
+  }
+
+  // point shadow pass
+  if (fs::is_regular_file(path / "shadow_point.vert")) {
+    mPointShadowEnabled = true;
+    mPointShadowPass = std::make_shared<PointShadowParser>();
+    mPointShadowPass->setName("PointShadow");
+
+    auto vsFile = path / "shadow_point.vert";
+    auto fsFile = path / "shadow_point.frag";
+    auto gsFile = path / "shadow_point.geom";
+    if (!fs::is_regular_file(fsFile)) {
+      fsFile = "";
+    }
+    if (!fs::is_regular_file(gsFile)) {
+      gsFile = "";
+    }
+    futures.push_back(
+        mPointShadowPass->loadGLSLFilesAsync(vsFile, fsFile, gsFile));
   }
 
   bool hasDeferred = fs::is_regular_file(path / "deferred.vert") &&
@@ -637,7 +657,6 @@ void ShaderManager::createPipelines(
       case UniformBindingType::eScene:
         throw std::runtime_error(
             "shadow pass may only use object and light buffers");
-
       default:
         throw std::runtime_error("ShaderManager::createPipelines: not "
                                  "implemented uniform binding type");
@@ -648,6 +667,40 @@ void ShaderManager::createPipelines(
         vk::FrontFace::eCounterClockwise, {},
         {vk::ImageLayout::eUndefined, vk::ImageLayout::eShaderReadOnlyOptimal},
         descriptorSetLayouts, specializationConstantInfo);
+  }
+
+  if (mPointShadowEnabled) {
+    std::vector<vk::DescriptorSetLayout> descriptorSetLayouts;
+    for (auto type : mShadowPass->getUniformBindingTypes()) {
+      switch (type) {
+      case UniformBindingType::eObject:
+        descriptorSetLayouts.push_back(mObjectLayout.get());
+        break;
+      case UniformBindingType::eLight:
+        descriptorSetLayouts.push_back(mLightLayout.get());
+        break;
+      case UniformBindingType::eMaterial:
+      case UniformBindingType::eCamera:
+      case UniformBindingType::eScene:
+        throw std::runtime_error(
+            "point shadow pass may only use object and light buffers");
+      default:
+        throw std::runtime_error("ShaderManager::createPipelines: not "
+                                 "implemented uniform binding type");
+      }
+    }
+    std::pair<vk::ImageLayout, vk::ImageLayout> layouts;
+    if (mShadowEnabled) {
+      layouts = {vk::ImageLayout::eShaderReadOnlyOptimal,
+                 vk::ImageLayout::eShaderReadOnlyOptimal};
+    } else {
+      layouts = {vk::ImageLayout::eUndefined,
+                 vk::ImageLayout::eShaderReadOnlyOptimal};
+    }
+    mPointShadowPass->createGraphicsPipeline(
+        device, {}, mRenderConfig->depthFormat, vk::CullModeFlagBits::eBack,
+        vk::FrontFace::eCounterClockwise, {}, layouts, descriptorSetLayouts,
+        specializationConstantInfo);
   }
 }
 

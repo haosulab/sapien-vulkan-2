@@ -487,10 +487,12 @@ void Renderer::recordShadows(scene::Scene &scene) {
   if (!mContext->isVulkanAvailable()) {
     return;
   }
+
   // render shadow passes
   if (mShaderManager->isShadowEnabled()) {
     auto objects = scene.getObjects();
     auto shadowPass = mShaderManager->getShadowPass();
+
     std::vector<vk::ClearValue> clearValues;
     clearValues.push_back(vk::ClearDepthStencilValue(1.0f, 0));
 
@@ -565,6 +567,81 @@ void Renderer::recordShadows(scene::Scene &scene) {
       mShadowCommandBuffer->endRenderPass();
     }
   }
+
+  if (mShaderManager->isPointShadowEnabled()) {
+    auto objects = scene.getPointObjects();
+    auto pointShadowPass = mShaderManager->getPointShadowPass();
+    std::vector<vk::ClearValue> clearValues;
+    clearValues.push_back(vk::ClearDepthStencilValue(1.0f, 0));
+
+    for (uint32_t shadowIdx = 0;
+         shadowIdx < mDirectionalLightShadowSizes.size() +
+                         6 * mPointLightShadowSizes.size() +
+                         mSpotLightShadowSizes.size() +
+                         mTexturedLightShadowSizes.size();
+         ++shadowIdx) {
+      uint32_t size = mShadowSizes[shadowIdx];
+
+      vk::Viewport viewport{
+          0.f, 0.f, static_cast<float>(size), static_cast<float>(size),
+          0.f, 1.f};
+      vk::Rect2D scissor{vk::Offset2D{0u, 0u},
+                         vk::Extent2D{static_cast<uint32_t>(size),
+                                      static_cast<uint32_t>(size)}};
+
+      vk::RenderPassBeginInfo renderPassBeginInfo{
+          pointShadowPass->getRenderPass(),
+          mShadowFramebuffers[shadowIdx].get(),
+          vk::Rect2D({0, 0}, {static_cast<uint32_t>(size),
+                              static_cast<uint32_t>(size)}),
+          static_cast<uint32_t>(clearValues.size()), clearValues.data()};
+      mShadowCommandBuffer->beginRenderPass(renderPassBeginInfo,
+                                            vk::SubpassContents::eInline);
+      mShadowCommandBuffer->bindPipeline(vk::PipelineBindPoint::eGraphics,
+                                         pointShadowPass->getPipeline());
+      mShadowCommandBuffer->setViewport(0, viewport);
+      mShadowCommandBuffer->setScissor(0, scissor);
+
+      int objectBinding = -1;
+      auto types = pointShadowPass->getUniformBindingTypes();
+      for (uint32_t bindingIdx = 0; bindingIdx < types.size(); ++bindingIdx) {
+        switch (types[bindingIdx]) {
+        case shader::UniformBindingType::eObject:
+          objectBinding = bindingIdx;
+          break;
+        case shader::UniformBindingType::eLight:
+          mShadowCommandBuffer->bindDescriptorSets(
+              vk::PipelineBindPoint::eGraphics,
+              pointShadowPass->getPipelineLayout(), bindingIdx,
+              mLightSets[shadowIdx].get(), nullptr);
+          break;
+        default:
+          throw std::runtime_error(
+              "point shadow pass may only use object and light buffer");
+        }
+      }
+
+      for (uint32_t objIdx = 0; objIdx < objects.size(); ++objIdx) {
+        if (objects[objIdx]->getTransparency() >= 1) {
+          continue;
+        }
+        if (objectBinding >= 0) {
+          mShadowCommandBuffer->bindDescriptorSets(
+              vk::PipelineBindPoint::eGraphics,
+              pointShadowPass->getPipelineLayout(), objectBinding,
+              mObjectSet[mPointObjectIndex + objIdx].get(), nullptr);
+        }
+        mShadowCommandBuffer->bindVertexBuffers(
+            0,
+            objects[objIdx]->getPointSet()->getVertexBuffer().getVulkanBuffer(),
+            vk::DeviceSize(0));
+        mShadowCommandBuffer->draw(
+            objects[objIdx]->getPointSet()->getVertexCount(), 1, 0, 0);
+      }
+      mShadowCommandBuffer->endRenderPass();
+    }
+  }
+
   mShadowCommandBuffer->end();
 }
 

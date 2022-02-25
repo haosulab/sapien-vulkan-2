@@ -40,9 +40,9 @@ static void createSphereArray(svulkan2::scene::Scene &scene) {
               glm::vec4{0, 0, 0, 1}, glm::vec4{1, 1, 1, 1}, 0, roughness,
               metallic));
       scene
-          .addObject(
-              resource::SVModel::FromData({shape}),
-              {.position = {i / 8.f, j / 8.f, 0}, .scale = {0.05, 0.05, 0.05}})
+          .addObject(resource::SVModel::FromData({shape}),
+                     {.position = {i / 8.f, 0.2 + j / 8.f, 0},
+                      .scale = {0.05, 0.05, 0.05}})
           .setShadeFlat(true);
     }
   }
@@ -76,16 +76,16 @@ int main() {
 
   svulkan2::scene::Scene scene;
 
-  // createSphereArray(scene);
+  createSphereArray(scene);
 
-  auto &spotLight1 = scene.addSpotLight();
-  spotLight1.setPosition({0.5, 0.5, 1.0});
-  spotLight1.setDirection({0, 0, -1});
-  spotLight1.setFov(1);
-  spotLight1.setFovSmall(1);
-  spotLight1.setColor({4, 4, 4});
-  spotLight1.enableShadow(true);
-  spotLight1.setShadowParameters(0.05, 5, 2048);
+  // auto &spotLight1 = scene.addSpotLight();
+  // spotLight1.setPosition({0.5, 0.5, 1.0});
+  // spotLight1.setDirection({0, 0, -1});
+  // spotLight1.setFov(1);
+  // spotLight1.setFovSmall(1);
+  // spotLight1.setColor({4, 4, 4});
+  // spotLight1.enableShadow(true);
+  // spotLight1.setShadowParameters(0.05, 5, 2048);
 
   // auto &spotLight2 = scene.addSpotLight();
   // spotLight2.setPosition({0.5, 0.5, 0.7});
@@ -122,7 +122,8 @@ int main() {
 
   auto &dl = scene.addDirectionalLight();
   dl.setPosition({0, 0, 0});
-  dl.setDirection({-1, -5, -1});
+  // dl.setDirection({-1, -5, -1});
+  dl.setDirection({0, -5, -5});
   dl.setColor({1, 1, 1});
   dl.enableShadow(true);
   dl.setShadowParameters(-10, 10, 5, 2048);
@@ -405,8 +406,6 @@ int main() {
     // required since we only use 1 set of uniform buffers
     context->getDevice().waitIdle();
 
-
-
     // auto [buffer, size, _] = renderer.transferToBuffer("Color");
     // auto now1 = std::chrono::system_clock::now();
     // auto through_transfer = buffer->download<float>();
@@ -423,8 +422,6 @@ int main() {
     // dur = now2 - now1;
     // std::cout << "cuda copy" << dur.count() << std::endl;
     // break;
-
-
 
     if (gClosed) {
       window->close();
