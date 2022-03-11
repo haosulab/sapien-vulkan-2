@@ -9,22 +9,22 @@ std::array<glm::mat4, 6> PointLight::getModelMatrices(glm::vec3 const &center) {
   const glm::vec3 y(0, 1, 0);
   const glm::vec3 z(0, 0, 1);
 
-  glm::mat4 m1 = glm::mat3(glm::mat3(-z, y, -x));
+  glm::mat4 m1 = glm::mat3(glm::mat3(z, -y, x));
   m1[3] = glm::vec4(center, 1.f);
 
-  glm::mat4 m2 = glm::mat3(glm::mat3(z, y, x));
+  glm::mat4 m2 = glm::mat3(glm::mat3(-z, -y, -x));
   m2[3] = glm::vec4(center, 1.f);
 
-  glm::mat4 m3 = glm::mat3(glm::mat3(x, -z, -y));
+  glm::mat4 m3 = glm::mat3(glm::mat3(-x, z, y));
   m3[3] = glm::vec4(center, 1.f);
 
-  glm::mat4 m4 = glm::mat3(glm::mat3(x, z, y));
+  glm::mat4 m4 = glm::mat3(glm::mat3(-x, -z, -y));
   m4[3] = glm::vec4(center, 1.f);
 
-  glm::mat4 m5 = glm::mat3(glm::mat3(x, y, -z));
+  glm::mat4 m5 = glm::mat3(glm::mat3(-x, -y, z));
   m5[3] = glm::vec4(center, 1.f);
 
-  glm::mat4 m6 = glm::mat3(glm::mat3(-x, y, z));
+  glm::mat4 m6 = glm::mat3(glm::mat3(x, -y, -z));
   m6[3] = glm::vec4(center, 1.f);
 
   return {m1, m2, m3, m4, m5, m6};
@@ -121,9 +121,7 @@ void SpotLight::setFovSmall(float fov) { mFovSmall = fov; }
 float SpotLight::getFovSmall() const { return mFovSmall; }
 
 glm::mat4 SpotLight::getShadowProjectionMatrix() const {
-  auto mat = glm::perspective(mFov, 1.f, mShadowNear, mShadowFar);
-  mat[1][1] *= -1;
-  return mat;
+  return math::perspective(mFov, 1.f, mShadowNear, mShadowFar);
 }
 
 void TexturedLight::setTexture(std::shared_ptr<resource::SVTexture> texture) {
