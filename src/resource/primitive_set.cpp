@@ -13,6 +13,9 @@ void SVPrimitiveSet::setVertexAttribute(std::string const &name,
   if (name == "position") {
     mVertexCount = attrib.size() / 3;
   }
+  if (this->mOnDevice) {
+    this->uploadToDevice();
+  }
 }
 
 std::vector<float> const &
