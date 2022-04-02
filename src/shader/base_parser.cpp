@@ -1,4 +1,5 @@
 #include "svulkan2/shader/base_parser.h"
+#include "svulkan2/common/launch_policy.h"
 #include "svulkan2/common/log.h"
 
 namespace svulkan2 {
@@ -603,7 +604,7 @@ getDescriptorSetDescription(spirv_cross::Compiler &compiler,
 std::future<void> BaseParser::loadGLSLFilesAsync(std::string const &vertFile,
                                                  std::string const &fragFile,
                                                  std::string const &geomFile) {
-  return std::async(std::launch::async, [=, this]() {
+  return std::async(LAUNCH_ASYNC, [=, this]() {
     loadGLSLFiles(vertFile, fragFile, geomFile);
   });
 }

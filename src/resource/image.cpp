@@ -1,5 +1,6 @@
 #include "svulkan2/resource/image.h"
 #include "svulkan2/common/image.h"
+#include "svulkan2/common/launch_policy.h"
 #include "svulkan2/common/log.h"
 #include "svulkan2/core/context.h"
 #include <filesystem>
@@ -215,7 +216,7 @@ std::future<void> SVImage::loadAsync() {
   if (mLoaded) {
     return std::async(std::launch::deferred, []() {});
   }
-  return std::async(std::launch::async, [this]() {
+  return std::async(LAUNCH_ASYNC, [this]() {
     std::lock_guard<std::mutex> lock(mLoadingMutex);
     if (mLoaded) {
       return;

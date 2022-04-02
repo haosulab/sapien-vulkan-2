@@ -1,5 +1,6 @@
 #include "svulkan2/core/context.h"
 #include "svulkan2/common/cuda_helper.h"
+#include "svulkan2/common/launch_policy.h"
 #include "svulkan2/common/log.h"
 #include "svulkan2/core/allocator.h"
 #include <GLFW/glfw3.h>
@@ -695,7 +696,7 @@ Context::submitCommandBuffer(vk::CommandBuffer commandBuffer) const {
   auto fence = mDevice->createFenceUnique({});
   getQueue().submit(vk::SubmitInfo(0, nullptr, nullptr, 1, &commandBuffer),
                     fence.get());
-  return std::async(std::launch::async, [fence = std::move(fence), this]() {
+  return std::async(LAUNCH_ASYNC, [fence = std::move(fence), this]() {
     auto result = mDevice->waitForFences(fence.get(), VK_TRUE, UINT64_MAX);
     if (result != vk::Result::eSuccess) {
       throw std::runtime_error("failed to wait for fence");

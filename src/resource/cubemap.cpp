@@ -1,4 +1,5 @@
 #include "svulkan2/resource/cubemap.h"
+#include "svulkan2/common/launch_policy.h"
 #include "svulkan2/core/context.h"
 #include "svulkan2/resource/manager.h"
 #include "svulkan2/shader/compute.h"
@@ -128,7 +129,7 @@ std::future<void> SVCubemap::loadAsync() {
         "failed to load texture: the texture is not specified by a file");
   }
 
-  return std::async(std::launch::async, [this]() {
+  return std::async(LAUNCH_ASYNC, [this]() {
     std::lock_guard<std::mutex> lock(mLoadingMutex);
     if (mLoaded) {
       return;

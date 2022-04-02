@@ -70,6 +70,7 @@ int main() {
 
   auto config = std::make_shared<RendererConfig>();
   config->shaderDir = srcBase + "shader/point";
+  config->culling = vk::CullModeFlagBits::eNone;
 
   config->colorFormat4 = vk::Format::eR32G32B32A32Sfloat;
   renderer::Renderer renderer(config);
@@ -77,6 +78,13 @@ int main() {
   svulkan2::scene::Scene scene;
 
   createSphereArray(scene);
+
+  auto model = manager->CreateModelFromFile(
+      "/home/fx/source/sapien-project-web/storage/models/partnet/"
+      "0af05cd6-8494-4454-b7d0-7f6a3cda41f1/model.gltf");
+  auto &obj = scene.addObject(model);
+  obj.setScale({0.1, 0.1, 0.1});
+  obj.setPosition({0.5, 0.5, 0.5});
 
   // auto &spotLight1 = scene.addSpotLight();
   // spotLight1.setPosition({0.5, 0.5, 1.0});
@@ -95,18 +103,33 @@ int main() {
   // spotLight2.enableShadow(true);
   // spotLight2.setShadowParameters(0.05, 10, 2048);
 
-  auto &spotLight2 = scene.addTexturedLight();
-  spotLight2.setPosition({1, 0.5, 1});
-  spotLight2.setDirection({0, -1, 0});
-  spotLight2.setFov(1.5);
-  spotLight2.setFovSmall(1.5);
-  spotLight2.setColor({1, 0, 0});
-  spotLight2.enableShadow(true);
-  spotLight2.setShadowParameters(0.05, 10, 2048);
-  spotLight2.setTexture(context->getResourceManager()->CreateTextureFromFile(
-      "../test/assets/image/flashlight.jpg", 1, vk::Filter::eLinear,
-      vk::Filter::eLinear, vk::SamplerAddressMode::eClampToBorder,
-      vk::SamplerAddressMode::eClampToBorder, true));
+  // auto &spotLight2 = scene.addTexturedLight();
+  // spotLight2.setPosition({1, 0.5, 1});
+  // spotLight2.setDirection({0, -1, 0});
+  // spotLight2.setFov(1.5);
+  // spotLight2.setFovSmall(1.5);
+  // spotLight2.setColor({1, 0, 0});
+  // spotLight2.enableShadow(true);
+  // spotLight2.setShadowParameters(0.05, 10, 2048);
+  // spotLight2.setTexture(context->getResourceManager()->CreateTextureFromFile(
+  //     "../test/assets/image/flashlight.jpg", 1, vk::Filter::eLinear,
+  //     vk::Filter::eLinear, vk::SamplerAddressMode::eClampToBorder,
+  //     vk::SamplerAddressMode::eClampToBorder, true));
+
+  auto &pl = scene.addPointLight();
+  pl.setPosition({0.5, 0.5, 0});
+  pl.setColor({2, 2, 2});
+  pl.enableShadow(true);
+  pl.setShadowParameters(0.01, 10, 2048);
+
+  // auto &pl = scene.addSpotLight();
+  // pl.setPosition({0.5, 0.5, 0});
+  // pl.setColor({2, 2, 2});
+  // pl.enableShadow(true);
+  // pl.setFovSmall(M_PI / 2);
+  // pl.setFov(M_PI / 2);
+  // pl.setDirection({0, -1, 0});
+  // pl.setShadowParameters(0.01, 10, 2048);
 
   // auto &p2 = scene.addPointLight();
   // p2.setTransform({.position = glm::vec4{0.0, 0.5, 0.5, 1}});
@@ -120,13 +143,13 @@ int main() {
   // p3.enableShadow(true);
   // p3.setShadowParameters(0.05, 5);
 
-  auto &dl = scene.addDirectionalLight();
-  dl.setPosition({0, 0, 0});
-  // dl.setDirection({-1, -5, -1});
-  dl.setDirection({0, -5, -5});
-  dl.setColor({1, 1, 1});
-  dl.enableShadow(true);
-  dl.setShadowParameters(-10, 10, 5, 2048);
+  // auto &dl = scene.addDirectionalLight();
+  // dl.setPosition({0, 0, 0});
+  // // dl.setDirection({-1, -5, -1});
+  // dl.setDirection({0, -5, -5});
+  // dl.setColor({1, 1, 1});
+  // dl.enableShadow(true);
+  // dl.setShadowParameters(-10, 10, 5, 2048);
 
   // auto &dl2 = scene.addDirectionalLight();
   // dl2.setTransform({.position = {0, 0, 0}});
@@ -207,13 +230,13 @@ int main() {
     }
   }
 
-  auto pointset = std::make_shared<resource::SVPointSet>();
-  pointset->setVertexAttribute("position", positions);
-  pointset->setVertexAttribute("scale", scales);
-  pointset->setVertexAttribute("color", colors);
-  pointset->uploadToDevice();
+  // auto pointset = std::make_shared<resource::SVPointSet>();
+  // pointset->setVertexAttribute("position", positions);
+  // pointset->setVertexAttribute("scale", scales);
+  // pointset->setVertexAttribute("color", colors);
+  // pointset->uploadToDevice();
 
-  scene.addPointObject(pointset).setShadingMode(0);
+  // scene.addPointObject(pointset).setShadingMode(0);
 
   auto &cameraNode = scene.addCamera();
   cameraNode.setPerspectiveParameters(0.05, 50, 1, 400, 300);
@@ -231,9 +254,10 @@ int main() {
 
   // renderer.setCustomTexture("BRDFLUT", lutTexture);
 
-  auto cubemap =
-      context->getResourceManager()->CreateCubemapFromKTX("input.ktx", 5);
-  scene.setEnvironmentMap(cubemap);
+  // auto cubemap =
+  //     context->getResourceManager()->CreateCubemapFromKTX("input.ktx", 5);
+  // scene.setEnvironmentMap(cubemap);
+  //
 
   // auto cubemap = context->getResourceManager()->CreateCubemapFromFiles(
   //     {

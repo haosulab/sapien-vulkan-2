@@ -1,4 +1,5 @@
 #include "svulkan2/resource/texture.h"
+#include "svulkan2/common/launch_policy.h"
 #include "svulkan2/core/context.h"
 #include "svulkan2/resource/manager.h"
 
@@ -135,7 +136,7 @@ std::future<void> SVTexture::loadAsync() {
     throw std::runtime_error(
         "failed to load texture: the texture is not specified by a file");
   }
-  return std::async(std::launch::async, [this, manager]() {
+  return std::async(LAUNCH_ASYNC, [this, manager]() {
     std::lock_guard<std::mutex> lock(mLoadingMutex);
     if (mLoaded) {
       return;

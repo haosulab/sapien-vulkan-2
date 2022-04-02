@@ -1,10 +1,12 @@
 #include "svulkan2/resource/model.h"
 #include "svulkan2/common/image.h"
+#include "svulkan2/common/launch_policy.h"
 #include "svulkan2/common/log.h"
 #include "svulkan2/core/context.h"
 #include "svulkan2/resource/manager.h"
+#include <assimp/GltfMaterial.h>
 #include <assimp/Importer.hpp>
-#include <assimp/pbrmaterial.h>
+// #include <assimp/pbrmaterial.h>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
 #include <filesystem>
@@ -119,7 +121,7 @@ std::future<void> SVModel::loadAsync() {
   auto context = core::Context::Get();
   auto manager = context->getResourceManager();
 
-  return std::async(std::launch::async, [this, manager]() {
+  return std::async(LAUNCH_ASYNC, [this, manager]() {
     std::lock_guard<std::mutex> lock(mLoadingMutex);
     if (mLoaded) {
       return;
@@ -154,7 +156,10 @@ std::future<void> SVModel::loadAsync() {
     uint32_t flags = aiProcess_CalcTangentSpace | aiProcess_Triangulate |
                      aiProcess_GenNormals | aiProcess_FlipUVs |
                      aiProcess_PreTransformVertices;
-    importer.SetPropertyInteger(AI_CONFIG_PP_PTV_ADD_ROOT_TRANSFORMATION, 1);
+
+    importer.SetPropertyBool(AI_CONFIG_IMPORT_COLLADA_IGNORE_UP_DIRECTION,
+                             true);
+
     const aiScene *scene = importer.ReadFile(path, flags);
 
     if (scene->mRootNode->mMetaData) {
@@ -190,25 +195,38 @@ std::future<void> SVModel::loadAsync() {
 
       float roughness = 1.f;
 
-      m->Get(AI_MATKEY_OPACITY, alpha);
-      if (alpha < 1e-5 && (mDescription.filename.ends_with(".dae") ||
-                           mDescription.filename.ends_with(".DAE"))) {
-        log::warn("The DAE file {} is fully transparent. This is probably "
-                  "due to modeling error. Setting opacity to 1 instead...",
-                  mDescription.filename);
-        alpha = 1.f;
+      if (m->Get(AI_MATKEY_OPACITY, alpha) == AI_SUCCESS) {
+        if (alpha < 1e-5 && (mDescription.filename.ends_with(".dae") ||
+                             mDescription.filename.ends_with(".DAE"))) {
+          log::warn("The DAE file {} is fully transparent. This is probably "
+                    "due to modeling error. Setting opacity to 1 instead...",
+                    mDescription.filename);
+          alpha = 1.f;
+        }
+      } else {
+        if (m->Get(AI_MATKEY_TRANSPARENCYFACTOR, alpha) == AI_SUCCESS) {
+          alpha = 1 - alpha;
+        }
       }
+
       m->Get(AI_MATKEY_COLOR_EMISSIVE, emission);
       m->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse);
 
-      // assimp code for reading roughness, metallic, and glossiness
-      if (m->Get(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLIC_FACTOR,
-                 metallic) != AI_SUCCESS) {
-        metallic = 0.f;
+      {
+        aiColor4D baseColor = {0, 0, 0, 1};
+        if (m->Get(AI_MATKEY_BASE_COLOR, baseColor) == AI_SUCCESS) {
+          diffuse = {baseColor.r, baseColor.g, baseColor.b};
+          alpha = baseColor.a;
+        }
       }
 
-      if (m->Get(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_ROUGHNESS_FACTOR,
-                 roughness) != AI_SUCCESS) {
+      // CHECK GLTF_PBRMETALLICROUGHNESS_METALLIC_FACTOR
+
+      // assimp code for reading roughness, metallic, and glossiness
+      if (m->Get(AI_MATKEY_METALLIC_FACTOR, metallic) != AI_SUCCESS) {
+        metallic = 0.f;
+      }
+      if (m->Get(AI_MATKEY_ROUGHNESS_FACTOR, roughness) != AI_SUCCESS) {
         aiColor4D specularColor;
         ai_real shininess;
         if (m->Get(AI_MATKEY_COLOR_SPECULAR, specularColor) == AI_SUCCESS &&
@@ -224,17 +242,37 @@ std::future<void> SVModel::loadAsync() {
         }
       }
 
-      bool hasPbrSpecularGlossiness = false;
-      m->Get(AI_MATKEY_GLTF_PBRSPECULARGLOSSINESS, hasPbrSpecularGlossiness);
-      if (hasPbrSpecularGlossiness) {
-        if (m->Get(AI_MATKEY_GLTF_PBRSPECULARGLOSSINESS_GLOSSINESS_FACTOR,
-                   glossiness) != AI_SUCCESS) {
-          float shininess;
-          if (m->Get(AI_MATKEY_SHININESS, shininess)) {
-            glossiness = shininess / 1000;
-          }
+      // if (m->Get(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_ROUGHNESS_FACTOR,
+      //            roughness) != AI_SUCCESS) {
+      //   aiColor4D specularColor;
+      //   ai_real shininess;
+      //   if (m->Get(AI_MATKEY_COLOR_SPECULAR, specularColor) == AI_SUCCESS &&
+      //       m->Get(AI_MATKEY_SHININESS, shininess) == AI_SUCCESS) {
+      //     float specularIntensity = specularColor[0] * 0.2125f +
+      //                               specularColor[1] * 0.7154f +
+      //                               specularColor[2] * 0.0721f;
+      //     float normalizedShininess = std::sqrt(shininess / 1000);
+      //     normalizedShininess =
+      //         std::min(std::max(normalizedShininess, 0.0f), 1.0f);
+      //     normalizedShininess = normalizedShininess * specularIntensity;
+      //     roughness = 1 - normalizedShininess;
+      //   }
+      // }
+
+      if (m->Get(AI_MATKEY_GLOSSINESS_FACTOR, glossiness) != AI_SUCCESS) {
+        float shininess;
+        if (m->Get(AI_MATKEY_SHININESS, shininess)) {
+          glossiness = shininess / 1000;
         }
       }
+
+      // if (m->Get(AI_MATKEY_GLTF_PBRSPECULARGLOSSINESS_GLOSSINESS_FACTOR,
+      //            glossiness) != AI_SUCCESS) {
+      //   float shininess;
+      //   if (m->Get(AI_MATKEY_SHININESS, shininess)) {
+      //     glossiness = shininess / 1000;
+      //   }
+      // }
 
       std::shared_ptr<SVTexture> baseColorTexture{};
       std::shared_ptr<SVTexture> normalTexture{};
