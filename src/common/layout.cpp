@@ -140,4 +140,12 @@ bool StructDataLayout::operator!=(StructDataLayout const &other) const {
   return !(*this == other);
 }
 
+uint32_t StructDataLayout::getAlignedSize(uint32_t alignment) const {
+  uint32_t newSize = size / alignment * alignment;
+  if (newSize == size) {
+    return size;
+  }
+  return newSize + alignment;
+}
+
 }; // namespace svulkan2

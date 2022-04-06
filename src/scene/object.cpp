@@ -1,5 +1,6 @@
 #include "svulkan2/scene/object.h"
 #include "svulkan2/scene/scene.h"
+#include <easy/profiler.h>
 
 namespace svulkan2 {
 namespace scene {
@@ -8,19 +9,27 @@ Object::Object(std::shared_ptr<resource::SVModel> model,
                std::string const &name)
     : Node(name), mModel(model) {}
 
-void Object::uploadToDevice(core::Buffer &objectBuffer,
+void Object::uploadToDevice(core::Buffer &objectBuffer, uint32_t offset,
                             StructDataLayout const &objectLayout) {
+  EASY_BLOCK("allocate");
   std::vector<char> buffer(objectLayout.size);
+  EASY_END_BLOCK;
+
+  EASY_BLOCK("copy matrix");
   std::memcpy(buffer.data() + objectLayout.elements.at("modelMatrix").offset,
               &mTransform.worldModelMatrix[0][0], 64);
   std::memcpy(buffer.data() + objectLayout.elements.at("segmentation").offset,
               &mSegmentation[0], 16);
+
   auto it = objectLayout.elements.find("prevModelMatrix");
   if (it != objectLayout.elements.end()) {
     std::memcpy(buffer.data() +
                     objectLayout.elements.at("prevModelMatrix").offset,
                 &mTransform.prevWorldModelMatrix[0][0], 64);
   }
+  EASY_END_BLOCK;
+
+  EASY_BLOCK("check other data");
   for (auto &[name, value] : mCustomData) {
     if (objectLayout.elements.find(name) != objectLayout.elements.end()) {
       auto &elem = objectLayout.elements.at(name);
@@ -50,7 +59,8 @@ void Object::uploadToDevice(core::Buffer &objectBuffer,
     int shadeFlat = mShadeFlat;
     std::memcpy(buffer.data() + elem.offset, &shadeFlat, 4);
   }
-  objectBuffer.upload(buffer);
+  EASY_END_BLOCK;
+  objectBuffer.upload(buffer.data(), objectLayout.size, offset);
 }
 
 void Object::setSegmentation(glm::uvec4 const &segmentation) {
@@ -108,7 +118,7 @@ LineObject::LineObject(std::shared_ptr<resource::SVLineSet> lineSet,
                        std::string const &name)
     : Node(name), mLineSet(lineSet) {}
 
-void LineObject::uploadToDevice(core::Buffer &objectBuffer,
+void LineObject::uploadToDevice(core::Buffer &objectBuffer, uint32_t offset,
                                 StructDataLayout const &objectLayout) {
   std::vector<char> buffer(objectLayout.size);
   std::memcpy(buffer.data() + objectLayout.elements.at("modelMatrix").offset,
@@ -130,7 +140,9 @@ void LineObject::uploadToDevice(core::Buffer &objectBuffer,
     }
     std::memcpy(buffer.data() + elem.offset, &mTransparency, 4);
   }
-  objectBuffer.upload(buffer);
+  // objectBuffer.upload(buffer);
+
+  objectBuffer.upload(buffer.data(), objectLayout.size, offset);
 }
 
 void LineObject::setSegmentation(glm::uvec4 const &segmentation) {
@@ -145,7 +157,7 @@ PointObject::PointObject(std::shared_ptr<resource::SVPointSet> pointSet,
                          std::string const &name)
     : Node(name), mPointSet(pointSet) {}
 
-void PointObject::uploadToDevice(core::Buffer &objectBuffer,
+void PointObject::uploadToDevice(core::Buffer &objectBuffer, uint32_t offset,
                                  StructDataLayout const &objectLayout) {
   std::vector<char> buffer(objectLayout.size);
   std::memcpy(buffer.data() + objectLayout.elements.at("modelMatrix").offset,
@@ -167,7 +179,7 @@ void PointObject::uploadToDevice(core::Buffer &objectBuffer,
     }
     std::memcpy(buffer.data() + elem.offset, &mTransparency, 4);
   }
-  objectBuffer.upload(buffer);
+  objectBuffer.upload(buffer.data(), objectLayout.size, offset);
 }
 
 void PointObject::setSegmentation(glm::uvec4 const &segmentation) {

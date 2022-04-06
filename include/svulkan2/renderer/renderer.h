@@ -72,7 +72,10 @@ class Renderer {
 
   std::unique_ptr<core::Buffer> mSceneBuffer;
   std::unique_ptr<core::Buffer> mCameraBuffer;
-  std::vector<std::unique_ptr<core::Buffer>> mObjectBuffers;
+
+  // std::vector<std::unique_ptr<core::Buffer>> mObjectBuffers;
+  std::unique_ptr<core::Buffer> mObjectBuffer;
+
 
   vk::UniqueDescriptorSet mSceneSet;
   vk::UniqueDescriptorSet mCameraSet;

@@ -1,6 +1,7 @@
 #include "svulkan2/core/buffer.h"
 #include "svulkan2/core/allocator.h"
 #include "svulkan2/core/context.h"
+#include <easy/profiler.h>
 
 namespace svulkan2 {
 namespace core {
@@ -90,9 +91,25 @@ void Buffer::upload(void const *data, size_t size, size_t offset) {
   }
 
   if (mHostVisible) {
-    map();
-    std::memcpy(reinterpret_cast<uint8_t *>(mMappedData) + offset, data, size);
-    unmap();
+    if (mMapped) {
+      EASY_BLOCK("memcpy");
+      std::memcpy(reinterpret_cast<uint8_t *>(mMappedData) + offset, data,
+                  size);
+      EASY_END_BLOCK;
+    } else {
+      EASY_BLOCK("map");
+      map();
+      EASY_END_BLOCK;
+
+      EASY_BLOCK("memcpy");
+      std::memcpy(reinterpret_cast<uint8_t *>(mMappedData) + offset, data,
+                  size);
+      EASY_END_BLOCK;
+
+      EASY_BLOCK("unmap");
+      unmap();
+      EASY_END_BLOCK;
+    }
     if (!mHostCoherent) {
       flush();
     }

@@ -1052,18 +1052,24 @@ void Renderer::render(scene::Camera &camera,
 
   {
     EASY_BLOCK("Update objects");
+    auto bufferSize =
+        mShaderManager->getShaderConfig()->objectBufferLayout->getAlignedSize(
+            64);
+
     // update objects
+
+    mObjectBuffer->map();
     auto objects = mScene->getObjects();
     for (uint32_t i = 0; i < objects.size(); ++i) {
       objects[i]->uploadToDevice(
-          *mObjectBuffers[i],
+          *mObjectBuffer, i * bufferSize,
           *mShaderManager->getShaderConfig()->objectBufferLayout);
     }
     if (mShaderManager->isLineEnabled()) {
       auto lineObjects = mScene->getLineObjects();
       for (uint32_t i = 0; i < lineObjects.size(); ++i) {
         lineObjects[i]->uploadToDevice(
-            *mObjectBuffers[mLineObjectIndex + i],
+            *mObjectBuffer, (mLineObjectIndex + i) * bufferSize,
             *mShaderManager->getShaderConfig()->objectBufferLayout);
       }
     }
@@ -1071,10 +1077,11 @@ void Renderer::render(scene::Camera &camera,
       auto pointObjects = mScene->getPointObjects();
       for (uint32_t i = 0; i < pointObjects.size(); ++i) {
         pointObjects[i]->uploadToDevice(
-            *mObjectBuffers[mPointObjectIndex + i],
+            *mObjectBuffer, (mPointObjectIndex + i) * bufferSize,
             *mShaderManager->getShaderConfig()->objectBufferLayout);
       }
     }
+    mObjectBuffer->unmap();
   }
 
   {
@@ -1350,24 +1357,51 @@ void Renderer::prepareSceneBuffer() {
 } // namespace renderer
 
 void Renderer::prepareObjectBuffers(uint32_t numObjects) {
-  // we have too many object buffers
-  if (numObjects * 2 < mObjectBuffers.size()) {
-    uint32_t newSize = mObjectBuffers.size() / 2;
-    mObjectBuffers.resize(newSize);
+  // TODO: read aligned size from physical device
+  auto bufferSize =
+      mShaderManager->getShaderConfig()->objectBufferLayout->getAlignedSize(64);
+  bool updated{false};
+
+  // shrink
+  if (numObjects * 2 < mObjectSet.size()) {
+    updated = true;
+    uint32_t newSize = numObjects;
+
+    // reallocate buffer
+    mObjectBuffer = mContext->getAllocator().allocateUniformBuffer(
+        bufferSize * newSize, false);
+
     mObjectSet.resize(newSize);
   }
+  // expand
+  if (numObjects > mObjectSet.size()) {
+    updated = true;
+    uint32_t newSize =
+        std::max(numObjects, 2 * static_cast<uint32_t>(mObjectSet.size()));
 
-  // we have too few object buffers
-  for (uint32_t i = mObjectBuffers.size(); i < numObjects; ++i) {
+    // reallocate buffer
+    mObjectBuffer = mContext->getAllocator().allocateUniformBuffer(
+        bufferSize * newSize, false);
+
     auto layout = mShaderManager->getObjectDescriptorSetLayout();
-    mObjectBuffers.push_back(mContext->getAllocator().allocateUniformBuffer(
-        mShaderManager->getShaderConfig()->objectBufferLayout->size));
-    auto objectSet = mObjectPool->allocateSet(layout);
-    updateDescriptorSets(mContext->getDevice(), objectSet.get(),
-                         {{vk::DescriptorType::eUniformBuffer,
-                           mObjectBuffers[i]->getVulkanBuffer(), nullptr}},
-                         {}, 0);
-    mObjectSet.push_back(std::move(objectSet));
+    for (uint32_t i = mObjectSet.size(); i < newSize; ++i) {
+      mObjectSet.push_back(mObjectPool->allocateSet(layout));
+    }
+  }
+
+  if (updated) {
+    std::vector<vk::WriteDescriptorSet> writeDescriptorSets;
+    std::vector<vk::DescriptorBufferInfo> bufferInfos(mObjectSet.size());
+
+    for (uint32_t i = 0; i < mObjectSet.size(); ++i) {
+      auto buffer = mObjectBuffer->getVulkanBuffer();
+      bufferInfos[i] =
+          vk::DescriptorBufferInfo(buffer, bufferSize * i, bufferSize);
+      writeDescriptorSets.push_back(vk::WriteDescriptorSet(
+          mObjectSet[i].get(), 0, 0, vk::DescriptorType::eUniformBuffer, {},
+          bufferInfos[i], {}));
+    }
+    mContext->getDevice().updateDescriptorSets(writeDescriptorSets, nullptr);
   }
 }
 

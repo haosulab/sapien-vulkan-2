@@ -190,6 +190,7 @@ struct StructDataLayout {
 
   bool operator==(StructDataLayout const &other) const;
   bool operator!=(StructDataLayout const &other) const;
+  uint32_t getAlignedSize(uint32_t alignment) const;
 };
 
 inline void strided_memcpy(void *target, void *source, size_t chunk_size,

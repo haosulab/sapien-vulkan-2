@@ -39,7 +39,7 @@ public:
   Object(std::shared_ptr<resource::SVModel> model,
          std::string const &name = "");
 
-  void uploadToDevice(core::Buffer &objectBuffer,
+  void uploadToDevice(core::Buffer &objectBuffer, uint32_t offset,
                       StructDataLayout const &objectLayout);
 
   void setSegmentation(glm::uvec4 const &segmentation);
@@ -85,7 +85,7 @@ public:
     return mLineSet;
   }
 
-  void uploadToDevice(core::Buffer &objectBuffer,
+  void uploadToDevice(core::Buffer &objectBuffer, uint32_t offset,
                       StructDataLayout const &objectLayout);
 
   void setSegmentation(glm::uvec4 const &segmentation);
@@ -114,7 +114,7 @@ public:
   inline void setShadingMode(int mode) { mShadingMode = mode; }
   inline int getShadingMode() const { return mShadingMode; }
 
-  void uploadToDevice(core::Buffer &objectBuffer,
+  void uploadToDevice(core::Buffer &objectBuffer, uint32_t offset,
                       StructDataLayout const &objectLayout);
 
   void setSegmentation(glm::uvec4 const &segmentation);
