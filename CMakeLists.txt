@@ -68,6 +68,7 @@ endif()
 if (${SVULKAN2_PROFILE})
   find_package(easy_profiler REQUIRED)
   add_definitions(-DBUILD_WITH_EASY_PROFILER)
+  set(EASY_PROFILER_LIBRARY easy_profiler)
 endif()
 
 find_package(glfw3 REQUIRED)
@@ -81,7 +82,7 @@ add_library(svulkan2 STATIC ${RENDER_SRC} ${GUI_SRC})
 
 target_link_libraries(svulkan2 ${ASSIMP_LIBRARIES} glfw dl pthread Vulkan::Vulkan spdlog
     glslang SPIRV spirv-cross-cpp
-    ${EASY_PROFILER_LIBRARIES} ktx)
+    ${EASY_PROFILER_LIBRARY} ktx)
 
 if (${SVULKAN2_CUDA_INTEROP})
     target_link_libraries(svulkan2 "$ENV{CUDA_PATH}/lib64/libcudart_static.a" rt)
