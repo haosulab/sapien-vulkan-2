@@ -27,6 +27,7 @@ class Context : public std::enable_shared_from_this<Context> {
   uint32_t mMaxNumMaterials;
   uint32_t mMaxNumTextures;
   uint32_t mDefaultMipLevels;
+  bool mDoNotLoadTexture;
 
   std::string mDeviceHint;
 
@@ -36,17 +37,16 @@ class Context : public std::enable_shared_from_this<Context> {
 
   Context(bool present = true, uint32_t maxNumMaterials = 5000,
           uint32_t maxNumTextures = 5000, uint32_t defaultMipLevels = 1,
-          std::string device = "");
+          bool doNotLoadTexture = false, std::string device = "");
 
   void init();
 
 public:
   static std::shared_ptr<Context> Get();
-  static std::shared_ptr<Context> Create(bool present = true,
-                                         uint32_t maxNumMaterials = 5000,
-                                         uint32_t maxNumTextures = 5000,
-                                         uint32_t defaultMipLevels = 1,
-                                         std::string device = "");
+  static std::shared_ptr<Context>
+  Create(bool present = true, uint32_t maxNumMaterials = 5000,
+         uint32_t maxNumTextures = 5000, uint32_t defaultMipLevels = 1,
+         bool doNotLoadTexture = false, std::string device = "");
   std::shared_ptr<resource::SVResourceManager> createResourceManager();
 
   ~Context();
@@ -106,6 +106,8 @@ public:
     int pciBus{-1};
     int queueIndex{-1};
   };
+
+  inline bool shouldNotLoadTexture() const { return mDoNotLoadTexture; }
 
 private:
   void createInstance();

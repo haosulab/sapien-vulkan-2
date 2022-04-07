@@ -58,13 +58,15 @@ static bool checkValidationLayerSupport() {
 std::shared_ptr<Context> Context::Create(bool present, uint32_t maxNumMaterials,
                                          uint32_t maxNumTextures,
                                          uint32_t defaultMipLevels,
+                                         bool doNotLoadTexture,
                                          std::string device) {
   if (!gInstance.expired()) {
     log::warn("Only 1 renderer is allowed per process. All previously created "
               "renderer resources are now invalid");
   }
-  auto context = std::shared_ptr<Context>(new Context(
-      present, maxNumMaterials, maxNumTextures, defaultMipLevels, device));
+  auto context = std::shared_ptr<Context>(
+      new Context(present, maxNumMaterials, maxNumTextures, defaultMipLevels,
+                  doNotLoadTexture, device));
   gInstance = context;
   context->init();
   return context;
@@ -72,10 +74,11 @@ std::shared_ptr<Context> Context::Create(bool present, uint32_t maxNumMaterials,
 
 Context::Context(bool present, uint32_t maxNumMaterials,
                  uint32_t maxNumTextures, uint32_t defaultMipLevels,
-                 std::string device)
+                 bool doNotLoadTexture, std::string device)
     : mApiVersion(VK_API_VERSION_1_1), mPresent(present),
       mMaxNumMaterials(maxNumMaterials), mMaxNumTextures(maxNumTextures),
-      mDefaultMipLevels(defaultMipLevels), mDeviceHint(device) {}
+      mDefaultMipLevels(defaultMipLevels), mDoNotLoadTexture(doNotLoadTexture),
+      mDeviceHint(device) {}
 
 void Context::init() {
   profiler::startListen();

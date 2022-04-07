@@ -283,100 +283,121 @@ std::future<void> SVModel::loadAsync() {
       aiString path;
       if (m->GetTextureCount(aiTextureType_DIFFUSE) > 0 &&
           m->GetTexture(aiTextureType_DIFFUSE, 0, &path) == AI_SUCCESS) {
-        log::info("Trying to load texture {}", path.C_Str());
-        if (auto texture = scene->GetEmbeddedTexture(path.C_Str())) {
-          if (textureCache.contains(std::string(path.C_Str()))) {
-            baseColorTexture = textureCache[std::string(path.C_Str())];
-          } else {
-            log::info("Loading embeded texture {}", path.C_Str());
-            textureCache[std::string(path.C_Str())] = baseColorTexture =
-                loadEmbededTexture(texture, MIP_LEVEL, 4, true);
-          }
+        if (core::Context::Get()->shouldNotLoadTexture()) {
+          log::info("Texture ignored {}", path.C_Str());
         } else {
-          std::string p = std::string(path.C_Str());
-          std::string fullPath = (parentDir / p).string();
-          baseColorTexture = manager->CreateTextureFromFile(
-              fullPath, MIP_LEVEL, vk::Filter::eLinear, vk::Filter::eLinear,
-              vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat,
-              true);
-          futures.push_back(baseColorTexture->loadAsync());
+          log::info("Trying to load texture {}", path.C_Str());
+          if (auto texture = scene->GetEmbeddedTexture(path.C_Str())) {
+            if (textureCache.contains(std::string(path.C_Str()))) {
+              baseColorTexture = textureCache[std::string(path.C_Str())];
+            } else {
+              log::info("Loading embeded texture {}", path.C_Str());
+              textureCache[std::string(path.C_Str())] = baseColorTexture =
+                  loadEmbededTexture(texture, MIP_LEVEL, 4, true);
+            }
+          } else {
+            std::string p = std::string(path.C_Str());
+            std::string fullPath = (parentDir / p).string();
+            baseColorTexture = manager->CreateTextureFromFile(
+                fullPath, MIP_LEVEL, vk::Filter::eLinear, vk::Filter::eLinear,
+                vk::SamplerAddressMode::eRepeat,
+                vk::SamplerAddressMode::eRepeat, true);
+            futures.push_back(baseColorTexture->loadAsync());
+          }
         }
       }
 
       if (m->GetTextureCount(aiTextureType_METALNESS) > 0 &&
           m->GetTexture(aiTextureType_METALNESS, 0, &path) == AI_SUCCESS) {
-        if (auto texture = scene->GetEmbeddedTexture(path.C_Str())) {
-          if (textureCache.contains(std::string(path.C_Str()))) {
-            metallicTexture = textureCache[std::string(path.C_Str())];
-          } else {
-            log::info("Loading embeded texture {}", path.C_Str());
-            textureCache[std::string(path.C_Str())] = metallicTexture =
-                loadEmbededTexture(texture, MIP_LEVEL);
-          }
+        if (core::Context::Get()->shouldNotLoadTexture()) {
+          log::info("Texture ignored {}", path.C_Str());
         } else {
-          std::string p = std::string(path.C_Str());
-          std::string fullPath = (parentDir / p).string();
-          metallicTexture = manager->CreateTextureFromFile(fullPath, MIP_LEVEL);
-          futures.push_back(metallicTexture->loadAsync());
+          if (auto texture = scene->GetEmbeddedTexture(path.C_Str())) {
+            if (textureCache.contains(std::string(path.C_Str()))) {
+              metallicTexture = textureCache[std::string(path.C_Str())];
+            } else {
+              log::info("Loading embeded texture {}", path.C_Str());
+              textureCache[std::string(path.C_Str())] = metallicTexture =
+                  loadEmbededTexture(texture, MIP_LEVEL);
+            }
+          } else {
+            std::string p = std::string(path.C_Str());
+            std::string fullPath = (parentDir / p).string();
+            metallicTexture =
+                manager->CreateTextureFromFile(fullPath, MIP_LEVEL);
+            futures.push_back(metallicTexture->loadAsync());
+          }
         }
       }
 
       if (m->GetTextureCount(aiTextureType_NORMALS) > 0 &&
           m->GetTexture(aiTextureType_NORMALS, 0, &path) == AI_SUCCESS) {
-        if (auto texture = scene->GetEmbeddedTexture(path.C_Str())) {
-          if (textureCache.contains(std::string(path.C_Str()))) {
-            normalTexture = textureCache[std::string(path.C_Str())];
-          } else {
-            log::info("Loading embeded texture {}", path.C_Str());
-            textureCache[std::string(path.C_Str())] = normalTexture =
-                loadEmbededTexture(texture, MIP_LEVEL);
-          }
+        if (core::Context::Get()->shouldNotLoadTexture()) {
+          log::info("Texture ignored {}", path.C_Str());
         } else {
-          std::string p = std::string(path.C_Str());
-          std::string fullPath = (parentDir / p).string();
-          normalTexture = manager->CreateTextureFromFile(fullPath, MIP_LEVEL);
-          futures.push_back(normalTexture->loadAsync());
+          if (auto texture = scene->GetEmbeddedTexture(path.C_Str())) {
+            if (textureCache.contains(std::string(path.C_Str()))) {
+              normalTexture = textureCache[std::string(path.C_Str())];
+            } else {
+              log::info("Loading embeded texture {}", path.C_Str());
+              textureCache[std::string(path.C_Str())] = normalTexture =
+                  loadEmbededTexture(texture, MIP_LEVEL);
+            }
+          } else {
+            std::string p = std::string(path.C_Str());
+            std::string fullPath = (parentDir / p).string();
+            normalTexture = manager->CreateTextureFromFile(fullPath, MIP_LEVEL);
+            futures.push_back(normalTexture->loadAsync());
+          }
         }
       }
 
       if (m->GetTextureCount(aiTextureType_DIFFUSE_ROUGHNESS) > 0 &&
           m->GetTexture(aiTextureType_DIFFUSE_ROUGHNESS, 0, &path) ==
               AI_SUCCESS) {
-        if (auto texture = scene->GetEmbeddedTexture(path.C_Str())) {
-          if (textureCache.contains(std::string(path.C_Str()))) {
-            roughnessTexture = textureCache[std::string(path.C_Str())];
-          } else {
-            log::info("Loading embeded texture {}", path.C_Str());
-            textureCache[std::string(path.C_Str())] = roughnessTexture =
-                loadEmbededTexture(texture, MIP_LEVEL);
-          }
+        if (core::Context::Get()->shouldNotLoadTexture()) {
+          log::info("Texture ignored {}", path.C_Str());
         } else {
-          std::string p = std::string(path.C_Str());
-          std::string fullPath = (parentDir / p).string();
-          roughnessTexture =
-              manager->CreateTextureFromFile(fullPath, MIP_LEVEL);
-          futures.push_back(roughnessTexture->loadAsync());
+          if (auto texture = scene->GetEmbeddedTexture(path.C_Str())) {
+            if (textureCache.contains(std::string(path.C_Str()))) {
+              roughnessTexture = textureCache[std::string(path.C_Str())];
+            } else {
+              log::info("Loading embeded texture {}", path.C_Str());
+              textureCache[std::string(path.C_Str())] = roughnessTexture =
+                  loadEmbededTexture(texture, MIP_LEVEL);
+            }
+          } else {
+            std::string p = std::string(path.C_Str());
+            std::string fullPath = (parentDir / p).string();
+            roughnessTexture =
+                manager->CreateTextureFromFile(fullPath, MIP_LEVEL);
+            futures.push_back(roughnessTexture->loadAsync());
+          }
         }
       }
 
       if (m->GetTexture(
               AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE,
               &path) == AI_SUCCESS) {
-        if (auto texture = scene->GetEmbeddedTexture(path.C_Str())) {
-          if (roughnessMetallicTextureCache.contains(
-                  std::string(path.C_Str()))) {
-            std::tie(roughnessTexture, metallicTexture) =
-                roughnessMetallicTextureCache[std::string(path.C_Str())];
-          } else {
-            log::info("Loading embeded roughness metallic texture {}",
-                      path.C_Str());
-            std::tie(roughnessTexture, metallicTexture) =
-                roughnessMetallicTextureCache[std::string(path.C_Str())] =
-                    loadEmbededRoughnessMetallicTexture(texture, MIP_LEVEL);
-          }
+        if (core::Context::Get()->shouldNotLoadTexture()) {
+          log::info("Texture ignored {}", path.C_Str());
         } else {
-          log::warn("Loading non-embeded roughness metallic texture is "
-                    "currently not supported");
+          if (auto texture = scene->GetEmbeddedTexture(path.C_Str())) {
+            if (roughnessMetallicTextureCache.contains(
+                    std::string(path.C_Str()))) {
+              std::tie(roughnessTexture, metallicTexture) =
+                  roughnessMetallicTextureCache[std::string(path.C_Str())];
+            } else {
+              log::info("Loading embeded roughness metallic texture {}",
+                        path.C_Str());
+              std::tie(roughnessTexture, metallicTexture) =
+                  roughnessMetallicTextureCache[std::string(path.C_Str())] =
+                      loadEmbededRoughnessMetallicTexture(texture, MIP_LEVEL);
+            }
+          } else {
+            log::warn("Loading non-embeded roughness metallic texture is "
+                      "currently not supported");
+          }
         }
       }
 
