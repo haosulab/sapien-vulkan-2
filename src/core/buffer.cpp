@@ -92,23 +92,13 @@ void Buffer::upload(void const *data, size_t size, size_t offset) {
 
   if (mHostVisible) {
     if (mMapped) {
-      EASY_BLOCK("memcpy");
       std::memcpy(reinterpret_cast<uint8_t *>(mMappedData) + offset, data,
                   size);
-      EASY_END_BLOCK;
     } else {
-      EASY_BLOCK("map");
       map();
-      EASY_END_BLOCK;
-
-      EASY_BLOCK("memcpy");
       std::memcpy(reinterpret_cast<uint8_t *>(mMappedData) + offset, data,
                   size);
-      EASY_END_BLOCK;
-
-      EASY_BLOCK("unmap");
       unmap();
-      EASY_END_BLOCK;
     }
     if (!mHostCoherent) {
       flush();

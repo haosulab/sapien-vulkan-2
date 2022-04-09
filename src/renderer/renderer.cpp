@@ -1060,11 +1060,63 @@ void Renderer::render(scene::Camera &camera,
 
     mObjectBuffer->map();
     auto objects = mScene->getObjects();
-    for (uint32_t i = 0; i < objects.size(); ++i) {
-      objects[i]->uploadToDevice(
-          *mObjectBuffer, i * bufferSize,
-          *mShaderManager->getShaderConfig()->objectBufferLayout);
+
+    {
+      auto layout = mShaderManager->getShaderConfig()->objectBufferLayout;
+      int modelMatrixOffset = layout->elements.at("modelMatrix").offset;
+      int segmentationOffset = layout->elements.at("segmentation").offset;
+      int prevModelMatrixOffset =
+        layout->elements.find("prevModelMatrix") == layout->elements.end()
+        ? -1
+        : layout->elements.at("prevModelMatrix").offset;
+      int transparencyOffset =
+        layout->elements.find("transparency") == layout->elements.end()
+        ? -1
+        : layout->elements.at("transparency").offset;
+      int shadeFlatOffset =
+        layout->elements.find("shadeFlat") == layout->elements.end()
+        ? -1
+        : layout->elements.at("shadeFlat").offset;
+
+      for (uint32_t i = 0; i < objects.size(); ++i) {
+        const auto &transform = objects[i]->getTransform();
+        auto segmentation = objects[i]->getSegmentation();
+        auto transparency = objects[i]->getTransparency();
+        auto shadeFlat = objects[i]->getShadeFlat();
+
+        mObjectBuffer->upload(&transform.worldModelMatrix, 64,
+                              i * bufferSize + modelMatrixOffset);
+        mObjectBuffer->upload(&segmentation, 16,
+                              i * bufferSize + segmentationOffset);
+
+        if (prevModelMatrixOffset >= 0) {
+          mObjectBuffer->upload(&transform.prevWorldModelMatrix, 64,
+                                i * bufferSize + prevModelMatrixOffset);
+        }
+        if (transparencyOffset >= 0) {
+          mObjectBuffer->upload(&transparency, 4,
+                                i * bufferSize + transparencyOffset);
+        }
+        if (shadeFlatOffset >= 0) {
+          mObjectBuffer->upload(&shadeFlat, 4, i * bufferSize + shadeFlatOffset);
+        }
+
+        for (auto &[name, value] : objects[i]->getCustomData()) {
+          if (layout->elements.find(name) != layout->elements.end()) {
+            auto &elem = layout->elements.at(name);
+            if (elem.dtype != value.dtype) {
+              throw std::runtime_error(
+                "Upload object failed: object attribute \"" + name +
+                "\" does not match declared type.");
+              mObjectBuffer->upload(&value.floatValue, elem.size,
+                                    i * bufferSize + elem.offset);
+            }
+          }
+        }
+      }
     }
+
+
     if (mShaderManager->isLineEnabled()) {
       auto lineObjects = mScene->getLineObjects();
       for (uint32_t i = 0; i < lineObjects.size(); ++i) {

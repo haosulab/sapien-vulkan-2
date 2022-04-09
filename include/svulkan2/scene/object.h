@@ -68,6 +68,10 @@ public:
 
   void setShadeFlat(bool shadeFlat) { mShadeFlat = shadeFlat; };
   inline bool getShadeFlat() const { return mShadeFlat; }
+
+  std::unordered_map<std::string, CustomData> const &getCustomData() const {
+    return mCustomData;
+  }
 };
 
 class LineObject : public Node {
