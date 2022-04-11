@@ -148,7 +148,8 @@ void SVImage::uploadToDevice(bool generateMipmaps) {
         mCreateFlags | vk::ImageCreateFlagBits::eMutableFormat);
 
     if (mMipLoaded) {
-      auto cb = context->createCommandBuffer();
+      auto pool = context->createCommandPool();
+      auto cb = pool->allocateCommandBuffer();
       cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
       mImage->transitionLayout(cb.get(), vk::ImageLayout::eUndefined,
                                vk::ImageLayout::eTransferDstOptimal, {},
@@ -156,7 +157,7 @@ void SVImage::uploadToDevice(bool generateMipmaps) {
                                vk::PipelineStageFlagBits::eTopOfPipe,
                                vk::PipelineStageFlagBits::eTransfer);
       cb->end();
-      context->submitCommandBufferAndWait(cb.get());
+      context->getQueue().submitAndWait(cb.get());
 
       for (uint32_t layer = 0; layer < mData.size(); ++layer) {
         uint32_t idx = 0;
@@ -168,7 +169,7 @@ void SVImage::uploadToDevice(bool generateMipmaps) {
         }
       }
 
-      cb = context->createCommandBuffer();
+      cb = pool->allocateCommandBuffer();
       cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
       mImage->transitionLayout(cb.get(), vk::ImageLayout::eTransferDstOptimal,
                                vk::ImageLayout::eShaderReadOnlyOptimal,
@@ -177,7 +178,7 @@ void SVImage::uploadToDevice(bool generateMipmaps) {
                                vk::PipelineStageFlagBits::eTransfer,
                                vk::PipelineStageFlagBits::eFragmentShader);
       cb->end();
-      context->submitCommandBufferAndWait(cb.get());
+      context->getQueue().submitAndWait(cb.get());
 
     } else {
       for (uint32_t layer = 0; layer < mData.size(); ++layer) {

@@ -1,4 +1,5 @@
 #include "svulkan2/renderer/renderer.h"
+#include "svulkan2/core/command_pool.h"
 #include <easy/profiler.h>
 
 namespace svulkan2 {
@@ -125,7 +126,10 @@ void Renderer::prepareShadowRenderTargets() {
   mSpotShadowReadTargets.clear();
   mTexturedLightShadowReadTargets.clear();
 
-  auto commandBuffer = mContext->createCommandBuffer();
+  // TODO: this pool may not be necessary
+  auto pool = mContext->createCommandPool();
+  auto commandBuffer = pool->allocateCommandBuffer();
+
   commandBuffer->begin(vk::CommandBufferBeginInfo(
       vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
 
@@ -350,7 +354,7 @@ void Renderer::prepareShadowRenderTargets() {
   }
 
   commandBuffer->end();
-  mContext->submitCommandBufferAndWait(commandBuffer.get());
+  mContext->getQueue().submitAndWait(commandBuffer.get());
 }
 
 void Renderer::preparePipelines() {
@@ -481,8 +485,10 @@ void Renderer::setSpecializationConstantFloat(std::string const &name,
 }
 
 void Renderer::recordShadows(scene::Scene &scene) {
-  mShadowCommandBuffer =
-      mContext->createCommandBuffer(vk::CommandBufferLevel::ePrimary);
+  mShadowCommandBuffer.reset();
+  mShadowCommandPool = mContext->createCommandPool();
+  mShadowCommandBuffer = mShadowCommandPool->allocateCommandBuffer();
+
   mShadowCommandBuffer->begin(vk::CommandBufferBeginInfo({}, {}));
   if (!mContext->isVulkanAvailable()) {
     return;
@@ -700,13 +706,14 @@ void Renderer::prepareObjects(scene::Scene &scene) {
 }
 
 void Renderer::recordRenderPasses(scene::Scene &scene) {
-  mRenderCommandBuffer.reset();
   mModelCache.clear();
   mLineSetCache.clear();
   mPointSetCache.clear();
 
-  mRenderCommandBuffer =
-      mContext->createCommandBuffer(vk::CommandBufferLevel::ePrimary);
+  mRenderCommandBuffer.reset();
+  mRenderCommandPool = mContext->createCommandPool();
+  mRenderCommandBuffer = mRenderCommandPool->allocateCommandBuffer();
+
   mRenderCommandBuffer->begin(vk::CommandBufferBeginInfo({}, {}));
 
   // classify shapes
@@ -900,20 +907,7 @@ void Renderer::recordRenderPasses(scene::Scene &scene) {
   mRenderCommandBuffer->end();
 }
 
-void Renderer::render(scene::Camera &camera,
-                      std::vector<vk::Semaphore> const &waitSemaphores,
-                      std::vector<vk::PipelineStageFlags> const &waitStages,
-                      std::vector<vk::Semaphore> const &signalSemaphores,
-                      vk::Fence fence) {
-  if (!mContext->isVulkanAvailable()) {
-    return;
-  }
-
-  if (!mScene) {
-    throw std::runtime_error("setScene must be called before rendering");
-  }
-
-  EASY_BLOCK("Record & Submit");
+void Renderer::prepareRender(scene::Camera &camera) {
   if (mLastVersion != mScene->getVersion()) {
     mRequiresRecord = true;
   }
@@ -1066,17 +1060,17 @@ void Renderer::render(scene::Camera &camera,
       int modelMatrixOffset = layout->elements.at("modelMatrix").offset;
       int segmentationOffset = layout->elements.at("segmentation").offset;
       int prevModelMatrixOffset =
-        layout->elements.find("prevModelMatrix") == layout->elements.end()
-        ? -1
-        : layout->elements.at("prevModelMatrix").offset;
+          layout->elements.find("prevModelMatrix") == layout->elements.end()
+              ? -1
+              : layout->elements.at("prevModelMatrix").offset;
       int transparencyOffset =
-        layout->elements.find("transparency") == layout->elements.end()
-        ? -1
-        : layout->elements.at("transparency").offset;
+          layout->elements.find("transparency") == layout->elements.end()
+              ? -1
+              : layout->elements.at("transparency").offset;
       int shadeFlatOffset =
-        layout->elements.find("shadeFlat") == layout->elements.end()
-        ? -1
-        : layout->elements.at("shadeFlat").offset;
+          layout->elements.find("shadeFlat") == layout->elements.end()
+              ? -1
+              : layout->elements.at("shadeFlat").offset;
 
       for (uint32_t i = 0; i < objects.size(); ++i) {
         const auto &transform = objects[i]->getTransform();
@@ -1098,7 +1092,8 @@ void Renderer::render(scene::Camera &camera,
                                 i * bufferSize + transparencyOffset);
         }
         if (shadeFlatOffset >= 0) {
-          mObjectBuffer->upload(&shadeFlat, 4, i * bufferSize + shadeFlatOffset);
+          mObjectBuffer->upload(&shadeFlat, 4,
+                                i * bufferSize + shadeFlatOffset);
         }
 
         for (auto &[name, value] : objects[i]->getCustomData()) {
@@ -1106,8 +1101,8 @@ void Renderer::render(scene::Camera &camera,
             auto &elem = layout->elements.at(name);
             if (elem.dtype != value.dtype) {
               throw std::runtime_error(
-                "Upload object failed: object attribute \"" + name +
-                "\" does not match declared type.");
+                  "Upload object failed: object attribute \"" + name +
+                  "\" does not match declared type.");
               mObjectBuffer->upload(&value.floatValue, elem.size,
                                     i * bufferSize + elem.offset);
             }
@@ -1115,7 +1110,6 @@ void Renderer::render(scene::Camera &camera,
         }
       }
     }
-
 
     if (mShaderManager->isLineEnabled()) {
       auto lineObjects = mScene->getLineObjects();
@@ -1148,19 +1142,53 @@ void Renderer::render(scene::Camera &camera,
       }
     }
   }
-
-  vk::CommandBuffer cbs[2] = {mShadowCommandBuffer.get(),
-                              mRenderCommandBuffer.get()};
-  vk::SubmitInfo info(waitSemaphores.size(), waitSemaphores.data(),
-                      waitStages.data(), 2, cbs, signalSemaphores.size(),
-                      signalSemaphores.data());
-  mContext->getQueue().submit(info, fence);
   mRequiresRecord = false;
   mLastVersion = mScene->getVersion();
 
   for (auto &[name, target] : mRenderTargets) {
     target->getImage().setCurrentLayout(mRenderTargetFinalLayouts[name]);
   }
+}
+
+void Renderer::render(scene::Camera &camera,
+                      std::vector<vk::Semaphore> const &waitSemaphores,
+                      std::vector<vk::PipelineStageFlags> const &waitStages,
+                      std::vector<vk::Semaphore> const &signalSemaphores,
+                      vk::Fence fence) {
+  if (!mContext->isVulkanAvailable()) {
+    return;
+  }
+  if (!mScene) {
+    throw std::runtime_error("setScene must be called before rendering");
+  }
+  EASY_BLOCK("Record & Submit");
+  prepareRender(camera);
+  std::vector<vk::CommandBuffer> cbs = {mShadowCommandBuffer.get(),
+                                        mRenderCommandBuffer.get()};
+  mContext->getQueue().submit(cbs, waitSemaphores, waitStages, signalSemaphores,
+                              fence);
+}
+
+void Renderer::render(
+    scene::Camera &camera,
+    vk::ArrayProxyNoTemporaries<vk::Semaphore const> const &waitSemaphores,
+    vk::ArrayProxyNoTemporaries<vk::PipelineStageFlags const> const
+        &waitStageMasks,
+    vk::ArrayProxyNoTemporaries<uint64_t const> const &waitValues,
+    vk::ArrayProxyNoTemporaries<vk::Semaphore const> const &signalSemaphores,
+    vk::ArrayProxyNoTemporaries<uint64_t const> const &signalValues) {
+  if (!mContext->isVulkanAvailable()) {
+    return;
+  }
+  if (!mScene) {
+    throw std::runtime_error("setScene must be called before rendering");
+  }
+  EASY_BLOCK("Record & Submit");
+  prepareRender(camera);
+  std::vector<vk::CommandBuffer> cbs = {mShadowCommandBuffer.get(),
+                                        mRenderCommandBuffer.get()};
+  mContext->getQueue().submit(cbs, waitSemaphores, waitStageMasks, waitValues,
+                              signalSemaphores, signalValues, {});
 }
 
 std::vector<std::string> Renderer::getDisplayTargetNames() const {
@@ -1203,7 +1231,8 @@ void Renderer::display(std::string const &renderTargetName,
   }
 
   if (!mDisplayCommandBuffer) {
-    mDisplayCommandBuffer = mContext->createCommandBuffer();
+    mDisplayCommandPool = mContext->createCommandPool();
+    mDisplayCommandBuffer = mDisplayCommandPool->allocateCommandBuffer();
   }
   mDisplayCommandBuffer->begin(
       {vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
@@ -1274,11 +1303,9 @@ void Renderer::display(std::string const &renderTargetName,
   }
 
   mDisplayCommandBuffer->end();
+  mContext->getQueue().submit(mDisplayCommandBuffer.get(), waitSemaphores,
+                              waitStages, signalSemaphores, fence);
 
-  vk::SubmitInfo info(waitSemaphores.size(), waitSemaphores.data(),
-                      waitStages.data(), 1, &mDisplayCommandBuffer.get(),
-                      signalSemaphores.size(), signalSemaphores.data());
-  mContext->getQueue().submit(info, fence);
   renderTarget->getImage().setCurrentLayout(
       vk::ImageLayout::eTransferSrcOptimal);
 }
@@ -1574,36 +1601,6 @@ void Renderer::setCustomCubemap(std::string const &name,
 std::shared_ptr<resource::SVRenderTarget>
 Renderer::getRenderTarget(std::string const &name) const {
   return mRenderTargets.at(name);
-}
-
-std::tuple<std::shared_ptr<core::Buffer>, std::array<uint32_t, 2>, vk::Format>
-Renderer::transferToBuffer(std::string const &targetName) {
-  auto target = mRenderTargets.at(targetName);
-  auto &img = target->getImage();
-  auto extent = img.getExtent();
-  vk::DeviceSize size = extent.width * extent.height * extent.depth *
-                        getFormatSize(img.getFormat());
-  {
-    auto it = mTransferBuffers.find(targetName);
-    if (it == mTransferBuffers.end() || it->second->getSize() != size) {
-      EASY_BLOCK("Create Vulkan-cuda buffer");
-      mTransferBuffers[targetName] = std::make_shared<core::Buffer>(
-          size,
-          vk::BufferUsageFlagBits::eTransferSrc |
-              vk::BufferUsageFlagBits::eTransferDst,
-          VMA_MEMORY_USAGE_GPU_ONLY);
-      EASY_END_BLOCK;
-    }
-  }
-
-  EASY_BLOCK("Wait for render and copy to Vulkan-Cuda buffer");
-  img.copyToBuffer(mTransferBuffers[targetName]->getVulkanBuffer(), size,
-                   {0, 0, 0}, extent);
-  EASY_END_BLOCK;
-
-  return {mTransferBuffers[targetName],
-          std::array<uint32_t, 2>{extent.width, extent.height},
-          img.getFormat()};
 }
 
 } // namespace renderer

@@ -10,7 +10,8 @@
 namespace svulkan2 {
 namespace core {
 class Context;
-}
+class CommandPool;
+} // namespace core
 namespace renderer {
 
 class Renderer {
@@ -74,7 +75,6 @@ class Renderer {
   std::unique_ptr<core::Buffer> mCameraBuffer;
   std::unique_ptr<core::Buffer> mObjectBuffer;
 
-
   vk::UniqueDescriptorSet mSceneSet;
   vk::UniqueDescriptorSet mCameraSet;
   std::vector<vk::UniqueDescriptorSet> mObjectSet;
@@ -100,6 +100,16 @@ public:
 
   void resize(int width, int height);
 
+  void render(
+      scene::Camera &camera,
+      vk::ArrayProxyNoTemporaries<vk::Semaphore const> const &waitSemaphores,
+      vk::ArrayProxyNoTemporaries<vk::PipelineStageFlags const> const
+          &waitStageMasks,
+      vk::ArrayProxyNoTemporaries<uint64_t const> const &waitValues,
+      vk::ArrayProxyNoTemporaries<vk::Semaphore const> const &signalSemaphores,
+      vk::ArrayProxyNoTemporaries<uint64_t const> const &signalValues);
+
+  /** render may be called on a thread. */
   void render(scene::Camera &camera,
               std::vector<vk::Semaphore> const &waitSemaphores,
               std::vector<vk::PipelineStageFlags> const &waitStages,
@@ -173,9 +183,6 @@ public:
   Renderer(Renderer &&other) = default;
   Renderer &operator=(Renderer &&other) = default;
 
-  std::tuple<std::shared_ptr<core::Buffer>, std::array<uint32_t, 2>, vk::Format>
-  transferToBuffer(std::string const &targetName);
-
 private:
   void prepareRenderTargets(uint32_t width, uint32_t height);
   void prepareShadowRenderTargets();
@@ -194,6 +201,10 @@ private:
   std::unordered_set<std::shared_ptr<resource::SVLineSet>> mLineSetCache;
   std::unordered_set<std::shared_ptr<resource::SVPointSet>> mPointSetCache;
 
+  std::unique_ptr<core::CommandPool> mShadowCommandPool{};
+  std::unique_ptr<core::CommandPool> mRenderCommandPool{};
+  std::unique_ptr<core::CommandPool> mDisplayCommandPool{};
+
   vk::UniqueCommandBuffer mShadowCommandBuffer{};
   vk::UniqueCommandBuffer mRenderCommandBuffer{};
   vk::UniqueCommandBuffer mDisplayCommandBuffer{};
@@ -204,6 +215,8 @@ private:
 
   uint32_t mLineObjectIndex{};  // starting object index for line objects
   uint32_t mPointObjectIndex{}; // starting object index for point objects
+
+  void prepareRender(scene::Camera &camera);
 };
 
 } // namespace renderer

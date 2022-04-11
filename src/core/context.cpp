@@ -75,7 +75,7 @@ std::shared_ptr<Context> Context::Create(bool present, uint32_t maxNumMaterials,
 Context::Context(bool present, uint32_t maxNumMaterials,
                  uint32_t maxNumTextures, uint32_t defaultMipLevels,
                  bool doNotLoadTexture, std::string device)
-    : mApiVersion(VK_API_VERSION_1_1), mPresent(present),
+    : mApiVersion(VK_API_VERSION_1_2), mPresent(present),
       mMaxNumMaterials(maxNumMaterials), mMaxNumTextures(maxNumTextures),
       mDefaultMipLevels(defaultMipLevels), mDoNotLoadTexture(doNotLoadTexture),
       mDeviceHint(device) {}
@@ -86,7 +86,6 @@ void Context::init() {
   pickSuitableGpuAndQueueFamilyIndex();
   createDevice();
   createMemoryAllocator();
-  createCommandPool();
   createDescriptorPool();
 }
 
@@ -226,7 +225,9 @@ Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
 
   vk::PhysicalDeviceFeatures2 features{};
   vk::PhysicalDeviceDescriptorIndexingFeatures descriptorFeatures{};
+  vk::PhysicalDeviceTimelineSemaphoreFeatures timelineSemaphoreFeatures{};
   features.setPNext(&descriptorFeatures);
+  descriptorFeatures.setPNext(&timelineSemaphoreFeatures);
 
   int ord = 0;
   for (auto device : mInstance->enumeratePhysicalDevices()) {
@@ -264,7 +265,8 @@ Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
     device.getFeatures2(&features);
     if (features.features.independentBlend && features.features.wideLines &&
         features.features.geometryShader &&
-        descriptorFeatures.descriptorBindingPartiallyBound) {
+        descriptorFeatures.descriptorBindingPartiallyBound &&
+        timelineSemaphoreFeatures.timelineSemaphore) {
       required_features = true;
     }
 
@@ -529,12 +531,16 @@ void Context::createDevice() {
 
   vk::PhysicalDeviceFeatures2 features{};
   vk::PhysicalDeviceDescriptorIndexingFeatures descriptorFeatures{};
+  vk::PhysicalDeviceTimelineSemaphoreFeatures timelineSemaphoreFeatures{};
+
   features.setPNext(&descriptorFeatures);
+  descriptorFeatures.setPNext(&timelineSemaphoreFeatures);
 
   features.features.setIndependentBlend(true);
   features.features.setWideLines(true);
   features.features.setGeometryShader(true);
   descriptorFeatures.setDescriptorBindingPartiallyBound(true);
+  timelineSemaphoreFeatures.setTimelineSemaphore(true);
 
 #ifdef CUDA_INTEROP
   deviceExtensions.push_back(VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME);
@@ -552,6 +558,8 @@ void Context::createDevice() {
   deviceInfo.setPNext(&features);
   mDevice = mPhysicalDevice.createDeviceUnique(deviceInfo);
   VULKAN_HPP_DEFAULT_DISPATCHER.init(mDevice.get());
+
+  mQueue = std::make_unique<Queue>();
 }
 
 void Context::createMemoryAllocator() {
@@ -615,22 +623,12 @@ void Context::createMemoryAllocator() {
       (PFN_vkBindImageMemory2KHR)mDevice->getProcAddr("vkBindImageMemory2");
 
   VmaAllocatorCreateInfo allocatorInfo = {};
-  allocatorInfo.vulkanApiVersion = mApiVersion;
   allocatorInfo.physicalDevice = mPhysicalDevice;
   allocatorInfo.device = mDevice.get();
   allocatorInfo.instance = mInstance.get();
   allocatorInfo.pVulkanFunctions = &vulkanFunctions;
 
   mAllocator = std::make_unique<Allocator>(allocatorInfo);
-}
-
-void Context::createCommandPool() {
-  if (!mVulkanAvailable) {
-    return;
-  }
-
-  mCommandPool = mDevice->createCommandPoolUnique(vk::CommandPoolCreateInfo(
-      vk::CommandPoolCreateFlagBits::eResetCommandBuffer, mQueueFamilyIndex));
 }
 
 void Context::createDescriptorPool() {
@@ -664,55 +662,18 @@ void Context::createDescriptorPool() {
   }
 }
 
-vk::UniqueCommandBuffer
-Context::createCommandBuffer(vk::CommandBufferLevel level) const {
-  if (!mVulkanAvailable) {
-    throw std::runtime_error("Vulkan is not initialized");
-  }
-
-  return std::move(
-      mDevice->allocateCommandBuffersUnique({mCommandPool.get(), level, 1})
-          .front());
+std::unique_ptr<CommandPool> Context::createCommandPool() const {
+  EASY_FUNCTION();
+  return std::make_unique<CommandPool>();
 }
 
-void Context::submitCommandBufferAndWait(
-    vk::CommandBuffer commandBuffer) const {
-  auto fence = mDevice->createFenceUnique({});
-  getQueue().submit(vk::SubmitInfo(0, nullptr, nullptr, 1, &commandBuffer),
-                    fence.get());
-  auto result = mDevice->waitForFences(fence.get(), VK_TRUE, UINT64_MAX);
-  if (result != vk::Result::eSuccess) {
-    throw std::runtime_error("failed to wait for fence");
-  }
-}
-
-vk::UniqueFence
-Context::submitCommandBufferForFence(vk::CommandBuffer commandBuffer) const {
-  auto fence = mDevice->createFenceUnique({});
-  getQueue().submit(vk::SubmitInfo(0, nullptr, nullptr, 1, &commandBuffer),
-                    fence.get());
-  return fence;
-}
-
-std::future<void>
-Context::submitCommandBuffer(vk::CommandBuffer commandBuffer) const {
-  auto fence = mDevice->createFenceUnique({});
-  getQueue().submit(vk::SubmitInfo(0, nullptr, nullptr, 1, &commandBuffer),
-                    fence.get());
-  return std::async(LAUNCH_ASYNC, [fence = std::move(fence), this]() {
-    auto result = mDevice->waitForFences(fence.get(), VK_TRUE, UINT64_MAX);
-    if (result != vk::Result::eSuccess) {
-      throw std::runtime_error("failed to wait for fence");
-    }
-  });
-}
-
-vk::Queue Context::getQueue() const {
-  if (!mVulkanAvailable) {
-    throw std::runtime_error("Vulkan is not initialized");
-  }
-
-  return mDevice->getQueue(mQueueFamilyIndex, 0);
+vk::UniqueSemaphore
+Context::createTimelineSemaphore(uint64_t initialValue = 0) {
+  vk::SemaphoreTypeCreateInfo timelineCreateInfo(vk::SemaphoreType::eTimeline,
+                                                 initialValue);
+  vk::SemaphoreCreateInfo createInfo{};
+  createInfo.setPNext(&timelineCreateInfo);
+  return mDevice->createSemaphoreUnique(createInfo);
 }
 
 std::unique_ptr<renderer::GuiWindow> Context::createWindow(uint32_t width,

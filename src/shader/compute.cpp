@@ -59,7 +59,8 @@ std::unique_ptr<core::Image> generateBRDFLUT(uint32_t size) {
                                                    computePipelineCreateInfo)
                       .value;
 
-  auto cb = context->createCommandBuffer();
+  auto pool = context->createCommandPool();
+  auto cb = pool->allocateCommandBuffer();
   cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
   image->transitionLayout(
       cb.get(), vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral, {},
@@ -79,8 +80,9 @@ std::unique_ptr<core::Image> generateBRDFLUT(uint32_t size) {
   cb->end();
   image->setCurrentLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
 
-  context->getQueue().submit(vk::SubmitInfo({}, {}, cb.get()));
-  context->getQueue().waitIdle();
+  // context->getQueue().submit(vk::SubmitInfo({}, {}, cb.get()));
+  // context->getQueue().waitIdle();
+  context->getQueue().submitAndWait(cb.get());
   return image;
 }
 
@@ -176,7 +178,8 @@ void prefilterCubemap(core::Image &image) {
     device.updateDescriptorSets(write, {});
   }
 
-  auto cb = context->createCommandBuffer();
+  auto pool = context->createCommandPool();
+  auto cb = pool->allocateCommandBuffer();
 
   cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
 
@@ -208,8 +211,9 @@ void prefilterCubemap(core::Image &image) {
 
     // if compute takes too long, it can cause device lost, so we split it
     cb->end();
-    context->getQueue().submit(vk::SubmitInfo({}, {}, cb.get()));
-    context->getQueue().waitIdle();
+    // context->getQueue().submit(vk::SubmitInfo({}, {}, cb.get()));
+    // context->getQueue().waitIdle();
+    context->getQueue().submitAndWait(cb.get());
     cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
   }
 
@@ -226,8 +230,9 @@ void prefilterCubemap(core::Image &image) {
 
   image.setCurrentLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
   cb->end();
-  context->getQueue().submit(vk::SubmitInfo({}, {}, cb.get()));
-  context->getQueue().waitIdle();
+  // context->getQueue().submit(vk::SubmitInfo({}, {}, cb.get()));
+  // context->getQueue().waitIdle();
+  context->getQueue().submitAndWait(cb.get());
 }
 
 } // namespace shader

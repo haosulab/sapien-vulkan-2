@@ -6,6 +6,7 @@
 namespace svulkan2 {
 namespace core {
 
+// TODO: make atomic!!!!!!
 #ifdef TRACK_ALLOCATION
 static uint64_t gBufferId = 1;
 static uint64_t gBufferCount = 0;
@@ -106,12 +107,15 @@ void Buffer::upload(void const *data, size_t size, size_t offset) {
   } else {
     auto stagingBuffer = mContext->getAllocator().allocateStagingBuffer(size);
     stagingBuffer->upload(data, size);
-    auto cb = mContext->createCommandBuffer();
+
+    // TODO: find a better way
+    auto pool = mContext->createCommandPool();
+    auto cb = pool->allocateCommandBuffer();
     cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
     cb->copyBuffer(stagingBuffer->mBuffer, mBuffer,
                    vk::BufferCopy(0, offset, size));
     cb->end();
-    mContext->submitCommandBufferAndWait(cb.get());
+    mContext->getQueue().submitAndWait(cb.get());
   }
 }
 
@@ -127,12 +131,14 @@ void Buffer::download(void *data, size_t size, size_t offset) {
     unmap();
   } else {
     auto stagingBuffer = mContext->getAllocator().allocateStagingBuffer(size);
-    auto cb = mContext->createCommandBuffer();
+
+    auto pool = mContext->createCommandPool();
+    auto cb = pool->allocateCommandBuffer();
     cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
     cb->copyBuffer(mBuffer, stagingBuffer->mBuffer,
                    vk::BufferCopy(offset, 0, size));
     cb->end();
-    mContext->submitCommandBufferAndWait(cb.get());
+    mContext->getQueue().submitAndWait(cb.get());
     stagingBuffer->download(data, size);
   }
 }

@@ -9,8 +9,8 @@ namespace svulkan2 {
 namespace core {
 
 #ifdef TRACK_ALLOCATION
-  static uint64_t gImageId = 1;
-  static uint64_t gImageCount = 0;
+static uint64_t gImageId = 1;
+static uint64_t gImageCount = 0;
 #endif
 
 static vk::ImageType findImageTypeFromExtent(vk::Extent3D extent) {
@@ -84,12 +84,13 @@ void Image::uploadLevel(void const *data, size_t size, uint32_t arrayLayer,
                                  arrayLayer, 1),
       vk::Offset3D(0, 0, 0), extent);
 
-  auto cb = mContext->createCommandBuffer();
+  auto pool = mContext->createCommandPool();
+  auto cb = pool->allocateCommandBuffer();
   cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
   cb->copyBufferToImage(stagingBuffer->getVulkanBuffer(), mImage,
                         vk::ImageLayout::eTransferDstOptimal, copyRegion);
   cb->end();
-  mContext->submitCommandBufferAndWait(cb.get());
+  mContext->getQueue().submitAndWait(cb.get());
 }
 
 void Image::upload(void const *data, size_t size, uint32_t arrayLayer,
@@ -110,7 +111,8 @@ void Image::upload(void const *data, size_t size, uint32_t arrayLayer,
                                  1),
       vk::Offset3D(0, 0, 0), mExtent);
 
-  auto cb = mContext->createCommandBuffer();
+  auto pool = mContext->createCommandPool();
+  auto cb = pool->allocateCommandBuffer();
   cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
   transitionLayout(cb.get(), vk::ImageLayout::eUndefined,
                    vk::ImageLayout::eTransferDstOptimal, {},
@@ -140,7 +142,7 @@ void Image::upload(void const *data, size_t size, uint32_t arrayLayer,
                         barrier);
   }
   cb->end();
-  mContext->submitCommandBufferAndWait(cb.get());
+  mContext->getQueue().submitAndWait(cb.get());
 }
 
 void Image::generateMipmaps(vk::CommandBuffer cb, uint32_t arrayLayer) {
@@ -204,8 +206,9 @@ void Image::generateMipmaps(vk::CommandBuffer cb, uint32_t arrayLayer) {
                      barrier);
 }
 
-void Image::copyToBuffer(vk::Buffer buffer, size_t size, vk::Offset3D offset,
-                         vk::Extent3D extent, uint32_t arrayLayer) {
+void Image::recordCopyToBuffer(vk::CommandBuffer cb, vk::Buffer buffer,
+                               size_t size, vk::Offset3D offset,
+                               vk::Extent3D extent, uint32_t arrayLayer) {
   size_t imageSize =
       extent.width * extent.height * extent.depth * getFormatSize(mFormat);
 
@@ -259,26 +262,26 @@ void Image::copyToBuffer(vk::Buffer buffer, size_t size, vk::Offset3D offset,
     throw std::runtime_error("failed to download image: invalid layout.");
   }
 
-  auto cb = mContext->createCommandBuffer();
-  cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
   if (mCurrentLayout != vk::ImageLayout::eTransferSrcOptimal) {
-    transitionLayout(cb.get(), sourceLayout,
-                     vk::ImageLayout::eTransferSrcOptimal, sourceAccessFlag,
-                     vk::AccessFlagBits::eTransferRead, sourceStage,
-                     vk::PipelineStageFlagBits::eTransfer);
+    transitionLayout(cb, sourceLayout, vk::ImageLayout::eTransferSrcOptimal,
+                     sourceAccessFlag, vk::AccessFlagBits::eTransferRead,
+                     sourceStage, vk::PipelineStageFlagBits::eTransfer);
   }
   vk::BufferImageCopy copyRegion(0, mExtent.width, mExtent.height,
                                  {aspect, 0, 0, 1}, offset, extent);
-  cb->copyImageToBuffer(mImage, vk::ImageLayout::eTransferSrcOptimal, buffer,
-                        copyRegion);
-  cb->end();
+  cb.copyImageToBuffer(mImage, vk::ImageLayout::eTransferSrcOptimal, buffer,
+                       copyRegion);
+  setCurrentLayout(vk::ImageLayout::eTransferSrcOptimal);
+}
 
-  auto fence = mContext->getDevice().createFenceUnique({});
-  vk::PipelineStageFlags waitStage = vk::PipelineStageFlagBits::eTransfer;
-  mContext->getQueue().submit(
-      vk::SubmitInfo(0, nullptr, &waitStage, 1, &cb.get()), fence.get());
-  auto result =
-      mContext->getDevice().waitForFences(fence.get(), VK_TRUE, UINT64_MAX);
+void Image::copyToBuffer(vk::Buffer buffer, size_t size, vk::Offset3D offset,
+                         vk::Extent3D extent, uint32_t arrayLayer) {
+  auto pool = mContext->createCommandPool();
+  auto cb = pool->allocateCommandBuffer();
+  cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+  recordCopyToBuffer(cb.get(), buffer, size, offset, extent, arrayLayer);
+  cb->end();
+  vk::Result result = mContext->getQueue().submitAndWait(cb.get());
   if (result != vk::Result::eSuccess) {
     throw std::runtime_error("failed to wait for fence");
   }
@@ -350,7 +353,8 @@ void Image::download(void *data, size_t size, vk::Offset3D offset,
   EASY_END_BLOCK;
 
   EASY_BLOCK("Record command buffer");
-  auto cb = mContext->createCommandBuffer();
+  auto pool = mContext->createCommandPool();
+  auto cb = pool->allocateCommandBuffer();
   cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
   if (mCurrentLayout != vk::ImageLayout::eTransferSrcOptimal) {
     transitionLayout(cb.get(), sourceLayout,
@@ -366,14 +370,9 @@ void Image::download(void *data, size_t size, vk::Offset3D offset,
   cb->end();
   EASY_END_BLOCK;
 
-  auto fence = mContext->getDevice().createFenceUnique({});
-  vk::PipelineStageFlags waitStage = vk::PipelineStageFlagBits::eTransfer;
-
   EASY_BLOCK("Submit and wait");
-  mContext->getQueue().submit(
-      vk::SubmitInfo(0, nullptr, &waitStage, 1, &cb.get()), fence.get());
-  auto result =
-      mContext->getDevice().waitForFences(fence.get(), VK_TRUE, UINT64_MAX);
+  vk::Result result = mContext->getQueue().submitAndWait(cb.get());
+
   if (result != vk::Result::eSuccess) {
     throw std::runtime_error("failed to wait for fence");
   }

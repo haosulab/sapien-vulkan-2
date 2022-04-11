@@ -288,7 +288,6 @@ int main() {
       context->getDevice().createSemaphoreUnique({});
   vk::UniqueFence sceneRenderFence = context->getDevice().createFenceUnique(
       {vk::FenceCreateFlagBits::eSignaled});
-  auto commandBuffer = context->createCommandBuffer();
 
   glfwSetFramebufferSizeCallback(window->getGLFWWindow(), glfw_resize_callback);
   glfwSetWindowCloseCallback(window->getGLFWWindow(), window_close_callback);
@@ -330,10 +329,11 @@ int main() {
     count += 1;
     // spotLight.setDirection({glm::cos(count / 50.f), 0, glm::sin(count
     // / 50.f)});
-    if (count == 120) {
+
+    if (count == 3) {
       auto &l = scene.addSpotLight();
       l.enableShadow(true);
-      scene.removeNode(l);
+      // scene.removeNode(l);
     }
 
     if (gSwapchainRebuild) {
@@ -404,29 +404,31 @@ int main() {
     }
 
     scene.updateModelMatrices();
-    // draw
-    {
-      renderer.render(cameraNode, {}, {}, {}, {});
-      auto imageAcquiredSemaphore = window->getImageAcquiredSemaphore();
-      renderer.display("Color", window->getBackbuffer(),
-                       window->getBackBufferFormat(), window->getWidth(),
-                       window->getHeight(), {imageAcquiredSemaphore},
-                       {vk::PipelineStageFlagBits::eColorAttachmentOutput},
-                       {sceneRenderSemaphore.get()}, {});
-    }
 
-    auto swapchain = window->getSwapchain();
-    auto fidx = window->getFrameIndex();
-    vk::PresentInfoKHR info(1, &sceneRenderSemaphore.get(), 1, &swapchain,
-                            &fidx);
-    try {
-      window->presentFrameWithImgui(sceneRenderSemaphore.get(),
-                                    sceneRenderFence.get());
-    } catch (vk::OutOfDateKHRError &e) {
-      gSwapchainRebuild = true;
-      context->getDevice().waitIdle();
-      continue;
-    }
+    // draw
+    // auto sem = context->createTimelineSemaphore(0);
+
+    std::async(std::launch::async, [&]() {
+      {
+        renderer.render(cameraNode, std::vector<vk::Semaphore>{}, {}, {}, {});
+
+        auto imageAcquiredSemaphore = window->getImageAcquiredSemaphore();
+        renderer.display("Color", window->getBackbuffer(),
+                         window->getBackBufferFormat(), window->getWidth(),
+                         window->getHeight(), {imageAcquiredSemaphore},
+                         {vk::PipelineStageFlagBits::eColorAttachmentOutput},
+                         {sceneRenderSemaphore.get()}, {});
+      }
+
+      try {
+        window->presentFrameWithImgui(sceneRenderSemaphore.get(),
+                                      sceneRenderFence.get());
+      } catch (vk::OutOfDateKHRError &e) {
+        gSwapchainRebuild = true;
+        context->getDevice().waitIdle();
+      }
+    }).get();
+
     // required since we only use 1 set of uniform buffers
     context->getDevice().waitIdle();
 

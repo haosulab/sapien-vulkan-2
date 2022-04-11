@@ -6,7 +6,7 @@
 #include <mutex>
 #include <regex>
 #include <unordered_map>
-#include <vulkan/vulkan.hpp>
+#include "svulkan2/common/vk.h"
 
 namespace svulkan2 {
 

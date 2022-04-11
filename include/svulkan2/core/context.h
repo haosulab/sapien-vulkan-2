@@ -1,5 +1,7 @@
 #pragma once
 #include "allocator.h"
+#include "command_pool.h"
+#include "queue.h"
 #include "svulkan2/common/vk.h"
 #include "svulkan2/renderer/gui.h"
 #include "svulkan2/resource/manager.h"
@@ -20,9 +22,8 @@ class Context : public std::enable_shared_from_this<Context> {
 
   vk::UniqueDevice mDevice;
   std::unique_ptr<class Allocator> mAllocator;
-
-  vk::UniqueCommandPool mCommandPool;
   vk::UniqueDescriptorPool mDescriptorPool;
+  std::unique_ptr<Queue> mQueue;
 
   uint32_t mMaxNumMaterials;
   uint32_t mMaxNumTextures;
@@ -54,15 +55,10 @@ public:
   inline bool isVulkanAvailable() const { return mVulkanAvailable; }
   inline bool isPresentAvailable() const { return mPresent; }
 
-  vk::Queue getQueue() const;
+  inline Queue &getQueue() const { return *mQueue.get(); }
   inline class Allocator &getAllocator() { return *mAllocator; }
 
-  vk::UniqueCommandBuffer createCommandBuffer(
-      vk::CommandBufferLevel level = vk::CommandBufferLevel::ePrimary) const;
-  void submitCommandBufferAndWait(vk::CommandBuffer commandBuffer) const;
-  vk::UniqueFence
-  submitCommandBufferForFence(vk::CommandBuffer commandBuffer) const;
-  std::future<void> submitCommandBuffer(vk::CommandBuffer commandBuffer) const;
+  std::unique_ptr<CommandPool> createCommandPool() const;
 
   inline uint32_t getGraphicsQueueFamilyIndex() const {
     return mQueueFamilyIndex;
@@ -109,13 +105,14 @@ public:
 
   inline bool shouldNotLoadTexture() const { return mDoNotLoadTexture; }
 
+  vk::UniqueSemaphore createTimelineSemaphore(uint64_t initialValue);
+
 private:
   void createInstance();
   void pickSuitableGpuAndQueueFamilyIndex();
   void createDevice();
   void createMemoryAllocator();
 
-  void createCommandPool();
   void createDescriptorPool();
 
   std::vector<PhysicalDeviceInfo>

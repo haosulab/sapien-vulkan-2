@@ -96,21 +96,14 @@ bool GuiWindow::presentFrameWithImgui(vk::Semaphore renderCompleteSemaphore,
 
   vk::PipelineStageFlags waitStage =
       vk::PipelineStageFlagBits::eColorAttachmentOutput;
-  vk::SubmitInfo submitInfo{
-      1,
-      &renderCompleteSemaphore,
-      &waitStage,
-      1,
-      &mFrames[mFrameIndex].mImguiCommandBuffer.get(),
-      1,
-      &mFrameSemaphores[mSemaphoreIndex].mImguiCompleteSemaphore.get()};
-  mContext->getQueue().submit(submitInfo, frameCompleteFence);
-
-  // the present queue should be the same as graphics queue
-  return mContext->getQueue().presentKHR(
-             {1,
-              &mFrameSemaphores[mSemaphoreIndex].mImguiCompleteSemaphore.get(),
-              1, &mSwapchain.get(), &mFrameIndex}) == vk::Result::eSuccess;
+  mContext->getQueue().submit(
+      mFrames[mFrameIndex].mImguiCommandBuffer.get(), renderCompleteSemaphore,
+      waitStage,
+      mFrameSemaphores[mSemaphoreIndex].mImguiCompleteSemaphore.get(),
+      frameCompleteFence);
+  return mContext->getQueue().present(
+             mFrameSemaphores[mSemaphoreIndex].mImguiCompleteSemaphore.get(),
+             mSwapchain.get(), mFrameIndex) == vk::Result::eSuccess;
 }
 
 static void applyStyle() {
@@ -250,7 +243,7 @@ void GuiWindow::initImgui() {
   initInfo.PhysicalDevice = mContext->getPhysicalDevice();
   initInfo.Device = device;
   initInfo.QueueFamily = mContext->getGraphicsQueueFamilyIndex();
-  initInfo.Queue = mContext->getQueue();
+  initInfo.Queue = mContext->getQueue().getVulkanQueue();
 
   initInfo.PipelineCache = {};
   initInfo.DescriptorPool = mDescriptorPool.get();
@@ -260,12 +253,13 @@ void GuiWindow::initImgui() {
   initInfo.CheckVkResultFn = checkVKResult;
   ImGui_ImplVulkan_Init(&initInfo, mImguiRenderPass.get());
 
-  auto commandBuffer = mContext->createCommandBuffer();
+  auto pool = mContext->createCommandPool();
+  auto commandBuffer = pool->allocateCommandBuffer();
   commandBuffer->begin(vk::CommandBufferBeginInfo(
       vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
   ImGui_ImplVulkan_CreateFontsTexture(commandBuffer.get());
   commandBuffer->end();
-  mContext->submitCommandBufferAndWait(commandBuffer.get());
+  mContext->getQueue().submitAndWait(commandBuffer.get());
   log::info("Imgui initialized");
   updateSize(mWidth, mHeight);
 }

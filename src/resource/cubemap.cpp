@@ -200,7 +200,8 @@ void SVCubemap::exportKTX(std::string const &filename) {
   ktxTexture_Destroy(ktxTexture(texture));
 
   auto context = core::Context::Get();
-  auto buffer = context->createCommandBuffer();
+  auto pool = context->createCommandPool();
+  auto buffer = pool->allocateCommandBuffer();
   buffer->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
   img->transitionLayout(buffer.get(), vk::ImageLayout::eTransferSrcOptimal,
                         vk::ImageLayout::eShaderReadOnlyOptimal,
@@ -209,7 +210,7 @@ void SVCubemap::exportKTX(std::string const &filename) {
                         vk::PipelineStageFlagBits::eTransfer,
                         vk::PipelineStageFlagBits::eFragmentShader);
   buffer->end();
-  context->submitCommandBufferAndWait(buffer.get());
+  context->getQueue().submitAndWait(buffer.get());
 }
 
 } // namespace resource
