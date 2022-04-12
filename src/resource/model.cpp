@@ -196,10 +196,10 @@ std::future<void> SVModel::loadAsync() {
       float roughness = 1.f;
 
       if (m->Get(AI_MATKEY_OPACITY, alpha) == AI_SUCCESS) {
-        if (alpha < 1e-5 && (mDescription.filename.ends_with(".dae") ||
-                             mDescription.filename.ends_with(".DAE"))) {
-          log::warn("The DAE file {} is fully transparent. This is probably "
-                    "due to modeling error. Setting opacity to 1 instead...",
+        if (alpha < 1e-5) {
+          log::warn("The file {} has a fully transparent material. This is "
+                    "probably due to modeling error. Setting opacity to 1. If "
+                    "it is not an error, please remove the object entirely.",
                     mDescription.filename);
           alpha = 1.f;
         }
