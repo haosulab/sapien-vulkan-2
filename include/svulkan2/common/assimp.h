@@ -1,6 +1,5 @@
-#include <assimp/Exporter.hpp>
-#include <assimp/scene.h>
 #include <filesystem>
+#include <vector>
 
 namespace fs = std::filesystem;
 

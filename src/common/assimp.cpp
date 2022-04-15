@@ -1,5 +1,6 @@
 #include "svulkan2/common/assimp.h"
-#include <vector>
+#include <assimp/Exporter.hpp>
+#include <assimp/scene.h>
 
 namespace svulkan2 {
 
