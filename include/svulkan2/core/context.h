@@ -18,6 +18,7 @@ class Context : public std::enable_shared_from_this<Context> {
   vk::UniqueInstance mInstance;
 
   vk::PhysicalDevice mPhysicalDevice;
+  vk::PhysicalDeviceLimits mPhysicalDeviceLimits;
   uint32_t mQueueFamilyIndex;
 
   vk::UniqueDevice mDevice;
@@ -68,6 +69,10 @@ public:
   inline vk::PhysicalDevice getPhysicalDevice() const {
     return mPhysicalDevice;
   }
+  inline vk::PhysicalDeviceLimits const &getPhysicalDeviceLimits() const {
+    return mPhysicalDeviceLimits;
+  }
+
   inline vk::DescriptorPool getDescriptorPool() const {
     return mDescriptorPool.get();
   }

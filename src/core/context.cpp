@@ -516,6 +516,7 @@ void Context::pickSuitableGpuAndQueueFamilyIndex() {
   vk::PhysicalDevice pickedDevice = devices[pickedDeviceIdx].device;
 
   mPhysicalDevice = pickedDevice;
+  mPhysicalDeviceLimits = mPhysicalDevice.getProperties().limits;
   mQueueFamilyIndex = devices[pickedDeviceIdx].queueIndex;
 }
 

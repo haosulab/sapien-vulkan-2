@@ -1048,7 +1048,8 @@ void Renderer::prepareRender(scene::Camera &camera) {
     EASY_BLOCK("Update objects");
     auto bufferSize =
         mShaderManager->getShaderConfig()->objectBufferLayout->getAlignedSize(
-            64);
+            mContext->getPhysicalDeviceLimits()
+                .minUniformBufferOffsetAlignment);
 
     // update objects
 
@@ -1436,9 +1437,9 @@ void Renderer::prepareSceneBuffer() {
 } // namespace renderer
 
 void Renderer::prepareObjectBuffers(uint32_t numObjects) {
-  // TODO: read aligned size from physical device
   auto bufferSize =
-      mShaderManager->getShaderConfig()->objectBufferLayout->getAlignedSize(64);
+      mShaderManager->getShaderConfig()->objectBufferLayout->getAlignedSize(
+          mContext->getPhysicalDeviceLimits().minUniformBufferOffsetAlignment);
   bool updated{false};
 
   // shrink
