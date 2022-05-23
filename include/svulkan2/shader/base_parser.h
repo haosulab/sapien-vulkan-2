@@ -5,6 +5,7 @@
 #include "svulkan2/common/fs.h"
 #include "svulkan2/common/layout.h"
 #include <future>
+#include <optional>
 #include <map>
 
 namespace svulkan2 {
