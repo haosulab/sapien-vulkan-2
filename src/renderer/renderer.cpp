@@ -1076,8 +1076,8 @@ void Renderer::prepareRender(scene::Camera &camera) {
       for (uint32_t i = 0; i < objects.size(); ++i) {
         const auto &transform = objects[i]->getTransform();
         auto segmentation = objects[i]->getSegmentation();
-        auto transparency = objects[i]->getTransparency();
-        auto shadeFlat = objects[i]->getShadeFlat();
+        float transparency = objects[i]->getTransparency();
+        int shadeFlat = static_cast<int>(objects[i]->getShadeFlat());
 
         mObjectBuffer->upload(&transform.worldModelMatrix, 64,
                               i * bufferSize + modelMatrixOffset);
