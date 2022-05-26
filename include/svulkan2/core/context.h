@@ -23,8 +23,10 @@ class Context : public std::enable_shared_from_this<Context> {
 
   vk::UniqueDevice mDevice;
   std::unique_ptr<class Allocator> mAllocator;
-  vk::UniqueDescriptorPool mDescriptorPool;
   std::unique_ptr<Queue> mQueue;
+
+  std::mutex mGlobalLock{};
+  vk::UniqueDescriptorPool mDescriptorPool;
 
   uint32_t mMaxNumMaterials;
   uint32_t mMaxNumTextures;
@@ -73,6 +75,7 @@ public:
     return mPhysicalDeviceLimits;
   }
 
+  inline std::mutex &getGlobalLock() { return mGlobalLock; }
   inline vk::DescriptorPool getDescriptorPool() const {
     return mDescriptorPool.get();
   }

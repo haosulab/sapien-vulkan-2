@@ -924,6 +924,7 @@ void Renderer::prepareRender(scene::Camera &camera) {
   }
 
   if (mRequiresRecord) {
+    std::scoped_lock lock(mContext->getGlobalLock());
     auto pointLights = mScene->getPointLights();
     auto directionalLights = mScene->getDirectionalLights();
     auto spotLights = mScene->getSpotLights();
@@ -997,6 +998,7 @@ void Renderer::prepareRender(scene::Camera &camera) {
   }
 
   if (mRequiresRebuild || mSpecializationConstantsChanged) {
+    std::scoped_lock lock(mContext->getGlobalLock());
     EASY_BLOCK("Rebuilding Pipeline");
     mRequiresRecord = true;
 
@@ -1024,6 +1026,7 @@ void Renderer::prepareRender(scene::Camera &camera) {
   }
 
   if (mRequiresRecord) {
+    std::scoped_lock lock(mContext->getGlobalLock());
     prepareObjects(*mScene);
   }
 
@@ -1133,6 +1136,7 @@ void Renderer::prepareRender(scene::Camera &camera) {
 
   {
     if (mRequiresRecord) {
+      std::scoped_lock lock(mContext->getGlobalLock());
       {
         EASY_BLOCK("Record shadow draw calls");
         recordShadows(*mScene);
