@@ -40,6 +40,7 @@ class SVImage {
   bool mMipLoaded{false};
 
   std::mutex mLoadingMutex;
+  std::mutex mUploadingMutex;
 
 public:
   static std::shared_ptr<SVImage> FromData(uint32_t width, uint32_t height,

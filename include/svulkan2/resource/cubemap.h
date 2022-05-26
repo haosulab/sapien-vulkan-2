@@ -36,6 +36,7 @@ class SVCubemap {
 
   bool mLoaded{};
 
+  std::mutex mUploadingMutex;
   std::mutex mLoadingMutex;
 
 public:

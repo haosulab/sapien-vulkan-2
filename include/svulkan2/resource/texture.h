@@ -37,7 +37,8 @@ class SVTexture {
 
   bool mLoaded{};
 
-  std::mutex mLoadingMutex{};
+  std::mutex mUploadingMutex;
+  std::mutex mLoadingMutex;
 
 public:
   static std::shared_ptr<SVTexture> FromFile(

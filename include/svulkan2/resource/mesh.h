@@ -20,6 +20,7 @@ class SVMesh {
   std::unique_ptr<core::Buffer> mVertexBuffer;
   std::unique_ptr<core::Buffer> mIndexBuffer;
 
+  std::mutex mUploadingMutex;
 public:
   SVMesh(bool dynamic = false);
 

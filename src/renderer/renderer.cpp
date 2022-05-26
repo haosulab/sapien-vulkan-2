@@ -924,7 +924,7 @@ void Renderer::prepareRender(scene::Camera &camera) {
   }
 
   if (mRequiresRecord) {
-    std::scoped_lock lock(mContext->getGlobalLock());
+    // std::scoped_lock lock(mContext->getGlobalLock());
     auto pointLights = mScene->getPointLights();
     auto directionalLights = mScene->getDirectionalLights();
     auto spotLights = mScene->getSpotLights();
@@ -998,18 +998,20 @@ void Renderer::prepareRender(scene::Camera &camera) {
   }
 
   if (mRequiresRebuild || mSpecializationConstantsChanged) {
-    std::scoped_lock lock(mContext->getGlobalLock());
     EASY_BLOCK("Rebuilding Pipeline");
     mRequiresRecord = true;
 
     preparePipelines();
+
     prepareRenderTargets(mWidth, mHeight);
     if (mShaderManager->isShadowEnabled()) {
       prepareShadowRenderTargets();
       prepareShadowFramebuffers();
     }
+
     prepareFramebuffers(mWidth, mHeight);
     prepareInputTextureDescriptorSets();
+    // std::scoped_lock lock(mContext->getGlobalLock());
     mSpecializationConstantsChanged = false;
     mRequiresRebuild = false;
 
@@ -1017,6 +1019,7 @@ void Renderer::prepareRender(scene::Camera &camera) {
       prepareLightBuffers();
     }
     prepareSceneBuffer();
+
     prepareCameaBuffer();
 
     if (camera.getWidth() != mWidth || camera.getHeight() != mHeight) {
@@ -1026,7 +1029,7 @@ void Renderer::prepareRender(scene::Camera &camera) {
   }
 
   if (mRequiresRecord) {
-    std::scoped_lock lock(mContext->getGlobalLock());
+    // std::scoped_lock lock(mContext->getGlobalLock());
     prepareObjects(*mScene);
   }
 
@@ -1136,7 +1139,7 @@ void Renderer::prepareRender(scene::Camera &camera) {
 
   {
     if (mRequiresRecord) {
-      std::scoped_lock lock(mContext->getGlobalLock());
+      // std::scoped_lock lock(mContext->getGlobalLock());
       {
         EASY_BLOCK("Record shadow draw calls");
         recordShadows(*mScene);
@@ -1526,7 +1529,6 @@ void Renderer::prepareInputTextureDescriptorSets() {
   mInputTextureSets.clear();
   for (uint32_t i = 0; i < passes.size(); ++i) {
     auto layout = layouts[i];
-    vk::UniqueDescriptorSet set{};
     if (layout) {
       mInputTextureSets.push_back(std::move(
           mContext->getDevice()

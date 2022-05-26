@@ -80,10 +80,11 @@ std::shared_ptr<SVTexture> SVTexture::FromImage(std::shared_ptr<SVImage> image,
 }
 
 void SVTexture::uploadToDevice() {
-  mContext = core::Context::Get();
+  std::scoped_lock lock(mUploadingMutex);
   if (mOnDevice) {
     return;
   }
+  mContext = core::Context::Get();
 
   if (!mImage->isOnDevice()) {
     mImage->uploadToDevice();
@@ -137,7 +138,7 @@ std::future<void> SVTexture::loadAsync() {
         "failed to load texture: the texture is not specified by a file");
   }
   return std::async(LAUNCH_ASYNC, [this, manager]() {
-    std::lock_guard<std::mutex> lock(mLoadingMutex);
+    std::scoped_lock lock(mLoadingMutex);
     if (mLoaded) {
       return;
     }

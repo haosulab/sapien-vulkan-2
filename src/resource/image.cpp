@@ -130,6 +130,7 @@ void SVImage::setCreateFlags(vk::ImageCreateFlags flags) {
 }
 
 void SVImage::uploadToDevice(bool generateMipmaps) {
+  std::scoped_lock lock(mUploadingMutex);
   if (mOnDevice) {
     return;
   }
@@ -218,7 +219,7 @@ std::future<void> SVImage::loadAsync() {
     return std::async(std::launch::deferred, []() {});
   }
   return std::async(LAUNCH_ASYNC, [this]() {
-    std::lock_guard<std::mutex> lock(mLoadingMutex);
+    std::scoped_lock lock(mLoadingMutex);
     if (mLoaded) {
       return;
     }

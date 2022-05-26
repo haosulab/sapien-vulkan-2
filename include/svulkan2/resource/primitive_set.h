@@ -16,6 +16,8 @@ class SVPrimitiveSet {
   uint32_t mVertexCount{};
   std::unique_ptr<core::Buffer> mVertexBuffer;
 
+  std::mutex mUploadingMutex;
+
 public:
   SVPrimitiveSet();
   void setVertexAttribute(std::string const &name,

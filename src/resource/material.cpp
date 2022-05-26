@@ -58,6 +58,7 @@ SVMetallicMaterial::SVMetallicMaterial(glm::vec4 emission, glm::vec4 baseColor,
 }
 
 SVMetallicMaterial::~SVMetallicMaterial() {
+  removeFromDevice();
 #ifdef TRACK_ALLOCATION
   log::info("Destroy Material {}, Total {}", mMaterialId, --gMaterialCount);
 #endif
@@ -232,6 +233,7 @@ void SVMetallicMaterial::setTextures(
 
 void SVMetallicMaterial::uploadToDevice() {
   mContext = core::Context::Get();
+  std::scoped_lock lock(mContext->getGlobalLock());
   if (!mDeviceBuffer) {
     mDeviceBuffer = mContext->getAllocator().allocateUniformBuffer(
         sizeof(SVMetallicMaterial::Buffer));
@@ -305,6 +307,9 @@ void SVMetallicMaterial::uploadToDevice() {
 }
 
 void SVMetallicMaterial::removeFromDevice() {
+  if (mContext) {
+    std::scoped_lock lock(mContext->getGlobalLock());
+  }
   mRequiresBufferUpload = true;
   if (mBaseColorTexture) {
     mBaseColorTexture->removeFromDevice();

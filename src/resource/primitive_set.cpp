@@ -40,6 +40,8 @@ core::Buffer &SVPrimitiveSet::getVertexBuffer() {
 }
 
 void SVPrimitiveSet::uploadToDevice() {
+  std::scoped_lock lock(mUploadingMutex);
+
   if (!mDirty) {
     return;
   }

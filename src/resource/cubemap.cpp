@@ -56,6 +56,7 @@ SVCubemap::FromData(uint32_t size, uint32_t channels,
 }
 
 void SVCubemap::uploadToDevice() {
+  std::scoped_lock lock(mUploadingMutex);
   mContext = core::Context::Get();
   if (mOnDevice) {
     return;
@@ -130,7 +131,7 @@ std::future<void> SVCubemap::loadAsync() {
   }
 
   return std::async(LAUNCH_ASYNC, [this]() {
-    std::lock_guard<std::mutex> lock(mLoadingMutex);
+    std::scoped_lock lock(mLoadingMutex);
     if (mLoaded) {
       return;
     }

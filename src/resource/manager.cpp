@@ -132,6 +132,7 @@ std::shared_ptr<SVCubemap> SVResourceManager::CreateCubemapFromFiles(
 }
 
 std::shared_ptr<SVTexture> SVResourceManager::getDefaultBRDFLUT() {
+  std::lock_guard<std::mutex> lock(mCreateLock);
   if (mDefaultBRDFLUT) {
     return mDefaultBRDFLUT;
   }
