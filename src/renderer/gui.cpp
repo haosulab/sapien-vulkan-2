@@ -367,7 +367,7 @@ bool GuiWindow::recreateSwapchain(uint32_t w, uint32_t h) {
       mContext->getPhysicalDevice().getSurfaceCapabilitiesKHR(mSurface.get());
   if (cap.minImageExtent.width > w || cap.maxImageExtent.width < w ||
       cap.minImageExtent.height > h || cap.maxImageExtent.height < h) {
-    log::warn("requested: {}, {}; available {}-{}, {}-{}", w, h,
+    log::info("swapchain create ignored: requested size ({}, {}); available {}-{}, {}-{}", w, h,
               cap.minImageExtent.width, cap.maxImageExtent.width,
               cap.minImageExtent.height, cap.maxImageExtent.height);
     return false;
