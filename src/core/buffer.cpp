@@ -48,7 +48,7 @@ Buffer::~Buffer() {
   if (mCudaPtr) {
     checkCudaErrors(cudaDestroyExternalMemory(mCudaMem));
     checkCudaErrors(cudaFree(mCudaPtr));
-    close(mCudaFd);
+    // close(mCudaFd);
   }
 #endif
   vmaDestroyBuffer(mContext->getAllocator().getVmaAllocator(), mBuffer,
