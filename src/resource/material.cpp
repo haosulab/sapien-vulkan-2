@@ -58,7 +58,6 @@ SVMetallicMaterial::SVMetallicMaterial(glm::vec4 emission, glm::vec4 baseColor,
 }
 
 SVMetallicMaterial::~SVMetallicMaterial() {
-  removeFromDevice();
 #ifdef TRACK_ALLOCATION
   log::info("Destroy Material {}, Total {}", mMaterialId, --gMaterialCount);
 #endif
