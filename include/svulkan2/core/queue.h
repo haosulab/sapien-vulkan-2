@@ -7,7 +7,6 @@ namespace core {
 class Context;
 
 class Queue {
-  std::shared_ptr<Context> mContext;
   vk::Queue mQueue;
 
   std::mutex mMutex;

@@ -5,9 +5,9 @@
 namespace svulkan2 {
 namespace core {
 Queue::Queue() {
-  mContext = Context::Get();
-  mQueue = mContext->getDevice().getQueue(
-      mContext->getGraphicsQueueFamilyIndex(), 0);
+  auto context = Context::Get();
+  mQueue =
+      context->getDevice().getQueue(context->getGraphicsQueueFamilyIndex(), 0);
 }
 
 void Queue::submit(
@@ -58,9 +58,10 @@ void Queue::submit(
 vk::Result
 Queue::submitAndWait(vk::ArrayProxyNoTemporaries<vk::CommandBuffer const> const
                          &commandBuffers) {
-  auto fence = mContext->getDevice().createFenceUnique({});
+  auto context = Context::Get();
+  auto fence = context->getDevice().createFenceUnique({});
   submit(commandBuffers, fence.get());
-  return mContext->getDevice().waitForFences(fence.get(), VK_TRUE, UINT64_MAX);
+  return context->getDevice().waitForFences(fence.get(), VK_TRUE, UINT64_MAX);
 }
 
 vk::Result Queue::present(
