@@ -155,7 +155,8 @@ void LineObject::setTransparency(float transparency) {
 
 PointObject::PointObject(std::shared_ptr<resource::SVPointSet> pointSet,
                          std::string const &name)
-    : Node(name), mPointSet(pointSet) {}
+    : Node(name), mPointSet(pointSet),
+      mVertexCount(pointSet->getVertexCount()) {}
 
 void PointObject::uploadToDevice(core::Buffer &objectBuffer, uint32_t offset,
                                  StructDataLayout const &objectLayout) {

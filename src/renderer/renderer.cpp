@@ -641,8 +641,9 @@ void Renderer::recordShadows(scene::Scene &scene) {
             0,
             objects[objIdx]->getPointSet()->getVertexBuffer().getVulkanBuffer(),
             vk::DeviceSize(0));
-        mShadowCommandBuffer->draw(
-            objects[objIdx]->getPointSet()->getVertexCount(), 1, 0, 0);
+        // mShadowCommandBuffer->draw(
+        //     objects[objIdx]->getPointSet()->getVertexCount(), 1, 0, 0);
+        mShadowCommandBuffer->draw(objects[objIdx]->getVertexCount(), 1, 0, 0);
       }
       mShadowCommandBuffer->endRenderPass();
     }
@@ -894,8 +895,7 @@ void Renderer::recordRenderPasses(scene::Scene &scene) {
           mRenderCommandBuffer->bindVertexBuffers(
               0, pointObj->getPointSet()->getVertexBuffer().getVulkanBuffer(),
               vk::DeviceSize(0));
-          mRenderCommandBuffer->draw(pointObj->getPointSet()->getVertexCount(),
-                                     1, 0, 0);
+          mRenderCommandBuffer->draw(pointObj->getVertexCount(), 1, 0, 0);
         }
       }
       pointIndex++;

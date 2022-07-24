@@ -104,6 +104,7 @@ class PointObject : public Node {
   glm::uvec4 mSegmentation{0};
   int mShadingMode{0};
   float mTransparency{0};
+  uint32_t mVertexCount{0};
 
 public:
   inline Type getType() const override { return Type::eObject; }
@@ -126,6 +127,13 @@ public:
 
   void setTransparency(float transparency);
   inline float getTransparency() const { return mTransparency; }
+
+  inline uint32_t getMaxVertexCount() const {
+    return mPointSet->getVertexCount();
+  }
+
+  inline uint32_t getVertexCount() const { return mVertexCount; }
+  inline void setVertexCount(uint32_t count) { mVertexCount = count; }
 };
 
 } // namespace scene
