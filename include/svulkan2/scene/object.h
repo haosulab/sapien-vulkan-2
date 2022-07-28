@@ -133,7 +133,7 @@ public:
   }
 
   inline uint32_t getVertexCount() const { return mVertexCount; }
-  inline void setVertexCount(uint32_t count) { mVertexCount = count; }
+  void setVertexCount(uint32_t count);
 };
 
 } // namespace scene

@@ -191,5 +191,10 @@ void PointObject::setTransparency(float transparency) {
   mTransparency = transparency;
 }
 
+void PointObject::setVertexCount(uint32_t count) {
+  mScene->updateVersion();
+  mVertexCount = count;
+}
+
 } // namespace scene
 } // namespace svulkan2
