@@ -125,7 +125,8 @@ public:
 
   void setScene(scene::Scene &scene) {
     mScene = &scene;
-    mRequiresRecord = false;
+    mRequiresRebuild = true;
+    mRequiresRecord = true;
   }
 
   std::vector<std::string> getDisplayTargetNames() const;
