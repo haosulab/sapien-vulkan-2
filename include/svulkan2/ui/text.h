@@ -89,5 +89,53 @@ public:
   void build() override;
 };
 
+UI_CLASS(InputInt) {
+  UI_ATTRIBUTE(InputInt, std::string, Label);
+  UI_ATTRIBUTE(InputInt, int, Value);
+  UI_ATTRIBUTE(InputInt, bool, ReadOnly);
+  UI_ATTRIBUTE(InputInt, std::function<void(std::shared_ptr<InputInt>)>,
+               Callback);
+
+public:
+  inline int get() const { return mValue; }
+  void build() override;
+};
+
+UI_CLASS(InputInt2) {
+  UI_ATTRIBUTE(InputInt2, std::string, Label);
+  UI_ATTRIBUTE(InputInt2, glm::ivec2, Value);
+  UI_ATTRIBUTE(InputInt2, bool, ReadOnly);
+  UI_ATTRIBUTE(InputInt2, std::function<void(std::shared_ptr<InputInt2>)>,
+               Callback);
+
+public:
+  inline glm::ivec2 get() const { return mValue; }
+  void build() override;
+};
+
+UI_CLASS(InputInt3) {
+  UI_ATTRIBUTE(InputInt3, std::string, Label);
+  UI_ATTRIBUTE(InputInt3, glm::ivec3, Value);
+  UI_ATTRIBUTE(InputInt3, bool, ReadOnly);
+  UI_ATTRIBUTE(InputInt3, std::function<void(std::shared_ptr<InputInt3>)>,
+               Callback);
+
+public:
+  inline glm::ivec3 get() const { return mValue; }
+  void build() override;
+};
+
+UI_CLASS(InputInt4) {
+  UI_ATTRIBUTE(InputInt4, std::string, Label);
+  UI_ATTRIBUTE(InputInt4, glm::ivec4, Value);
+  UI_ATTRIBUTE(InputInt4, bool, ReadOnly);
+  UI_ATTRIBUTE(InputInt4, std::function<void(std::shared_ptr<InputInt4>)>,
+               Callback);
+
+public:
+  inline glm::ivec4 get() const { return mValue; }
+  void build() override;
+};
+
 } // namespace ui
 } // namespace svulkan2
