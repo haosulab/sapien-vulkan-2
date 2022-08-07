@@ -266,7 +266,9 @@ void GuiWindow::initImgui() {
 
 void GuiWindow::createGlfwWindow(uint32_t width, uint32_t height) {
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-  mWindow = glfwCreateWindow(width, height, "vulkan", nullptr, nullptr);
+  glfwWindowHintString(GLFW_X11_CLASS_NAME, "sapien");
+  glfwWindowHintString(GLFW_X11_INSTANCE_NAME, "SAPIEN");
+  mWindow = glfwCreateWindow(width, height, "SAPIEN", nullptr, nullptr);
 
   VkSurfaceKHR tmpSurface;
 
