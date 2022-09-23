@@ -48,7 +48,6 @@ Buffer::~Buffer() {
   if (mCudaPtr) {
     checkCudaErrors(cudaDestroyExternalMemory(mCudaMem));
     checkCudaErrors(cudaFree(mCudaPtr));
-    // close(mCudaFd);
   }
 #endif
   vmaDestroyBuffer(mContext->getAllocator().getVmaAllocator(), mBuffer,
@@ -159,17 +158,19 @@ void *Buffer::getCudaPtr() {
   checkCudaErrors(cudaSetDevice(mCudaDeviceId));
   cudaExternalMemoryHandleDesc externalMemoryHandleDesc = {};
   externalMemoryHandleDesc.type = cudaExternalMemoryHandleTypeOpaqueFd;
-  externalMemoryHandleDesc.size =
-      mAllocationInfo.offset + mAllocationInfo.size; // TODO check
+  externalMemoryHandleDesc.size = mAllocationInfo.offset + mAllocationInfo.size; // TODO check
 
   vk::MemoryGetFdInfoKHR vkMemoryGetFdInfoKHR;
   vkMemoryGetFdInfoKHR.setPNext(nullptr);
   vkMemoryGetFdInfoKHR.setMemory(mAllocationInfo.deviceMemory);
   vkMemoryGetFdInfoKHR.setHandleType(
       vk::ExternalMemoryHandleTypeFlagBits::eOpaqueFd);
-  mCudaFd = mContext->getDevice().getMemoryFdKHR(vkMemoryGetFdInfoKHR);
 
-  externalMemoryHandleDesc.handle.fd = mCudaFd;
+  // According to https://docs.nvidia.com/pdf/CUDA_Runtime_API.pdf
+  // Performing any operations on the file descriptor after it is imported results in undefined behavior
+  auto cudaFd = mContext->getDevice().getMemoryFdKHR(vkMemoryGetFdInfoKHR);
+  externalMemoryHandleDesc.handle.fd = cudaFd;
+
   checkCudaErrors(
       cudaImportExternalMemory(&mCudaMem, &externalMemoryHandleDesc));
 

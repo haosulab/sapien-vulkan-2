@@ -81,7 +81,6 @@ public:
   } while (0)
 
 private:
-  int mCudaFd{-1};
   void *mCudaPtr{};
   cudaExternalMemory_t mCudaMem{};
   int mCudaDeviceId{-1};
