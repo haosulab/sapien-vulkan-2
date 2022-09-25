@@ -207,8 +207,9 @@ void Image::generateMipmaps(vk::CommandBuffer cb, uint32_t arrayLayer) {
 }
 
 void Image::recordCopyToBuffer(vk::CommandBuffer cb, vk::Buffer buffer,
-                               size_t size, vk::Offset3D offset,
-                               vk::Extent3D extent, uint32_t arrayLayer) {
+                               size_t bufferOffset, size_t size,
+                               vk::Offset3D offset, vk::Extent3D extent,
+                               uint32_t arrayLayer) {
   size_t imageSize =
       extent.width * extent.height * extent.depth * getFormatSize(mFormat);
 
@@ -267,7 +268,7 @@ void Image::recordCopyToBuffer(vk::CommandBuffer cb, vk::Buffer buffer,
                      sourceAccessFlag, vk::AccessFlagBits::eTransferRead,
                      sourceStage, vk::PipelineStageFlagBits::eTransfer);
   }
-  vk::BufferImageCopy copyRegion(0, mExtent.width, mExtent.height,
+  vk::BufferImageCopy copyRegion(bufferOffset, mExtent.width, mExtent.height,
                                  {aspect, 0, 0, 1}, offset, extent);
   cb.copyImageToBuffer(mImage, vk::ImageLayout::eTransferSrcOptimal, buffer,
                        copyRegion);
@@ -279,7 +280,7 @@ void Image::copyToBuffer(vk::Buffer buffer, size_t size, vk::Offset3D offset,
   auto pool = mContext->createCommandPool();
   auto cb = pool->allocateCommandBuffer();
   cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
-  recordCopyToBuffer(cb.get(), buffer, size, offset, extent, arrayLayer);
+  recordCopyToBuffer(cb.get(), buffer, 0, size, offset, extent, arrayLayer);
   cb->end();
   vk::Result result = mContext->getQueue().submitAndWait(cb.get());
   if (result != vk::Result::eSuccess) {

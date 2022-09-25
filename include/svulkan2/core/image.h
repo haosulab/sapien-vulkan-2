@@ -66,9 +66,9 @@ public:
 
   void copyToBuffer(vk::Buffer buffer, size_t size, vk::Offset3D offset,
                     vk::Extent3D extent, uint32_t arrayLayer = 0);
-  void recordCopyToBuffer(vk::CommandBuffer cb, vk::Buffer buffer, size_t size,
-                          vk::Offset3D offset, vk::Extent3D extent,
-                          uint32_t arrayLayer = 0);
+  void recordCopyToBuffer(vk::CommandBuffer cb, vk::Buffer buffer,
+                          size_t bufferOffset, size_t size, vk::Offset3D offset,
+                          vk::Extent3D extent, uint32_t arrayLayer = 0);
 
   void download(void *data, size_t size, vk::Offset3D offset,
                 vk::Extent3D extent, uint32_t arrayLayer = 0,
