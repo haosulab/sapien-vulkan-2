@@ -29,7 +29,7 @@ void ShaderManager::processShadersInFolder(std::string const &folder) {
     throw std::runtime_error("[shader manager] gbuffer.frag is required");
   }
 
-  GLSLCompiler::InitializeProcess();
+  // GLSLCompiler::InitializeProcess();
 
   std::vector<std::future<void>> futures;
 
@@ -177,7 +177,7 @@ void ShaderManager::processShadersInFolder(std::string const &folder) {
     f.get();
   }
 
-  GLSLCompiler::FinalizeProcess();
+  // GLSLCompiler::FinalizeProcess();
 
   mShaderConfig->vertexLayout = firstGbufferPass->getVertexInputLayout();
 

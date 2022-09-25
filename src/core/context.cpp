@@ -3,6 +3,7 @@
 #include "svulkan2/common/launch_policy.h"
 #include "svulkan2/common/log.h"
 #include "svulkan2/core/allocator.h"
+#include "svulkan2/shader/glsl_compiler.h"
 #include <GLFW/glfw3.h>
 #include <easy/profiler.h>
 #include <iomanip>
@@ -87,9 +88,13 @@ void Context::init() {
   createDevice();
   createMemoryAllocator();
   createDescriptorPool();
+
+  GLSLCompiler::InitializeProcess();
 }
 
 Context::~Context() {
+  GLSLCompiler::FinalizeProcess();
+
   if (mDevice) {
     mDevice->waitIdle();
   }
