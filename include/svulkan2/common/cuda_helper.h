@@ -1,4 +1,4 @@
-#ifdef CUDA_INTEROP
+#ifdef SVULKAN2_CUDA_INTEROP
 #pragma once
 
 #include "vk.h"

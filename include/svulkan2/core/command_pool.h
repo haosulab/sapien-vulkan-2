@@ -1,6 +1,7 @@
 #pragma once
 #include "svulkan2/common/vk.h"
 #include <mutex>
+#include <memory>
 
 namespace svulkan2 {
 namespace core {

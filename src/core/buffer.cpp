@@ -44,7 +44,7 @@ Buffer::Buffer(vk::DeviceSize size, vk::BufferUsageFlags usageFlags,
 }
 
 Buffer::~Buffer() {
-#ifdef CUDA_INTEROP
+#ifdef SVULKAN2_CUDA_INTEROP
   if (mCudaPtr) {
     checkCudaErrors(cudaDestroyExternalMemory(mCudaMem));
     checkCudaErrors(cudaFree(mCudaPtr));
@@ -142,7 +142,7 @@ void Buffer::download(void *data, size_t size, size_t offset) {
   }
 }
 
-#ifdef CUDA_INTEROP
+#ifdef SVULKAN2_CUDA_INTEROP
 void *Buffer::getCudaPtr() {
   if (mCudaPtr) {
     return mCudaPtr;

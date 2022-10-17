@@ -23,6 +23,51 @@ SVResourceManager::SVResourceManager() {
                                         });
 }
 
+std::shared_ptr<shader::ShaderPack>
+SVResourceManager::CreateShaderPack(std::string const &dirname) {
+  std::lock_guard<std::mutex> lock(mShaderPackLock);
+  auto dir = fs::canonical(dirname);
+  std::string key = dir.string();
+
+  auto it = mShaderPackRegistry.find(key);
+  if (it != mShaderPackRegistry.end()) {
+    return it->second;
+  }
+
+  if (!fs::is_directory(dir)) {
+    throw std::runtime_error("invalid shader pack directory: " + dirname);
+  }
+  auto shaderPack = std::make_shared<shader::ShaderPack>(dirname);
+  mShaderPackRegistry[key] = shaderPack;
+
+  if (shaderPack->getShaderInputLayouts()->vertexLayout) {
+    setVertexLayout(shaderPack->getShaderInputLayouts()->vertexLayout);
+  }
+
+  if (shaderPack->getShaderInputLayouts()->primitiveVertexLayout) {
+    setLineVertexLayout(shaderPack->getShaderInputLayouts()->primitiveVertexLayout);
+  }
+
+  return shaderPack;
+}
+
+std::shared_ptr<shader::ShaderPackInstance>
+SVResourceManager::CreateShaderPackInstance(
+    shader::ShaderPackInstanceDesc const &desc) {
+  std::lock_guard<std::mutex> lock(mShaderPackInstanceLock);
+  auto it = mShaderPackInstanceRegistry.find(desc.config->shaderDir);
+  if (it != mShaderPackInstanceRegistry.end()) {
+    for (auto inst : it->second) {
+      if (inst->getDesc() == desc) {
+        return inst;
+      }
+    }
+  }
+  auto inst = std::make_shared<shader::ShaderPackInstance>(desc);
+  mShaderPackInstanceRegistry[desc.config->shaderDir].push_back(inst);
+  return inst;
+}
+
 std::shared_ptr<SVImage>
 SVResourceManager::CreateImageFromFile(std::string const &filename,
                                        uint32_t mipLevels) {
@@ -246,7 +291,7 @@ void SVResourceManager::setVertexLayout(
   }
   if (*mVertexLayout != *layout) {
     throw std::runtime_error(
-        "All vertex layouts are required to be the same even across renderers");
+        "All vertex layouts are required to be the same across all renderers");
   }
 }
 
@@ -269,6 +314,9 @@ void SVResourceManager::clearCachedResources() {
   mCubemapRegistry.clear();
   mImageRegistry.clear();
   mRandomTextureRegistry.clear();
+
+  mShaderPackInstanceRegistry.clear();
+  mShaderPackRegistry.clear();
 }
 
 void SVResourceManager::releaseGPUResourcesUnsafe() {

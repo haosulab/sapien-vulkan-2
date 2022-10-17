@@ -79,12 +79,12 @@ int main() {
 
   createSphereArray(scene);
 
-  auto model = manager->CreateModelFromFile(
-      "/home/fx/source/sapien-project-web/storage/models/partnet/"
-      "0af05cd6-8494-4454-b7d0-7f6a3cda41f1/model.gltf");
-  auto &obj = scene.addObject(model);
-  obj.setScale({0.1, 0.1, 0.1});
-  obj.setPosition({0.5, 0.5, 0.5});
+  // auto model = manager->CreateModelFromFile(
+  //     "/home/fx/source/sapien-project-web/storage/models/partnet/"
+  //     "0af05cd6-8494-4454-b7d0-7f6a3cda41f1/model.gltf");
+  // auto &obj = scene.addObject(model);
+  // obj.setScale({0.1, 0.1, 0.1});
+  // obj.setPosition({0.5, 0.5, 0.5});
 
   // auto &spotLight1 = scene.addSpotLight();
   // spotLight1.setPosition({0.5, 0.5, 1.0});

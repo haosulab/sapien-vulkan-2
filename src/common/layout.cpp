@@ -62,16 +62,16 @@ InputDataLayout::computeVertexInputAttributesDescriptions() const {
       throw std::runtime_error("vertex layout locations must be "
                                "consecutive integers starting from 0");
     }
-    if (elem.dtype == eFLOAT) {
+    if (elem.dtype == DataType::eFLOAT) {
       vertexInputAttributeDescriptions.push_back(
           {elem.location, 0, vk::Format::eR32Sfloat, offset});
-    } else if (elem.dtype == eFLOAT2) {
+    } else if (elem.dtype == DataType::eFLOAT2) {
       vertexInputAttributeDescriptions.push_back(
           {elem.location, 0, vk::Format::eR32G32Sfloat, offset});
-    } else if (elem.dtype == eFLOAT3) {
+    } else if (elem.dtype == DataType::eFLOAT3) {
       vertexInputAttributeDescriptions.push_back(
           {elem.location, 0, vk::Format::eR32G32B32Sfloat, offset});
-    } else if (elem.dtype == eFLOAT4) {
+    } else if (elem.dtype == DataType::eFLOAT4) {
       vertexInputAttributeDescriptions.push_back(
           {elem.location, 0, vk::Format::eR32G32B32A32Sfloat, offset});
     } else {

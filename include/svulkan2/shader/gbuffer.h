@@ -11,9 +11,6 @@ class GbufferPassParser : public BaseParser {
   std::shared_ptr<OutputDataLayout> mTextureOutputLayout;
   std::vector<DescriptorSetDescription> mDescriptorSetDescriptions;
 
-  vk::UniqueRenderPass mRenderPass;
-  vk::UniquePipeline mPipeline;
-
 public:
   inline std::shared_ptr<InputDataLayout> getVertexInputLayout() const {
     return mVertexInputLayout;
@@ -24,32 +21,21 @@ public:
     return mTextureOutputLayout;
   }
 
-  vk::PipelineLayout
-  createPipelineLayout(vk::Device device,
-                       std::vector<vk::DescriptorSetLayout> layouts);
-
-  vk::RenderPass createRenderPass(
+  vk::UniqueRenderPass createRenderPass(
       vk::Device device, std::vector<vk::Format> const &colorFormats,
       vk::Format depthFormat,
       std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
           &colorTargetLayouts,
-      std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout);
+      std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout)
+      const override;
 
-  virtual vk::Pipeline createGraphicsPipeline(
-      vk::Device device, std::vector<vk::Format> const &colorFormats,
-      vk::Format depthFormat, vk::CullModeFlags cullMode,
-      vk::FrontFace frontFace,
-      std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
-          &colorTargetLayouts,
-      std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,
-      std::vector<vk::DescriptorSetLayout> const &descriptorSetLayouts,
-      std::map<std::string, SpecializationConstantValue> const
-          &specializationConstantInfo) override;
+  vk::UniquePipeline
+  createPipeline(vk::Device device, vk::PipelineLayout layout,
+                 vk::RenderPass renderPass, vk::CullModeFlags cullMode,
+                 vk::FrontFace frontFace, bool alphaBlend,
+                 std::map<std::string, SpecializationConstantValue> const
+                     &specializationConstantInfo) const override;
 
-  inline vk::RenderPass getRenderPass() const override {
-    return mRenderPass.get();
-  }
-  inline vk::Pipeline getPipeline() const override { return mPipeline.get(); }
   std::vector<std::string> getColorRenderTargetNames() const override;
   std::optional<std::string> getDepthRenderTargetName() const override;
   std::vector<UniformBindingType> getUniformBindingTypes() const override;

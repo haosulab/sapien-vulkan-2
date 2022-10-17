@@ -18,6 +18,7 @@ layout(set = 1, binding = 0) uniform ObjectBuffer {
   mat4 prevModelMatrix;
   uvec4 segmentation;
   float transparency;
+  int shadeFlat;
 } objectBuffer;
 
 layout(location = 0) in vec3 position;
@@ -28,10 +29,10 @@ layout(location = 1) out vec4 outPrevPosition;
 layout(location = 2) out vec4 outColor;
 
 void main() {
-  gl_PointSize = 10;
   mat4 modelView = cameraBuffer.viewMatrix * objectBuffer.modelMatrix;
   outPosition = modelView * vec4(position, 1);
   outPrevPosition = cameraBuffer.prevViewMatrix * objectBuffer.prevModelMatrix * vec4(position, 1);
   gl_Position = cameraBuffer.projectionMatrix * outPosition;
+  gl_PointSize = 10;
   outColor = color;
 }

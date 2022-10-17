@@ -5,8 +5,8 @@
 #include "svulkan2/common/fs.h"
 #include "svulkan2/common/layout.h"
 #include <future>
-#include <optional>
 #include <map>
+#include <optional>
 
 namespace svulkan2 {
 namespace shader {
@@ -17,6 +17,31 @@ struct SpecializationConstantValue {
     int intValue;
     float floatValue;
   };
+
+  bool operator==(SpecializationConstantValue const &other) const {
+    if (dtype != other.dtype) {
+      return false;
+    }
+    if (dtype == DataType::eINT) {
+      return intValue == other.intValue;
+    }
+    if (dtype == DataType::eFLOAT) {
+      return std::abs(floatValue - other.floatValue) < 1e-7;
+    }
+    return false;
+  }
+
+  SpecializationConstantValue &operator=(int value) {
+    dtype = DataType::eINT;
+    intValue = value;
+    return *this;
+  }
+
+  SpecializationConstantValue &operator=(float value) {
+    dtype = DataType::eFLOAT;
+    floatValue = value;
+    return *this;
+  }
 };
 
 enum UniformBindingType {
@@ -44,6 +69,23 @@ struct DescriptorSetDescription {
   std::map<uint32_t, Binding> bindings;
 
   DescriptorSetDescription merge(DescriptorSetDescription const &other) const;
+};
+
+// TODO rename
+/** Options configured by the shaders  */
+struct ShaderConfig {
+  std::shared_ptr<InputDataLayout> vertexLayout;
+  std::shared_ptr<InputDataLayout> primitiveVertexLayout;
+  std::shared_ptr<StructDataLayout> objectBufferLayout;
+  std::shared_ptr<StructDataLayout> sceneBufferLayout;
+  std::shared_ptr<StructDataLayout> cameraBufferLayout;
+  std::shared_ptr<StructDataLayout> lightBufferLayout;
+  std::shared_ptr<StructDataLayout> shadowBufferLayout;
+
+  DescriptorSetDescription sceneSetDescription;
+  DescriptorSetDescription cameraSetDescription;
+  DescriptorSetDescription objectSetDescription;
+  DescriptorSetDescription lightSetDescription;
 };
 
 DescriptorSetDescription
@@ -111,23 +153,16 @@ protected:
   std::vector<uint32_t> mVertSPVCode;
   std::vector<uint32_t> mFragSPVCode;
   std::vector<uint32_t> mGeomSPVCode;
-  vk::UniquePipelineLayout mPipelineLayout;
-  float mResolutionScale{1.f};
 
-  bool mAlphaBlend{};
+  int mIndex{-1};
 
 public:
   void loadGLSLFiles(std::string const &vertFile, std::string const &fragFile,
                      std::string const &geomFile = "");
-  void loadSPVFiles(std::string const &vertFile, std::string const &fragFile);
-  void loadSPVCode(std::vector<uint32_t> const &vertCode,
-                   std::vector<uint32_t> const &fragCode);
 
   std::future<void> loadGLSLFilesAsync(std::string const &vertFile,
                                        std::string const &fragFile,
                                        std::string const &geomFile = "");
-
-  vk::PipelineLayout getPipelineLayout() const { return mPipelineLayout.get(); }
 
   virtual std::shared_ptr<OutputDataLayout> getTextureOutputLayout() const = 0;
   virtual std::vector<std::string> getColorRenderTargetNames() const = 0;
@@ -135,33 +170,41 @@ public:
     return {};
   };
 
-  virtual vk::RenderPass getRenderPass() const = 0;
-  virtual vk::Pipeline getPipeline() const = 0;
   virtual std::vector<UniformBindingType> getUniformBindingTypes() const;
 
   /** name of textures used in the texture descriptor set (only in
    * deferred-like passes) */
   virtual std::vector<std::string> getInputTextureNames() const;
 
-  inline void enableAlphaBlend(bool enable) { mAlphaBlend = enable; }
   inline void setName(std::string const &name) { mName = name; }
   inline std::string getName() const { return mName; }
 
-  virtual vk::Pipeline createGraphicsPipeline(
+  // TODO: push constant
+  virtual vk::UniquePipelineLayout
+  createPipelineLayout(vk::Device device,
+                       std::vector<vk::DescriptorSetLayout> layouts) const;
+
+  virtual vk::UniqueRenderPass createRenderPass(
       vk::Device device, std::vector<vk::Format> const &colorFormats,
-      vk::Format depthFormat, vk::CullModeFlags cullMode,
-      vk::FrontFace frontFace,
+      vk::Format depthFormat,
       std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
           &colorTargetLayouts,
-      std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,
-      std::vector<vk::DescriptorSetLayout> const &descriptorSetLayouts,
-      std::map<std::string, SpecializationConstantValue> const
-          &specializationConstantInfo) = 0;
+      std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout) const = 0;
+
+  virtual vk::UniquePipeline
+  createPipeline(vk::Device device, vk::PipelineLayout layout,
+                 vk::RenderPass renderPass, vk::CullModeFlags cullMode,
+                 vk::FrontFace frontFace, bool alphaBlend,
+                 std::map<std::string, SpecializationConstantValue> const
+                     &specializationConstantInfo) const = 0;
 
   virtual std::vector<DescriptorSetDescription>
   getDescriptorSetDescriptions() const = 0;
 
-  inline float getResolutionScale() const { return mResolutionScale; }
+  // inline float getResolutionScale() const { return mResolutionScale; }
+
+  inline void setIndex(int index) { mIndex = index; }
+  inline int getIndex() const { return mIndex; }
 
   virtual ~BaseParser() = default;
 

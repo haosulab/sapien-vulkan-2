@@ -4,14 +4,19 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g3 -Wall -Wnon-virtual-dtor -Wno-deprecated-declarations")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -g0 -Wall -Wnon-virtual-dtor -Wno-deprecated-declarations")
 
-add_definitions(-DVULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1)
+option(BUILD_SHARED_LIBS "Build using shared libraries" OFF)
+option(SVULKAN2_PROFILE "Build with easy_profiler" OFF)
+option(SVULKAN2_BUILD_TEST "Build with unit test" OFF)
+option(SVULKAN2_CUDA_INTEROP "Allow CUDA to use Vulkan buffer" ON)
+option(SVULKAN2_TRACK_ALLOCATION "Track allocated resources ofr debugging" OFF)
+
+add_definitions(-DVULKAN_HPP_DISPATCH_LOADER_DYNAMIC)
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
   message("-- DEBUG Build")
   set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS_DEBUG})
   add_definitions(-DVK_VALIDATION)
   add_definitions(-D_DEBUG)
-  # add_definitions(-DTRACK_ALLOCATION)
 else ()
   message("-- RELEASE Build")
   set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS_RELEASE})
@@ -27,14 +32,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 find_package(assimp 5.0.1 REQUIRED PACKAGE_FIND_VERSION)
 find_package(Vulkan REQUIRED)
 find_package(Ktx REQUIRED)
-file(GLOB_RECURSE RENDER_SRC "src/*.cpp")
-
-set(SVULKAN2_PROFILE FALSE CACHE BOOL "Profile with easy_profiler")
-set(SVULKAN2_BUILD_TEST TRUE CACHE BOOL "Build sapien-vulkan-2 unit test")
-set(SVULKAN2_CUDA_INTEROP TRUE CACHE BOOL "Allow CUDA to use Vulkan buffer")
-set(SVULKAN2_TRACK_ALLOCATION FALSE CACHE BOOL "Tracks allocated resources")
-
-set(BUILD_SHARED_LIBS OFF)
+find_package(glfw3 REQUIRED)
 
 include_directories("include")
 include_directories("3rd_party/glslang")
@@ -42,6 +40,8 @@ include_directories("3rd_party/SPIRV-Cross")
 include_directories("3rd_party/VulkanMemoryAllocator")
 include_directories("$ENV{VULKAN_SDK}/include")
 include_directories("3rd_party/stb")
+link_directories("$ENV{VULKAN_SDK}/lib")
+include_directories("3rd_party/imgui" "3rd_party/imgui/backends" "3rd_party/ImGuizmo")
 
 if (${SVULKAN2_TRACK_ALLOCATION})
     add_definitions(-DTRACK_ALLOCATION)
@@ -49,16 +49,11 @@ endif()
 
 if (${SVULKAN2_CUDA_INTEROP})
     message("-- CUDA enabled in SVulkan2 ")
-    add_definitions(-DCUDA_INTEROP)
+    add_definitions(-DSVULKAN2_CUDA_INTEROP)
     include_directories("$ENV{CUDA_PATH}/include")
 else()
     message("-- CUDA not enabled in SVulkan2 ")
 endif()
-
-link_directories("$ENV{VULKAN_SDK}/lib")
-
-add_subdirectory("3rd_party/glslang")
-add_subdirectory("3rd_party/SPIRV-Cross")
 
 if (${SVULKAN2_BUILD_TEST})
   add_subdirectory("3rd_party/googletest")
@@ -71,8 +66,10 @@ if (${SVULKAN2_PROFILE})
   set(EASY_PROFILER_LIBRARY easy_profiler)
 endif()
 
-find_package(glfw3 REQUIRED)
-include_directories("3rd_party/imgui" "3rd_party/imgui/backends" "3rd_party/ImGuizmo")
+add_subdirectory("3rd_party/glslang")
+add_subdirectory("3rd_party/SPIRV-Cross")
+
+file(GLOB_RECURSE RENDER_SRC "src/*.cpp")
 file(GLOB GUI_SRC "3rd_party/imgui/*.cpp"
   "3rd_party/ImGuizmo/*.cpp"
   "3rd_party/imgui/backends/imgui_impl_glfw.cpp"
@@ -106,6 +103,6 @@ else ()
 endif ()
 
 if (${SVULKAN2_BUILD_TEST})
-    add_executable(unittest "test/shader/deferred.cpp")
+    add_executable(unittest "test/shader/shader_pack.cpp")
     target_link_libraries(unittest svulkan2 gtest_main)
 endif()

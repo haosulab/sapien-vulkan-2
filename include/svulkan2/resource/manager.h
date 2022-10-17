@@ -2,6 +2,9 @@
 #include "cubemap.h"
 #include "model.h"
 #include "svulkan2/common/config.h"
+#include "svulkan2/shader/shader_pack.h"
+#include "svulkan2/shader/shader_pack_instance.h"
+#include <memory>
 #include <unordered_map>
 
 namespace svulkan2 {
@@ -19,6 +22,14 @@ class SVResourceManager {
   std::unordered_map<std::string, std::shared_ptr<SVTexture>>
       mRandomTextureRegistry;
 
+  std::mutex mShaderPackLock{};
+  std::unordered_map<std::string, std::shared_ptr<shader::ShaderPack>>
+      mShaderPackRegistry;
+
+  std::mutex mShaderPackInstanceLock{};
+  std::unordered_map<std::string, std::vector<std::shared_ptr<shader::ShaderPackInstance>>>
+      mShaderPackInstanceRegistry;
+
   std::shared_ptr<InputDataLayout> mVertexLayout{};
   std::shared_ptr<InputDataLayout> mLineVertexLayout{};
 
@@ -33,6 +44,12 @@ class SVResourceManager {
 public:
   SVResourceManager();
   ~SVResourceManager() = default;
+
+  std::shared_ptr<shader::ShaderPack>
+  CreateShaderPack(std::string const &dirname);
+
+  std::shared_ptr<shader::ShaderPackInstance>
+  CreateShaderPackInstance(shader::ShaderPackInstanceDesc const &desc);
 
   std::shared_ptr<SVImage> CreateImageFromFile(std::string const &filename,
                                                uint32_t mipLevels);
@@ -76,8 +93,8 @@ public:
   void clearCachedResources();
 
   /** release gpu resources.
-    * NOTE: This MUST be called when no rendering is running!
-    * NOTE: All renders become invalid after calling this function!*/
+   * NOTE: This MUST be called when no rendering is running!
+   * NOTE: All renders become invalid after calling this function!*/
   void releaseGPUResourcesUnsafe();
 
   void setVertexLayout(std::shared_ptr<InputDataLayout> layout);

@@ -60,45 +60,25 @@ void DeferredPassParser::validate() const {
   }
 }
 
-vk::PipelineLayout DeferredPassParser::createPipelineLayout(
-    vk::Device device, std::vector<vk::DescriptorSetLayout> layouts) {
-  vk::PipelineLayoutCreateInfo pipelineLayoutInfo({}, layouts.size(),
-                                                  layouts.data());
-  mPipelineLayout = device.createPipelineLayoutUnique(pipelineLayoutInfo);
-
-  return mPipelineLayout.get();
-}
-
-vk::RenderPass DeferredPassParser::createRenderPass(
+vk::UniqueRenderPass DeferredPassParser::createRenderPass(
     vk::Device device, std::vector<vk::Format> const &colorFormats,
-    std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const &layouts) {
+    vk::Format depthFormat,
+    std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
+        &colorTargetLayouts,
+    std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout) const {
   std::vector<vk::AttachmentDescription> attachmentDescriptions;
   std::vector<vk::AttachmentReference> colorAttachments;
 
   auto elems = mTextureOutputLayout->getElementsSorted();
   for (uint32_t i = 0; i < elems.size(); ++i) {
     colorAttachments.push_back({i, vk::ImageLayout::eColorAttachmentOptimal});
-    // vk::Format format;
-    // if (elems[i].dtype == eFLOAT) {
-    //   // HACK
-    //   format = colorFormat == vk::Format::eR32G32B32A32Sfloat
-    //                ? vk::Format::eR32Sfloat
-    //                : vk::Format::eR8Unorm;
-    // } else if (elems[i].dtype == eFLOAT4) {
-    //   format = colorFormat;
-    // } else if (elems[i].dtype == eUINT4) {
-    //   format = vk::Format::eR32G32B32A32Uint;
-    // } else {
-    //   throw std::runtime_error(
-    //       "only float, float4 and uint4 are allowed in output attachments");
-    // }
     attachmentDescriptions.push_back(vk::AttachmentDescription(
         {}, colorFormats.at(i), vk::SampleCountFlagBits::e1,
         vk::AttachmentLoadOp::eDontCare,
         vk::AttachmentStoreOp::eStore, // color attachment load and store op
         vk::AttachmentLoadOp::eDontCare,
         vk::AttachmentStoreOp::eDontCare, // stencil load and store op
-        layouts[i].first, layouts[i].second));
+        colorTargetLayouts[i].first, colorTargetLayouts[i].second));
   }
 
   vk::SubpassDescription subpassDescription(
@@ -132,24 +112,16 @@ vk::RenderPass DeferredPassParser::createRenderPass(
               vk::AccessFlagBits::eColorAttachmentWrite),
   };
 
-  mRenderPass = device.createRenderPassUnique(vk::RenderPassCreateInfo(
+  return device.createRenderPassUnique(vk::RenderPassCreateInfo(
       {}, attachmentDescriptions.size(), attachmentDescriptions.data(), 1,
       &subpassDescription, 2, deps.data()));
-
-  return mRenderPass.get();
 }
 
-vk::Pipeline DeferredPassParser::createGraphicsPipeline(
-    vk::Device device, std::vector<vk::Format> const &colorFormats,
-    vk::Format depthFormat, vk::CullModeFlags cullMode, vk::FrontFace frontFace,
-    std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
-        &colorTargetLayouts,
-    std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,
-    std::vector<vk::DescriptorSetLayout> const &descriptorSetLayouts,
+vk::UniquePipeline DeferredPassParser::createPipeline(
+    vk::Device device, vk::PipelineLayout layout, vk::RenderPass renderPass,
+    vk::CullModeFlags cullMode, vk::FrontFace frontFace, bool alphaBlend,
     std::map<std::string, SpecializationConstantValue> const
-        &specializationConstantInfo) {
-  // render pass
-  auto renderPass = createRenderPass(device, colorFormats, colorTargetLayouts);
+        &specializationConstantInfo) const {
 
   // shaders
   vk::UniquePipelineCache pipelineCache =
@@ -174,14 +146,14 @@ vk::Pipeline DeferredPassParser::createGraphicsPipeline(
         throw std::runtime_error("Type mismatch on specialization constant " +
                                  elems[i].name + ".");
       }
-      if (elems[i].dtype == eINT) {
+      if (elems[i].dtype == DataType::eINT) {
         entries.emplace_back(elems[i].id, i * sizeof(int), sizeof(int));
         int v = specializationConstantInfo.find(elems[i].name) !=
                         specializationConstantInfo.end()
                     ? specializationConstantInfo.at(elems[i].name).intValue
                     : elems[i].intValue;
         std::memcpy(specializationData.data() + i, &v, sizeof(int));
-      } else if (elems[i].dtype == eFLOAT) {
+      } else if (elems[i].dtype == DataType::eFLOAT) {
         entries.emplace_back(elems[i].id, i * sizeof(float), sizeof(float));
         float v = specializationConstantInfo.find(elems[i].name) !=
                           specializationConstantInfo.end()
@@ -277,10 +249,9 @@ vk::Pipeline DeferredPassParser::createGraphicsPipeline(
       &pipelineViewportStateCreateInfo, &pipelineRasterizationStateCreateInfo,
       &pipelineMultisampleStateCreateInfo, &pipelineDepthStencilStateCreateInfo,
       &pipelineColorBlendStateCreateInfo, &pipelineDynamicStateCreateInfo,
-      createPipelineLayout(device, descriptorSetLayouts), renderPass);
-  mPipeline = device.createGraphicsPipelineUnique(pipelineCache.get(),
-                                                  graphicsPipelineCreateInfo);
-  return mPipeline.get();
+      layout, renderPass);
+  return device.createGraphicsPipelineUnique(pipelineCache.get(),
+                                             graphicsPipelineCreateInfo).value;
 }
 
 std::vector<std::string> DeferredPassParser::getColorRenderTargetNames() const {

@@ -20,11 +20,12 @@ void PrimitivePassParser::reflectSPV() {
   spirv_cross::Compiler fragComp(mFragSPVCode);
   try {
     mSpecializationConstantLayout = parseSpecializationConstant(fragComp);
-    if (mSpecializationConstantLayout->elements.contains("RESOLUTION_SCALE")) {
-      mResolutionScale =
-          mSpecializationConstantLayout->elements["RESOLUTION_SCALE"]
-              .floatValue;
-    }
+    // if (mSpecializationConstantLayout->elements.contains("RESOLUTION_SCALE"))
+    // {
+    //   mResolutionScale =
+    //       mSpecializationConstantLayout->elements["RESOLUTION_SCALE"]
+    //           .floatValue;
+    // }
 
     mTextureOutputLayout = parseTextureOutput(fragComp);
     for (uint32_t i = 0; i < 4; ++i) {
@@ -63,22 +64,12 @@ void PrimitivePassParser::validate() const {
   }
 };
 
-vk::PipelineLayout PrimitivePassParser::createPipelineLayout(
-    vk::Device device,
-    std::vector<vk::DescriptorSetLayout> descriptorSetLayouts) {
-  vk::PipelineLayoutCreateInfo pipelineLayoutInfo;
-  pipelineLayoutInfo.setLayoutCount = descriptorSetLayouts.size();
-  pipelineLayoutInfo.pSetLayouts = descriptorSetLayouts.data();
-  mPipelineLayout = device.createPipelineLayoutUnique(pipelineLayoutInfo);
-  return mPipelineLayout.get();
-}
-
-vk::RenderPass PrimitivePassParser::createRenderPass(
+vk::UniqueRenderPass PrimitivePassParser::createRenderPass(
     vk::Device device, std::vector<vk::Format> const &colorFormats,
     vk::Format depthFormat,
     std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
         &colorTargetLayouts,
-    std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout) {
+    std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout) const {
   std::vector<vk::AttachmentDescription> attachmentDescriptions;
   std::vector<vk::AttachmentReference> colorAttachments;
 
@@ -135,26 +126,17 @@ vk::RenderPass PrimitivePassParser::createRenderPass(
               vk::AccessFlagBits::eColorAttachmentWrite),
   };
 
-  mRenderPass = device.createRenderPassUnique(vk::RenderPassCreateInfo(
+  return device.createRenderPassUnique(vk::RenderPassCreateInfo(
       {}, attachmentDescriptions.size(), attachmentDescriptions.data(), 1,
       &subpassDescription, 2, deps.data()));
-
-  return mRenderPass.get();
 }
 
-vk::Pipeline PrimitivePassParser::createGraphicsPipelineHelper(
-    vk::Device device, std::vector<vk::Format> const &colorFormats,
-    vk::Format depthFormat, vk::CullModeFlags cullMode, vk::FrontFace frontFace,
-    std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
-        &colorTargetLayouts,
-    std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,
-    std::vector<vk::DescriptorSetLayout> const &descriptorSetLayouts,
+vk::UniquePipeline PrimitivePassParser::createPipelineHelper(
+    vk::Device device, vk::PipelineLayout layout, vk::RenderPass renderPass,
+    vk::CullModeFlags cullMode, vk::FrontFace frontFace, bool alphaBlend,
     std::map<std::string, SpecializationConstantValue> const
         &specializationConstantInfo,
-    int primitiveType, float primitiveSize) {
-  // render pass
-  auto renderPass = createRenderPass(device, colorFormats, depthFormat,
-                                     colorTargetLayouts, depthLayout);
+    int primitiveType, float primitiveSize) const {
 
   // shaders
   vk::UniquePipelineCache pipelineCache =
@@ -183,14 +165,14 @@ vk::Pipeline PrimitivePassParser::createGraphicsPipelineHelper(
         throw std::runtime_error("Type mismatch on specialization constant " +
                                  elems[i].name + ".");
       }
-      if (elems[i].dtype == eINT) {
+      if (elems[i].dtype == DataType::eINT) {
         entries.emplace_back(elems[i].id, i * sizeof(int), sizeof(int));
         int v = specializationConstantInfo.find(elems[i].name) !=
                         specializationConstantInfo.end()
                     ? specializationConstantInfo.at(elems[i].name).intValue
                     : elems[i].intValue;
         std::memcpy(specializationData.data() + i, &v, sizeof(int));
-      } else if (elems[i].dtype == eFLOAT) {
+      } else if (elems[i].dtype == DataType::eFLOAT) {
         entries.emplace_back(elems[i].id, i * sizeof(float), sizeof(float));
         float v = specializationConstantInfo.find(elems[i].name) !=
                           specializationConstantInfo.end()
@@ -274,7 +256,7 @@ vk::Pipeline PrimitivePassParser::createGraphicsPipelineHelper(
   auto outTextures = mTextureOutputLayout->getElementsSorted();
   for (uint32_t i = 0; i < numColorAttachments; ++i) {
     // alpha blend float textures
-    if (mAlphaBlend && outTextures[i].dtype == DataType::eFLOAT4) {
+    if (alphaBlend && outTextures[i].dtype == DataType::eFLOAT4) {
       pipelineColorBlendAttachmentStates.push_back(
           vk::PipelineColorBlendAttachmentState(
               true, vk::BlendFactor::eSrcAlpha,
@@ -308,10 +290,9 @@ vk::Pipeline PrimitivePassParser::createGraphicsPipelineHelper(
       &pipelineViewportStateCreateInfo, &pipelineRasterizationStateCreateInfo,
       &pipelineMultisampleStateCreateInfo, &pipelineDepthStencilStateCreateInfo,
       &pipelineColorBlendStateCreateInfo, &pipelineDynamicStateCreateInfo,
-      createPipelineLayout(device, descriptorSetLayouts), renderPass);
-  mPipeline = device.createGraphicsPipelineUnique(pipelineCache.get(),
-                                                  graphicsPipelineCreateInfo);
-  return mPipeline.get();
+      layout, renderPass);
+  return device.createGraphicsPipelineUnique(pipelineCache.get(),
+                                             graphicsPipelineCreateInfo).value;
 }
 
 std::vector<std::string>
@@ -336,6 +317,25 @@ PrimitivePassParser::getUniformBindingTypes() const {
     result.push_back(desc.type);
   }
   return result;
+}
+
+vk::UniquePipeline PointPassParser::createPipeline(
+    vk::Device device, vk::PipelineLayout layout, vk::RenderPass renderPass,
+    vk::CullModeFlags cullMode, vk::FrontFace frontFace, bool alphaBlend,
+    std::map<std::string, SpecializationConstantValue> const
+        &specializationConstantInfo) const {
+  return createPipelineHelper(device, layout, renderPass, cullMode, frontFace,
+                              alphaBlend, specializationConstantInfo, 0, 0.f);
+}
+
+vk::UniquePipeline LinePassParser::createPipeline(
+    vk::Device device, vk::PipelineLayout layout, vk::RenderPass renderPass,
+    vk::CullModeFlags cullMode, vk::FrontFace frontFace, bool alphaBlend,
+    std::map<std::string, SpecializationConstantValue> const
+        &specializationConstantInfo) const {
+  return createPipelineHelper(device, layout, renderPass, cullMode, frontFace,
+                              alphaBlend, specializationConstantInfo, 1,
+                              mLineWidth);
 }
 
 } // namespace shader

@@ -2,7 +2,7 @@
 #include "svulkan2/common/log.h"
 #include "svulkan2/common/vk.h"
 
-#ifdef CUDA_INTEROP
+#ifdef SVULKAN2_CUDA_INTEROP
 #include "svulkan2/common/cuda_helper.h"
 #endif
 
@@ -68,7 +68,7 @@ public:
 
   inline vk::DeviceSize getSize() const { return mSize; }
 
-#ifdef CUDA_INTEROP
+#ifdef SVULKAN2_CUDA_INTEROP
 
 #define checkCudaErrors(call)                                                  \
   do {                                                                         \

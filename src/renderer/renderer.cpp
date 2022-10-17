@@ -69,15 +69,9 @@ Renderer::Renderer(std::shared_ptr<RendererConfig> config) : mConfig(config) {
     return;
   }
 
-  mShaderManager = std::make_unique<shader::ShaderManager>(config);
-
-  mContext->getResourceManager()->setVertexLayout(
-      mShaderManager->getShaderConfig()->vertexLayout);
-
-  if (mShaderManager->getShaderConfig()->primitiveVertexLayout) {
-    mContext->getResourceManager()->setLineVertexLayout(
-        mShaderManager->getShaderConfig()->primitiveVertexLayout);
-  }
+  // preload the shader pack to get vertex layouts
+  mShaderPack =
+      mContext->getResourceManager()->CreateShaderPack(config->shaderDir);
 
   vk::DescriptorPoolSize pool_sizes[] = {
       {vk::DescriptorType::eCombinedImageSampler,
@@ -97,16 +91,18 @@ void Renderer::prepareRenderTargets(uint32_t width, uint32_t height) {
     return;
   }
 
-  auto renderTargetFormats = mShaderManager->getRenderTargetFormats();
-  auto renderTargetScales = mShaderManager->getRenderTargetScales();
+  auto renderTargetFormats = mShaderPackInstance->getRenderTargetFormats();
+  // auto renderTargetScales = mShaderManager->getRenderTargetScales();
+
   for (auto &[name, format] : renderTargetFormats) {
-    float scale = renderTargetScales[name];
+    float scale = 1.f; // renderTargetScales[name];
     mRenderTargets[name] = std::make_shared<resource::SVRenderTarget>(
         name, static_cast<uint32_t>(width * scale),
         static_cast<uint32_t>(height * scale), format);
     mRenderTargets[name]->createDeviceResources();
   }
-  mRenderTargetFinalLayouts = mShaderManager->getRenderTargetFinalLayouts();
+  mRenderTargetFinalLayouts =
+      mShaderPackInstance->getRenderTargetFinalLayouts();
 }
 
 void Renderer::prepareShadowRenderTargets() {
@@ -361,7 +357,16 @@ void Renderer::preparePipelines() {
   if (!mContext->isVulkanAvailable()) {
     return;
   }
-  mShaderManager->createPipelines(mSpecializationConstants);
+
+  shader::ShaderPackInstanceDesc desc;
+  desc.config = mConfig;
+  desc.specializationConstants = mSpecializationConstants;
+  mShaderPackInstance =
+      mContext->getResourceManager()->CreateShaderPackInstance(desc);
+  mShaderPackInstance->loadAsync().wait();
+  if (mShaderPackInstance->getShaderPack() != mShaderPack) {
+    throw std::runtime_error("renderer corrupted! impossible error in shader pack.");
+  }
 }
 
 void Renderer::prepareFramebuffers(uint32_t width, uint32_t height) {
@@ -369,22 +374,27 @@ void Renderer::prepareFramebuffers(uint32_t width, uint32_t height) {
     return;
   }
   mFramebuffers.clear();
-  auto parsers = mShaderManager->getAllPasses();
-  for (uint32_t i = 0; i < parsers.size(); ++i) {
-    float scale = parsers[i]->getResolutionScale();
-    auto names = parsers[i]->getColorRenderTargetNames();
+
+  auto passes = mShaderPack->getNonShadowPasses();
+
+  for (uint32_t i = 0; i < passes.size(); ++i) {
+    float scale = 1.0f; // TODO support scale
+    auto names = passes[i]->getColorRenderTargetNames();
     std::vector<vk::ImageView> attachments;
     for (auto &name : names) {
       attachments.push_back(mRenderTargets[name]->getImageView());
     }
-    auto depthName = parsers[i]->getDepthRenderTargetName();
+    auto depthName = passes[i]->getDepthRenderTargetName();
     if (depthName.has_value()) {
       attachments.push_back(mRenderTargets[depthName.value()]->getImageView());
     }
-    vk::FramebufferCreateInfo info({}, parsers[i]->getRenderPass(),
-                                   attachments.size(), attachments.data(),
-                                   static_cast<uint32_t>(scale * width),
-                                   static_cast<uint32_t>(scale * height), 1);
+
+    vk::FramebufferCreateInfo info(
+        {},
+        mShaderPackInstance->getNonShadowPassResources().at(i).renderPass.get(),
+        attachments.size(), attachments.data(),
+        static_cast<uint32_t>(scale * width),
+        static_cast<uint32_t>(scale * height), 1);
     mFramebuffers.push_back(
         mContext->getDevice().createFramebufferUnique(info));
   }
@@ -430,8 +440,8 @@ void Renderer::prepareShadowFramebuffers() {
   for (auto &target : targets) {
     vk::ImageView view = target->getImageView();
     vk::FramebufferCreateInfo info(
-        {}, mShaderManager->getShadowPass()->getRenderPass(), 1, &view,
-        target->getWidth(), target->getHeight(), 1);
+        {}, mShaderPackInstance->getShadowPassResources().renderPass.get(), 1,
+        &view, target->getWidth(), target->getHeight(), 1);
     mShadowFramebuffers.push_back(
         mContext->getDevice().createFramebufferUnique(info));
   }
@@ -495,9 +505,9 @@ void Renderer::recordShadows(scene::Scene &scene) {
   }
 
   // render shadow passes
-  if (mShaderManager->isShadowEnabled()) {
+  if (mShaderPack->getShadowPass()) {
     auto objects = scene.getObjects();
-    auto shadowPass = mShaderManager->getShadowPass();
+    auto shadowPass = mShaderPack->getShadowPass();
 
     std::vector<vk::ClearValue> clearValues;
     clearValues.push_back(vk::ClearDepthStencilValue(1.0f, 0));
@@ -518,14 +528,17 @@ void Renderer::recordShadows(scene::Scene &scene) {
                                       static_cast<uint32_t>(size)}};
 
       vk::RenderPassBeginInfo renderPassBeginInfo{
-          shadowPass->getRenderPass(), mShadowFramebuffers[shadowIdx].get(),
+          mShaderPackInstance->getShadowPassResources().renderPass.get(),
+          mShadowFramebuffers[shadowIdx].get(),
           vk::Rect2D({0, 0}, {static_cast<uint32_t>(size),
                               static_cast<uint32_t>(size)}),
           static_cast<uint32_t>(clearValues.size()), clearValues.data()};
       mShadowCommandBuffer->beginRenderPass(renderPassBeginInfo,
                                             vk::SubpassContents::eInline);
-      mShadowCommandBuffer->bindPipeline(vk::PipelineBindPoint::eGraphics,
-                                         shadowPass->getPipeline());
+      mShadowCommandBuffer->bindPipeline(
+          vk::PipelineBindPoint::eGraphics,
+          mShaderPackInstance->getShadowPassResources().pipeline.get());
+
       mShadowCommandBuffer->setViewport(0, viewport);
       mShadowCommandBuffer->setScissor(0, scissor);
 
@@ -538,7 +551,8 @@ void Renderer::recordShadows(scene::Scene &scene) {
           break;
         case shader::UniformBindingType::eLight:
           mShadowCommandBuffer->bindDescriptorSets(
-              vk::PipelineBindPoint::eGraphics, shadowPass->getPipelineLayout(),
+              vk::PipelineBindPoint::eGraphics,
+              mShaderPackInstance->getShadowPassResources().layout.get(),
               bindingIdx, mLightSets[shadowIdx].get(), nullptr);
           break;
         default:
@@ -557,8 +571,8 @@ void Renderer::recordShadows(scene::Scene &scene) {
           if (objectBinding >= 0) {
             mShadowCommandBuffer->bindDescriptorSets(
                 vk::PipelineBindPoint::eGraphics,
-                shadowPass->getPipelineLayout(), objectBinding,
-                mObjectSet[objIdx].get(), nullptr);
+                mShaderPackInstance->getShadowPassResources().layout.get(),
+                objectBinding, mObjectSet[objIdx].get(), nullptr);
           }
           mShadowCommandBuffer->bindVertexBuffers(
               0, shape->mesh->getVertexBuffer().getVulkanBuffer(),
@@ -574,9 +588,9 @@ void Renderer::recordShadows(scene::Scene &scene) {
     }
   }
 
-  if (mShaderManager->isPointShadowEnabled()) {
+  if (mShaderPack->getPointShadowPass()) {
     auto objects = scene.getPointObjects();
-    auto pointShadowPass = mShaderManager->getPointShadowPass();
+    auto pointShadowPass = mShaderPack->getPointShadowPass();
     std::vector<vk::ClearValue> clearValues;
     clearValues.push_back(vk::ClearDepthStencilValue(1.0f, 0));
 
@@ -596,15 +610,17 @@ void Renderer::recordShadows(scene::Scene &scene) {
                                       static_cast<uint32_t>(size)}};
 
       vk::RenderPassBeginInfo renderPassBeginInfo{
-          pointShadowPass->getRenderPass(),
+          mShaderPackInstance->getPointShadowPassResources().renderPass.get(),
           mShadowFramebuffers[shadowIdx].get(),
           vk::Rect2D({0, 0}, {static_cast<uint32_t>(size),
                               static_cast<uint32_t>(size)}),
           static_cast<uint32_t>(clearValues.size()), clearValues.data()};
       mShadowCommandBuffer->beginRenderPass(renderPassBeginInfo,
                                             vk::SubpassContents::eInline);
-      mShadowCommandBuffer->bindPipeline(vk::PipelineBindPoint::eGraphics,
-                                         pointShadowPass->getPipeline());
+      mShadowCommandBuffer->bindPipeline(
+          vk::PipelineBindPoint::eGraphics,
+          mShaderPackInstance->getPointShadowPassResources().pipeline.get());
+
       mShadowCommandBuffer->setViewport(0, viewport);
       mShadowCommandBuffer->setScissor(0, scissor);
 
@@ -618,8 +634,8 @@ void Renderer::recordShadows(scene::Scene &scene) {
         case shader::UniformBindingType::eLight:
           mShadowCommandBuffer->bindDescriptorSets(
               vk::PipelineBindPoint::eGraphics,
-              pointShadowPass->getPipelineLayout(), bindingIdx,
-              mLightSets[shadowIdx].get(), nullptr);
+              mShaderPackInstance->getPointShadowPassResources().layout.get(),
+              bindingIdx, mLightSets[shadowIdx].get(), nullptr);
           break;
         default:
           throw std::runtime_error(
@@ -634,15 +650,14 @@ void Renderer::recordShadows(scene::Scene &scene) {
         if (objectBinding >= 0) {
           mShadowCommandBuffer->bindDescriptorSets(
               vk::PipelineBindPoint::eGraphics,
-              pointShadowPass->getPipelineLayout(), objectBinding,
-              mObjectSet[mPointObjectIndex + objIdx].get(), nullptr);
+              mShaderPackInstance->getPointShadowPassResources().layout.get(),
+              objectBinding, mObjectSet[mPointObjectIndex + objIdx].get(),
+              nullptr);
         }
         mShadowCommandBuffer->bindVertexBuffers(
             0,
             objects[objIdx]->getPointSet()->getVertexBuffer().getVulkanBuffer(),
             vk::DeviceSize(0));
-        // mShadowCommandBuffer->draw(
-        //     objects[objIdx]->getPointSet()->getVertexCount(), 1, 0, 0);
         mShadowCommandBuffer->draw(objects[objIdx]->getVertexCount(), 1, 0, 0);
       }
       mShadowCommandBuffer->endRenderPass();
@@ -659,11 +674,11 @@ void Renderer::prepareObjects(scene::Scene &scene) {
   auto pointObjects = mScene->getPointObjects();
 
   auto size = objects.size();
-  if (mShaderManager->isLineEnabled()) {
+  if (mShaderPack->hasLinePass()) {
     mLineObjectIndex = size;
     size += lineObjects.size();
   }
-  if (mShaderManager->isPointEnabled()) {
+  if (mShaderPack->hasPointPass()) {
     mPointObjectIndex = size;
     size += pointObjects.size();
   }
@@ -693,12 +708,12 @@ void Renderer::prepareObjects(scene::Scene &scene) {
         shape->mesh->uploadToDevice();
       }
     }
-    if (mShaderManager->isLineEnabled()) {
+    if (mShaderPack->hasLinePass()) {
       for (auto obj : lineObjects) {
         obj->getLineSet()->uploadToDevice();
       }
     }
-    if (mShaderManager->isPointEnabled()) {
+    if (mShaderPack->hasPointPass()) {
       for (auto obj : pointObjects) {
         obj->getPointSet()->uploadToDevice();
       }
@@ -718,7 +733,8 @@ void Renderer::recordRenderPasses(scene::Scene &scene) {
   mRenderCommandBuffer->begin(vk::CommandBufferBeginInfo({}, {}));
 
   // classify shapes
-  uint32_t numGbufferPasses = mShaderManager->getNumGbufferPasses();
+  uint32_t numGbufferPasses = mShaderPack->getGbufferPasses().size();
+
   std::vector<std::vector<std::shared_ptr<resource::SVShape>>> shapes(
       numGbufferPasses);
 
@@ -758,7 +774,8 @@ void Renderer::recordRenderPasses(scene::Scene &scene) {
   auto linesetObjects = mScene->getLineObjects();
 
   // classify point sets
-  uint32_t numPointPasses = mShaderManager->getNumPointPasses();
+  uint32_t numPointPasses = mShaderPack->getPointPasses().size();
+
   auto pointsetObjects = mScene->getPointObjects();
   std::vector<std::vector<uint32_t>> pointsets(numPointPasses);
   for (uint32_t objectIndex = 0; objectIndex < pointsetObjects.size();
@@ -772,13 +789,14 @@ void Renderer::recordRenderPasses(scene::Scene &scene) {
 
   uint32_t gbufferIndex = 0;
   uint32_t pointIndex = 0;
-  auto passes = mShaderManager->getAllPasses();
+  auto passes = mShaderPack->getNonShadowPasses();
   for (uint32_t pass_index = 0; pass_index < passes.size(); ++pass_index) {
     EASY_BLOCK("Record render pass" + std::to_string(pass_index));
 
     auto pass = passes[pass_index];
 
-    float scale = pass->getResolutionScale();
+    float scale = 1.f; // TODO: fix
+    // float scale = pass->getResolutionScale();
     uint32_t passWidth = static_cast<uint32_t>(mWidth * scale);
     uint32_t passHeight = static_cast<uint32_t>(mHeight * scale);
 
@@ -794,35 +812,46 @@ void Renderer::recordRenderPasses(scene::Scene &scene) {
         vk::ClearColorValue(std::array<float, 4>{0.f, 0.f, 0.f, 0.f}));
     clearValues.push_back(vk::ClearDepthStencilValue(1.0f, 0));
     vk::RenderPassBeginInfo renderPassBeginInfo{
-        pass->getRenderPass(), mFramebuffers[pass_index].get(),
+        mShaderPackInstance->getNonShadowPassResources()
+            .at(pass_index)
+            .renderPass.get(),
+        mFramebuffers[pass_index].get(),
         vk::Rect2D({0, 0}, {static_cast<uint32_t>(passWidth),
                             static_cast<uint32_t>(passHeight)}),
         static_cast<uint32_t>(clearValues.size()), clearValues.data()};
     mRenderCommandBuffer->beginRenderPass(renderPassBeginInfo,
                                           vk::SubpassContents::eInline);
-    mRenderCommandBuffer->bindPipeline(vk::PipelineBindPoint::eGraphics,
-                                       pass->getPipeline());
+    mRenderCommandBuffer->bindPipeline(
+        vk::PipelineBindPoint::eGraphics,
+        mShaderPackInstance->getNonShadowPassResources()
+            .at(pass_index)
+            .pipeline.get());
     mRenderCommandBuffer->setViewport(0, viewport);
     mRenderCommandBuffer->setScissor(0, scissor);
 
     int objectBinding = -1;
     int materialBinding = -1;
     auto types = pass->getUniformBindingTypes();
+
+    auto layout = mShaderPackInstance->getNonShadowPassResources()
+                      .at(pass_index)
+                      .layout.get();
+
     for (uint32_t i = 0; i < types.size(); ++i) {
       switch (types[i]) {
       case shader::UniformBindingType::eCamera:
         mRenderCommandBuffer->bindDescriptorSets(
-            vk::PipelineBindPoint::eGraphics, pass->getPipelineLayout(), i,
-            mCameraSet.get(), nullptr);
+            vk::PipelineBindPoint::eGraphics, layout, i, mCameraSet.get(),
+            nullptr);
         break;
       case shader::UniformBindingType::eScene:
         mRenderCommandBuffer->bindDescriptorSets(
-            vk::PipelineBindPoint::eGraphics, pass->getPipelineLayout(), i,
-            mSceneSet.get(), nullptr);
+            vk::PipelineBindPoint::eGraphics, layout, i, mSceneSet.get(),
+            nullptr);
         break;
       case shader::UniformBindingType::eTextures:
         mRenderCommandBuffer->bindDescriptorSets(
-            vk::PipelineBindPoint::eGraphics, pass->getPipelineLayout(), i,
+            vk::PipelineBindPoint::eGraphics, layout, i,
             mInputTextureSets[pass_index].get(), nullptr);
         break;
       case shader::UniformBindingType::eObject:
@@ -843,13 +872,13 @@ void Renderer::recordRenderPasses(scene::Scene &scene) {
         uint32_t objectIndex = shapeObjectIndex[gbufferIndex][i];
         if (objectBinding >= 0) {
           mRenderCommandBuffer->bindDescriptorSets(
-              vk::PipelineBindPoint::eGraphics, pass->getPipelineLayout(),
-              objectBinding, mObjectSet[objectIndex].get(), nullptr);
+              vk::PipelineBindPoint::eGraphics, layout, objectBinding,
+              mObjectSet[objectIndex].get(), nullptr);
         }
         if (materialBinding >= 0) {
           mRenderCommandBuffer->bindDescriptorSets(
-              vk::PipelineBindPoint::eGraphics, pass->getPipelineLayout(),
-              materialBinding, shape->material->getDescriptorSet(), nullptr);
+              vk::PipelineBindPoint::eGraphics, layout, materialBinding,
+              shape->material->getDescriptorSet(), nullptr);
         }
         mRenderCommandBuffer->bindVertexBuffers(
             0, shape->mesh->getVertexBuffer().getVulkanBuffer(),
@@ -867,9 +896,8 @@ void Renderer::recordRenderPasses(scene::Scene &scene) {
         auto &lineObj = linesetObjects[index];
         if (objectBinding >= 0) {
           mRenderCommandBuffer->bindDescriptorSets(
-              vk::PipelineBindPoint::eGraphics, pass->getPipelineLayout(),
-              objectBinding, mObjectSet[mLineObjectIndex + index].get(),
-              nullptr);
+              vk::PipelineBindPoint::eGraphics, layout, objectBinding,
+              mObjectSet[mLineObjectIndex + index].get(), nullptr);
         }
         if (lineObj->getTransparency() < 1) {
           mLineSetCache.insert(lineObj->getLineSet());
@@ -887,8 +915,8 @@ void Renderer::recordRenderPasses(scene::Scene &scene) {
         auto &pointObj = pointsetObjects[objectIndex];
         if (objectBinding >= 0) {
           mRenderCommandBuffer->bindDescriptorSets(
-              vk::PipelineBindPoint::eGraphics, pass->getPipelineLayout(),
-              objectBinding, mObjectSet[mPointObjectIndex + i].get(), nullptr);
+              vk::PipelineBindPoint::eGraphics, layout, objectBinding,
+              mObjectSet[mPointObjectIndex + i].get(), nullptr);
         }
         if (pointObj->getTransparency() < 1) {
           mPointSetCache.insert(pointObj->getPointSet());
@@ -1004,7 +1032,7 @@ void Renderer::prepareRender(scene::Camera &camera) {
     preparePipelines();
 
     prepareRenderTargets(mWidth, mHeight);
-    if (mShaderManager->isShadowEnabled()) {
+    if (mShaderPack->getShadowPass()) {
       prepareShadowRenderTargets();
       prepareShadowFramebuffers();
     }
@@ -1015,7 +1043,7 @@ void Renderer::prepareRender(scene::Camera &camera) {
     mSpecializationConstantsChanged = false;
     mRequiresRebuild = false;
 
-    if (mShaderManager->isShadowEnabled()) {
+    if (mShaderPack->getShadowPass()) {
       prepareLightBuffers();
     }
     prepareSceneBuffer();
@@ -1037,25 +1065,27 @@ void Renderer::prepareRender(scene::Camera &camera) {
     EASY_BLOCK("Update camera & scene");
     // update camera
     camera.uploadToDevice(
-        *mCameraBuffer, *mShaderManager->getShaderConfig()->cameraBufferLayout);
+        *mCameraBuffer,
+        *mShaderPack->getShaderInputLayouts()->cameraBufferLayout);
 
     // update scene
     mScene->uploadToDevice(
-        *mSceneBuffer, *mShaderManager->getShaderConfig()->sceneBufferLayout);
+        *mSceneBuffer,
+        *mShaderPack->getShaderInputLayouts()->sceneBufferLayout);
 
-    if (mShaderManager->isShadowEnabled()) {
+    if (mShaderPack->getShadowPass()) {
       mScene->uploadShadowToDevice(
           *mShadowBuffer, mLightBuffers,
-          *mShaderManager->getShaderConfig()->shadowBufferLayout);
+          *mShaderPack->getShaderInputLayouts()->shadowBufferLayout);
     }
   }
 
   {
     EASY_BLOCK("Update objects");
-    auto bufferSize =
-        mShaderManager->getShaderConfig()->objectBufferLayout->getAlignedSize(
-            mContext->getPhysicalDeviceLimits()
-                .minUniformBufferOffsetAlignment);
+    auto bufferSize = mShaderPack->getShaderInputLayouts()
+                          ->objectBufferLayout->getAlignedSize(
+                              mContext->getPhysicalDeviceLimits()
+                                  .minUniformBufferOffsetAlignment);
 
     // update objects
 
@@ -1063,7 +1093,7 @@ void Renderer::prepareRender(scene::Camera &camera) {
     auto objects = mScene->getObjects();
 
     {
-      auto layout = mShaderManager->getShaderConfig()->objectBufferLayout;
+      auto layout = mShaderPack->getShaderInputLayouts()->objectBufferLayout;
       int modelMatrixOffset = layout->elements.at("modelMatrix").offset;
       int segmentationOffset = layout->elements.at("segmentation").offset;
       int prevModelMatrixOffset =
@@ -1118,20 +1148,20 @@ void Renderer::prepareRender(scene::Camera &camera) {
       }
     }
 
-    if (mShaderManager->isLineEnabled()) {
+    if (mShaderPack->hasLinePass()) {
       auto lineObjects = mScene->getLineObjects();
       for (uint32_t i = 0; i < lineObjects.size(); ++i) {
         lineObjects[i]->uploadToDevice(
             *mObjectBuffer, (mLineObjectIndex + i) * bufferSize,
-            *mShaderManager->getShaderConfig()->objectBufferLayout);
+            *mShaderPack->getShaderInputLayouts()->objectBufferLayout);
       }
     }
-    if (mShaderManager->isPointEnabled()) {
+    if (mShaderPack->hasPointPass()) {
       auto pointObjects = mScene->getPointObjects();
       for (uint32_t i = 0; i < pointObjects.size(); ++i) {
         pointObjects[i]->uploadToDevice(
             *mObjectBuffer, (mPointObjectIndex + i) * bufferSize,
-            *mShaderManager->getShaderConfig()->objectBufferLayout);
+            *mShaderPack->getShaderInputLayouts()->objectBufferLayout);
       }
     }
     mObjectBuffer->unmap();
@@ -1203,15 +1233,23 @@ std::vector<std::string> Renderer::getDisplayTargetNames() const {
   if (!mContext->isVulkanAvailable()) {
     return {};
   }
-  std::vector<std::string> result;
-  auto renderTargetFormats = mShaderManager->getRenderTargetFormats();
-  for (auto &[name, format] : renderTargetFormats) {
-    if (format == vk::Format::eR8G8B8A8Unorm ||
-        format == vk::Format::eR32G32B32A32Sfloat) {
-      result.push_back(name);
+
+  std::unordered_set<std::string> names;
+  for (auto pass : mShaderPack->getNonShadowPasses()) {
+    auto depthName = pass->getDepthRenderTargetName();
+    for (auto &elem : pass->getTextureOutputLayout()->elements) {
+      std::string texName = shader::getOutTextureName(elem.second.name);
+      if (texName.ends_with("Depth")) {
+        throw std::runtime_error(
+            "You are not allowed to name your texture \"*Depth\"");
+      }
+      if (elem.second.dtype == DataType::eFLOAT4) {
+        names.insert(texName);
+      }
     }
   }
-  return result;
+
+  return std::vector(names.begin(), names.end());
 }
 
 std::vector<std::string> Renderer::getRenderTargetNames() const {
@@ -1219,12 +1257,23 @@ std::vector<std::string> Renderer::getRenderTargetNames() const {
     return {};
   }
 
-  std::vector<std::string> result;
-  auto renderTargetFormats = mShaderManager->getRenderTargetFormats();
-  for (auto &[name, format] : renderTargetFormats) {
-    result.push_back(name);
+  std::unordered_set<std::string> names;
+  for (auto pass : mShaderPack->getNonShadowPasses()) {
+    auto depthName = pass->getDepthRenderTargetName();
+    if (depthName.has_value()) {
+      names.insert(depthName.value());
+    }
+    for (auto &elem : pass->getTextureOutputLayout()->elements) {
+      std::string texName = shader::getOutTextureName(elem.second.name);
+      if (texName.ends_with("Depth")) {
+        throw std::runtime_error(
+            "You are not allowed to name your texture \"*Depth\"");
+      }
+      names.insert(texName);
+    }
   }
-  return result;
+
+  return std::vector(names.begin(), names.end());
 }
 
 void Renderer::display(std::string const &renderTargetName,
@@ -1245,7 +1294,7 @@ void Renderer::display(std::string const &renderTargetName,
   mDisplayCommandBuffer->begin(
       {vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
 
-  auto &renderTarget = mRenderTargets.at(renderTargetName);
+  auto renderTarget = mRenderTargets.at(renderTargetName);
   auto targetFormat = renderTarget->getFormat();
   if (targetFormat != vk::Format::eR8G8B8A8Unorm &&
       targetFormat != vk::Format::eR32G32B32A32Sfloat) {
@@ -1319,13 +1368,13 @@ void Renderer::display(std::string const &renderTargetName,
 }
 
 void Renderer::prepareSceneBuffer() {
-  if (mShaderManager->isShadowEnabled()) {
+  if (mShaderPack->getShadowPass()) {
     mShadowBuffer = mContext->getAllocator().allocateUniformBuffer(
-        mShaderManager->getShaderConfig()->shadowBufferLayout->size);
+        mShaderPack->getShaderInputLayouts()->shadowBufferLayout->size);
   }
   mSceneBuffer = mContext->getAllocator().allocateUniformBuffer(
-      mShaderManager->getShaderConfig()->sceneBufferLayout->size);
-  auto layout = mShaderManager->getSceneDescriptorSetLayout();
+      mShaderPack->getShaderInputLayouts()->sceneBufferLayout->size);
+  auto layout = mShaderPackInstance->getSceneDescriptorSetLayout();
 
   mSceneSet =
       std::move(mContext->getDevice()
@@ -1333,7 +1382,8 @@ void Renderer::prepareSceneBuffer() {
                         mDescriptorPool.get(), 1, &layout))
                     .front());
 
-  auto &setDesc = mShaderManager->getSceneSetDesc();
+  auto setDesc = mShaderPack->getShaderInputLayouts()->sceneSetDescription;
+
   for (uint32_t bindingIndex = 0; bindingIndex < setDesc.bindings.size();
        ++bindingIndex) {
     auto binding = setDesc.bindings.at(bindingIndex);
@@ -1445,8 +1495,9 @@ void Renderer::prepareSceneBuffer() {
 
 void Renderer::prepareObjectBuffers(uint32_t numObjects) {
   auto bufferSize =
-      mShaderManager->getShaderConfig()->objectBufferLayout->getAlignedSize(
+      mShaderPack->getShaderInputLayouts()->objectBufferLayout->getAlignedSize(
           mContext->getPhysicalDeviceLimits().minUniformBufferOffsetAlignment);
+
   bool updated{false};
 
   // shrink
@@ -1470,7 +1521,7 @@ void Renderer::prepareObjectBuffers(uint32_t numObjects) {
     mObjectBuffer = mContext->getAllocator().allocateUniformBuffer(
         bufferSize * newSize, false);
 
-    auto layout = mShaderManager->getObjectDescriptorSetLayout();
+    auto layout = mShaderPackInstance->getObjectDescriptorSetLayout();
     for (uint32_t i = mObjectSet.size(); i < newSize; ++i) {
       mObjectSet.push_back(mObjectPool->allocateSet(layout));
     }
@@ -1493,7 +1544,9 @@ void Renderer::prepareObjectBuffers(uint32_t numObjects) {
 }
 
 void Renderer::prepareLightBuffers() {
-  auto lightBufferLayout = mShaderManager->getShaderConfig()->lightBufferLayout;
+  auto lightBufferLayout =
+      mShaderPack->getShaderInputLayouts()->lightBufferLayout;
+
   uint32_t numShadows =
       mPointLightShadowSizes.size() * 6 + mDirectionalLightShadowSizes.size() +
       mSpotLightShadowSizes.size() + mTexturedLightShadowSizes.size();
@@ -1507,9 +1560,9 @@ void Renderer::prepareLightBuffers() {
 
   // too few shadow sets
   for (uint32_t i = mLightSets.size(); i < numShadows; ++i) {
-    auto layout = mShaderManager->getLightDescriptorSetLayout();
+    auto layout = mShaderPackInstance->getLightDescriptorSetLayout();
     mLightBuffers.push_back(mContext->getAllocator().allocateUniformBuffer(
-        mShaderManager->getShaderConfig()->lightBufferLayout->size));
+        lightBufferLayout->size));
     auto shadowSet = std::move(
         mContext->getDevice()
             .allocateDescriptorSetsUnique(vk::DescriptorSetAllocateInfo(
@@ -1524,8 +1577,9 @@ void Renderer::prepareLightBuffers() {
 }
 
 void Renderer::prepareInputTextureDescriptorSets() {
-  auto layouts = mShaderManager->getInputTextureLayouts();
-  auto passes = mShaderManager->getAllPasses();
+  auto layouts = mShaderPackInstance->getInputTextureLayouts();
+  auto passes = mShaderPack->getNonShadowPasses();
+
   mInputTextureSets.clear();
   for (uint32_t i = 0; i < passes.size(); ++i) {
     auto layout = layouts[i];
@@ -1582,8 +1636,9 @@ void Renderer::prepareInputTextureDescriptorSets() {
 
 void Renderer::prepareCameaBuffer() {
   mCameraBuffer = mContext->getAllocator().allocateUniformBuffer(
-      mShaderManager->getShaderConfig()->cameraBufferLayout->size);
-  auto layout = mShaderManager->getCameraDescriptorSetLayout();
+      mShaderPack->getShaderInputLayouts()->cameraBufferLayout->size);
+
+  auto layout = mShaderPackInstance->getCameraDescriptorSetLayout();
   mCameraSet =
       std::move(mContext->getDevice()
                     .allocateDescriptorSetsUnique(vk::DescriptorSetAllocateInfo(

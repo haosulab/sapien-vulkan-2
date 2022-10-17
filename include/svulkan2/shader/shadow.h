@@ -8,9 +8,6 @@ class ShadowPassParser : public BaseParser {
   std::shared_ptr<InputDataLayout> mVertexInputLayout;
   std::vector<DescriptorSetDescription> mDescriptorSetDescriptions;
 
-  vk::UniqueRenderPass mRenderPass;
-  vk::UniquePipeline mPipeline;
-
 public:
   inline std::shared_ptr<InputDataLayout> getVertexInputLayout() const {
     return mVertexInputLayout;
@@ -26,29 +23,21 @@ public:
   };
   std::optional<std::string> getDepthRenderTargetName() const override;
 
-  vk::PipelineLayout
-  createPipelineLayout(vk::Device device,
-                       std::vector<vk::DescriptorSetLayout> layouts);
-
-  vk::RenderPass createRenderPass(
-      vk::Device device, vk::Format depthFormat,
-      std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout);
-
-  vk::Pipeline createGraphicsPipeline(
+  vk::UniqueRenderPass createRenderPass(
       vk::Device device, std::vector<vk::Format> const &colorFormats,
-      vk::Format depthFormat, vk::CullModeFlags cullMode,
-      vk::FrontFace frontFace,
+      vk::Format depthFormat,
       std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
           &colorTargetLayouts,
-      std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,
-      std::vector<vk::DescriptorSetLayout> const &descriptorSetLayouts,
-      std::map<std::string, SpecializationConstantValue> const
-          &specializationConstantInfo) override;
+      std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout)
+      const override;
 
-  inline vk::RenderPass getRenderPass() const override {
-    return mRenderPass.get();
-  }
-  inline vk::Pipeline getPipeline() const override { return mPipeline.get(); }
+  vk::UniquePipeline
+  createPipeline(vk::Device device, vk::PipelineLayout layout,
+                 vk::RenderPass renderPass, vk::CullModeFlags cullMode,
+                 vk::FrontFace frontFace, bool alphaBlend,
+                 std::map<std::string, SpecializationConstantValue> const
+                     &specializationConstantInfo) const override;
+
   std::vector<UniformBindingType> getUniformBindingTypes() const override;
 
   inline std::vector<DescriptorSetDescription>

@@ -12,17 +12,8 @@ struct RendererConfig {
       vk::Format::eR32G32B32A32Sfloat}; // R8G8B8A8Unorm, R32G32B32A32Sfloat
   vk::Format depthFormat{vk::Format::eD32Sfloat}; // D32Sfloat
   vk::CullModeFlags culling{vk::CullModeFlagBits::eBack};
-};
 
-/** Options configured by the shaders  */
-struct ShaderConfig {
-  std::shared_ptr<InputDataLayout> vertexLayout;
-  std::shared_ptr<InputDataLayout> primitiveVertexLayout;
-  std::shared_ptr<StructDataLayout> objectBufferLayout;
-  std::shared_ptr<StructDataLayout> sceneBufferLayout;
-  std::shared_ptr<StructDataLayout> cameraBufferLayout;
-  std::shared_ptr<StructDataLayout> lightBufferLayout;
-  std::shared_ptr<StructDataLayout> shadowBufferLayout;
+  bool operator==(RendererConfig const &other) const = default;
 };
 
 } // namespace svulkan2

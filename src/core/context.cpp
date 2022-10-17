@@ -148,7 +148,7 @@ void Context::createInstance() {
 
   std::vector<const char *> instanceExtensions;
 
-#ifdef CUDA_INTEROP
+#ifdef SVULKAN2_CUDA_INTEROP
   instanceExtensions.push_back(
       VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME);
   instanceExtensions.push_back(
@@ -285,7 +285,7 @@ Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
     device.getProperties2(&p2);
     busid = pciInfo.pciBus;
 
-#ifdef CUDA_INTEROP
+#ifdef SVULKAN2_CUDA_INTEROP
     cudaId = getCudaDeviceIdFromPhysicalDevice(device);
 #endif
 
@@ -306,7 +306,7 @@ Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
   }
   log::info(ss.str());
 
-#ifdef CUDA_INTEROP
+#ifdef SVULKAN2_CUDA_INTEROP
   ss = {};
   ss << "Devices visible to Cuda" << std::endl;
   ss << std::setw(10) << "CudaId" << std::setw(10) << "PciBus" << std::setw(25)
@@ -548,7 +548,7 @@ void Context::createDevice() {
   descriptorFeatures.setDescriptorBindingPartiallyBound(true);
   timelineSemaphoreFeatures.setTimelineSemaphore(true);
 
-#ifdef CUDA_INTEROP
+#ifdef SVULKAN2_CUDA_INTEROP
   deviceExtensions.push_back(VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME);
   deviceExtensions.push_back(VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME);
   deviceExtensions.push_back(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);

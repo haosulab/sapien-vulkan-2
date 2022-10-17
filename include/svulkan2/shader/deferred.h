@@ -9,9 +9,6 @@ class DeferredPassParser : public BaseParser {
   std::shared_ptr<OutputDataLayout> mTextureOutputLayout;
   std::vector<DescriptorSetDescription> mDescriptorSetDescriptions;
 
-  vk::UniqueRenderPass mRenderPass;
-  vk::UniquePipeline mPipeline;
-
 public:
   inline std::shared_ptr<SpecializationConstantLayout>
   getSpecializationConstantLayout() const {
@@ -23,31 +20,20 @@ public:
     return mTextureOutputLayout;
   }
 
-  virtual inline vk::RenderPass getRenderPass() const override {
-    return mRenderPass.get();
-  }
-  virtual inline vk::Pipeline getPipeline() const override {
-    return mPipeline.get();
-  }
-
-  vk::PipelineLayout
-  createPipelineLayout(vk::Device device,
-                       std::vector<vk::DescriptorSetLayout> layouts);
-
-  vk::RenderPass createRenderPass(
+  vk::UniqueRenderPass createRenderPass(
       vk::Device device, std::vector<vk::Format> const &colorFormats,
-      std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const &layouts);
-
-  virtual vk::Pipeline createGraphicsPipeline(
-      vk::Device device, std::vector<vk::Format> const &colorFormats,
-      vk::Format depthFormat, vk::CullModeFlags cullMode,
-      vk::FrontFace frontFace,
+      vk::Format depthFormat,
       std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
           &colorTargetLayouts,
-      std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,
-      std::vector<vk::DescriptorSetLayout> const &descriptorSetLayouts,
-      std::map<std::string, SpecializationConstantValue> const
-          &specializationConstantInfo) override;
+      std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout)
+      const override;
+
+  vk::UniquePipeline
+  createPipeline(vk::Device device, vk::PipelineLayout layout,
+                 vk::RenderPass renderPass, vk::CullModeFlags cullMode,
+                 vk::FrontFace frontFace, bool alphaBlend,
+                 std::map<std::string, SpecializationConstantValue> const
+                     &specializationConstantInfo) const override;
 
   std::vector<std::string> getColorRenderTargetNames() const override;
   std::vector<std::string> getInputTextureNames() const override;

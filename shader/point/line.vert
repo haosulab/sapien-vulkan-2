@@ -22,17 +22,17 @@ layout(set = 1, binding = 0) uniform ObjectBuffer {
 } objectBuffer;
 
 layout(location = 0) in vec3 position;
-layout(location = 1) in vec3 normal;
-layout(location = 2) in vec2 uv;
-layout(location = 3) in vec3 tangent;
-layout(location = 4) in vec3 bitangent;
+layout(location = 1) in float scale;
+layout(location = 2) in vec4 color;
 
 layout(location = 0) out vec4 outPosition;
-layout(location = 1) out vec2 outUV;
+layout(location = 1) out vec4 outPrevPosition;
+layout(location = 2) out vec4 outColor;
 
 void main() {
   mat4 modelView = cameraBuffer.viewMatrix * objectBuffer.modelMatrix;
   outPosition = modelView * vec4(position, 1);
-  outUV = uv;
+  outPrevPosition = cameraBuffer.prevViewMatrix * objectBuffer.prevModelMatrix * vec4(position, 1);
   gl_Position = cameraBuffer.projectionMatrix * outPosition;
+  outColor = color;
 }

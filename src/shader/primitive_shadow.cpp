@@ -45,20 +45,12 @@ PrimitiveShadowPassParser::getDepthRenderTargetName() const {
   return "ShadowDepth";
 }
 
-vk::PipelineLayout PrimitiveShadowPassParser::createPipelineLayout(
-    vk::Device device,
-    std::vector<vk::DescriptorSetLayout> descriptorSetLayouts) {
-  vk::PipelineLayoutCreateInfo pipelineLayoutInfo;
-  pipelineLayoutInfo.setLayoutCount = descriptorSetLayouts.size();
-  pipelineLayoutInfo.pSetLayouts = descriptorSetLayouts.data();
-  mPipelineLayout = device.createPipelineLayoutUnique(pipelineLayoutInfo);
-
-  return mPipelineLayout.get();
-}
-
-vk::RenderPass PrimitiveShadowPassParser::createRenderPass(
-    vk::Device device, vk::Format depthFormat,
-    std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout) {
+vk::UniqueRenderPass PrimitiveShadowPassParser::createRenderPass(
+    vk::Device device, std::vector<vk::Format> const &colorFormats,
+    vk::Format depthFormat,
+    std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
+        &colorTargetLayouts,
+    std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout) const {
   std::vector<vk::AttachmentDescription> attachmentDescriptions;
 
   // Only Depth Attachment needed for Shadow Mapping
@@ -106,25 +98,17 @@ vk::RenderPass PrimitiveShadowPassParser::createRenderPass(
               vk::AccessFlagBits::eColorAttachmentWrite),
   };
 
-  mRenderPass = device.createRenderPassUnique(vk::RenderPassCreateInfo(
+  return device.createRenderPassUnique(vk::RenderPassCreateInfo(
       {}, attachmentDescriptions.size(), attachmentDescriptions.data(), 1,
       &subpassDescription, 2, deps.data()));
-
-  return mRenderPass.get();
 }
 
-vk::Pipeline PrimitiveShadowPassParser::createGraphicsPipelineHelper(
-    vk::Device device, std::vector<vk::Format> const &colorFormats,
-    vk::Format depthFormat, vk::CullModeFlags cullMode, vk::FrontFace frontFace,
-    std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
-        &colorTargetLayouts,
-    std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,
-    std::vector<vk::DescriptorSetLayout> const &descriptorSetLayouts,
+vk::UniquePipeline PrimitiveShadowPassParser::createPipelineHelper(
+    vk::Device device, vk::PipelineLayout layout, vk::RenderPass renderPass,
+    vk::CullModeFlags cullMode, vk::FrontFace frontFace, bool alphaBlend,
     std::map<std::string, SpecializationConstantValue> const
         &specializationConstantInfo,
-    int primitiveType, float primitiveSize) {
-  // render pass
-  auto renderPass = createRenderPass(device, depthFormat, depthLayout);
+    int primitiveType, float primitiveSize) const {
 
   // shaders
   vk::UniquePipelineCache pipelineCache =
@@ -207,11 +191,9 @@ vk::Pipeline PrimitiveShadowPassParser::createGraphicsPipelineHelper(
       &pipelineInputAssemblyStateCreateInfo, nullptr,
       &pipelineViewportStateCreateInfo, &pipelineRasterizationStateCreateInfo,
       &pipelineMultisampleStateCreateInfo, &pipelineDepthStencilStateCreateInfo,
-      nullptr, &pipelineDynamicStateCreateInfo,
-      createPipelineLayout(device, descriptorSetLayouts), renderPass);
-  mPipeline = device.createGraphicsPipelineUnique(pipelineCache.get(),
-                                                  graphicsPipelineCreateInfo);
-  return mPipeline.get();
+      nullptr, &pipelineDynamicStateCreateInfo, layout, renderPass);
+  return device.createGraphicsPipelineUnique(pipelineCache.get(),
+                                             graphicsPipelineCreateInfo).value;
 }
 
 std::vector<UniformBindingType>
@@ -221,6 +203,15 @@ PrimitiveShadowPassParser::getUniformBindingTypes() const {
     result.push_back(desc.type);
   }
   return result;
+}
+
+vk::UniquePipeline PointShadowParser::createPipeline(
+    vk::Device device, vk::PipelineLayout layout, vk::RenderPass renderPass,
+    vk::CullModeFlags cullMode, vk::FrontFace frontFace, bool alphaBlend,
+    std::map<std::string, SpecializationConstantValue> const
+        &specializationConstantInfo) const {
+  return createPipelineHelper(device, layout, renderPass, cullMode, frontFace,
+                              alphaBlend, specializationConstantInfo, 0, 0.f);
 }
 
 } // namespace shader

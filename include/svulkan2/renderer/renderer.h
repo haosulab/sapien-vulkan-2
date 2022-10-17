@@ -4,7 +4,8 @@
 #include "svulkan2/resource/cubemap.h"
 #include "svulkan2/resource/render_target.h"
 #include "svulkan2/scene/scene.h"
-#include "svulkan2/shader/shader_manager.h"
+#include "svulkan2/shader/shader_pack_instance.h"
+// #include "svulkan2/shader/shader_manager.h"
 #include <map>
 
 namespace svulkan2 {
@@ -21,7 +22,10 @@ class Renderer {
   vk::UniqueDescriptorPool mDescriptorPool;
   std::unique_ptr<core::DynamicDescriptorPool> mObjectPool;
 
-  std::unique_ptr<shader::ShaderManager> mShaderManager;
+  // std::unique_ptr<shader::ShaderManager> mShaderManager;
+
+  std::shared_ptr<shader::ShaderPack> mShaderPack;
+  std::shared_ptr<shader::ShaderPackInstance> mShaderPackInstance;
   std::unordered_map<std::string, std::shared_ptr<resource::SVRenderTarget>>
       mRenderTargets;
 
@@ -89,7 +93,7 @@ class Renderer {
   uint64_t mLastVersion{0};
   scene::Scene *mScene{nullptr};
 
-#ifdef CUDA_INTEROP
+#ifdef SVULKAN2_CUDA_INTEROP
   std::map<std::string, std::shared_ptr<core::Buffer>> mTransferBuffers;
 #endif
 public:

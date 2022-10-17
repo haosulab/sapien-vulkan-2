@@ -10,7 +10,7 @@
 
 namespace svulkan2 {
 
-enum DataType {
+enum class DataType {
   eSTRUCT,
   eINT,
   eINT2,
@@ -32,39 +32,39 @@ enum DataType {
 
 inline std::string DataTypeToString(DataType type) {
   switch (type) {
-  case eSTRUCT:
+  case DataType::eSTRUCT:
     return "struct";
-  case eINT:
+  case DataType::eINT:
     return "int";
-  case eINT2:
+  case DataType::eINT2:
     return "int2";
-  case eINT3:
+  case DataType::eINT3:
     return "int3";
-  case eINT4:
+  case DataType::eINT4:
     return "int4";
-  case eINT44:
+  case DataType::eINT44:
     return "int44";
-  case eUINT:
+  case DataType::eUINT:
     return "uint";
-  case eUINT2:
+  case DataType::eUINT2:
     return "uint2";
-  case eUINT3:
+  case DataType::eUINT3:
     return "uint3";
-  case eUINT4:
+  case DataType::eUINT4:
     return "uint4";
-  case eUINT44:
+  case DataType::eUINT44:
     return "uint44";
-  case eFLOAT:
+  case DataType::eFLOAT:
     return "float";
-  case eFLOAT2:
+  case DataType::eFLOAT2:
     return "float2";
-  case eFLOAT3:
+  case DataType::eFLOAT3:
     return "float3";
-  case eFLOAT4:
+  case DataType::eFLOAT4:
     return "float4";
-  case eFLOAT44:
+  case DataType::eFLOAT44:
     return "float44";
-  case eUNKNOWN:
+  case DataType::eUNKNOWN:
     return "unknown";
   }
   throw std::runtime_error("invalid data type");
@@ -72,39 +72,39 @@ inline std::string DataTypeToString(DataType type) {
 
 inline uint32_t GetDataTypeSize(DataType type) {
   switch (type) {
-  case eSTRUCT:
+  case DataType::eSTRUCT:
     return 0;
-  case eINT:
+  case DataType::eINT:
     return 4;
-  case eINT2:
+  case DataType::eINT2:
     return 8;
-  case eINT3:
+  case DataType::eINT3:
     return 12;
-  case eINT4:
+  case DataType::eINT4:
     return 16;
-  case eINT44:
+  case DataType::eINT44:
     return 64;
-  case eUINT:
+  case DataType::eUINT:
     return 4;
-  case eUINT2:
+  case DataType::eUINT2:
     return 8;
-  case eUINT3:
+  case DataType::eUINT3:
     return 12;
-  case eUINT4:
+  case DataType::eUINT4:
     return 16;
-  case eUINT44:
+  case DataType::eUINT44:
     return 64;
-  case eFLOAT:
+  case DataType::eFLOAT:
     return 4;
-  case eFLOAT2:
+  case DataType::eFLOAT2:
     return 8;
-  case eFLOAT3:
+  case DataType::eFLOAT3:
     return 12;
-  case eFLOAT4:
+  case DataType::eFLOAT4:
     return 16;
-  case eFLOAT44:
+  case DataType::eFLOAT44:
     return 64;
-  case eUNKNOWN:
+  case DataType::eUNKNOWN:
     return 0;
   }
   throw std::runtime_error("invalid data type");
@@ -139,7 +139,7 @@ struct InputDataLayout {
   struct Element {
     std::string name{};
     uint32_t location{0};
-    DataType dtype{eFLOAT};
+    DataType dtype{DataType::eFLOAT};
     inline uint32_t getSize() const { return GetDataTypeSize(dtype); }
     inline bool operator==(Element const &other) const {
       return name == other.name && location == other.location &&
@@ -165,7 +165,7 @@ struct OutputDataLayout {
   struct Element {
     std::string name{};
     uint32_t location{0};
-    DataType dtype{eFLOAT};
+    DataType dtype{DataType::eFLOAT};
   };
 
   std::unordered_map<std::string, OutputDataLayout::Element> elements;
@@ -179,7 +179,7 @@ struct StructDataLayout {
     uint32_t size{0};
     uint32_t offset{0};
     uint32_t arrayDim{0};
-    DataType dtype{eFLOAT};
+    DataType dtype{DataType::eFLOAT};
     std::shared_ptr<StructDataLayout> member;
     bool operator==(Element const &other) const;
   };
