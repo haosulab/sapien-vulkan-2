@@ -242,8 +242,20 @@ static EShLanguage GetEShLanguage(vk::ShaderStageFlagBits stage) {
   }
 }
 
-void GLSLCompiler::InitializeProcess() { glslang::InitializeProcess(); }
-void GLSLCompiler::FinalizeProcess() { glslang::FinalizeProcess(); }
+static int gInitCount = 0;
+void GLSLCompiler::InitializeProcess() {
+  if (gInitCount == 0) {
+    glslang::InitializeProcess();
+  }
+  gInitCount++;
+}
+
+void GLSLCompiler::FinalizeProcess() {
+  gInitCount--;
+  if (gInitCount == 0) {
+    glslang::FinalizeProcess();
+  }
+}
 
 std::vector<std::uint32_t> GLSLCompiler::compileToSpirv(
     vk::ShaderStageFlagBits shaderStage, std::string const &glslCode,

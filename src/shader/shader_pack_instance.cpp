@@ -223,6 +223,29 @@ getDepthAttachmentLayoutsForPass(optable_t optable,
   return {prev, next};
 }
 
+static vk::Format
+getRenderTargetFormat(RendererConfig const &config,
+                      OutputDataLayout::Element const &element) {
+  auto texname = getOutTextureName(element.name);
+  if (config.textureFormat.contains(texname)) {
+    return config.textureFormat.at(texname);
+  }
+  switch (element.dtype) {
+  case DataType::eFLOAT:
+    return config.colorFormat1;
+    break;
+  case DataType::eFLOAT4:
+    return config.colorFormat4;
+    break;
+  case DataType::eUINT4:
+    return (vk::Format::eR32G32B32A32Uint);
+    break;
+  default:
+    throw std::runtime_error(
+        "only float, float4 and uint4 are allowed in output attachments");
+  }
+}
+
 std::future<void> ShaderPackInstance::loadAsync() {
   if (mLoaded) {
     return std::async(std::launch::deferred, []() {});
@@ -276,20 +299,22 @@ std::future<void> ShaderPackInstance::loadAsync() {
       }
       std::vector<vk::Format> formats;
       for (auto layout : pass->getTextureOutputLayout()->getElementsSorted()) {
-        switch (layout.dtype) {
-        case DataType::eFLOAT:
-          formats.push_back(mDesc.config->colorFormat1);
-          break;
-        case DataType::eFLOAT4:
-          formats.push_back(mDesc.config->colorFormat4);
-          break;
-        case DataType::eUINT4:
-          formats.push_back(vk::Format::eR32G32B32A32Uint);
-          break;
-        default:
-          throw std::runtime_error(
-              "only float, float4 and uint4 are allowed in output attachments");
-        }
+        formats.push_back(getRenderTargetFormat(*mDesc.config, layout));
+        // switch (layout.dtype) {
+        // case DataType::eFLOAT:
+        //   formats.push_back(mDesc.config->colorFormat1);
+        //   break;
+        // case DataType::eFLOAT4:
+        //   formats.push_back(mDesc.config->colorFormat4);
+        //   break;
+        // case DataType::eUINT4:
+        //   formats.push_back(vk::Format::eR32G32B32A32Uint);
+        //   break;
+        // default:
+        //   throw std::runtime_error(
+        //       "only float, float4 and uint4 are allowed in output
+        //       attachments");
+        // }
       }
 
       // determine whether to use alpha blend
@@ -411,20 +436,21 @@ std::future<void> ShaderPackInstance::loadAsync() {
           throw std::runtime_error(
               "You are not allowed to name your texture \"*Depth\"");
         }
-        vk::Format texFormat;
-        switch (elem.second.dtype) {
-        case DataType::eFLOAT:
-          texFormat = mDesc.config->colorFormat1;
-          break;
-        case DataType::eFLOAT4:
-          texFormat = mDesc.config->colorFormat4;
-          break;
-        case DataType::eUINT4:
-          texFormat = vk::Format::eR32G32B32A32Uint;
-          break;
-        default:
-          throw std::runtime_error("Unsupported texture format");
-        }
+        vk::Format texFormat =
+            getRenderTargetFormat(*mDesc.config, elem.second);
+        // switch (elem.second.dtype) {
+        // case DataType::eFLOAT:
+        //   texFormat = mDesc.config->colorFormat1;
+        //   break;
+        // case DataType::eFLOAT4:
+        //   texFormat = mDesc.config->colorFormat4;
+        //   break;
+        // case DataType::eUINT4:
+        //   texFormat = vk::Format::eR32G32B32A32Uint;
+        //   break;
+        // default:
+        //   throw std::runtime_error("Unsupported texture format");
+        // }
 
         if (mRenderTargetFormats.find(texName) != mRenderTargetFormats.end()) {
           if (mRenderTargetFormats.at(texName) != texFormat) {
