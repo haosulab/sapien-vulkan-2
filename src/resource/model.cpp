@@ -489,25 +489,14 @@ std::future<void> SVModel::loadAsync() {
         log::warn("A mesh in the file has no triangles: {}", path);
         continue;
       }
-      auto layout = manager->getVertexLayout();
       auto svmesh = std::make_shared<SVMesh>();
       svmesh->setIndices(indices);
       svmesh->setVertexAttribute("position", positions);
-      if (layout->elements.find("normal") != layout->elements.end()) {
-        svmesh->setVertexAttribute("normal", normals);
-      }
-      if (layout->elements.find("tangent") != layout->elements.end()) {
-        svmesh->setVertexAttribute("tangent", tangents);
-      }
-      if (layout->elements.find("bitangent") != layout->elements.end()) {
-        svmesh->setVertexAttribute("bitangent", bitangents);
-      }
-      if (layout->elements.find("uv") != layout->elements.end()) {
-        svmesh->setVertexAttribute("uv", texcoords);
-      }
-      if (layout->elements.find("color") != layout->elements.end()) {
-        svmesh->setVertexAttribute("color", colors);
-      }
+      svmesh->setVertexAttribute("normal", normals);
+      svmesh->setVertexAttribute("tangent", tangents);
+      svmesh->setVertexAttribute("bitangent", bitangents);
+      svmesh->setVertexAttribute("uv", texcoords);
+      svmesh->setVertexAttribute("color", colors);
 
       auto shape = std::make_shared<SVShape>();
       shape->mesh = svmesh;

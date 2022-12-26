@@ -102,7 +102,7 @@ public:
     if (!mVertexLayout) {
       throw std::runtime_error(
           "[resource manager] you need to load the shader (e.g. by creating a "
-          "camera) before loading objects");
+          "camera) before accessing GPU data");
     }
     return mVertexLayout;
   }
@@ -112,7 +112,7 @@ public:
     if (!mLineVertexLayout) {
       throw std::runtime_error(
           "[resource manager] you need to load the shader (e.g. by creating a "
-          "camera) before loading objects");
+          "camera) before accessing GPU data");
     }
     return mLineVertexLayout;
   }
