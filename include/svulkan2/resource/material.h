@@ -10,13 +10,6 @@ inline void setBit(int &number, int bit) { number |= 1 << bit; }
 inline void unsetBit(int &number, int bit) { number &= ~(1 << bit); }
 
 class SVMaterial {
-protected:
-  std::shared_ptr<core::Context> mContext; // keep alive for descriptor set
-  bool mRequiresBufferUpload{true};
-  bool mRequiresTextureUpload{true};
-
-  vk::UniqueDescriptorSet mDescriptorSet;
-
 public:
   inline vk::DescriptorSet getDescriptorSet() const {
     return mDescriptorSet.get();
@@ -24,7 +17,20 @@ public:
   virtual void uploadToDevice() = 0;
   virtual void removeFromDevice() = 0;
   virtual float getOpacity() const = 0;
+
+  inline int getGlobalIndex() const { return mGlobalIndex; }
+  inline void setGlobalIndex(int index) { mGlobalIndex = index; }
+
   virtual ~SVMaterial() = default;
+
+protected:
+  std::shared_ptr<core::Context> mContext; // keep alive for descriptor set
+  bool mRequiresBufferUpload{true};
+  bool mRequiresTextureUpload{true};
+
+  vk::UniqueDescriptorSet mDescriptorSet;
+
+  int mGlobalIndex{-1}; // global index global array
 };
 
 class SVMetallicMaterial : public SVMaterial {

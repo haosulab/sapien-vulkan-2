@@ -160,4 +160,32 @@ find_sampler_by_decoration(spirv_cross::Compiler &compiler,
   return nullptr;
 }
 
+vk::Format get_image_format(spv::ImageFormat format) {
+  switch (format) {
+  case spv::ImageFormat::ImageFormatUnknown:
+    return vk::Format::eUndefined;
+
+  case spv::ImageFormat::ImageFormatRgba32f:
+    return vk::Format::eR32G32B32A32Sfloat;
+  case spv::ImageFormat::ImageFormatR32f:
+    return vk::Format::eR32Sfloat;
+
+  case spv::ImageFormat::ImageFormatRgba16f:
+    return vk::Format::eR16G16B16A16Sfloat;
+  case spv::ImageFormat::ImageFormatR16f:
+    return vk::Format::eR16Sfloat;
+
+  case spv::ImageFormat::ImageFormatRgba32i:
+    return vk::Format::eR32G32B32A32Sint;
+
+  case spv::ImageFormat::ImageFormatRgba8:
+    return vk::Format::eR8G8B8A8Unorm;
+  case spv::ImageFormat::ImageFormatR8:
+    return vk::Format::eR8Unorm;
+
+  default:
+    throw std::runtime_error("Unsupported spirv format.");
+  }
+}
+
 } // namespace svulkan2

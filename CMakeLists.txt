@@ -103,6 +103,7 @@ else ()
 endif ()
 
 if (${SVULKAN2_BUILD_TEST})
-    add_executable(unittest "test/shader/shader_pack.cpp")
+    add_executable(unittest "test/shader/rt.cpp")
+    # add_executable(unittest "test/shader/shader_pack.cpp")
     target_link_libraries(unittest svulkan2 gtest_main)
 endif()

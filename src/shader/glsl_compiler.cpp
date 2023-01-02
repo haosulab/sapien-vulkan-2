@@ -1,12 +1,12 @@
 #include "svulkan2/shader/glsl_compiler.h"
 #include "svulkan2/common/fs.h"
 #include "svulkan2/common/log.h"
+#include "svulkan2/common/vk.h"
 #include <SPIRV/GlslangToSpv.h>
 #include <glslang/Public/ShaderLang.h>
 #include <mutex>
 #include <regex>
 #include <unordered_map>
-#include "svulkan2/common/vk.h"
 
 namespace svulkan2 {
 
@@ -69,7 +69,8 @@ GLSLCompiler::loadGlslCodeWithDebugInfo(fs::path const &filepath) {
         result += includeCode;
         // result += loadGlslCode(includePath) + "\n";
       } else {
-        throw std::runtime_error("invalid include: " + line + " in " + filepath.string());
+        throw std::runtime_error("invalid include: " + line + " in " +
+                                 filepath.string());
       }
     } else {
       lineInfo.push_back({filepath.string(), lineNum});
@@ -111,7 +112,8 @@ std::string GLSLCompiler::loadGlslCode(fs::path const &filepath) {
         result += loadGlslCode(includePath) + "\n";
 
       } else {
-        throw std::runtime_error("invalid include: " + line + " in " + filepath.string());
+        throw std::runtime_error("invalid include: " + line + " in " +
+                                 filepath.string());
       }
     } else {
       result += line + "\n";
@@ -237,6 +239,14 @@ static EShLanguage GetEShLanguage(vk::ShaderStageFlagBits stage) {
     return EShLanguage::EShLangFragment;
   case vk::ShaderStageFlagBits::eGeometry:
     return EShLanguage::EShLangGeometry;
+  case vk::ShaderStageFlagBits::eRaygenKHR:
+    return EShLanguage::EShLangRayGen;
+  case vk::ShaderStageFlagBits::eMissKHR:
+    return EShLanguage::EShLangMiss;
+  case vk::ShaderStageFlagBits::eClosestHitKHR:
+    return EShLanguage::EShLangClosestHit;
+  case vk::ShaderStageFlagBits::eAnyHitKHR:
+    return EShLanguage::EShLangAnyHit;
   default:
     throw std::invalid_argument("GetEShLanguage: invalid shader stage.");
   }
@@ -265,12 +275,20 @@ std::vector<std::uint32_t> GLSLCompiler::compileToSpirv(
   glslang::TShader shader(language);
   const char *codes[1] = {glslCode.c_str()};
 
+  glslang::EShTargetLanguageVersion spvVersion = glslang::EShTargetSpv_1_1;
+  if (shaderStage == vk::ShaderStageFlagBits::eRaygenKHR ||
+      shaderStage == vk::ShaderStageFlagBits::eMissKHR ||
+      shaderStage == vk::ShaderStageFlagBits::eClosestHitKHR ||
+      shaderStage == vk::ShaderStageFlagBits::eAnyHitKHR) {
+    spvVersion = glslang::EShTargetSpv_1_4;
+  }
+
   shader.setStrings(codes, 1);
   shader.setEnvInput(glslang::EShSourceGlsl, GetEShLanguage(shaderStage),
                      glslang::EShClientVulkan, 110);
   shader.setEnvClient(glslang::EShClientVulkan,
                       glslang::EShTargetClientVersion::EShTargetVulkan_1_1);
-  shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_1);
+  shader.setEnvTarget(glslang::EShTargetSpv, spvVersion);
 
   TBuiltInResource resource = GetDefaultTBuiltInResource();
   EShMessages messages = static_cast<EShMessages>(

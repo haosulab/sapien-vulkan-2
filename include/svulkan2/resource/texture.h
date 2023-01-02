@@ -27,19 +27,6 @@ struct SVTextureDescription {
 };
 
 class SVTexture {
-  std::shared_ptr<core::Context> mContext;  // keep alive for sampler and image view
-  SVTextureDescription mDescription{};
-  std::shared_ptr<SVImage> mImage{};
-
-  bool mOnDevice{};
-  vk::UniqueImageView mImageView{};
-  vk::UniqueSampler mSampler{};
-
-  bool mLoaded{};
-
-  std::mutex mUploadingMutex;
-  std::mutex mLoadingMutex;
-
 public:
   static std::shared_ptr<SVTexture> FromFile(
       std::string const &filename, uint32_t mipLevels,
@@ -90,6 +77,26 @@ public:
   SVTexture(SVTexture &&other) = delete;
   SVTexture &operator=(SVTexture &&other) = delete;
   inline SVTexture() {}
+
+  inline int getGlobalIndex() const { return mGlobalIndex; }
+  inline void setGlobalIndex(int index) { mGlobalIndex = index; }
+
+private:
+  std::shared_ptr<core::Context> mContext; // keep alive for sampler and
+                                           // image view
+  SVTextureDescription mDescription{};
+  std::shared_ptr<SVImage> mImage{};
+
+  bool mOnDevice{};
+  vk::UniqueImageView mImageView{};
+  vk::UniqueSampler mSampler{};
+
+  bool mLoaded{};
+
+  std::mutex mUploadingMutex;
+  std::mutex mLoadingMutex;
+
+  int mGlobalIndex{-1}; // global index global array
 };
 
 } // namespace resource

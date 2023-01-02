@@ -45,7 +45,8 @@ SVResourceManager::CreateShaderPack(std::string const &dirname) {
   }
 
   if (shaderPack->getShaderInputLayouts()->primitiveVertexLayout) {
-    setLineVertexLayout(shaderPack->getShaderInputLayouts()->primitiveVertexLayout);
+    setLineVertexLayout(
+        shaderPack->getShaderInputLayouts()->primitiveVertexLayout);
   }
 
   return shaderPack;
@@ -118,6 +119,39 @@ std::shared_ptr<SVTexture> SVResourceManager::CreateTextureFromFile(
   auto tex = SVTexture::FromFile(path, mipLevels, magFilter, minFilter,
                                  addressModeU, addressModeV, srgb);
   mTextureRegistry[path].push_back(tex);
+
+  // TODO: automate
+  mAllTextures.push_back(tex);
+  tex->setGlobalIndex(static_cast<int>(mAllTextures.size()));
+
+  return tex;
+}
+
+std::shared_ptr<SVTexture> SVResourceManager::CreateTextureFromData(
+    uint32_t width, uint32_t height, uint32_t channels,
+    std::vector<uint8_t> const &data, uint32_t mipLevels, vk::Filter magFilter,
+    vk::Filter minFilter, vk::SamplerAddressMode addressModeU,
+    vk::SamplerAddressMode addressModeV, bool srgb) {
+  auto tex =
+      SVTexture::FromData(width, height, channels, data, mipLevels, magFilter,
+                          minFilter, addressModeU, addressModeV, srgb);
+  // TODO: automate
+  mAllTextures.push_back(tex);
+  tex->setGlobalIndex(static_cast<int>(mAllTextures.size()));
+  return tex;
+}
+
+std::shared_ptr<SVTexture> SVResourceManager::CreateTextureFromData(
+    uint32_t width, uint32_t height, uint32_t channels,
+    std::vector<float> const &data, uint32_t mipLevels, vk::Filter magFilter,
+    vk::Filter minFilter, vk::SamplerAddressMode addressModeU,
+    vk::SamplerAddressMode addressModeV) {
+  auto tex =
+      SVTexture::FromData(width, height, channels, data, mipLevels, magFilter,
+                          minFilter, addressModeU, addressModeV);
+  // TODO: automate
+  mAllTextures.push_back(tex);
+  tex->setGlobalIndex(static_cast<int>(mAllTextures.size()));
   return tex;
 }
 
@@ -283,6 +317,30 @@ SVResourceManager::CreateModelFromFile(std::string const &filename) {
   return SVModel::FromPrototype(prototype);
 }
 
+std::shared_ptr<SVMetallicMaterial> SVResourceManager::createMetallicMaterial(
+    glm::vec4 emission, glm::vec4 baseColor, float fresnel, float roughness,
+    float metallic, float transparency) {
+  return std::make_shared<SVMetallicMaterial>(
+      emission, baseColor, fresnel, roughness, metallic, transparency);
+}
+
+std::shared_ptr<resource::SVModel> SVResourceManager::createModel(
+    std::vector<std::shared_ptr<resource::SVMesh>> const &meshes,
+    std::vector<std::shared_ptr<resource::SVMaterial>> const &materials) {
+  if (meshes.size() != materials.size()) {
+    throw std::runtime_error(
+        "create model failed: meshes and materials must have the same size.");
+  }
+  std::vector<std::shared_ptr<resource::SVShape>> shapes;
+  for (uint32_t i = 0; i < meshes.size(); ++i) {
+    auto shape = std::make_shared<resource::SVShape>();
+    shape->mesh = meshes[i];
+    shape->material = materials[i];
+    shapes.push_back(shape);
+  }
+  return resource::SVModel::FromData(shapes);
+}
+
 void SVResourceManager::setVertexLayout(
     std::shared_ptr<InputDataLayout> layout) {
   if (!mVertexLayout) {
@@ -344,6 +402,49 @@ void SVResourceManager::releaseGPUResourcesUnsafe() {
       t->removeFromDevice();
     }
   }
+}
+
+void SVResourceManager::allocateTextureResources() {
+  auto context = core::Context::Get();
+  uint32_t size = mAllTextures.size();
+  if (!mTextureDescriptorPool) {
+    mTextureDescriptorPool = std::make_unique<core::DynamicDescriptorPool>(
+        std::vector<vk::DescriptorPoolSize>{
+            {vk::DescriptorType::eCombinedImageSampler, size}});
+  }
+  std::vector<vk::DescriptorSetLayoutBinding> bindings;
+
+  uint32_t bindingIndex = 3; // TODO: read that binding index from parsed shader
+
+  vk::DescriptorSetLayoutBinding binding{
+      bindingIndex, vk::DescriptorType::eCombinedImageSampler, size,
+      vk::ShaderStageFlagBits::eClosestHitKHR};
+  vk::DescriptorBindingFlags flag =
+      vk::DescriptorBindingFlagBits::ePartiallyBound;
+  vk::DescriptorSetLayoutBindingFlagsCreateInfo flagInfo{flag};
+  vk::DescriptorSetLayoutCreateInfo layoutInfo({}, binding, &flagInfo);
+
+  mTextureSetLayout =
+      context->getDevice().createDescriptorSetLayoutUnique(layoutInfo);
+  mTextureSet = mTextureDescriptorPool->allocateSet(mTextureSetLayout.get());
+
+  // TODO: upload all textures to device
+  std::vector<vk::DescriptorImageInfo> imageInfos;
+  for (auto &t : mAllTextures) {
+    if (auto tex = t.lock()) {
+      imageInfos.push_back(
+          vk::DescriptorImageInfo{tex->getSampler(), tex->getImageView(),
+                                  vk::ImageLayout::eShaderReadOnlyOptimal});
+    } else {
+      // FIXME: does this work?
+      imageInfos.push_back(vk::DescriptorImageInfo{});
+    }
+  }
+
+  vk::WriteDescriptorSet write(mTextureSet.get(), bindingIndex, 0,
+                               vk::DescriptorType::eCombinedImageSampler,
+                               imageInfos);
+  context->getDevice().updateDescriptorSets(write, nullptr);
 }
 
 } // namespace resource

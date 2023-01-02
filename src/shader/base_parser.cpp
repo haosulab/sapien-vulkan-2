@@ -15,38 +15,65 @@ DescriptorSetDescription::merge(DescriptorSetDescription const &other) const {
 
   std::vector<std::shared_ptr<StructDataLayout>> newBuffers = buffers;
   std::vector<std::string> newSamplers = samplers;
+  std::vector<std::string> newImages = images;
   std::map<uint32_t, Binding> newBindings = bindings;
 
   for (auto &[bindingIndex, binding] : other.bindings) {
     if (bindings.find(bindingIndex) != bindings.end()) {
-      if (binding.type == vk::DescriptorType::eUniformBuffer) {
-        if (*other.buffers[binding.arrayIndex] !=
-            *buffers[bindings.at(bindingIndex).arrayIndex]) {
+      if (bindings.at(bindingIndex).type != binding.type) {
+        throw std::runtime_error("Incompatible descriptor at binding " +
+                                 std::to_string(bindingIndex) +
+                                 ": data types are different.");
+      }
+
+      switch (binding.type) {
+      case vk::DescriptorType::eUniformBuffer:
+      case vk::DescriptorType::eStorageBuffer:
+        if (*other.buffers.at(binding.arrayIndex) !=
+            *buffers.at(bindings.at(bindingIndex).arrayIndex)) {
           throw std::runtime_error("Incompatible descriptor at binding " +
                                    std::to_string(bindingIndex) +
                                    ": buffers are different.");
         }
-      } else if (binding.type == vk::DescriptorType::eCombinedImageSampler) {
-        if (other.samplers[binding.arrayIndex] !=
+        break;
+      case vk::DescriptorType::eCombinedImageSampler:
+        if (other.samplers.at(binding.arrayIndex) !=
             samplers[(bindings.at(bindingIndex)).arrayIndex]) {
           throw std::runtime_error("Incompatible descriptor at binding " +
                                    std::to_string(bindingIndex) +
                                    ": texture names are different.");
         }
-      } else {
+        break;
+      case vk::DescriptorType::eStorageImage:
+        if (other.images.at(binding.arrayIndex) !=
+                samplers.at((bindings.at(bindingIndex)).arrayIndex) ||
+            bindings.at(bindingIndex).format != binding.format) {
+          throw std::runtime_error("Incompatible descriptor at binding " +
+                                   std::to_string(bindingIndex) +
+                                   ": image names are different.");
+        }
+        break;
+      case vk::DescriptorType::eAccelerationStructureKHR:
+        break;
+      default:
         throw std::runtime_error(
             "Descriptor merge failed: unsupported descriptor type");
       }
+
     } else {
-      if (binding.type == vk::DescriptorType::eUniformBuffer) {
+
+      switch (binding.type) {
+      case vk::DescriptorType::eUniformBuffer:
+      case vk::DescriptorType::eStorageBuffer:
         newBuffers.push_back(other.buffers[binding.arrayIndex]);
         newBindings[bindingIndex] = {
             .name = binding.name,
-            .type = vk::DescriptorType::eUniformBuffer,
+            .type = binding.type,
             .dim = binding.dim,
             .arraySize = binding.arraySize,
             .arrayIndex = static_cast<uint32_t>(newBuffers.size() - 1)};
-      } else if (binding.type == vk::DescriptorType::eCombinedImageSampler) {
+        break;
+      case vk::DescriptorType::eCombinedImageSampler:
         newSamplers.push_back(other.samplers[binding.arrayIndex]);
         newBindings[bindingIndex] = {
             .name = binding.name,
@@ -54,7 +81,21 @@ DescriptorSetDescription::merge(DescriptorSetDescription const &other) const {
             .dim = binding.dim,
             .arraySize = binding.arraySize,
             .arrayIndex = static_cast<uint32_t>(newSamplers.size() - 1)};
-      } else {
+        break;
+      case vk::DescriptorType::eStorageImage:
+        newImages.push_back(other.images[binding.arrayIndex]);
+        newBindings[bindingIndex] = {
+            .name = binding.name,
+            .type = vk::DescriptorType::eStorageImage,
+            .dim = binding.dim,
+            .arraySize = binding.arraySize,
+            .arrayIndex = static_cast<uint32_t>(newSamplers.size() - 1),
+            .format = binding.format};
+        break;
+      case vk::DescriptorType::eAccelerationStructureKHR:
+        newBindings[bindingIndex] = binding;
+        break;
+      default:
         throw std::runtime_error(
             "Descriptor merge failed: unsupported descriptor type");
       }
@@ -62,6 +103,7 @@ DescriptorSetDescription::merge(DescriptorSetDescription const &other) const {
   }
   newLayout.buffers = newBuffers;
   newLayout.samplers = newSamplers;
+  newLayout.images = newImages;
   newLayout.bindings = newBindings;
   return newLayout;
 }
@@ -166,7 +208,8 @@ parseTextureOutput(spirv_cross::Compiler &compiler) {
              textureOutput->elements["outNormal"].dtype == DataType::eFLOAT4,
          "outNormal must be float4");
   ASSERT(!CONTAINS(textureOutput->elements, "outSegmentation") ||
-             textureOutput->elements["outSegmentation"].dtype == DataType::eUINT4,
+             textureOutput->elements["outSegmentation"].dtype ==
+                 DataType::eUINT4,
          "outSegmentation must be uint4");
 
   return textureOutput;
@@ -258,14 +301,16 @@ void verifyCameraBuffer(std::shared_ptr<StructDataLayout> layout) {
          "camera viewMatrixInverse should have type float44");
   ASSERT(layout->elements["projectionMatrix"].dtype == DataType::eFLOAT44,
          "camera projectionMatrix should have type float44");
-  ASSERT(layout->elements["projectionMatrixInverse"].dtype == DataType::eFLOAT44,
+  ASSERT(layout->elements["projectionMatrixInverse"].dtype ==
+             DataType::eFLOAT44,
          "camera projectionMatrixInverse should have type float44");
   if (CONTAINS(layout->elements, "prevViewMatrix")) {
     ASSERT(layout->elements["prevViewMatrix"].dtype == DataType::eFLOAT44,
            "camera prevViewMatrix should have type float44");
   }
   if (CONTAINS(layout->elements, "prevViewMatrixInverse")) {
-    ASSERT(layout->elements["prevViewMatrixInverse"].dtype == DataType::eFLOAT44,
+    ASSERT(layout->elements["prevViewMatrixInverse"].dtype ==
+               DataType::eFLOAT44,
            "camera prevViewMatrixInverse should have type float44");
   }
   if (CONTAINS(layout->elements, "width")) {
@@ -438,7 +483,8 @@ void verifyLightSpaceBuffer(std::shared_ptr<StructDataLayout> layout) {
          "light ProjectionMatrix should have type float44");
   ASSERT(layout->elements["viewMatrixInverse"].dtype == DataType::eFLOAT44,
          "light ViewMatrixInverse should have type float44");
-  ASSERT(layout->elements["projectionMatrixInverse"].dtype == DataType::eFLOAT44,
+  ASSERT(layout->elements["projectionMatrixInverse"].dtype ==
+             DataType::eFLOAT44,
          "light ProjectionMatrixInverse should have type float44");
   ASSERT(layout->elements["width"].dtype == DataType::eINT,
          "light width should have type int");
@@ -446,45 +492,46 @@ void verifyLightSpaceBuffer(std::shared_ptr<StructDataLayout> layout) {
          "light height should have type int");
 }
 
-std::shared_ptr<StructDataLayout>
-parseCameraBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
-                  uint32_t setNumber) {
-  auto layout = parseBuffer(compiler, bindingNumber, setNumber);
-  verifyCameraBuffer(layout);
-  return layout;
-}
+// std::shared_ptr<StructDataLayout>
+// parseCameraBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
+//                   uint32_t setNumber) {
+//   auto layout = parseBuffer(compiler, bindingNumber, setNumber);
+//   verifyCameraBuffer(layout);
+//   return layout;
+// }
 
-std::shared_ptr<StructDataLayout>
-parseMaterialBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
-                    uint32_t setNumber) {
-  auto layout = parseBuffer(compiler, bindingNumber, setNumber);
-  verifyMaterialBuffer(layout);
-  return layout;
-}
+// std::shared_ptr<StructDataLayout>
+// parseMaterialBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
+//                     uint32_t setNumber) {
+//   auto layout = parseBuffer(compiler, bindingNumber, setNumber);
+//   verifyMaterialBuffer(layout);
+//   return layout;
+// }
 
-std::shared_ptr<StructDataLayout>
-parseObjectBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
-                  uint32_t setNumber) {
-  auto layout = parseBuffer(compiler, bindingNumber, setNumber);
-  verifyObjectBuffer(layout);
-  return layout;
-}
+// std::shared_ptr<StructDataLayout>
+// parseObjectBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
+//                   uint32_t setNumber) {
+//   auto layout = parseBuffer(compiler, bindingNumber, setNumber);
+//   verifyObjectBuffer(layout);
+//   return layout;
+// }
 
-std::shared_ptr<StructDataLayout>
-parseSceneBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
-                 uint32_t setNumber) {
-  auto layout = parseBuffer(compiler, bindingNumber, setNumber);
-  verifySceneBuffer(layout);
-  return layout;
-}
+// std::shared_ptr<StructDataLayout>
+// parseSceneBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
+//                  uint32_t setNumber) {
+//   auto layout = parseBuffer(compiler, bindingNumber, setNumber);
+//   verifySceneBuffer(layout);
+//   return layout;
+// }
 
-std::shared_ptr<StructDataLayout>
-parseLightSpaceBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
-                      uint32_t setNumber) {
-  auto layout = parseBuffer(compiler, bindingNumber, setNumber);
-  verifyLightSpaceBuffer(layout);
-  return layout;
-}
+// std::shared_ptr<StructDataLayout>
+// parseLightSpaceBuffer(spirv_cross::Compiler &compiler, uint32_t
+// bindingNumber,
+//                       uint32_t setNumber) {
+//   auto layout = parseBuffer(compiler, bindingNumber, setNumber);
+//   verifyLightSpaceBuffer(layout);
+//   return layout;
+// }
 
 std::shared_ptr<SpecializationConstantLayout>
 parseSpecializationConstant(spirv_cross::Compiler &compiler) {
@@ -650,7 +697,8 @@ vk::UniquePipelineLayout BaseParser::createPipelineLayout(
   vk::PipelineLayoutCreateInfo pipelineLayoutInfo;
   // pipelineLayoutInfo.setLayoutCount = layouts.size();
   // pipelineLayoutInfo.pSetLayouts = layouts.data();
-  return device.createPipelineLayoutUnique(vk::PipelineLayoutCreateInfo({}, layouts));
+  return device.createPipelineLayoutUnique(
+      vk::PipelineLayoutCreateInfo({}, layouts));
 }
 
 } // namespace shader

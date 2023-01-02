@@ -1,0 +1,103 @@
+#version 460
+#extension GL_EXT_ray_tracing : require
+#extension GL_ARB_shader_clock : enable
+#extension GL_GOOGLE_include_directive : enable
+
+
+#include "random.glsl"
+#include "ray.glsl"
+
+layout(location = 0) rayPayloadEXT Ray ray;
+// layout(location = 1) rayPayloadEXT ShadowRay shadowRay;
+
+layout(set = 0, binding = 0, rgba32f) uniform image2D outImage;
+layout(set = 0, binding = 1, rgba32f) uniform image2D outAlbedo;
+layout(set = 0, binding = 2, rgba32f) uniform image2D outNormal;
+
+layout(set = 1, binding = 0) uniform accelerationStructureEXT tlas;
+
+layout(set = 2, binding = 0) uniform CameraBuffer {
+  mat4 viewMatrix;
+  mat4 projectionMatrix;
+  mat4 viewMatrixInverse;
+  mat4 projectionMatrixInverse;
+  mat4 prevViewMatrix;
+  mat4 prevViewMatrixInverse;
+  float width;
+  float height;
+} cameraBuffer;
+
+#include "push_constant.glsl"
+
+void main() {
+
+  vec2 invScreen = vec2(2.f) / gl_LaunchSizeEXT.xy;
+  vec2 pixel = gl_LaunchIDEXT.xy * invScreen - 1.f;
+  vec4 target = cameraBuffer.projectionMatrixInverse * vec4(pixel, 1.f, 1.f);
+  uint seed = tea(gl_LaunchIDEXT.y * gl_LaunchSizeEXT.x + gl_LaunchIDEXT.x, uint(clockARB()));
+
+  vec3 radiance = vec3(0.f);
+  vec3 albedo = vec3(0.f);
+  vec3 normal = vec3(0.f);
+
+  uint rayFlags = gl_RayFlagsNoneEXT;
+  // TODO: use camera near far
+  float tMin = 0.001f;
+  float tMax = 10000.0f;
+
+  for (int i = 0; i < spp; ++i) {
+    vec2 r = halton2d(frameCount + i, 2, 3);
+    vec2 d = pixel + r * invScreen;  // jittered pixel position
+
+    vec4 csDir = cameraBuffer.projectionMatrixInverse * vec4(d, 1.f, 1.f);
+    vec4 origin = cameraBuffer.viewMatrixInverse * vec4(0.f, 0.f, 0.f, 1.f);
+    vec4 direction = cameraBuffer.viewMatrixInverse * vec4(csDir.xyz, 0.f);
+
+    ray.origin = origin.xyz;
+    ray.direction = normalize(direction.xyz);
+    ray.albedo = vec3(0.f);
+    ray.normal = vec3(0.f);
+    ray.radiance = vec3(0.f);
+    ray.attenuation = vec3(1.f);
+    ray.depth = 0;
+    ray.seed = seed;
+
+    vec3 attenuation = vec3(1.f);
+    for (ray.depth = 0; ray.depth <= maxDepth; ++ray.depth) {
+      traceRayEXT(tlas,
+                  rayFlags,
+                  0xff,
+                  0,
+                  0,
+                  0,
+                  ray.origin,
+                  tMin,
+                  ray.direction,
+                  tMax,
+                  0);
+      radiance += ray.radiance * attenuation;
+      attenuation *= ray.attenuation;
+
+      if (russianRoulette && ray.depth >= russianRouletteMinBounces) {
+        float p = max(attenuation.x, max(attenuation.y, attenuation.z));
+        // kill to 0 with probability 1-p
+        if (rnd(seed) > p) {
+          break;
+        }
+        // amplify to 1/p with probability p
+        attenuation *= 1.0 / p;
+      }
+    }
+    radiance += attenuation * environmentLight;
+  }
+
+  radiance /= spp;
+  vec3 oldColor = imageLoad(outImage, ivec2(gl_LaunchIDEXT.xy)).xyz;
+  vec4 newColor = vec4(mix(oldColor, radiance, 1.f / float(frameCount + 1)), 1.f);
+  imageStore(outImage, ivec2(gl_LaunchIDEXT.xy), newColor);
+
+  if (frameCount == 0) {
+    imageStore(outAlbedo, ivec2(gl_LaunchIDEXT.xy), vec4(albedo, 1.f));
+    imageStore(outNormal, ivec2(gl_LaunchIDEXT.xy), vec4(normal, 1.f));
+  }
+}

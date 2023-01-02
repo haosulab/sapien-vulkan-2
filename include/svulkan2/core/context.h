@@ -88,13 +88,13 @@ public:
   std::unique_ptr<renderer::GuiWindow> createWindow(uint32_t width,
                                                     uint32_t height);
 
-  std::shared_ptr<resource::SVMetallicMaterial>
-  createMetallicMaterial(glm::vec4 emission, glm::vec4 baseColor, float fresnel,
-                         float roughness, float metallic, float transparency);
+  // std::shared_ptr<resource::SVMetallicMaterial>
+  // createMetallicMaterial(glm::vec4 emission, glm::vec4 baseColor, float fresnel,
+  //                        float roughness, float metallic, float transparency);
 
-  std::shared_ptr<resource::SVModel> createModel(
-      std::vector<std::shared_ptr<resource::SVMesh>> const &meshes,
-      std::vector<std::shared_ptr<resource::SVMaterial>> const &materials);
+  // std::shared_ptr<resource::SVModel> createModel(
+  //     std::vector<std::shared_ptr<resource::SVMesh>> const &meshes,
+  //     std::vector<std::shared_ptr<resource::SVMaterial>> const &materials);
 
   std::shared_ptr<resource::SVMesh>
   createTriangleMesh(std::vector<glm::vec3> const &vertices,

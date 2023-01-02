@@ -39,4 +39,5 @@ find_sampler_by_decoration(spirv_cross::Compiler &compiler,
                            spirv_cross::ShaderResources &resource,
                            uint32_t binding_number, uint32_t set_number);
 
+vk::Format get_image_format(spv::ImageFormat format);
 } // namespace svulkan2

@@ -62,10 +62,12 @@ struct DescriptorSetDescription {
     int dim;
     int arraySize;
     uint32_t arrayIndex; // index in the buffers/samplers vector
+    vk::Format format;  // only used for storage image
   };
   UniformBindingType type{eUnknown};
   std::vector<std::shared_ptr<StructDataLayout>> buffers;
   std::vector<std::string> samplers;
+  std::vector<std::string> images;
   std::map<uint32_t, Binding> bindings;
 
   DescriptorSetDescription merge(DescriptorSetDescription const &other) const;
@@ -126,22 +128,6 @@ std::shared_ptr<StructDataLayout> parseBuffer(spirv_cross::Compiler &compiler,
                                               uint32_t setNumber);
 std::shared_ptr<StructDataLayout> parseBuffer(spirv_cross::Compiler &compiler,
                                               spirv_cross::Resource &resource);
-std::shared_ptr<StructDataLayout>
-parseCameraBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
-                  uint32_t setNumber);
-
-std::shared_ptr<StructDataLayout>
-parseMaterialBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
-                    uint32_t setNumber);
-std::shared_ptr<StructDataLayout>
-parseObjectBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
-                  uint32_t setNumber);
-std::shared_ptr<StructDataLayout>
-parseSceneBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
-                 uint32_t setNumber);
-std::shared_ptr<StructDataLayout>
-parseLightSpaceBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
-                      uint32_t setNumber);
 
 std::shared_ptr<SpecializationConstantLayout>
 parseSpecializationConstant(spirv_cross::Compiler &compiler);

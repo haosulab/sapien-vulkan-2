@@ -2,6 +2,7 @@
 #include "cubemap.h"
 #include "model.h"
 #include "svulkan2/common/config.h"
+#include "svulkan2/core/descriptor_pool.h"
 #include "svulkan2/shader/shader_pack.h"
 #include "svulkan2/shader/shader_pack_instance.h"
 #include <memory>
@@ -22,12 +23,25 @@ class SVResourceManager {
   std::unordered_map<std::string, std::shared_ptr<SVTexture>>
       mRandomTextureRegistry;
 
+  // all textures, used for indexing in ray tracing
+  std::vector<std::weak_ptr<SVTexture>> mAllTextures;
+  std::unique_ptr<core::DynamicDescriptorPool> mTextureDescriptorPool;
+  vk::UniqueDescriptorSetLayout mTextureSetLayout;
+  vk::UniqueDescriptorSet mTextureSet;
+
+  void allocateTextureResources();
+
+  // all materials, used to form the big material buffer for ray tracing
+  std::vector<std::weak_ptr<SVMetallicMaterial>> mAllMaterials;
+  std::unique_ptr<core::Buffer> mMaterialBuffer;
+
   std::mutex mShaderPackLock{};
   std::unordered_map<std::string, std::shared_ptr<shader::ShaderPack>>
       mShaderPackRegistry;
 
   std::mutex mShaderPackInstanceLock{};
-  std::unordered_map<std::string, std::vector<std::shared_ptr<shader::ShaderPackInstance>>>
+  std::unordered_map<std::string,
+                     std::vector<std::shared_ptr<shader::ShaderPackInstance>>>
       mShaderPackInstanceRegistry;
 
   std::shared_ptr<InputDataLayout> mVertexLayout{};
@@ -62,6 +76,23 @@ public:
       vk::SamplerAddressMode addressModeV = vk::SamplerAddressMode::eRepeat,
       bool srgb = false);
 
+  std::shared_ptr<SVTexture> CreateTextureFromData(
+      uint32_t width, uint32_t height, uint32_t channels,
+      std::vector<uint8_t> const &data, uint32_t mipLevels = 1,
+      vk::Filter magFilter = vk::Filter::eLinear,
+      vk::Filter minFilter = vk::Filter::eLinear,
+      vk::SamplerAddressMode addressModeU = vk::SamplerAddressMode::eRepeat,
+      vk::SamplerAddressMode addressModeV = vk::SamplerAddressMode::eRepeat,
+      bool srgb = false);
+
+  std::shared_ptr<SVTexture> CreateTextureFromData(
+      uint32_t width, uint32_t height, uint32_t channels,
+      std::vector<float> const &data, uint32_t mipLevels = 1,
+      vk::Filter magFilter = vk::Filter::eLinear,
+      vk::Filter minFilter = vk::Filter::eLinear,
+      vk::SamplerAddressMode addressModeU = vk::SamplerAddressMode::eRepeat,
+      vk::SamplerAddressMode addressModeV = vk::SamplerAddressMode::eRepeat);
+
   std::shared_ptr<SVCubemap>
   CreateCubemapFromKTX(std::string const &filename, uint32_t mipLevels = 1,
                        vk::Filter magFilter = vk::Filter::eLinear,
@@ -88,6 +119,14 @@ public:
   };
 
   std::shared_ptr<SVModel> CreateModelFromFile(std::string const &filename);
+
+  std::shared_ptr<SVMetallicMaterial>
+  createMetallicMaterial(glm::vec4 emission, glm::vec4 baseColor, float fresnel,
+                         float roughness, float metallic, float transparency);
+
+  std::shared_ptr<resource::SVModel> createModel(
+      std::vector<std::shared_ptr<resource::SVMesh>> const &meshes,
+      std::vector<std::shared_ptr<resource::SVMaterial>> const &materials);
 
   /** release all cached resources */
   void clearCachedResources();
