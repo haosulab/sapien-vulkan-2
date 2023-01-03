@@ -21,6 +21,7 @@ class SVMesh {
   std::unique_ptr<core::Buffer> mIndexBuffer;
 
   std::mutex mUploadingMutex;
+
 public:
   SVMesh(bool dynamic = false);
 
@@ -38,6 +39,8 @@ public:
 
   void uploadToDevice();
   void removeFromDevice();
+
+  void buildASGeometry();
 
   inline bool isOnDevice() const { return mOnDevice; }
 

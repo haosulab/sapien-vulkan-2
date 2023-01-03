@@ -9,7 +9,19 @@ static std::string summarizeResources(
     std::unordered_map<uint32_t, DescriptorSetDescription> const &resources) {
   std::stringstream ss;
   for (auto &[sid, set] : resources) {
-    ss << "Set " << std::setw(2) << sid << "\n";
+    ss << "\nSet " << std::setw(2) << sid;
+    if (set.type != UniformBindingType::eUnknown) {
+      if (set.type == UniformBindingType::eRTCamera) {
+        ss << "    Camera";
+      }
+      else if (set.type == UniformBindingType::eRTScene) {
+        ss << "     Scene";
+      }
+      else if (set.type == UniformBindingType::eRTOutput) {
+        ss << "    Output";
+      }
+    }
+    ss << "\n";
     for (auto &[bid, b] : set.bindings) {
       ss << "  Binding " << std::setw(2) << bid << std::setw(20) << b.name;
       switch (b.type) {
@@ -246,6 +258,35 @@ std::future<void> RayTracingParser::loadGLSLFilesAsync(
         } else {
           mResources[sid] = set;
         }
+      }
+    }
+
+    for (uint32_t setId = 0;; setId++) {
+      if (!mResources.contains(setId)) {
+        if (mResources.size() != setId) {
+          throw std::runtime_error("descriptor sets numbers must be "
+                                   "consecurive integers starting from 0");
+        }
+        break;
+      }
+
+      for (auto &[bid, b] : mResources.at(setId).bindings) {
+        if (b.type == vk::DescriptorType::eAccelerationStructureKHR) {
+          mResources.at(setId).type = UniformBindingType::eRTScene;
+          break;
+        } else if (b.name == "CameraBuffer") {
+          mResources.at(setId).type = UniformBindingType::eRTCamera;
+          break;
+        } else if (b.name.starts_with("out") &&
+                   b.type == vk::DescriptorType::eStorageImage) {
+          mResources.at(setId).type = UniformBindingType::eRTOutput;
+          break;
+        }
+      }
+
+      if (mResources.at(setId).type == UniformBindingType::eUnknown) {
+        throw std::runtime_error("cannot identify descriptor set " +
+                                 std::to_string(setId));
       }
     }
   });

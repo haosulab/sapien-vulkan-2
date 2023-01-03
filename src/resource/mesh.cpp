@@ -500,5 +500,26 @@ std::shared_ptr<SVMesh> SVMesh::Create(std::vector<float> const &position,
   return mesh;
 }
 
+void SVMesh::buildASGeometry() {
+  auto context = core::Context::Get();
+  uploadToDevice();
+
+  vk::DeviceAddress vertexAddress =
+      context->getDevice().getBufferAddress({mVertexBuffer->getVulkanBuffer()});
+  vk::DeviceAddress indexAddress =
+      context->getDevice().getBufferAddress({mIndexBuffer->getVulkanBuffer()});
+
+  vk::AccelerationStructureGeometryTrianglesDataKHR trianglesData(
+      vk::Format::eR32G32B32Sfloat, vertexAddress,
+      context->getResourceManager()->getVertexLayout()->getSize(), mVertexCount,
+      vk::IndexType::eUint32, indexAddress, {});
+
+  vk::AccelerationStructureGeometryKHR asGeom(vk::GeometryTypeKHR::eTriangles,
+                                              trianglesData,
+                                              {}); // TODO: add opaque flag?
+
+  vk::AccelerationStructureBuildRangeInfoKHR offset(mIndexCount / 3, 0, 0, 0);
+}
+
 } // namespace resource
 } // namespace svulkan2

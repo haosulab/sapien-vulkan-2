@@ -224,9 +224,9 @@ Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
 
   std::stringstream ss;
   ss << "Devices visible to Vulkan" << std::endl;
-  ss << std::setw(3) << "" << std::setw(20) << "name" << std::setw(10)
+  ss << std::setw(3) << "Id" << std::setw(40) << "name" << std::setw(10)
      << "Present" << std::setw(10) << "Supported" << std::setw(10) << "PciBus"
-     << std::setw(10) << "CudaId" << std::endl;
+     << std::setw(10) << "CudaId" << std::setw(15) << "RayTracing" << std::endl;
 
   vk::PhysicalDeviceFeatures2 features{};
   vk::PhysicalDeviceDescriptorIndexingFeatures descriptorFeatures{};
@@ -244,7 +244,9 @@ Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
     int queueIdxNoPresent = -1;
     int queueIdxPresent = -1;
     int queueIdx = -1;
+    bool rayTracing = false;
 
+    // check graphics & compute queues
     std::vector<vk::QueueFamilyProperties> queueFamilyProperties =
         device.getQueueFamilyProperties();
     for (uint32_t i = 0; i < queueFamilyProperties.size(); ++i) {
@@ -267,12 +269,22 @@ Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
       queueIdx = queueIdxNoPresent;
     }
 
+    // check features
     device.getFeatures2(&features);
     if (features.features.independentBlend && features.features.wideLines &&
         features.features.geometryShader &&
         descriptorFeatures.descriptorBindingPartiallyBound &&
         timelineSemaphoreFeatures.timelineSemaphore) {
       required_features = true;
+    }
+
+    // check extensions
+    auto extensions = device.enumerateDeviceExtensionProperties();
+    for (auto &ext : extensions) {
+      if (std::strcmp(ext.extensionName,
+                      VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME)) {
+        rayTracing = 1;
+      }
     }
 
     auto properties = device.getProperties();
@@ -291,10 +303,11 @@ Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
 
     bool supported = required_features && queueIdx != -1;
 
-    ss << std::setw(3) << ord++ << std::setw(20) << name.substr(0, 20)
+    ss << std::setw(3) << ord++ << std::setw(40) << name.substr(0, 39)
        << std::setw(10) << present << std::setw(10) << supported << std::hex
        << std::setw(10) << busid << std::dec << std::setw(10)
-       << (cudaId == -1 ? "No Device" : std::to_string(cudaId)) << std::endl;
+       << (cudaId == -1 ? "No Device" : std::to_string(cudaId)) << std::setw(15)
+       << rayTracing << std::endl;
 
     devices.push_back(
         Context::PhysicalDeviceInfo{.device = device,
@@ -302,7 +315,8 @@ Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
                                     .supported = required_features,
                                     .cudaId = cudaId,
                                     .pciBus = busid,
-                                    .queueIndex = queueIdx});
+                                    .queueIndex = queueIdx,
+                                    .rayTracing = rayTracing});
   }
   log::info(ss.str());
 
@@ -333,11 +347,10 @@ Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
       pciBus = "No Device";
       break;
     default:
+      ss << std::setw(10) << i << std::hex << std::setw(10) << busId << std::dec
+         << std::setw(25) << pciBus.c_str() << std::endl;
       break;
     }
-
-    ss << std::setw(10) << i << std::hex << std::setw(10) << busId << std::dec
-       << std::setw(25) << pciBus.c_str() << std::endl;
   }
   log::info(ss.str());
 #endif
@@ -520,9 +533,9 @@ void Context::pickSuitableGpuAndQueueFamilyIndex() {
 
   vk::PhysicalDevice pickedDevice = devices[pickedDeviceIdx].device;
 
-  mPhysicalDevice = pickedDevice;
-  mPhysicalDeviceLimits = mPhysicalDevice.getProperties().limits;
-  mQueueFamilyIndex = devices[pickedDeviceIdx].queueIndex;
+  mPhysicalDeviceInfo = devices[pickedDeviceIdx];
+  mPhysicalDeviceLimits = pickedDevice.getProperties().limits;
+  // mQueueFamilyIndex = devices[pickedDeviceIdx].queueIndex;
 }
 
 void Context::createDevice() {
@@ -531,8 +544,8 @@ void Context::createDevice() {
   }
 
   float queuePriority = 0.0f;
-  vk::DeviceQueueCreateInfo deviceQueueCreateInfo({}, mQueueFamilyIndex, 1,
-                                                  &queuePriority);
+  vk::DeviceQueueCreateInfo deviceQueueCreateInfo(
+      {}, getGraphicsQueueFamilyIndex(), 1, &queuePriority);
   std::vector<const char *> deviceExtensions{};
 
   vk::PhysicalDeviceFeatures2 features{};
@@ -548,6 +561,17 @@ void Context::createDevice() {
   descriptorFeatures.setDescriptorBindingPartiallyBound(true);
   timelineSemaphoreFeatures.setTimelineSemaphore(true);
 
+  vk::PhysicalDeviceAccelerationStructureFeaturesKHR asFeature;
+  vk::PhysicalDeviceRayTracingPipelineFeaturesKHR rtFeature;
+
+  if (mPhysicalDeviceInfo.rayTracing) {
+    deviceExtensions.push_back(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
+    deviceExtensions.push_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
+    deviceExtensions.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
+    descriptorFeatures.setPNext(&asFeature);
+    asFeature.setPNext(&rtFeature);
+  }
+
 #ifdef SVULKAN2_CUDA_INTEROP
   deviceExtensions.push_back(VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME);
   deviceExtensions.push_back(VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME);
@@ -562,7 +586,7 @@ void Context::createDevice() {
   vk::DeviceCreateInfo deviceInfo({}, deviceQueueCreateInfo, {},
                                   deviceExtensions);
   deviceInfo.setPNext(&features);
-  mDevice = mPhysicalDevice.createDeviceUnique(deviceInfo);
+  mDevice = getPhysicalDevice().createDeviceUnique(deviceInfo);
   VULKAN_HPP_DEFAULT_DISPATCHER.init(mDevice.get());
 
   mQueue = std::make_unique<Queue>();
@@ -629,7 +653,7 @@ void Context::createMemoryAllocator() {
       (PFN_vkBindImageMemory2KHR)mDevice->getProcAddr("vkBindImageMemory2");
 
   VmaAllocatorCreateInfo allocatorInfo = {};
-  allocatorInfo.physicalDevice = mPhysicalDevice;
+  allocatorInfo.physicalDevice = getPhysicalDevice();
   allocatorInfo.device = mDevice.get();
   allocatorInfo.instance = mInstance.get();
   allocatorInfo.pVulkanFunctions = &vulkanFunctions;
@@ -706,8 +730,8 @@ std::unique_ptr<renderer::GuiWindow> Context::createWindow(uint32_t width,
 
 // std::shared_ptr<resource::SVMetallicMaterial>
 // Context::createMetallicMaterial(glm::vec4 emission, glm::vec4 baseColor,
-//                                 float fresnel, float roughness, float metallic,
-//                                 float transparency) {
+//                                 float fresnel, float roughness, float
+//                                 metallic, float transparency) {
 //   return std::make_shared<resource::SVMetallicMaterial>(
 //       emission, baseColor, fresnel, roughness, metallic, transparency);
 // }
@@ -717,7 +741,8 @@ std::unique_ptr<renderer::GuiWindow> Context::createWindow(uint32_t width,
 //     std::vector<std::shared_ptr<resource::SVMaterial>> const &materials) {
 //   if (meshes.size() != materials.size()) {
 //     throw std::runtime_error(
-//         "create model failed: meshes and materials must have the same size.");
+//         "create model failed: meshes and materials must have the same
+//         size.");
 //   }
 //   std::vector<std::shared_ptr<resource::SVShape>> shapes;
 //   for (uint32_t i = 0; i < meshes.size(); ++i) {

@@ -7,9 +7,9 @@ using namespace svulkan2;
 using namespace svulkan2::shader;
 
 TEST(RTShader, Create) {
+  log::getLogger()->set_level(spdlog::level::debug);
   auto context = core::Context::Create();
   auto manager = context->createResourceManager();
-  log::getLogger()->set_level(spdlog::level::debug);
 
   RayTracingParser parser;
   parser

@@ -248,6 +248,7 @@ std::shared_ptr<ShaderConfig> ShaderPack::generateShaderInputLayouts() const {
         break;
       case UniformBindingType::eNone:
       case UniformBindingType::eUnknown:
+      default:
         throw std::runtime_error("invalid descriptor set");
       }
     }

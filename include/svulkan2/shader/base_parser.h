@@ -51,6 +51,11 @@ enum UniformBindingType {
   eMaterial,
   eTextures,
   eLight,
+
+  eRTScene,
+  eRTCamera,
+  eRTOutput,
+
   eNone,
   eUnknown
 };
@@ -62,7 +67,7 @@ struct DescriptorSetDescription {
     int dim;
     int arraySize;
     uint32_t arrayIndex; // index in the buffers/samplers vector
-    vk::Format format;  // only used for storage image
+    vk::Format format;   // only used for storage image
   };
   UniformBindingType type{eUnknown};
   std::vector<std::shared_ptr<StructDataLayout>> buffers;
