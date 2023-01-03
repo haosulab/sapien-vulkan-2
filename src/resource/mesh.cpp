@@ -500,7 +500,9 @@ std::shared_ptr<SVMesh> SVMesh::Create(std::vector<float> const &position,
   return mesh;
 }
 
-void SVMesh::buildASGeometry() {
+std::tuple<vk::AccelerationStructureGeometryKHR,
+           vk::AccelerationStructureBuildRangeInfoKHR>
+SVMesh::getASGeometry() {
   auto context = core::Context::Get();
   uploadToDevice();
 
@@ -518,7 +520,9 @@ void SVMesh::buildASGeometry() {
                                               trianglesData,
                                               {}); // TODO: add opaque flag?
 
-  vk::AccelerationStructureBuildRangeInfoKHR offset(mIndexCount / 3, 0, 0, 0);
+  vk::AccelerationStructureBuildRangeInfoKHR range(mIndexCount / 3, 0, 0, 0);
+
+  return {asGeom, range};
 }
 
 } // namespace resource

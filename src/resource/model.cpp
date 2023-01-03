@@ -511,6 +511,20 @@ std::future<void> SVModel::loadAsync() {
   });
 }
 
+// TODO: batch build?
+void SVModel::buildBLAS() {
+  std::vector<vk::AccelerationStructureGeometryKHR> geometries;
+  std::vector<vk::AccelerationStructureBuildRangeInfoKHR> ranges;
+  for (auto shape : getShapes()) {
+    auto [geometry, range] = shape->mesh->getASGeometry();
+    geometries.push_back(geometry);
+    ranges.push_back(range);
+  }
+
+  mBLAS = std::make_unique<core::BLAS>(geometries, ranges);
+  mBLAS->build();
+}
+
 SVModel::SVModel() {
 #ifdef TRACK_ALLOCATION
   mModelId = gModelId++;

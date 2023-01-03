@@ -9,19 +9,6 @@ namespace svulkan2 {
 namespace resource {
 
 class SVMesh {
-  bool mDynamic;
-  std::vector<uint32_t> mIndices;
-  uint32_t mIndexCount{};
-  std::unordered_map<std::string, std::vector<float>> mAttributes;
-
-  bool mDirty{true};
-  bool mOnDevice{false};
-  size_t mVertexCount{0}; // set only when upload
-  std::unique_ptr<core::Buffer> mVertexBuffer;
-  std::unique_ptr<core::Buffer> mIndexBuffer;
-
-  std::mutex mUploadingMutex;
-
 public:
   SVMesh(bool dynamic = false);
 
@@ -40,7 +27,9 @@ public:
   void uploadToDevice();
   void removeFromDevice();
 
-  void buildASGeometry();
+  std::tuple<vk::AccelerationStructureGeometryKHR,
+             vk::AccelerationStructureBuildRangeInfoKHR>
+  getASGeometry(); // TODO: notify BLAS update after vertex update
 
   inline bool isOnDevice() const { return mOnDevice; }
 
@@ -58,6 +47,20 @@ public:
   static std::shared_ptr<SVMesh> CreateYZPlane();
   static std::shared_ptr<SVMesh> Create(std::vector<float> const &position,
                                         std::vector<uint32_t> const &index);
+
+private:
+  bool mDynamic;
+  std::vector<uint32_t> mIndices;
+  uint32_t mIndexCount{};
+  std::unordered_map<std::string, std::vector<float>> mAttributes;
+
+  bool mDirty{true};
+  bool mOnDevice{false};
+  size_t mVertexCount{0}; // set only when upload
+  std::unique_ptr<core::Buffer> mVertexBuffer;
+  std::unique_ptr<core::Buffer> mIndexBuffer;
+
+  std::mutex mUploadingMutex;
 };
 } // namespace resource
 } // namespace svulkan2
