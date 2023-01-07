@@ -6,7 +6,7 @@
 
 layout(location=0) rayPayloadInEXT Ray ray;
 
-layout(set = 1, binding = 9) uniform samplerCube samplerEnvironment;  // TODO: check this
+layout(set = 1, binding = 10) uniform samplerCube samplerEnvironment;  // TODO: check this
 
 void main() {
   vec3 dir = ray.direction;

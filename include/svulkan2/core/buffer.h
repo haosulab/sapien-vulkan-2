@@ -40,6 +40,7 @@ public:
   ~Buffer();
 
   vk::Buffer getVulkanBuffer() const { return mBuffer; }
+  vk::DeviceAddress getAddress() const;
 
   void *map();
   void unmap();

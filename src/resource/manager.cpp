@@ -69,6 +69,27 @@ SVResourceManager::CreateShaderPackInstance(
   return inst;
 }
 
+std::shared_ptr<shader::RayTracingShaderPack>
+SVResourceManager::CreateRTShaderPack(std::string const &dirname) {
+  std::lock_guard<std::mutex> lock(mShaderPackLock);
+  auto dir = fs::canonical(dirname);
+  std::string key = dir.string();
+
+  auto it = mRTShaderPackRegistry.find(key);
+  if (it != mRTShaderPackRegistry.end()) {
+    return it->second;
+  }
+
+  if (!fs::is_directory(dir)) {
+    throw std::runtime_error("invalid shader pack directory: " + dirname);
+  }
+  auto shaderPack = std::make_shared<shader::RayTracingShaderPack>(dirname);
+  mRTShaderPackRegistry[key] = shaderPack;
+
+  setVertexLayout(shaderPack->computeCompatibleInputVertexLayout());
+  return shaderPack;
+}
+
 std::shared_ptr<SVImage>
 SVResourceManager::CreateImageFromFile(std::string const &filename,
                                        uint32_t mipLevels) {

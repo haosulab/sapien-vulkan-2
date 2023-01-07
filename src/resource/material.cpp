@@ -329,5 +329,12 @@ void SVMetallicMaterial::removeFromDevice() {
   mDeviceBuffer.reset();
 }
 
+core::Buffer &SVMetallicMaterial::getDeviceBuffer() const {
+  if (!mDeviceBuffer) {
+    throw std::runtime_error("failed to get device buffer: not uploaded");
+  }
+  return *mDeviceBuffer;
+}
+
 } // namespace resource
 } // namespace svulkan2

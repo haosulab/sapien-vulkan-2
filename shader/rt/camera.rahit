@@ -23,9 +23,9 @@ layout(set = 1, binding = 2) readonly buffer Materials
 void main() {
   uint materialIndex = geometryInstances.i[gl_InstanceID].materialIndex;
   Material m = materials[nonuniformEXT(materialIndex)].m;
-  if (m.alpha == 0.0) {
+  if (m.baseColor.a == 0.0) {
     ignoreIntersectionEXT;
-  } else if (rnd(ray.seed) > m.alpha) {
+  } else if (rnd(ray.seed) > m.baseColor.a) {
     ignoreIntersectionEXT;
   }
 }

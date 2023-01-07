@@ -525,6 +525,13 @@ void SVModel::buildBLAS() {
   mBLAS->build();
 }
 
+core::BLAS *SVModel::getBLAS() {
+  if (!mBLAS) {
+    buildBLAS();
+  }
+  return mBLAS.get();
+}
+
 SVModel::SVModel() {
 #ifdef TRACK_ALLOCATION
   mModelId = gModelId++;

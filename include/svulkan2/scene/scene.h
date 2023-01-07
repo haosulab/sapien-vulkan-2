@@ -3,6 +3,7 @@
 #include "light.h"
 #include "node.h"
 #include "object.h"
+#include "svulkan2/core/as.h"
 #include <memory>
 #include <vector>
 
@@ -15,27 +16,6 @@ class SVCubemap;
 namespace scene {
 
 class Scene {
-  std::vector<std::unique_ptr<Node>> mNodes{};
-  std::vector<std::unique_ptr<Object>> mObjects{};
-  std::vector<std::unique_ptr<LineObject>> mLineObjects{};
-  std::vector<std::unique_ptr<PointObject>> mPointObjects{};
-  std::vector<std::unique_ptr<Camera>> mCameras{};
-  std::vector<std::unique_ptr<PointLight>> mPointLights{};
-  std::vector<std::unique_ptr<DirectionalLight>> mDirectionalLights{};
-  std::vector<std::unique_ptr<SpotLight>> mSpotLights{};
-  std::vector<std::unique_ptr<TexturedLight>> mTexturedLights{};
-
-  Node *mRootNode{nullptr};
-
-  bool mRequireForceRemove{};
-
-  glm::vec4 mAmbientLight{};
-
-  std::shared_ptr<resource::SVCubemap> mEnvironmentMap{};
-
-  /** when anything is added or removed, the version changes */
-  uint64_t mVersion{1l};
-
 public:
   inline Node &getRootNode() { return *mRootNode; };
 
@@ -119,6 +99,47 @@ public:
 
   uint64_t getVersion() const { return mVersion; }
   void updateVersion();
+
+  // ray tracing
+  void buildTLAS();
+  void updateTLAS();
+
+  void
+  createRTStorageBuffers(StructDataLayout const &materialBufferLayout,
+                         StructDataLayout const &textureIndexBufferLayout,
+                         StructDataLayout const &geometryInstanceBufferLayout);
+
+private:
+  std::vector<std::unique_ptr<Node>> mNodes{};
+  std::vector<std::unique_ptr<Object>> mObjects{};
+  std::vector<std::unique_ptr<LineObject>> mLineObjects{};
+  std::vector<std::unique_ptr<PointObject>> mPointObjects{};
+  std::vector<std::unique_ptr<Camera>> mCameras{};
+  std::vector<std::unique_ptr<PointLight>> mPointLights{};
+  std::vector<std::unique_ptr<DirectionalLight>> mDirectionalLights{};
+  std::vector<std::unique_ptr<SpotLight>> mSpotLights{};
+  std::vector<std::unique_ptr<TexturedLight>> mTexturedLights{};
+
+  Node *mRootNode{nullptr};
+
+  bool mRequireForceRemove{};
+
+  glm::vec4 mAmbientLight{};
+
+  std::shared_ptr<resource::SVCubemap> mEnvironmentMap{};
+
+  /** when anything is added or removed, the version changes */
+  uint64_t mVersion{1l};
+
+  // ray tracing resources
+  std::unique_ptr<core::TLAS> mTLAS;
+  uint64_t mTLASVersion{0l};
+  std::vector<vk::Buffer> mVertexBuffers;
+  std::vector<vk::Buffer> mIndexBuffers;
+  std::vector<vk::Buffer> mMaterialBuffers;
+  std::vector<std::tuple<vk::ImageView, vk::Sampler>> mTextures;
+  std::unique_ptr<core::Buffer> mTextureIndexBuffer;
+  std::unique_ptr<core::Buffer> mGeometryInstanceBuffer;
 };
 
 } // namespace scene

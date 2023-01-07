@@ -90,16 +90,24 @@ void SVMesh::uploadToDevice() {
   }
 
   if (!mVertexBuffer) {
+    // device address is required for AS build
+    vk::BufferUsageFlags deviceAddressFlag =
+        context->isRayTracingAvailable()
+            ? vk::BufferUsageFlagBits::eShaderDeviceAddress |
+                  vk::BufferUsageFlagBits::
+                      eAccelerationStructureBuildInputReadOnlyKHR
+            : vk::BufferUsageFlags{};
+
     mVertexBuffer = std::make_unique<core::Buffer>(
         bufferSize,
-        vk::BufferUsageFlagBits::eVertexBuffer |
+        deviceAddressFlag | vk::BufferUsageFlagBits::eVertexBuffer |
             vk::BufferUsageFlagBits::eTransferDst |
             vk::BufferUsageFlagBits::eTransferSrc,
         mDynamic ? VmaMemoryUsage::VMA_MEMORY_USAGE_CPU_TO_GPU
                  : VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY);
     mIndexBuffer = std::make_unique<core::Buffer>(
         indexBufferSize,
-        vk::BufferUsageFlagBits::eIndexBuffer |
+        deviceAddressFlag | vk::BufferUsageFlagBits::eIndexBuffer |
             vk::BufferUsageFlagBits::eTransferDst |
             vk::BufferUsageFlagBits::eTransferSrc,
         VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY);

@@ -562,14 +562,29 @@ void Context::createDevice() {
   timelineSemaphoreFeatures.setTimelineSemaphore(true);
 
   vk::PhysicalDeviceAccelerationStructureFeaturesKHR asFeature;
+  asFeature.setAccelerationStructure(true);
   vk::PhysicalDeviceRayTracingPipelineFeaturesKHR rtFeature;
+  rtFeature.setRayTracingPipeline(true);
+  vk::PhysicalDeviceBufferDeviceAddressFeaturesKHR addrFeature;
+  addrFeature.setBufferDeviceAddress(true);
+  vk::PhysicalDeviceShaderClockFeaturesKHR clockFeature;
+  clockFeature.setShaderDeviceClock(true);
+  clockFeature.setShaderSubgroupClock(true);
 
   if (mPhysicalDeviceInfo.rayTracing) {
     deviceExtensions.push_back(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
     deviceExtensions.push_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
     deviceExtensions.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
+    deviceExtensions.push_back(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
+    deviceExtensions.push_back(VK_KHR_SHADER_CLOCK_EXTENSION_NAME);
+    descriptorFeatures.setRuntimeDescriptorArray(true);
+    descriptorFeatures.setShaderStorageBufferArrayNonUniformIndexing(true);
+    descriptorFeatures.setShaderSampledImageArrayNonUniformIndexing(true);
     descriptorFeatures.setPNext(&asFeature);
     asFeature.setPNext(&rtFeature);
+    rtFeature.setPNext(&addrFeature);
+    addrFeature.setPNext(&clockFeature);
+    features.features.setShaderInt64(true);
   }
 
 #ifdef SVULKAN2_CUDA_INTEROP
@@ -598,6 +613,11 @@ void Context::createMemoryAllocator() {
   }
 
   VmaVulkanFunctions vulkanFunctions{};
+  vulkanFunctions.vkGetInstanceProcAddr =
+      (PFN_vkGetInstanceProcAddr)mInstance->getProcAddr(
+          "vkGetInstanceProcAddr");
+  vulkanFunctions.vkGetDeviceProcAddr =
+      (PFN_vkGetDeviceProcAddr)mInstance->getProcAddr("vkGetDeviceProcAddr");
   vulkanFunctions.vkGetPhysicalDeviceProperties =
       (PFN_vkGetPhysicalDeviceProperties)mInstance->getProcAddr(
           "vkGetPhysicalDeviceProperties");
@@ -653,10 +673,15 @@ void Context::createMemoryAllocator() {
       (PFN_vkBindImageMemory2KHR)mDevice->getProcAddr("vkBindImageMemory2");
 
   VmaAllocatorCreateInfo allocatorInfo = {};
+  allocatorInfo.vulkanApiVersion = mApiVersion;
   allocatorInfo.physicalDevice = getPhysicalDevice();
   allocatorInfo.device = mDevice.get();
   allocatorInfo.instance = mInstance.get();
   allocatorInfo.pVulkanFunctions = &vulkanFunctions;
+
+  if (isRayTracingAvailable()) {
+    allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+  }
 
   mAllocator = std::make_unique<Allocator>(allocatorInfo);
 }

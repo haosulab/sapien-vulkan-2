@@ -1,4 +1,5 @@
 #include "svulkan2/scene/scene.h"
+#include "svulkan2/core/context.h"
 #include <algorithm>
 
 namespace svulkan2 {
@@ -607,6 +608,202 @@ void Scene::reorderLights() {
 void Scene::updateVersion() {
   mVersion++;
   log::info("Scene updated");
+}
+
+void Scene::buildTLAS() {
+  log::info("building TLAS");
+  auto context = core::Context::Get();
+  std::vector<vk::AccelerationStructureInstanceKHR> instances;
+  uint32_t globalGeomIdx{0};
+  for (auto obj : getObjects()) {
+    glm::mat4 modelTranspose = glm::transpose(
+        obj->getTransform().worldModelMatrix); // column major matrix
+    vk::TransformMatrixKHR mat;
+    static_assert(sizeof(mat) == sizeof(float) * 12);
+    std::memcpy(&mat, &modelTranspose, sizeof(mat));
+
+    vk::AccelerationStructureInstanceKHR inst(
+        mat, globalGeomIdx, 0xff, 0,
+        vk::GeometryInstanceFlagBitsKHR::eTriangleFacingCullDisable,
+        obj->getModel()->getBLAS()->getAddress());
+
+    globalGeomIdx += obj->getModel()->getShapes().size();
+
+    instances.push_back(inst);
+  }
+
+  mTLAS = std::make_unique<core::TLAS>(instances);
+  mTLAS->build();
+  mTLASVersion = getVersion();
+}
+
+void Scene::updateTLAS() {
+  if (mTLASVersion != getVersion()) {
+    buildTLAS();
+  } else {
+    log::info("updating TLAS");
+    auto objects = getObjects();
+    std::vector<vk::TransformMatrixKHR> transforms;
+    transforms.reserve(objects.size());
+
+    for (auto obj : getObjects()) {
+      glm::mat4 modelTranspose =
+          glm::transpose(obj->getTransform().worldModelMatrix);
+      vk::TransformMatrixKHR mat;
+      std::memcpy(&mat, &modelTranspose, sizeof(mat));
+      transforms.push_back(mat);
+    }
+    mTLAS->update(transforms);
+  }
+}
+
+void Scene::createRTStorageBuffers(
+    StructDataLayout const &materialBufferLayout,
+    StructDataLayout const &textureIndexBufferLayout,
+    StructDataLayout const &geometryInstanceBufferLayout) {
+
+  uint32_t geometryInstanceSize = geometryInstanceBufferLayout.size;
+  uint32_t materialIndexOffset =
+      geometryInstanceBufferLayout.elements.at("materialIndex").offset;
+  uint32_t geometryIndexOffset =
+      geometryInstanceBufferLayout.elements.at("geometryIndex").offset;
+
+  uint32_t textureIndexSize = textureIndexBufferLayout.size;
+  uint32_t emissionOffset =
+      textureIndexBufferLayout.elements.at("emission").offset;
+  uint32_t diffuseOffset =
+      textureIndexBufferLayout.elements.at("diffuse").offset;
+  uint32_t metallicOffset =
+      textureIndexBufferLayout.elements.at("metallic").offset;
+  uint32_t roughnessOffset =
+      textureIndexBufferLayout.elements.at("roughness").offset;
+  uint32_t normalOffset = textureIndexBufferLayout.elements.at("normal").offset;
+
+  auto objects = getObjects();
+
+  uint32_t instanceCount{0};
+  uint32_t meshCount{0};
+  uint32_t materialCount{0};
+  uint32_t textureCount{0};
+
+  std::unordered_map<std::shared_ptr<resource::SVMesh>, uint32_t> mesh2Id;
+  std::unordered_map<std::shared_ptr<resource::SVMaterial>, uint32_t>
+      material2Id;
+  std::unordered_map<std::shared_ptr<resource::SVTexture>, uint32_t> texture2Id;
+
+  std::vector<std::shared_ptr<resource::SVMesh>> meshes;
+  std::vector<std::shared_ptr<resource::SVMetallicMaterial>> materials;
+  std::vector<std::shared_ptr<resource::SVTexture>> textures;
+
+  for (auto &obj : objects) {
+    for (auto &shape : obj->getModel()->getShapes()) {
+      shape->mesh->uploadToDevice();
+      shape->material->uploadToDevice();
+      ++instanceCount;
+
+      if (!mesh2Id.contains(shape->mesh)) {
+        mesh2Id[shape->mesh] = meshCount++;
+        meshes.push_back(shape->mesh);
+      }
+      if (!material2Id.contains(shape->material)) {
+        material2Id[shape->material] = materialCount++;
+        auto mat = std::static_pointer_cast<resource::SVMetallicMaterial>(
+            shape->material);
+        materials.push_back(mat);
+
+        std::array matTextures{
+            mat->getEmissionTexture(), mat->getDiffuseTexture(),
+            mat->getNormalTexture(), mat->getMetallicTexture(),
+            mat->getRoughnessTexture()};
+        for (auto tex : matTextures) {
+          if (!texture2Id.contains(tex)) {
+            texture2Id[tex] = textureCount++;
+            textures.push_back(tex);
+          }
+        }
+      }
+    }
+  }
+
+  std::vector<uint8_t> geometryInstanceBuffer(instanceCount *
+                                              geometryInstanceSize);
+  uint32_t instanceIndex = 0;
+  for (auto &obj : objects) {
+    for (auto &shape : obj->getModel()->getShapes()) {
+      uint32_t meshId = mesh2Id.at(shape->mesh);
+      uint32_t materialId = material2Id.at(shape->material);
+      std::memcpy(geometryInstanceBuffer.data() +
+                      geometryInstanceSize * instanceIndex +
+                      geometryIndexOffset,
+                  &meshId, sizeof(uint32_t));
+      std::memcpy(geometryInstanceBuffer.data() +
+                      geometryInstanceSize * instanceIndex +
+                      materialIndexOffset,
+                  &materialId, sizeof(uint32_t));
+      ++instanceIndex;
+    }
+  }
+
+  std::vector<uint8_t> textureIndexBuffer(materialCount * textureIndexSize);
+  uint32_t materialIndex{0};
+  for (auto mat : materials) {
+    auto emissionTex = mat->getEmissionTexture();
+    auto diffuseTex = mat->getDiffuseTexture();
+    auto normalTex = mat->getNormalTexture();
+    auto metallicTex = mat->getMetallicTexture();
+    auto roughnessTex = mat->getRoughnessTexture();
+
+    int emissionId = emissionTex ? texture2Id.at(emissionTex) : -1;
+    int diffuseId = diffuseTex ? texture2Id.at(diffuseTex) : -1;
+    int normalId = normalTex ? texture2Id.at(normalTex) : -1;
+    int metallicId = metallicTex ? texture2Id.at(metallicTex) : -1;
+    int roughnessId = roughnessTex ? texture2Id.at(roughnessTex) : -1;
+
+    std::memcpy(textureIndexBuffer.data() + materialIndex * textureIndexSize +
+                    emissionOffset,
+                &emissionId, sizeof(int));
+    std::memcpy(textureIndexBuffer.data() + materialIndex * textureIndexSize +
+                    diffuseOffset,
+                &diffuseId, sizeof(int));
+    std::memcpy(textureIndexBuffer.data() + materialIndex * textureIndexSize +
+                    normalOffset,
+                &normalId, sizeof(int));
+    std::memcpy(textureIndexBuffer.data() + materialIndex * textureIndexSize +
+                    metallicOffset,
+                &metallicId, sizeof(int));
+    std::memcpy(textureIndexBuffer.data() + materialIndex * textureIndexSize +
+                    roughnessOffset,
+                &roughnessId, sizeof(int));
+
+    ++materialIndex;
+  }
+
+  mVertexBuffers.clear();
+  mIndexBuffers.clear();
+  for (auto mesh : meshes) {
+    mVertexBuffers.push_back(mesh->getVertexBuffer().getVulkanBuffer());
+    mIndexBuffers.push_back(mesh->getIndexBuffer().getVulkanBuffer());
+  }
+
+  mTextures.clear();
+  for (auto texture : textures) {
+    mTextures.push_back({texture->getImageView(), texture->getSampler()});
+  }
+
+  mMaterialBuffers.clear();
+  for (auto mat : materials) {
+    mMaterialBuffers.push_back(mat->getDeviceBuffer().getVulkanBuffer());
+  }
+
+  mTextureIndexBuffer = std::make_unique<core::Buffer>(
+      textureIndexBuffer.size(), vk::BufferUsageFlagBits::eStorageBuffer,
+      VMA_MEMORY_USAGE_GPU_ONLY);
+  mTextureIndexBuffer->upload(textureIndexBuffer);
+
+  mGeometryInstanceBuffer = std::make_unique<core::Buffer>(
+      geometryInstanceBuffer.size(), vk::BufferUsageFlagBits::eStorageBuffer,
+      VMA_MEMORY_USAGE_GPU_ONLY);
+  mGeometryInstanceBuffer->upload(geometryInstanceBuffer);
 }
 
 } // namespace scene

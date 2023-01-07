@@ -3,6 +3,7 @@
 #include "model.h"
 #include "svulkan2/common/config.h"
 #include "svulkan2/core/descriptor_pool.h"
+#include "svulkan2/shader/rt.h"
 #include "svulkan2/shader/shader_pack.h"
 #include "svulkan2/shader/shader_pack_instance.h"
 #include <memory>
@@ -12,58 +13,17 @@ namespace svulkan2 {
 namespace resource {
 
 class SVResourceManager {
-  std::unordered_map<std::string, std::vector<std::shared_ptr<SVModel>>>
-      mModelRegistry;
-  std::unordered_map<std::string, std::vector<std::shared_ptr<SVTexture>>>
-      mTextureRegistry;
-  std::unordered_map<std::string, std::vector<std::shared_ptr<SVCubemap>>>
-      mCubemapRegistry;
-  std::unordered_map<std::string, std::vector<std::shared_ptr<SVImage>>>
-      mImageRegistry;
-  std::unordered_map<std::string, std::shared_ptr<SVTexture>>
-      mRandomTextureRegistry;
-
-  // all textures, used for indexing in ray tracing
-  std::vector<std::weak_ptr<SVTexture>> mAllTextures;
-  std::unique_ptr<core::DynamicDescriptorPool> mTextureDescriptorPool;
-  vk::UniqueDescriptorSetLayout mTextureSetLayout;
-  vk::UniqueDescriptorSet mTextureSet;
-
-  void allocateTextureResources();
-
-  // all materials, used to form the big material buffer for ray tracing
-  std::vector<std::weak_ptr<SVMetallicMaterial>> mAllMaterials;
-  std::unique_ptr<core::Buffer> mMaterialBuffer;
-
-  std::mutex mShaderPackLock{};
-  std::unordered_map<std::string, std::shared_ptr<shader::ShaderPack>>
-      mShaderPackRegistry;
-
-  std::mutex mShaderPackInstanceLock{};
-  std::unordered_map<std::string,
-                     std::vector<std::shared_ptr<shader::ShaderPackInstance>>>
-      mShaderPackInstanceRegistry;
-
-  std::shared_ptr<InputDataLayout> mVertexLayout{};
-  std::shared_ptr<InputDataLayout> mLineVertexLayout{};
-
-  std::shared_ptr<SVTexture> mDefaultTexture;
-  std::shared_ptr<SVCubemap> mDefaultCubemap;
-  std::shared_ptr<SVTexture> mDefaultBRDFLUT;
-
-  uint32_t mDefaultMipLevels{1};
-
-  std::mutex mCreateLock{};
-
 public:
   SVResourceManager();
-  ~SVResourceManager() = default;
 
   std::shared_ptr<shader::ShaderPack>
   CreateShaderPack(std::string const &dirname);
 
   std::shared_ptr<shader::ShaderPackInstance>
   CreateShaderPackInstance(shader::ShaderPackInstanceDesc const &desc);
+
+  std::shared_ptr<shader::RayTracingShaderPack>
+  CreateRTShaderPack(std::string const &dirname);
 
   std::shared_ptr<SVImage> CreateImageFromFile(std::string const &filename,
                                                uint32_t mipLevels);
@@ -182,6 +142,56 @@ public:
 
   void setDefaultMipLevels(uint32_t level) { mDefaultMipLevels = level; }
   uint32_t getDefaultMipLevels() const { return mDefaultMipLevels; }
+
+  ~SVResourceManager() = default;
+
+private:
+  std::unordered_map<std::string, std::vector<std::shared_ptr<SVModel>>>
+      mModelRegistry;
+  std::unordered_map<std::string, std::vector<std::shared_ptr<SVTexture>>>
+      mTextureRegistry;
+  std::unordered_map<std::string, std::vector<std::shared_ptr<SVCubemap>>>
+      mCubemapRegistry;
+  std::unordered_map<std::string, std::vector<std::shared_ptr<SVImage>>>
+      mImageRegistry;
+  std::unordered_map<std::string, std::shared_ptr<SVTexture>>
+      mRandomTextureRegistry;
+
+  // all textures, used for indexing in ray tracing
+  std::vector<std::weak_ptr<SVTexture>> mAllTextures;
+  std::unique_ptr<core::DynamicDescriptorPool> mTextureDescriptorPool;
+  vk::UniqueDescriptorSetLayout mTextureSetLayout;
+  vk::UniqueDescriptorSet mTextureSet;
+
+  void allocateTextureResources();
+
+  // all materials, used to form the big material buffer for ray tracing
+  std::vector<std::weak_ptr<SVMetallicMaterial>> mAllMaterials;
+  std::unique_ptr<core::Buffer> mMaterialBuffer;
+
+  std::mutex mShaderPackLock{};
+  std::unordered_map<std::string, std::shared_ptr<shader::ShaderPack>>
+      mShaderPackRegistry;
+
+  std::mutex mShaderPackInstanceLock{};
+  std::unordered_map<std::string,
+                     std::vector<std::shared_ptr<shader::ShaderPackInstance>>>
+      mShaderPackInstanceRegistry;
+
+  std::mutex mRTShaderPackLock{};
+  std::unordered_map<std::string, std::shared_ptr<shader::RayTracingShaderPack>>
+      mRTShaderPackRegistry;
+
+  std::shared_ptr<InputDataLayout> mVertexLayout{};
+  std::shared_ptr<InputDataLayout> mLineVertexLayout{};
+
+  std::shared_ptr<SVTexture> mDefaultTexture;
+  std::shared_ptr<SVCubemap> mDefaultCubemap;
+  std::shared_ptr<SVTexture> mDefaultBRDFLUT;
+
+  uint32_t mDefaultMipLevels{1};
+
+  std::mutex mCreateLock{};
 };
 
 } // namespace resource

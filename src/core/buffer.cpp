@@ -142,6 +142,10 @@ void Buffer::download(void *data, size_t size, size_t offset) {
   }
 }
 
+vk::DeviceAddress Buffer::getAddress() const {
+  return mContext->getDevice().getBufferAddress({mBuffer});
+}
+
 #ifdef SVULKAN2_CUDA_INTEROP
 void *Buffer::getCudaPtr() {
   if (mCudaPtr) {
@@ -158,7 +162,8 @@ void *Buffer::getCudaPtr() {
   checkCudaErrors(cudaSetDevice(mCudaDeviceId));
   cudaExternalMemoryHandleDesc externalMemoryHandleDesc = {};
   externalMemoryHandleDesc.type = cudaExternalMemoryHandleTypeOpaqueFd;
-  externalMemoryHandleDesc.size = mAllocationInfo.offset + mAllocationInfo.size; // TODO check
+  externalMemoryHandleDesc.size =
+      mAllocationInfo.offset + mAllocationInfo.size; // TODO check
 
   vk::MemoryGetFdInfoKHR vkMemoryGetFdInfoKHR;
   vkMemoryGetFdInfoKHR.setPNext(nullptr);
@@ -167,7 +172,8 @@ void *Buffer::getCudaPtr() {
       vk::ExternalMemoryHandleTypeFlagBits::eOpaqueFd);
 
   // According to https://docs.nvidia.com/pdf/CUDA_Runtime_API.pdf
-  // Performing any operations on the file descriptor after it is imported results in undefined behavior
+  // Performing any operations on the file descriptor after it is imported
+  // results in undefined behavior
   auto cudaFd = mContext->getDevice().getMemoryFdKHR(vkMemoryGetFdInfoKHR);
   externalMemoryHandleDesc.handle.fd = cudaFd;
 

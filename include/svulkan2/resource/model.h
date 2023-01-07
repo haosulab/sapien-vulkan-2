@@ -41,6 +41,7 @@ public:
 
   /** must be called only in 1 thread currently */
   void buildBLAS();
+  core::BLAS* getBLAS();
 
   ~SVModel();
 

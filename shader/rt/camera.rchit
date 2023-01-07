@@ -26,19 +26,24 @@ layout(set = 1, binding = 2) readonly buffer Materials
   Material m;
 } materials[];
 
-layout(set = 1, binding = 3) uniform sampler2D textures[];
+layout(set = 1, binding = 3) readonly buffer TextureIndices
+{
+  TextureIndex t[];
+} textureIndices;
 
-layout(set = 1, binding = 4) readonly buffer PointLights
+layout(set = 1, binding = 4) uniform sampler2D textures[];
+
+layout(set = 1, binding = 5) readonly buffer PointLights
 {
   PointLight l[];
 } pointLights;
 
-layout(set = 1, binding = 5) readonly buffer DirectionalLights
+layout(set = 1, binding = 6) readonly buffer DirectionalLights
 {
   DirectionalLight l[];
 } directionalLights;
 
-layout(set = 1, binding = 6) readonly buffer SpotLights
+layout(set = 1, binding = 7) readonly buffer SpotLights
 {
   SpotLight l[];
 } spotLights;
@@ -50,14 +55,13 @@ struct Vertex {
 
   float tx, ty, tz;
   float bx, by, bz;
-  float p0, p1;
 };
 
-layout(set = 1, binding = 7) readonly buffer Vertices {
+layout(std430, set = 1, binding = 8) readonly buffer Vertices {
   Vertex v[];
 } vertices[];
 
-layout(set = 1, binding = 8) readonly buffer Indices {
+layout(set = 1, binding = 9) readonly buffer Indices {
   uint i[];
 } indices[];
 
@@ -255,38 +259,39 @@ void main() {
   vec3 worldTangent = normalize(vec3(tangent * gl_WorldToObjectEXT));
 
   Material mat = materials[nonuniformEXT(materialIndex)].m;
+  TextureIndex ti = textureIndices.t[materialIndex];
 
-  vec3 baseColor = mat.diffuse.rgb;
-  if (mat.diffuseTextureIndex >= 0) {
-    baseColor = texture(textures[nonuniformEXT(mat.diffuseTextureIndex)], uv).rgb;
+  vec3 baseColor = mat.baseColor.rgb;
+  if (ti.diffuse >= 0) {
+    baseColor = texture(textures[nonuniformEXT(ti.diffuse)], uv).rgb;
   }
   baseColor /= M_PI;
 
   float metallic = mat.metallic;
-  if (mat.metallicTextureIndex >= 0) {
-    metallic = texture(textures[nonuniformEXT(mat.metallicTextureIndex)], uv).x;
+  if (ti.metallic >= 0) {
+    metallic = texture(textures[nonuniformEXT(ti.metallic)], uv).x;
   }
   metallic = clamp(metallic, 0.0, 1.0);
 
   float roughness = mat.roughness;
-  if (mat.roughnessTextureIndex >= 0) {
-    roughness = texture(textures[nonuniformEXT(mat.roughnessTextureIndex)], uv).x;
+  if (ti.roughness >= 0) {
+    roughness = texture(textures[nonuniformEXT(ti.roughness)], uv).x;
   }
   float a2 = roughness * roughness;
 
   vec3 texNorm = vec3(0.0, 0.0, 1.0);  // TODO use
-  if (mat.normalTextureIndex >= 0) {
-    texNorm = texture(textures[nonuniformEXT(mat.normalTextureIndex)], uv).xyz;
+  if (ti.normal >= 0) {
+    texNorm = texture(textures[nonuniformEXT(ti.normal)], uv).xyz;
   }
 
   vec3 emission = mat.emission.rgb;
-  if (mat.emissionTextureIndex >= 0) {
-    emission = texture(textures[nonuniformEXT(mat.emissionTextureIndex)], uv).rgb;
+  if (ti.emission >= 0) {
+    emission = texture(textures[nonuniformEXT(ti.emission)], uv).rgb;
   }
 
   float transmission = clamp(mat.transmission, 0.0, 1.0);
 
-  float specular = clamp(mat.specular * 0.08, 0.0, 1.0);
+  float specular = clamp(mat.fresnel * 0.08, 0.0, 1.0);
 
   float nonMetallic = 1.0 - metallic;
 

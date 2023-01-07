@@ -1,6 +1,8 @@
 #include "svulkan2/shader/rt.h"
 #include "svulkan2/common/launch_policy.h"
 #include "svulkan2/common/log.h"
+#include "svulkan2/core/buffer.h"
+#include "svulkan2/core/context.h"
 
 namespace svulkan2 {
 namespace shader {
@@ -13,11 +15,9 @@ static std::string summarizeResources(
     if (set.type != UniformBindingType::eUnknown) {
       if (set.type == UniformBindingType::eRTCamera) {
         ss << "    Camera";
-      }
-      else if (set.type == UniformBindingType::eRTScene) {
+      } else if (set.type == UniformBindingType::eRTScene) {
         ss << "     Scene";
-      }
-      else if (set.type == UniformBindingType::eRTOutput) {
+      } else if (set.type == UniformBindingType::eRTOutput) {
         ss << "    Output";
       }
     }
@@ -183,9 +183,16 @@ void RayTracingStageParser::reflectSPV() {
             static_cast<uint32_t>(mResources[setNumber].samplers.size() - 1)};
   }
 
+  for (auto &r : resources.push_constant_buffers) {
+    auto const &type = compiler.get_type(r.type_id);
+    if (!type_is_struct(type)) {
+      throw std::runtime_error("push constant buffer must be a struct");
+    }
+    mPushConstantLayout = parseBuffer(compiler, type);
+  }
+
   log::info("\n" + summary());
 
-  // TODO: push constants
   // TODO: analyze rayPayload
 }
 
@@ -193,7 +200,44 @@ std::string RayTracingStageParser::summary() const {
   return summarizeResources(mResources);
 }
 
-std::future<void> RayTracingParser::loadGLSLFilesAsync(
+RayTracingShaderPack::RayTracingShaderPack(std::string const &shaderDir) {
+  fs::path path(shaderDir);
+  auto raygenFile = path / "camera.rgen";
+  if (!fs::exists(raygenFile)) {
+    throw std::runtime_error(
+        "ray tracing shader directory must contain camera.rgen");
+  }
+
+  auto rchitFile = path / "camera.rchit";
+  if (!fs::exists(rchitFile)) {
+    throw std::runtime_error(
+        "ray tracing shader directory must contain camera.rchit");
+  }
+
+  auto rahitFile = path / "camera.rahit";
+  if (!fs::exists(rahitFile)) {
+    throw std::runtime_error(
+        "ray tracing shader directory must contain camera.rahit");
+  }
+
+  auto cameraRmissFile = path / "camera.rmiss";
+  if (!fs::exists(cameraRmissFile)) {
+    throw std::runtime_error(
+        "ray tracing shader directory must contain camera.rmiss");
+  }
+
+  auto shadowRmissFile = path / "shadow.rmiss";
+  if (!fs::exists(shadowRmissFile)) {
+    throw std::runtime_error(
+        "ray tracing shader directory must contain shadow.rmiss");
+  }
+
+  loadGLSLFilesAsync(raygenFile, {cameraRmissFile, shadowRmissFile},
+                     {rahitFile}, {rchitFile})
+      .get();
+}
+
+std::future<void> RayTracingShaderPack::loadGLSLFilesAsync(
     const std::string &raygenFile, const std::vector<std::string> &missFiles,
     const std::vector<std::string> &anyhitFiles,
     const std::vector<std::string> &closesthitFiles) {
@@ -231,6 +275,7 @@ std::future<void> RayTracingParser::loadGLSLFilesAsync(
     }
 
     mResources = mRaygenStageParser->getResources();
+    std::shared_ptr<StructDataLayout> pushConstantLayout;
 
     // TODO: clean up, hopefully one day view::concat is available
     for (auto &parser : mMissStageParsers) {
@@ -239,6 +284,16 @@ std::future<void> RayTracingParser::loadGLSLFilesAsync(
           mResources[sid] = mResources.at(sid).merge(set);
         } else {
           mResources[sid] = set;
+        }
+        if (auto layout = parser->getPushConstantLayout()) {
+          if (!pushConstantLayout) {
+            pushConstantLayout = layout;
+          } else {
+            if (*pushConstantLayout != *layout) {
+              throw std::runtime_error(
+                  "push_constant must be the same for all shader stages");
+            }
+          }
         }
       }
     }
@@ -249,6 +304,16 @@ std::future<void> RayTracingParser::loadGLSLFilesAsync(
         } else {
           mResources[sid] = set;
         }
+        if (auto layout = parser->getPushConstantLayout()) {
+          if (!pushConstantLayout) {
+            pushConstantLayout = layout;
+          } else {
+            if (*pushConstantLayout != *layout) {
+              throw std::runtime_error(
+                  "push_constant must be the same for all shader stages");
+            }
+          }
+        }
       }
     }
     for (auto &parser : mClosestHitStageParsers) {
@@ -258,8 +323,19 @@ std::future<void> RayTracingParser::loadGLSLFilesAsync(
         } else {
           mResources[sid] = set;
         }
+        if (auto layout = parser->getPushConstantLayout()) {
+          if (!pushConstantLayout) {
+            pushConstantLayout = layout;
+          } else {
+            if (*pushConstantLayout != *layout) {
+              throw std::runtime_error(
+                  "push_constant must be the same for all shader stages");
+            }
+          }
+        }
       }
     }
+    mPushConstantLayout = pushConstantLayout;
 
     for (uint32_t setId = 0;; setId++) {
       if (!mResources.contains(setId)) {
@@ -292,8 +368,543 @@ std::future<void> RayTracingParser::loadGLSLFilesAsync(
   });
 }
 
-std::string RayTracingParser::summary() const {
+std::shared_ptr<InputDataLayout>
+RayTracingShaderPack::computeCompatibleInputVertexLayout() const {
+  for (auto &[sid, set] : mResources) {
+    if (set.type == UniformBindingType::eRTScene) {
+      auto inputLayout = std::make_shared<InputDataLayout>();
+
+      uint32_t structOffset{};
+      uint32_t location{0};
+      for (auto &[bid, binding] : set.bindings) {
+        if (binding.name == "Vertices" &&
+            binding.type == vk::DescriptorType::eStorageBuffer) {
+          if (set.buffers.at(binding.arrayIndex)->elements.size() != 1) {
+            throw std::runtime_error("Vertices buffer must contain a single "
+                                     "array of structs (Vertex)");
+          }
+          auto elem =
+              set.buffers.at(binding.arrayIndex)->elements.begin()->second;
+          if (elem.arrayDim != 1 || elem.dtype != DataType::eSTRUCT) {
+            throw std::runtime_error("Vertices buffer must contain a single "
+                                     "array of structs (Vertex)");
+          }
+          auto vertex = elem.member;
+          if (!vertex->elements.contains("x") ||
+              vertex->elements.at("x").dtype != DataType::eFLOAT ||
+              vertex->elements.at("x").offset != 0 ||
+              !vertex->elements.contains("y") ||
+              vertex->elements.at("y").dtype != DataType::eFLOAT ||
+              vertex->elements.at("y").offset != 4 ||
+              !vertex->elements.contains("z") ||
+              vertex->elements.at("z").dtype != DataType::eFLOAT ||
+              vertex->elements.at("z").offset != 8) {
+            throw std::runtime_error(
+                "Vertex struct must contain float variables named "
+                "x, y, and z at the beginning");
+          }
+          structOffset = 12;
+          inputLayout->elements["position"] = {.name = "position",
+                                               .location = location++,
+                                               .dtype = DataType::eFLOAT3};
+
+          if (vertex->elements.contains("nx")) {
+            if (vertex->elements.at("nx").offset != structOffset) {
+              throw std::runtime_error(
+                  "Vertex struct members must follow the order of position "
+                  "normal uv tangent bitangent color without padding");
+            }
+            if (!vertex->elements.contains("ny") ||
+                !vertex->elements.contains("nz")) {
+              throw std::runtime_error("if a Vertex struct contains float "
+                                       "nx, it must contain ny, nz");
+            }
+            if (vertex->elements.at("nx").dtype != DataType::eFLOAT ||
+                vertex->elements.at("ny").dtype != DataType::eFLOAT ||
+                vertex->elements.at("nz").dtype != DataType::eFLOAT) {
+              throw std::runtime_error(
+                  "Vertex struct member nx, ny, nz must be float");
+            }
+            uint32_t offset = vertex->elements.at("nx").offset;
+            if (vertex->elements.at("ny").offset != offset + 4 ||
+                vertex->elements.at("nz").offset != offset + 8) {
+              throw std::runtime_error(
+                  "Vertex struct member nx, ny, nz must be consecutive");
+            }
+            structOffset += 12;
+            inputLayout->elements["normal"] = {.name = "normal",
+                                               .location = location++,
+                                               .dtype = DataType::eFLOAT3};
+          }
+
+          if (vertex->elements.contains("u")) {
+            if (vertex->elements.at("u").offset != structOffset) {
+              throw std::runtime_error(
+                  "Vertex struct members must follow the order of position "
+                  "normal uv tangent bitangent color without padding");
+            }
+            if (!vertex->elements.contains("v")) {
+              throw std::runtime_error(
+                  "if a Vertex struct contains float u, it must contain v");
+            }
+            if (vertex->elements.at("u").dtype != DataType::eFLOAT ||
+                vertex->elements.at("v").dtype != DataType::eFLOAT) {
+              throw std::runtime_error(
+                  "Vertex struct member u, v must be float");
+            }
+            uint32_t offset = vertex->elements.at("u").offset;
+            if (vertex->elements.at("v").offset != offset + 4) {
+              throw std::runtime_error(
+                  "Vertex struct member must be consecutive");
+            }
+            structOffset += 8;
+            inputLayout->elements["uv"] = {.name = "uv",
+                                           .location = location++,
+                                           .dtype = DataType::eFLOAT2};
+          }
+
+          if (vertex->elements.contains("tx")) {
+            if (vertex->elements.at("tx").offset != structOffset) {
+              throw std::runtime_error(
+                  "Vertex struct members must follow the order of position "
+                  "normal uv tangent bitangent color without padding");
+            }
+            if (!vertex->elements.contains("ty") ||
+                !vertex->elements.contains("tz")) {
+              throw std::runtime_error("if a Vertex struct contains float "
+                                       "tx, it must contain ty, tz");
+            }
+            if (vertex->elements.at("tx").dtype != DataType::eFLOAT ||
+                vertex->elements.at("ty").dtype != DataType::eFLOAT ||
+                vertex->elements.at("tz").dtype != DataType::eFLOAT) {
+              throw std::runtime_error(
+                  "Vertex struct member tx, ty, tz must be float");
+            }
+            uint32_t offset = vertex->elements.at("tx").offset;
+            if (vertex->elements.at("ty").offset != offset + 4 ||
+                vertex->elements.at("tz").offset != offset + 8) {
+              throw std::runtime_error(
+                  "Vertex struct member tx, ty, tz must be consecutive");
+            }
+            structOffset += 12;
+            inputLayout->elements["tangent"] = {.name = "tangent",
+                                                .location = location++,
+                                                .dtype = DataType::eFLOAT3};
+          }
+
+          if (vertex->elements.contains("bx")) {
+            if (vertex->elements.at("bx").offset != structOffset) {
+              throw std::runtime_error(
+                  "Vertex struct members must follow the order of position "
+                  "normal uv tangent bitangent color without padding");
+            }
+            if (!vertex->elements.contains("by") ||
+                !vertex->elements.contains("bz")) {
+              throw std::runtime_error("if a Vertex struct contains float "
+                                       "bx, it must contain by, bz");
+            }
+            if (vertex->elements.at("bx").dtype != DataType::eFLOAT ||
+                vertex->elements.at("by").dtype != DataType::eFLOAT ||
+                vertex->elements.at("bz").dtype != DataType::eFLOAT) {
+              throw std::runtime_error(
+                  "Vertex struct member bx, by, bz must be float");
+            }
+            uint32_t offset = vertex->elements.at("bx").offset;
+            if (vertex->elements.at("by").offset != offset + 4 ||
+                vertex->elements.at("bz").offset != offset + 8) {
+              throw std::runtime_error(
+                  "Vertex struct member bx, by, bz must be consecutive");
+            }
+            structOffset += 12;
+            inputLayout->elements["bitangent"] = {.name = "bitangent",
+                                                  .location = location++,
+                                                  .dtype = DataType::eFLOAT3};
+          }
+
+          if (vertex->elements.contains("r")) {
+            if (vertex->elements.at("r").offset != structOffset) {
+              throw std::runtime_error(
+                  "Vertex struct members must follow the order of position "
+                  "normal uv tangent bitangent color without padding");
+            }
+            if (!vertex->elements.contains("g") ||
+                !vertex->elements.contains("b") ||
+                !vertex->elements.contains("a")) {
+              throw std::runtime_error("if a Vertex struct contains float r, "
+                                       "it must contain g, b, a");
+            }
+            if (vertex->elements.at("r").dtype != DataType::eFLOAT ||
+                vertex->elements.at("g").dtype != DataType::eFLOAT ||
+                vertex->elements.at("b").dtype != DataType::eFLOAT ||
+                vertex->elements.at("a").dtype != DataType::eFLOAT) {
+              throw std::runtime_error(
+                  "Vertex struct member r, g, b, a must be float");
+            }
+            uint32_t offset = vertex->elements.at("r").offset;
+            if (vertex->elements.at("g").offset != offset + 4 ||
+                vertex->elements.at("b").offset != offset + 8 ||
+                vertex->elements.at("a").offset != offset + 12) {
+              throw std::runtime_error(
+                  "Vertex struct member r, g, b, a must be consecutive");
+            }
+            structOffset += 16;
+            inputLayout->elements["color"] = {.name = "color",
+                                              .location = location++,
+                                              .dtype = DataType::eFLOAT4};
+          }
+        }
+      }
+      return inputLayout;
+    }
+  }
+  throw std::runtime_error("failed to find the vertex buffer in the shader");
+}
+
+std::string RayTracingShaderPack::summary() const {
   return summarizeResources(mResources);
+}
+
+RayTracingShaderPackInstance::RayTracingShaderPackInstance(
+    RayTracingShaderPackInstanceDesc desc)
+    : mDesc(desc) {
+  mShaderPack = core::Context::Get()->getResourceManager()->CreateRTShaderPack(
+      desc.shaderDir);
+}
+
+static vk::UniqueDescriptorSetLayout
+createSceneDescriptorSetLayout(vk::Device device,
+                               DescriptorSetDescription const &description,
+                               uint32_t maxMeshes, uint32_t maxMaterials,
+                               uint32_t maxTextures, uint32_t maxShapes) {
+  std::vector<vk::DescriptorSetLayoutBinding> bindings;
+  std::vector<vk::DescriptorBindingFlags> bindingFlags;
+  for (uint32_t bid = 0; bid < description.bindings.size(); ++bid) {
+    switch (description.bindings.at(bid).type) {
+    case vk::DescriptorType::eAccelerationStructureKHR:
+      bindings.push_back({
+          bid,
+          vk::DescriptorType::eAccelerationStructureKHR,
+          1,
+          vk::ShaderStageFlagBits::eRaygenKHR |
+              vk::ShaderStageFlagBits::eClosestHitKHR,
+      });
+      bindingFlags.push_back({});
+      break;
+
+    case vk::DescriptorType::eStorageBuffer:
+      if (description.bindings.at(bid).name == "Materials" ||
+          description.bindings.at(bid).name == "TextureIndices") {
+        bindings.push_back({bid,
+                            vk::DescriptorType::eStorageBuffer,
+                            maxMaterials,
+                            vk::ShaderStageFlagBits::eAnyHitKHR |
+                                vk::ShaderStageFlagBits::eClosestHitKHR,
+                            {}});
+        bindingFlags.push_back({});
+      } else if (description.bindings.at(bid).name == "Vertices" ||
+                 description.bindings.at(bid).name == "Indices") {
+        bindings.push_back({bid,
+                            vk::DescriptorType::eStorageBuffer,
+                            maxMeshes,
+                            vk::ShaderStageFlagBits::eAnyHitKHR |
+                                vk::ShaderStageFlagBits::eClosestHitKHR,
+                            {}});
+        bindingFlags.push_back({});
+      } else if (description.bindings.at(bid).name == "GeometryInstances") {
+        bindings.push_back({bid,
+                            vk::DescriptorType::eStorageBuffer,
+                            maxShapes,
+                            vk::ShaderStageFlagBits::eAnyHitKHR |
+                                vk::ShaderStageFlagBits::eClosestHitKHR,
+                            {}});
+        bindingFlags.push_back({});
+      } else if (description.bindings.at(bid).dim == 0) {
+        bindings.push_back({bid,
+                            vk::DescriptorType::eStorageBuffer,
+                            1,
+                            vk::ShaderStageFlagBits::eAnyHitKHR |
+                                vk::ShaderStageFlagBits::eClosestHitKHR,
+                            {}});
+        bindingFlags.push_back({});
+      } else {
+        throw std::runtime_error("unrecognized storage buffer " +
+                                 description.bindings.at(bid).name);
+      }
+      break;
+
+    case vk::DescriptorType::eCombinedImageSampler:
+      if (description.bindings.at(bid).name == "textures") {
+        bindings.push_back({bid,
+                            vk::DescriptorType::eCombinedImageSampler,
+                            maxTextures,
+                            vk::ShaderStageFlagBits::eAnyHitKHR |
+                                vk::ShaderStageFlagBits::eClosestHitKHR,
+                            {}});
+        bindingFlags.push_back({});
+      } else {
+        bindings.push_back({
+            bid,
+            vk::DescriptorType::eCombinedImageSampler,
+            1,
+            vk::ShaderStageFlagBits::eAnyHitKHR |
+                vk::ShaderStageFlagBits::eClosestHitKHR |
+                vk::ShaderStageFlagBits::eMissKHR,
+        });
+        bindingFlags.push_back({});
+      }
+      break;
+    default:
+      throw std::runtime_error(
+          "only storage buffer, sampler2d, and acceleration structure are "
+          "allowed in the scene descriptor set");
+    }
+  }
+  vk::DescriptorSetLayoutBindingFlagsCreateInfo flagInfo(bindingFlags);
+  vk::DescriptorSetLayoutCreateInfo layoutInfo({}, bindings);
+  layoutInfo.setPNext(&flagInfo);
+  return device.createDescriptorSetLayoutUnique(layoutInfo);
+}
+
+static vk::UniqueDescriptorSetLayout
+createCameraDescriptorSetLayout(vk::Device device,
+                                DescriptorSetDescription const &description) {
+  if (description.bindings.size() > 1) {
+    throw std::runtime_error(
+        "the camera set should contain a single CameraBuffer");
+  }
+  if (description.bindings.at(0).type != vk::DescriptorType::eUniformBuffer) {
+    throw std::runtime_error("CameraBuffer must be uniform buffer");
+  }
+  vk::DescriptorSetLayoutBinding binding(0, vk::DescriptorType::eUniformBuffer,
+                                         1,
+                                         vk::ShaderStageFlagBits::eRaygenKHR);
+  return device.createDescriptorSetLayoutUnique(
+      vk::DescriptorSetLayoutCreateInfo({}, binding));
+}
+
+static vk::UniqueDescriptorSetLayout
+createOutputDescriptorSetLayout(vk::Device device,
+                                DescriptorSetDescription const &description) {
+  std::vector<vk::DescriptorSetLayoutBinding> bindings;
+  for (uint32_t bid = 0; bid < description.bindings.size(); ++bid) {
+    if (description.bindings.at(bid).type !=
+        vk::DescriptorType::eStorageImage) {
+      throw std::runtime_error(
+          "Only storage images are allowed in the output descriptor set");
+    }
+    bindings.push_back({bid, vk::DescriptorType::eStorageImage, 1,
+                        vk::ShaderStageFlagBits::eRaygenKHR});
+  }
+  return device.createDescriptorSetLayoutUnique(
+      vk::DescriptorSetLayoutCreateInfo({}, bindings));
+}
+
+static uint32_t alignUp(uint32_t size, uint32_t alignment) {
+  return (size + (alignment - 1)) & ~(alignment - 1);
+}
+
+void RayTracingShaderPackInstance::initPipeline() {
+  if (mPipeline) {
+    return;
+  }
+
+  auto context = core::Context::Get();
+  vk::Device device = context->getDevice();
+
+  // TODO: handle multiple chit, ahit, and miss modules
+  auto rgenModule = device.createShaderModuleUnique(vk::ShaderModuleCreateInfo(
+      {}, mShaderPack->getRaygenStageParser()->getCode()));
+  auto cameraMissModule =
+      device.createShaderModuleUnique(vk::ShaderModuleCreateInfo(
+          {}, mShaderPack->getMissStageParsers().at(0)->getCode()));
+  auto shadowMissModule =
+      device.createShaderModuleUnique(vk::ShaderModuleCreateInfo(
+          {}, mShaderPack->getMissStageParsers().at(1)->getCode()));
+  auto ahitModule = device.createShaderModuleUnique(vk::ShaderModuleCreateInfo(
+      {}, mShaderPack->getAnyHitStageParsers().at(0)->getCode()));
+  auto chitModule = device.createShaderModuleUnique(vk::ShaderModuleCreateInfo(
+      {}, mShaderPack->getClosestHitStageParsers().at(0)->getCode()));
+
+  std::vector<vk::PushConstantRange> pushConstantRanges;
+  if (mShaderPack->getPushConstantLayout()) {
+    pushConstantRanges.push_back(
+        vk::PushConstantRange(vk::ShaderStageFlagBits::eRaygenKHR |
+                                  vk::ShaderStageFlagBits::eMissKHR |
+                                  vk::ShaderStageFlagBits::eClosestHitKHR |
+                                  vk::ShaderStageFlagBits::eAnyHitKHR,
+                              0, mShaderPack->getPushConstantLayout()->size));
+  }
+
+  std::vector<vk::DescriptorSetLayout> descriptorSetLayouts;
+  for (uint32_t sid = 0; sid < mShaderPack->getResources().size(); ++sid) {
+    auto &set = mShaderPack->getResources().at(sid);
+    switch (set.type) {
+    case UniformBindingType::eRTScene:
+      mSceneSetLayout = createSceneDescriptorSetLayout(
+          device, set, mDesc.maxMeshes, mDesc.maxMaterials, mDesc.maxTextures,
+          mDesc.maxShapes);
+      descriptorSetLayouts.push_back(mSceneSetLayout.get());
+      break;
+    case UniformBindingType::eRTOutput:
+      mOutputSetLayout = createOutputDescriptorSetLayout(device, set);
+      descriptorSetLayouts.push_back(mOutputSetLayout.get());
+      break;
+    case UniformBindingType::eRTCamera:
+      mCameraSetLayout = createCameraDescriptorSetLayout(device, set);
+      descriptorSetLayouts.push_back(mCameraSetLayout.get());
+      break;
+    default:
+      throw std::runtime_error("unrecognized descriptor set");
+    }
+  }
+
+  vk::PipelineLayoutCreateInfo layoutInfo({}, descriptorSetLayouts,
+                                          pushConstantRanges);
+  mPipelineLayout = device.createPipelineLayoutUnique(layoutInfo);
+
+  std::vector<vk::PipelineShaderStageCreateInfo> shaderStages;
+  shaderStages.push_back(vk::PipelineShaderStageCreateInfo(
+      {}, vk::ShaderStageFlagBits::eRaygenKHR, rgenModule.get(), "main"));
+  shaderStages.push_back(vk::PipelineShaderStageCreateInfo(
+      {}, vk::ShaderStageFlagBits::eMissKHR, cameraMissModule.get(), "main"));
+  shaderStages.push_back(vk::PipelineShaderStageCreateInfo(
+      {}, vk::ShaderStageFlagBits::eMissKHR, shadowMissModule.get(), "main"));
+  shaderStages.push_back(vk::PipelineShaderStageCreateInfo(
+      {}, vk::ShaderStageFlagBits::eClosestHitKHR, chitModule.get(), "main"));
+  shaderStages.push_back(vk::PipelineShaderStageCreateInfo(
+      {}, vk::ShaderStageFlagBits::eAnyHitKHR, ahitModule.get(), "main"));
+
+  std::vector<vk::RayTracingShaderGroupCreateInfoKHR> groups;
+  groups.push_back(vk::RayTracingShaderGroupCreateInfoKHR(
+      vk::RayTracingShaderGroupTypeKHR::eGeneral, 0, VK_SHADER_UNUSED_KHR,
+      VK_SHADER_UNUSED_KHR, VK_SHADER_UNUSED_KHR)); // raygen
+  groups.push_back(vk::RayTracingShaderGroupCreateInfoKHR(
+      vk::RayTracingShaderGroupTypeKHR::eGeneral, 1, VK_SHADER_UNUSED_KHR,
+      VK_SHADER_UNUSED_KHR, VK_SHADER_UNUSED_KHR)); // camera miss
+  groups.push_back(vk::RayTracingShaderGroupCreateInfoKHR(
+      vk::RayTracingShaderGroupTypeKHR::eGeneral, 2, VK_SHADER_UNUSED_KHR,
+      VK_SHADER_UNUSED_KHR, VK_SHADER_UNUSED_KHR)); // shadow miss
+  groups.push_back(vk::RayTracingShaderGroupCreateInfoKHR(
+      vk::RayTracingShaderGroupTypeKHR::eTrianglesHitGroup,
+      VK_SHADER_UNUSED_KHR, 3, 4, VK_SHADER_UNUSED_KHR)); // chit, ahit
+
+  vk::RayTracingPipelineCreateInfoKHR createInfo({}, shaderStages, groups, 30,
+                                                 nullptr, nullptr, nullptr,
+                                                 mPipelineLayout.get(), {}, 0);
+  auto result =
+      device.createRayTracingPipelineKHRUnique({}, nullptr, createInfo);
+  if (result.result != vk::Result::eSuccess) {
+    throw std::runtime_error("failed to create ray tracing pipeline");
+  }
+  mPipeline = std::move(result.value);
+}
+
+void RayTracingShaderPackInstance::initSBT() {
+  auto context = core::Context::Get();
+
+  initPipeline();
+
+  // create shader binding table
+  auto properties =
+      context->getPhysicalDevice()
+          .getProperties2<vk::PhysicalDeviceProperties2,
+                          vk::PhysicalDeviceRayTracingPipelinePropertiesKHR>();
+  auto pipelineProperties =
+      properties.get<vk::PhysicalDeviceRayTracingPipelinePropertiesKHR>();
+
+  // TODO: get these count
+  uint32_t missCount = 2;
+  uint32_t hitCount = 1;
+
+  uint32_t handleCount = 1 + missCount + hitCount;
+  uint32_t handleSize = pipelineProperties.shaderGroupHandleSize;
+  uint32_t dataSize = handleCount * handleSize;
+  std::vector<uint8_t> shaderHandleStorage(dataSize);
+  if (context->getDevice().getRayTracingShaderGroupHandlesKHR(
+          mPipeline.get(), 0, handleCount, dataSize,
+          shaderHandleStorage.data()) != vk::Result::eSuccess) {
+    throw std::runtime_error("failed to get ray tracing shader group handles");
+  }
+
+  uint32_t handleSizeAligned =
+      alignUp(pipelineProperties.shaderGroupHandleSize,
+              pipelineProperties.shaderGroupHandleAlignment);
+
+  uint32_t rgenStride =
+      alignUp(handleSizeAligned, pipelineProperties.shaderGroupBaseAlignment);
+  uint32_t rgenSize = rgenStride;
+  uint32_t missStride = handleSizeAligned;
+  uint32_t missSize = alignUp(missCount * handleSizeAligned,
+                              pipelineProperties.shaderGroupBaseAlignment);
+  uint32_t hitStride = handleSizeAligned;
+  uint32_t hitSize = alignUp(hitCount * handleSizeAligned,
+                             pipelineProperties.shaderGroupBaseAlignment);
+
+  vk::DeviceSize sbtSize =
+      rgenSize + missSize + hitSize; // there is no call region
+  mSBTBuffer = std::make_unique<core::Buffer>(
+      sbtSize,
+      vk::BufferUsageFlagBits::eTransferSrc |
+          vk::BufferUsageFlagBits::eShaderDeviceAddress |
+          vk::BufferUsageFlagBits::eShaderBindingTableKHR,
+      VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+  vk::DeviceSize rgenAddress = mSBTBuffer->getAddress();
+  vk::DeviceSize missAddress = rgenAddress + rgenSize;
+  vk::DeviceSize hitAddress = missAddress + missSize;
+
+  vk::StridedDeviceAddressRegionKHR rgenRegion(rgenAddress, rgenStride,
+                                               rgenSize);
+  vk::StridedDeviceAddressRegionKHR missRegion(missAddress, missStride,
+                                               missSize);
+  vk::StridedDeviceAddressRegionKHR hitRegion(hitAddress, hitStride, hitSize);
+
+  log::info("rgen address {} stride {} size {}", rgenAddress, rgenStride,
+            rgenSize);
+  log::info("miss address {} stride {} size {}", missAddress, missStride,
+            missSize);
+  log::info("hit address {} stride {} size {}", hitAddress, hitStride, hitSize);
+
+  uint32_t handleOffset = 0;
+  uint32_t bufferOffset = 0;
+  mSBTBuffer->upload(shaderHandleStorage.data() + handleOffset, rgenSize,
+                     bufferOffset);
+  log::info("upload rgen, cpu offset {}, gpu offset {}, size {}", handleOffset, bufferOffset, handleSize);
+  handleOffset += handleSize;
+  bufferOffset = rgenSize;
+
+  for (uint32_t i = 0; i < missCount; ++i) {
+    mSBTBuffer->upload(shaderHandleStorage.data() + handleOffset, missSize,
+                       bufferOffset);
+    log::info("upload miss, cpu offset {}, gpu offset {}, size {}", handleOffset, bufferOffset, handleSize);
+    handleOffset += handleSize;
+    bufferOffset += missStride;
+  }
+
+  bufferOffset = rgenSize + missSize;
+  for (uint32_t i = 0; i < hitCount; ++i) {
+    mSBTBuffer->upload(shaderHandleStorage.data() + handleOffset, hitSize,
+                       bufferOffset);
+    log::info("upload hit, cpu offset {}, gpu offset {}, size {}", handleOffset, bufferOffset, handleSize);
+    handleOffset += handleSize;
+    bufferOffset += hitStride;
+  }
+}
+
+vk::Pipeline RayTracingShaderPackInstance::getPipeline() {
+  if (mPipeline) {
+    return mPipeline.get();
+  }
+  initPipeline();
+  return mPipeline.get();
+}
+
+core::Buffer &RayTracingShaderPackInstance::getShaderBindingTable() {
+  if (mSBTBuffer) {
+    return *mSBTBuffer;
+  }
+  initSBT();
+  return *mSBTBuffer;
 }
 
 } // namespace shader

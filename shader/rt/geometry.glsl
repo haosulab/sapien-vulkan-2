@@ -7,20 +7,25 @@ struct GeometryInstance {
 };
 
 struct Material {
-  vec4 diffuse;
   vec4 emission;
-
-  float alpha;
-  float metallic;
-  float specular;
+  vec4 baseColor;
+  float fresnel;
   float roughness;
+  float metallic;
   float ior;
   float transmission;
-
-  int diffuseTextureIndex;
-  int metallicTextureIndex;
-  int roughnessTextureIndex;
-  int emissionTextureIndex;
-  int normalTextureIndex;
+  int textureMask;
   int padding0;
+  int padding1;
+};
+
+struct TextureIndex {
+  int diffuse;
+  int metallic;
+  int roughness;
+  int emission;
+  int normal;
+  int occlusion;
+  int padding0;
+  int padding1;
 };

@@ -11,13 +11,11 @@ TEST(RTShader, Create) {
   auto context = core::Context::Create();
   auto manager = context->createResourceManager();
 
-  RayTracingParser parser;
-  parser
-      .loadGLSLFilesAsync(
-          "../shader/rt/camera.rgen",
-          {"../shader/rt/camera.rmiss", "../shader/rt/shadow.rmiss"},
-          {"../shader/rt/camera.rahit"}, {"../shader/rt/camera.rchit"})
-      .get();
-
-  log::info(parser.summary());
+  RayTracingShaderPackInstance pack({.shaderDir = "../shader/rt",
+                                     .maxMeshes = 1000,
+                                     .maxMaterials = 1000,
+                                     .maxTextures = 1000,
+                                     .maxShapes = 1000});
+  pack.getPipeline();
+  pack.getShaderBindingTable();
 }

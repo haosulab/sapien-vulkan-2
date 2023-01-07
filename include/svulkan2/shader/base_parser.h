@@ -131,6 +131,8 @@ bool hasUniformBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
 std::shared_ptr<StructDataLayout> parseBuffer(spirv_cross::Compiler &compiler,
                                               uint32_t bindingNumber,
                                               uint32_t setNumber);
+std::shared_ptr<StructDataLayout>
+parseBuffer(spirv_cross::Compiler &compiler, spirv_cross::SPIRType const &type);
 std::shared_ptr<StructDataLayout> parseBuffer(spirv_cross::Compiler &compiler,
                                               spirv_cross::Resource &resource);
 

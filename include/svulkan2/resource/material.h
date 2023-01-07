@@ -98,6 +98,8 @@ public:
   void removeFromDevice() override;
   inline float getOpacity() const override { return mBuffer.baseColor.a; }
 
+  core::Buffer &getDeviceBuffer() const;
+
   virtual ~SVMetallicMaterial();
 };
 
