@@ -68,6 +68,14 @@ public:
     return mClosestHitStageParsers;
   }
 
+  StructDataLayout const &getMaterialBufferLayout() const;
+  StructDataLayout const &getTextureIndexBufferLayout() const;
+  StructDataLayout const &getGeometryInstanceBufferLayout() const;
+  StructDataLayout const &getCameraBufferLayout() const;
+  DescriptorSetDescription const &getOutputDescription() const;
+  DescriptorSetDescription const &getSceneDescription() const;
+  DescriptorSetDescription const &getCameraDescription() const;
+
 private:
   std::unique_ptr<RayTracingStageParser> mRaygenStageParser;
   std::vector<std::unique_ptr<RayTracingStageParser>> mMissStageParsers;
@@ -78,20 +86,32 @@ private:
   std::shared_ptr<StructDataLayout> mPushConstantLayout;
 };
 
+struct RayTracingShaderPackInstanceDesc {
+  std::string shaderDir{};
+  uint32_t maxMeshes{};
+  uint32_t maxMaterials{};
+  uint32_t maxTextures{};
+};
+
 class RayTracingShaderPackInstance {
 
 public:
-  struct RayTracingShaderPackInstanceDesc {
-    std::string shaderDir{};
-    uint32_t maxMeshes{};
-    uint32_t maxMaterials{};
-    uint32_t maxTextures{};
-    uint32_t maxShapes{};
-  };
-
   RayTracingShaderPackInstance(RayTracingShaderPackInstanceDesc desc);
+  vk::PipelineLayout getPipelineLayout();
   vk::Pipeline getPipeline();
   core::Buffer &getShaderBindingTable();
+  vk::DescriptorSetLayout getOutputSetLayout();
+  vk::DescriptorSetLayout getSceneSetLayout();
+  vk::DescriptorSetLayout getCameraSetLayout();
+
+  inline std::shared_ptr<RayTracingShaderPack> getShaderPack() const {
+    return mShaderPack;
+  }
+
+  vk::StridedDeviceAddressRegionKHR const &getRgenRegion();
+  vk::StridedDeviceAddressRegionKHR const &getMissRegion();
+  vk::StridedDeviceAddressRegionKHR const &getHitRegion();
+  vk::StridedDeviceAddressRegionKHR const &getCallRegion();
 
   RayTracingShaderPackInstance(RayTracingShaderPackInstance const &) = delete;
   RayTracingShaderPackInstance &
@@ -109,6 +129,10 @@ private:
   vk::UniquePipelineLayout mPipelineLayout;
   vk::UniquePipeline mPipeline;
   std::unique_ptr<core::Buffer> mSBTBuffer;
+  vk::StridedDeviceAddressRegionKHR mRgenRegion{};
+  vk::StridedDeviceAddressRegionKHR mMissRegion{};
+  vk::StridedDeviceAddressRegionKHR mHitRegion{};
+  vk::StridedDeviceAddressRegionKHR mCallRegion{};
 
   std::shared_ptr<RayTracingShaderPack> mShaderPack;
 };

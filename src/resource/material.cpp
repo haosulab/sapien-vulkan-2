@@ -234,8 +234,14 @@ void SVMetallicMaterial::uploadToDevice() {
   mContext = core::Context::Get();
   std::scoped_lock lock(mContext->getGlobalLock());
   if (!mDeviceBuffer) {
-    mDeviceBuffer = mContext->getAllocator().allocateUniformBuffer(
-        sizeof(SVMetallicMaterial::Buffer));
+    vk::BufferUsageFlags flags = vk::BufferUsageFlagBits::eUniformBuffer;
+    if (mContext->isRayTracingAvailable()) {
+      flags |= vk::BufferUsageFlagBits::eStorageBuffer;
+    }
+
+    mDeviceBuffer = std::make_unique<core::Buffer>(
+        sizeof(SVMetallicMaterial::Buffer), flags, VMA_MEMORY_USAGE_CPU_TO_GPU);
+
     auto layout = mContext->getMetallicDescriptorSetLayout();
     mDescriptorSet = std::move(
         mContext->getDevice()

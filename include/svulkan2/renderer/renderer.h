@@ -1,11 +1,11 @@
 #pragma once
+#include "renderer_base.h"
 #include "svulkan2/core/context.h"
 #include "svulkan2/core/descriptor_pool.h"
 #include "svulkan2/resource/cubemap.h"
 #include "svulkan2/resource/render_target.h"
 #include "svulkan2/scene/scene.h"
 #include "svulkan2/shader/shader_pack_instance.h"
-// #include "svulkan2/shader/shader_manager.h"
 #include <map>
 
 namespace svulkan2 {
@@ -15,7 +15,7 @@ class CommandPool;
 } // namespace core
 namespace renderer {
 
-class Renderer {
+class Renderer : public RendererBase {
   std::shared_ptr<core::Context> mContext;
   std::shared_ptr<RendererConfig> mConfig;
 
@@ -102,7 +102,7 @@ public:
   void setSpecializationConstantInt(std::string const &name, int value);
   void setSpecializationConstantFloat(std::string const &name, float value);
 
-  void resize(int width, int height);
+  void resize(int width, int height) override;
 
   void render(
       scene::Camera &camera,
@@ -111,30 +111,30 @@ public:
           &waitStageMasks,
       vk::ArrayProxyNoTemporaries<uint64_t const> const &waitValues,
       vk::ArrayProxyNoTemporaries<vk::Semaphore const> const &signalSemaphores,
-      vk::ArrayProxyNoTemporaries<uint64_t const> const &signalValues);
+      vk::ArrayProxyNoTemporaries<uint64_t const> const &signalValues) override;
 
   /** render may be called on a thread. */
   void render(scene::Camera &camera,
               std::vector<vk::Semaphore> const &waitSemaphores,
               std::vector<vk::PipelineStageFlags> const &waitStages,
               std::vector<vk::Semaphore> const &signalSemaphores,
-              vk::Fence fence);
+              vk::Fence fence) override;
 
   void display(std::string const &renderTargetName, vk::Image backBuffer,
                vk::Format format, uint32_t width, uint32_t height,
                std::vector<vk::Semaphore> const &waitSemaphores,
                std::vector<vk::PipelineStageFlags> const &waitStages,
                std::vector<vk::Semaphore> const &signalSemaphores,
-               vk::Fence fence);
+               vk::Fence fence) override;
 
-  void setScene(scene::Scene &scene) {
+  void setScene(scene::Scene &scene) override {
     mScene = &scene;
     mRequiresRebuild = true;
     mRequiresRecord = true;
   }
 
   std::vector<std::string> getDisplayTargetNames() const;
-  std::vector<std::string> getRenderTargetNames() const;
+  std::vector<std::string> getRenderTargetNames() const override;
 
   template <typename T>
   std::tuple<std::vector<T>, std::array<uint32_t, 3>>
@@ -179,9 +179,9 @@ public:
   getRenderTarget(std::string const &name) const;
 
   void setCustomTexture(std::string const &name,
-                        std::shared_ptr<resource::SVTexture> texture);
+                        std::shared_ptr<resource::SVTexture> texture) override;
   void setCustomCubemap(std::string const &name,
-                        std::shared_ptr<resource::SVCubemap> cubemap);
+                        std::shared_ptr<resource::SVCubemap> cubemap) override;
 
   Renderer(Renderer const &other) = delete;
   Renderer &operator=(Renderer const &other) = delete;

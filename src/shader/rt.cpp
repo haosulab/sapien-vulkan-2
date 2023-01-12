@@ -194,6 +194,7 @@ void RayTracingStageParser::reflectSPV() {
   log::info("\n" + summary());
 
   // TODO: analyze rayPayload
+  // TODO: enforce light buffer layout
 }
 
 std::string RayTracingStageParser::summary() const {
@@ -235,6 +236,96 @@ RayTracingShaderPack::RayTracingShaderPack(std::string const &shaderDir) {
   loadGLSLFilesAsync(raygenFile, {cameraRmissFile, shadowRmissFile},
                      {rahitFile}, {rchitFile})
       .get();
+}
+
+StructDataLayout const &RayTracingShaderPack::getMaterialBufferLayout() const {
+  for (auto &[sid, set] : getResources()) {
+    if (set.type == UniformBindingType::eRTScene) {
+      for (auto &[bid, binding] : set.bindings) {
+        if (binding.name == "Materials") {
+          return *set.buffers.at(binding.arrayIndex)
+                      ->elements.begin()
+                      ->second.member;
+        }
+      }
+    }
+  }
+  throw std::runtime_error("failed to retrieve material buffer in shader");
+}
+
+StructDataLayout const &
+RayTracingShaderPack::getTextureIndexBufferLayout() const {
+  for (auto &[sid, set] : getResources()) {
+    if (set.type == UniformBindingType::eRTScene) {
+      for (auto &[bid, binding] : set.bindings) {
+        if (binding.name == "TextureIndices") {
+          return *set.buffers.at(binding.arrayIndex)
+                      ->elements.begin()
+                      ->second.member;
+        }
+      }
+    }
+  }
+  throw std::runtime_error("failed to retrieve texture index buffer in shader");
+}
+
+StructDataLayout const &
+RayTracingShaderPack::getGeometryInstanceBufferLayout() const {
+  for (auto &[sid, set] : getResources()) {
+    if (set.type == UniformBindingType::eRTScene) {
+      for (auto &[bid, binding] : set.bindings) {
+        if (binding.name == "GeometryInstances") {
+          return *set.buffers.at(binding.arrayIndex)
+                      ->elements.begin()
+                      ->second.member;
+        }
+      }
+    }
+  }
+  throw std::runtime_error("failed to retrieve texture index buffer in shader");
+}
+
+StructDataLayout const &RayTracingShaderPack::getCameraBufferLayout() const {
+  for (auto &[sid, set] : getResources()) {
+    if (set.type == UniformBindingType::eRTCamera) {
+      for (auto &[bid, binding] : set.bindings) {
+        if (binding.name == "CameraBuffer") {
+          return *set.buffers.at(binding.arrayIndex);
+        }
+      }
+    }
+  }
+  throw std::runtime_error("failed to retrieve texture index buffer in shader");
+}
+
+DescriptorSetDescription const &
+RayTracingShaderPack::getOutputDescription() const {
+  for (auto &[sid, set] : getResources()) {
+    if (set.type == UniformBindingType::eRTOutput) {
+      return set;
+    }
+  }
+  throw std::runtime_error("failed to retrieve output descriptor set");
+}
+
+DescriptorSetDescription const &
+RayTracingShaderPack::getCameraDescription() const {
+  for (auto &[sid, set] : getResources()) {
+    if (set.type == UniformBindingType::eRTCamera) {
+      return set;
+    }
+  }
+  throw std::runtime_error("failed to retrieve output descriptor set");
+}
+
+DescriptorSetDescription const &
+RayTracingShaderPack::getSceneDescription() const {
+  for (auto &[sid, set] : getResources()) {
+    if (set.type == UniformBindingType::eRTScene) {
+      return set;
+    }
+  }
+  throw std::runtime_error("failed to retrieve output descriptor set");
 }
 
 std::future<void> RayTracingShaderPack::loadGLSLFilesAsync(
@@ -571,11 +662,9 @@ RayTracingShaderPackInstance::RayTracingShaderPackInstance(
       desc.shaderDir);
 }
 
-static vk::UniqueDescriptorSetLayout
-createSceneDescriptorSetLayout(vk::Device device,
-                               DescriptorSetDescription const &description,
-                               uint32_t maxMeshes, uint32_t maxMaterials,
-                               uint32_t maxTextures, uint32_t maxShapes) {
+static vk::UniqueDescriptorSetLayout createSceneDescriptorSetLayout(
+    vk::Device device, DescriptorSetDescription const &description,
+    uint32_t maxMeshes, uint32_t maxMaterials, uint32_t maxTextures) {
   std::vector<vk::DescriptorSetLayoutBinding> bindings;
   std::vector<vk::DescriptorBindingFlags> bindingFlags;
   for (uint32_t bid = 0; bid < description.bindings.size(); ++bid) {
@@ -592,8 +681,7 @@ createSceneDescriptorSetLayout(vk::Device device,
       break;
 
     case vk::DescriptorType::eStorageBuffer:
-      if (description.bindings.at(bid).name == "Materials" ||
-          description.bindings.at(bid).name == "TextureIndices") {
+      if (description.bindings.at(bid).name == "Materials") {
         bindings.push_back({bid,
                             vk::DescriptorType::eStorageBuffer,
                             maxMaterials,
@@ -606,14 +694,6 @@ createSceneDescriptorSetLayout(vk::Device device,
         bindings.push_back({bid,
                             vk::DescriptorType::eStorageBuffer,
                             maxMeshes,
-                            vk::ShaderStageFlagBits::eAnyHitKHR |
-                                vk::ShaderStageFlagBits::eClosestHitKHR,
-                            {}});
-        bindingFlags.push_back({});
-      } else if (description.bindings.at(bid).name == "GeometryInstances") {
-        bindings.push_back({bid,
-                            vk::DescriptorType::eStorageBuffer,
-                            maxShapes,
                             vk::ShaderStageFlagBits::eAnyHitKHR |
                                 vk::ShaderStageFlagBits::eClosestHitKHR,
                             {}});
@@ -741,8 +821,7 @@ void RayTracingShaderPackInstance::initPipeline() {
     switch (set.type) {
     case UniformBindingType::eRTScene:
       mSceneSetLayout = createSceneDescriptorSetLayout(
-          device, set, mDesc.maxMeshes, mDesc.maxMaterials, mDesc.maxTextures,
-          mDesc.maxShapes);
+          device, set, mDesc.maxMeshes, mDesc.maxMaterials, mDesc.maxTextures);
       descriptorSetLayouts.push_back(mSceneSetLayout.get());
       break;
     case UniformBindingType::eRTOutput:
@@ -853,11 +932,12 @@ void RayTracingShaderPackInstance::initSBT() {
   vk::DeviceSize missAddress = rgenAddress + rgenSize;
   vk::DeviceSize hitAddress = missAddress + missSize;
 
-  vk::StridedDeviceAddressRegionKHR rgenRegion(rgenAddress, rgenStride,
-                                               rgenSize);
-  vk::StridedDeviceAddressRegionKHR missRegion(missAddress, missStride,
-                                               missSize);
-  vk::StridedDeviceAddressRegionKHR hitRegion(hitAddress, hitStride, hitSize);
+  mRgenRegion =
+      vk::StridedDeviceAddressRegionKHR(rgenAddress, rgenStride, rgenSize);
+  mMissRegion =
+      vk::StridedDeviceAddressRegionKHR(missAddress, missStride, missSize);
+  mHitRegion =
+      vk::StridedDeviceAddressRegionKHR(hitAddress, hitStride, hitSize);
 
   log::info("rgen address {} stride {} size {}", rgenAddress, rgenStride,
             rgenSize);
@@ -869,14 +949,16 @@ void RayTracingShaderPackInstance::initSBT() {
   uint32_t bufferOffset = 0;
   mSBTBuffer->upload(shaderHandleStorage.data() + handleOffset, rgenSize,
                      bufferOffset);
-  log::info("upload rgen, cpu offset {}, gpu offset {}, size {}", handleOffset, bufferOffset, handleSize);
+  log::info("upload rgen, cpu offset {}, gpu offset {}, size {}", handleOffset,
+            bufferOffset, handleSize);
   handleOffset += handleSize;
   bufferOffset = rgenSize;
 
   for (uint32_t i = 0; i < missCount; ++i) {
     mSBTBuffer->upload(shaderHandleStorage.data() + handleOffset, missSize,
                        bufferOffset);
-    log::info("upload miss, cpu offset {}, gpu offset {}, size {}", handleOffset, bufferOffset, handleSize);
+    log::info("upload miss, cpu offset {}, gpu offset {}, size {}",
+              handleOffset, bufferOffset, handleSize);
     handleOffset += handleSize;
     bufferOffset += missStride;
   }
@@ -885,10 +967,19 @@ void RayTracingShaderPackInstance::initSBT() {
   for (uint32_t i = 0; i < hitCount; ++i) {
     mSBTBuffer->upload(shaderHandleStorage.data() + handleOffset, hitSize,
                        bufferOffset);
-    log::info("upload hit, cpu offset {}, gpu offset {}, size {}", handleOffset, bufferOffset, handleSize);
+    log::info("upload hit, cpu offset {}, gpu offset {}, size {}", handleOffset,
+              bufferOffset, handleSize);
     handleOffset += handleSize;
     bufferOffset += hitStride;
   }
+}
+
+vk::PipelineLayout RayTracingShaderPackInstance::getPipelineLayout() {
+  if (mPipelineLayout) {
+    return mPipelineLayout.get();
+  }
+  initPipeline();
+  return mPipelineLayout.get();
 }
 
 vk::Pipeline RayTracingShaderPackInstance::getPipeline() {
@@ -905,6 +996,56 @@ core::Buffer &RayTracingShaderPackInstance::getShaderBindingTable() {
   }
   initSBT();
   return *mSBTBuffer;
+}
+
+vk::StridedDeviceAddressRegionKHR const &
+RayTracingShaderPackInstance::getRgenRegion() {
+  if (!mSBTBuffer) {
+    initSBT();
+  }
+  return mRgenRegion;
+}
+vk::StridedDeviceAddressRegionKHR const &
+RayTracingShaderPackInstance::getMissRegion() {
+  if (!mSBTBuffer) {
+    initSBT();
+  }
+  return mMissRegion;
+}
+vk::StridedDeviceAddressRegionKHR const &
+RayTracingShaderPackInstance::getHitRegion() {
+  if (!mSBTBuffer) {
+    initSBT();
+  }
+  return mHitRegion;
+}
+vk::StridedDeviceAddressRegionKHR const &
+RayTracingShaderPackInstance::getCallRegion() {
+  if (!mSBTBuffer) {
+    initSBT();
+  }
+  return mCallRegion;
+}
+
+vk::DescriptorSetLayout RayTracingShaderPackInstance::getOutputSetLayout() {
+  if (!mOutputSetLayout) {
+    initPipeline();
+  }
+  return mOutputSetLayout.get();
+}
+
+vk::DescriptorSetLayout RayTracingShaderPackInstance::getSceneSetLayout() {
+  if (!mSceneSetLayout) {
+    initPipeline();
+  }
+  return mSceneSetLayout.get();
+}
+
+vk::DescriptorSetLayout RayTracingShaderPackInstance::getCameraSetLayout() {
+  if (!mCameraSetLayout) {
+    initPipeline();
+  }
+  return mCameraSetLayout.get();
 }
 
 } // namespace shader

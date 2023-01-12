@@ -100,14 +100,44 @@ public:
   uint64_t getVersion() const { return mVersion; }
   void updateVersion();
 
-  // ray tracing
-  void buildTLAS();
-  void updateTLAS();
+  uint64_t getRenderVersion() const { return mRenderVersion; }
+  void updateRenderVersion();
 
-  void
-  createRTStorageBuffers(StructDataLayout const &materialBufferLayout,
-                         StructDataLayout const &textureIndexBufferLayout,
-                         StructDataLayout const &geometryInstanceBufferLayout);
+  // ray tracing
+  void buildRTResources(StructDataLayout const &materialBufferLayout,
+                        StructDataLayout const &textureIndexBufferLayout,
+                        StructDataLayout const &geometryInstanceBufferLayout);
+  void updateRTResources();
+  inline core::TLAS *getTLAS() const { return mTLAS.get(); }
+
+  inline std::vector<vk::Buffer> const &getRTVertexBuffers() {
+    return mVertexBuffers;
+  }
+  inline std::vector<vk::Buffer> const &getRTIndexBuffers() const {
+    return mIndexBuffers;
+  }
+  inline std::vector<vk::Buffer> const &getRTMaterialBuffers() const {
+    return mMaterialBuffers;
+  }
+  inline std::vector<std::tuple<vk::ImageView, vk::Sampler>> const &
+  getRTTextures() const {
+    return mTextures;
+  }
+  inline vk::Buffer getRTGeometryInstanceBuffer() const {
+    return mGeometryInstanceBuffer->getVulkanBuffer();
+  }
+  inline vk::Buffer getRTTextureIndexBuffer() const {
+    return mTextureIndexBuffer->getVulkanBuffer();
+  }
+  inline vk::Buffer getRTPointLightBuffer() const {
+    return mRTPointLightBuffer->getVulkanBuffer();
+  }
+  inline vk::Buffer getRTDirectionalLightBuffer() const {
+    return mRTDirectionalLightBuffer->getVulkanBuffer();
+  }
+  inline vk::Buffer getRTSpotLightBuffer() const {
+    return mRTSpotLightBuffer->getVulkanBuffer();
+  }
 
 private:
   std::vector<std::unique_ptr<Node>> mNodes{};
@@ -131,15 +161,31 @@ private:
   /** when anything is added or removed, the version changes */
   uint64_t mVersion{1l};
 
+  /** when models in the scene are updated, the version changes */
+  uint64_t mRenderVersion{1l};
+
+  // ray tracing helpers
+  void buildTLAS();
+  void updateTLAS();
+  void
+  createRTStorageBuffers(StructDataLayout const &materialBufferLayout,
+                         StructDataLayout const &textureIndexBufferLayout,
+                         StructDataLayout const &geometryInstanceBufferLayout);
+  void updateRTStorageBuffers();
+
   // ray tracing resources
+  std::mutex mRTResourcesLock;
   std::unique_ptr<core::TLAS> mTLAS;
-  uint64_t mTLASVersion{0l};
   std::vector<vk::Buffer> mVertexBuffers;
   std::vector<vk::Buffer> mIndexBuffers;
   std::vector<vk::Buffer> mMaterialBuffers;
   std::vector<std::tuple<vk::ImageView, vk::Sampler>> mTextures;
   std::unique_ptr<core::Buffer> mTextureIndexBuffer;
   std::unique_ptr<core::Buffer> mGeometryInstanceBuffer;
+  std::unique_ptr<core::Buffer> mRTPointLightBuffer;
+  std::unique_ptr<core::Buffer> mRTDirectionalLightBuffer;
+  std::unique_ptr<core::Buffer> mRTSpotLightBuffer;
+  uint64_t mRTResourcesVersion{0l};
 };
 
 } // namespace scene

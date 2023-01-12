@@ -1,10 +1,10 @@
 layout(push_constant) uniform Constants {
+  vec3 ambientLight;
   int frameCount;
   uint spp;
   uint maxDepth;
-  vec3 environmentLight;
 
-  bool russianRoulette;
+  uint russianRoulette;
   uint russianRouletteMinBounces;
 
   uint pointLightCount;

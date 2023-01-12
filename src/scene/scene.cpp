@@ -30,6 +30,36 @@ struct LightBufferData {
   int height;
 };
 
+struct RTPointLight {
+  glm::vec3 position;
+  float radius;
+  glm::vec3 rgb;
+  float padding;
+};
+static_assert(sizeof(RTPointLight) == 32);
+
+struct RTDirectionalLight {
+  glm::vec3 direction;
+  float softness;
+  glm::vec3 rgb;
+  float padding;
+};
+static_assert(sizeof(RTDirectionalLight) == 32);
+
+struct RTSpotLight {
+  glm::mat4 viewMat;
+  glm::mat4 projMat;
+  glm::vec3 rgb;
+  int padding0;
+  glm::vec3 position;
+  int padding1;
+  float fovInner;
+  float fovOuter;
+  int textureId;
+  int padding2;
+};
+static_assert(sizeof(RTSpotLight) == 176);
+
 Scene::Scene() {
   mNodes.push_back(std::make_unique<Node>());
   mRootNode = mNodes.back().get();
@@ -343,6 +373,7 @@ std::vector<TexturedLight *> Scene::getTexturedLights() {
 }
 
 void Scene::updateModelMatrices() {
+  updateRenderVersion();
   mRootNode->updateGlobalModelMatrixRecursive();
 }
 
@@ -607,8 +638,11 @@ void Scene::reorderLights() {
 
 void Scene::updateVersion() {
   mVersion++;
+  mRenderVersion++;
   log::info("Scene updated");
 }
+
+void Scene::updateRenderVersion() { mRenderVersion++; }
 
 void Scene::buildTLAS() {
   log::info("building TLAS");
@@ -634,27 +668,22 @@ void Scene::buildTLAS() {
 
   mTLAS = std::make_unique<core::TLAS>(instances);
   mTLAS->build();
-  mTLASVersion = getVersion();
 }
 
 void Scene::updateTLAS() {
-  if (mTLASVersion != getVersion()) {
-    buildTLAS();
-  } else {
-    log::info("updating TLAS");
-    auto objects = getObjects();
-    std::vector<vk::TransformMatrixKHR> transforms;
-    transforms.reserve(objects.size());
+  log::info("updating TLAS");
+  auto objects = getObjects();
+  std::vector<vk::TransformMatrixKHR> transforms;
+  transforms.reserve(objects.size());
 
-    for (auto obj : getObjects()) {
-      glm::mat4 modelTranspose =
-          glm::transpose(obj->getTransform().worldModelMatrix);
-      vk::TransformMatrixKHR mat;
-      std::memcpy(&mat, &modelTranspose, sizeof(mat));
-      transforms.push_back(mat);
-    }
-    mTLAS->update(transforms);
+  for (auto obj : getObjects()) {
+    glm::mat4 modelTranspose =
+        glm::transpose(obj->getTransform().worldModelMatrix);
+    vk::TransformMatrixKHR mat;
+    std::memcpy(&mat, &modelTranspose, sizeof(mat));
+    transforms.push_back(mat);
   }
+  mTLAS->update(transforms);
 }
 
 void Scene::createRTStorageBuffers(
@@ -716,7 +745,7 @@ void Scene::createRTStorageBuffers(
             mat->getNormalTexture(), mat->getMetallicTexture(),
             mat->getRoughnessTexture()};
         for (auto tex : matTextures) {
-          if (!texture2Id.contains(tex)) {
+          if (tex && !texture2Id.contains(tex)) {
             texture2Id[tex] = textureCount++;
             textures.push_back(tex);
           }
@@ -785,25 +814,126 @@ void Scene::createRTStorageBuffers(
     mIndexBuffers.push_back(mesh->getIndexBuffer().getVulkanBuffer());
   }
 
-  mTextures.clear();
-  for (auto texture : textures) {
-    mTextures.push_back({texture->getImageView(), texture->getSampler()});
-  }
-
+  // build materials
   mMaterialBuffers.clear();
   for (auto mat : materials) {
     mMaterialBuffers.push_back(mat->getDeviceBuffer().getVulkanBuffer());
   }
 
-  mTextureIndexBuffer = std::make_unique<core::Buffer>(
-      textureIndexBuffer.size(), vk::BufferUsageFlagBits::eStorageBuffer,
-      VMA_MEMORY_USAGE_GPU_ONLY);
+  // build texture index
+  mTextureIndexBuffer =
+      std::make_unique<core::Buffer>(textureIndexBuffer.size(),
+                                     vk::BufferUsageFlagBits::eStorageBuffer |
+                                         vk::BufferUsageFlagBits::eTransferDst,
+                                     VMA_MEMORY_USAGE_GPU_ONLY);
   mTextureIndexBuffer->upload(textureIndexBuffer);
 
-  mGeometryInstanceBuffer = std::make_unique<core::Buffer>(
-      geometryInstanceBuffer.size(), vk::BufferUsageFlagBits::eStorageBuffer,
-      VMA_MEMORY_USAGE_GPU_ONLY);
+  mGeometryInstanceBuffer =
+      std::make_unique<core::Buffer>(geometryInstanceBuffer.size(),
+                                     vk::BufferUsageFlagBits::eStorageBuffer |
+                                         vk::BufferUsageFlagBits::eTransferDst,
+                                     VMA_MEMORY_USAGE_GPU_ONLY);
   mGeometryInstanceBuffer->upload(geometryInstanceBuffer);
+
+  // begin lights
+  std::vector<RTPointLight> pointLights;
+  for (auto &l : mPointLights) {
+    pointLights.push_back(RTPointLight{
+        .position = l->getPosition(), .radius = 0, .rgb = l->getColor()});
+  }
+  mRTPointLightBuffer = std::make_unique<core::Buffer>(
+      std::max(getPointLights().size(), 1lu) * sizeof(RTPointLight),
+      vk::BufferUsageFlagBits::eStorageBuffer |
+          vk::BufferUsageFlagBits::eTransferDst,
+      VMA_MEMORY_USAGE_GPU_ONLY);
+  mRTPointLightBuffer->upload(pointLights);
+
+  std::vector<RTDirectionalLight> dirLights;
+  for (auto &l : mDirectionalLights) {
+    dirLights.push_back(RTDirectionalLight{
+        .direction = l->getDirection(), .softness = 0, .rgb = l->getColor()});
+  }
+  mRTDirectionalLightBuffer = std::make_unique<core::Buffer>(
+      std::max(getDirectionalLights().size(), 1lu) * sizeof(RTDirectionalLight),
+      vk::BufferUsageFlagBits::eStorageBuffer |
+          vk::BufferUsageFlagBits::eTransferDst,
+      VMA_MEMORY_USAGE_GPU_ONLY);
+  mRTDirectionalLightBuffer->upload(dirLights);
+
+  std::vector<RTSpotLight> spotLights;
+  for (auto &l : mSpotLights) {
+    spotLights.push_back(RTSpotLight{
+        .viewMat = glm::affineInverse(l->getTransform().worldModelMatrix),
+        .projMat = l->getShadowProjectionMatrix(),
+        .rgb = l->getColor(),
+        .position = l->getPosition(),
+        .fovInner = l->getFovSmall(),
+        .fovOuter = l->getFov(),
+        .textureId = -1});
+  }
+  for (auto &l : mTexturedLights) {
+    auto tex = l->getTexture();
+    tex->loadAsync().get();  // TODO: move to top
+    tex->uploadToDevice();
+    if (tex && !texture2Id.contains(tex)) {
+      textures.push_back(tex);
+      texture2Id[tex] = textures.size() - 1;
+    }
+    int textureId = texture2Id.at(tex);
+
+    spotLights.push_back(RTSpotLight{
+        .viewMat = glm::affineInverse(l->getTransform().worldModelMatrix),
+        .projMat = l->getShadowProjectionMatrix(),
+        .rgb = l->getColor(),
+        .position = l->getPosition(),
+        .fovInner = l->getFovSmall(),
+        .fovOuter = l->getFov(),
+        .textureId = textureId});
+  }
+  mRTSpotLightBuffer = std::make_unique<core::Buffer>(
+      std::max(getTexturedLights().size() + getSpotLights().size(), 1lu) *
+          sizeof(RTSpotLight),
+      vk::BufferUsageFlagBits::eStorageBuffer |
+          vk::BufferUsageFlagBits::eTransferDst,
+      VMA_MEMORY_USAGE_GPU_ONLY);
+  mRTSpotLightBuffer->upload(spotLights);
+  // end lights
+
+  // build textures
+  mTextures.clear();
+  for (auto texture : textures) {
+    mTextures.push_back({texture->getImageView(), texture->getSampler()});
+  }
+}
+
+void Scene::updateRTStorageBuffers() {
+  // TODO: update lights here
+}
+
+void Scene::buildRTResources(
+    StructDataLayout const &materialBufferLayout,
+    StructDataLayout const &textureIndexBufferLayout,
+    StructDataLayout const &geometryInstanceBufferLayout) {
+
+  std::lock_guard lock(mRTResourcesLock);
+  forceRemove();
+
+  if (mRTResourcesVersion != mVersion) {
+    buildTLAS();
+    createRTStorageBuffers(materialBufferLayout, textureIndexBufferLayout,
+                           geometryInstanceBufferLayout);
+    mRTResourcesVersion = mVersion;
+  }
+}
+
+void Scene::updateRTResources() {
+  std::lock_guard lock(mRTResourcesLock);
+  if (mRTResourcesVersion != mVersion) {
+    throw std::runtime_error("updateRTResources failed: scene has changed, "
+                             "call buildRTResources first");
+  }
+  updateTLAS();
+  updateRTStorageBuffers();
 }
 
 } // namespace scene

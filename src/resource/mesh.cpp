@@ -90,12 +90,12 @@ void SVMesh::uploadToDevice() {
   }
 
   if (!mVertexBuffer) {
-    // device address is required for AS build
     vk::BufferUsageFlags deviceAddressFlag =
         context->isRayTracingAvailable()
             ? vk::BufferUsageFlagBits::eShaderDeviceAddress |
                   vk::BufferUsageFlagBits::
-                      eAccelerationStructureBuildInputReadOnlyKHR
+                      eAccelerationStructureBuildInputReadOnlyKHR |
+                  vk::BufferUsageFlagBits::eStorageBuffer
             : vk::BufferUsageFlags{};
 
     mVertexBuffer = std::make_unique<core::Buffer>(
@@ -201,10 +201,18 @@ static std::shared_ptr<SVMesh> makeMesh(std::vector<glm::vec3> const &vertices,
     uvs_.push_back(uv.x);
     uvs_.push_back(uv.y);
   }
+
   mesh->setIndices(indices_);
   mesh->setVertexAttribute("position", vertices_);
   mesh->setVertexAttribute("normal", normals_);
   mesh->setVertexAttribute("uv", uvs_);
+
+  // TODO compute tangent and bitangent
+  std::vector<float> tangents_(3 * normals.size(), 0.f);
+  std::vector<float> bitangents_(3 * normals.size(), 0.f);
+
+  mesh->setVertexAttribute("tangent", tangents_);
+  mesh->setVertexAttribute("bitangent", bitangents_);
 
   return mesh;
 }

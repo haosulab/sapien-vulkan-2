@@ -34,6 +34,8 @@ public:
 
   vk::DeviceAddress getAddress();
 
+  vk::AccelerationStructureKHR getVulkanAS() const { return mAS.get(); };
+
 private:
   std::vector<vk::AccelerationStructureInstanceKHR> mInstances;
 

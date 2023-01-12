@@ -1,0 +1,32 @@
+#version 460
+#extension GL_EXT_ray_tracing : require
+#extension GL_EXT_scalar_block_layout : enable
+#extension GL_EXT_nonuniform_qualifier : enable
+
+#include "random.glsl"
+#include "ray.glsl"
+#include "geometry.glsl"
+#include "push_constant.glsl"
+
+layout(location = 0) rayPayloadInEXT Ray ray;
+
+layout(set = 1, binding = 1) readonly buffer GeometryInstances
+{
+  GeometryInstance i[];
+} geometryInstances;
+
+layout(set = 1, binding = 2) readonly buffer Materials
+{
+  Material m;
+} materials[];
+// TODO: Material m[] may be more efficient?
+
+void main() {
+  // uint materialIndex = geometryInstances.i[gl_InstanceID].materialIndex;
+  // Material m = materials[nonuniformEXT(materialIndex)].m;
+  // if (m.baseColor.a == 0.0) {
+  //   ignoreIntersectionEXT;
+  // } else if (rnd(ray.seed) > m.baseColor.a) {
+  //   ignoreIntersectionEXT;
+  // }
+}

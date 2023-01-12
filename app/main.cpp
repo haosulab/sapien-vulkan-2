@@ -2,6 +2,7 @@
 #include "svulkan2/common/log.h"
 #include "svulkan2/core/context.h"
 #include "svulkan2/renderer/renderer.h"
+#include "svulkan2/renderer/rt_renderer.h"
 #include "svulkan2/scene/scene.h"
 #include "svulkan2/shader/compute.h"
 #include "svulkan2/shader/shader.h"
@@ -31,13 +32,14 @@ static void window_close_callback(GLFWwindow *window) {
 
 static void createSphereArray(svulkan2::scene::Scene &scene) {
   for (uint32_t i = 0; i < 10; ++i) {
-    for (uint32_t j = 0; j < 1; ++j) {
+    for (uint32_t j = 0; j < 10; ++j) {
       float metallic = i / 9.f;
       float roughness = j / 9.f;
+      float specular = 0.5;
       auto shape = resource::SVShape::Create(
           resource::SVMesh::CreateUVSphere(32, 16),
           std::make_shared<resource::SVMetallicMaterial>(
-              glm::vec4{0, 0, 0, 1}, glm::vec4{1, 1, 1, 1}, 0, roughness,
+              glm::vec4{0, 0, 0, 1}, glm::vec4{1, 1, 1, 1}, specular, roughness,
               metallic));
       scene
           .addObject(resource::SVModel::FromData({shape}),
@@ -51,7 +53,10 @@ static void createSphereArray(svulkan2::scene::Scene &scene) {
     auto shape = resource::SVShape::Create(
         resource::SVMesh::CreateCube(),
         std::make_shared<resource::SVMetallicMaterial>(
-            glm::vec4{0, 0, 0, 1}, glm::vec4{1, 1, 1, 1}, 0, 1, 0));
+            glm::vec4{0, 0, 0, 1}, // emission
+            glm::vec4{1, 1, 1, 1}, // base color
+            0,                     // fresnel
+            1.0, 0.0));
     scene.addObject(resource::SVModel::FromData({shape}),
                     {.position = {0, -0.1, 0}, .scale = {10, 0.1, 10}});
   }
@@ -73,11 +78,46 @@ int main() {
   config->culling = vk::CullModeFlagBits::eNone;
 
   config->colorFormat4 = vk::Format::eR32G32B32A32Sfloat;
-  renderer::Renderer renderer(config);
+  // renderer::Renderer renderer(config);
+  renderer::RTRenderer renderer("../shader/rt_test");
+
+  renderer.setCustomProperty("maxDepth", 6);
+  renderer.setCustomProperty("russianRoulette", 1);
+  renderer.setCustomProperty("russianRouletteMinBounces", 3);
 
   svulkan2::scene::Scene scene;
 
   createSphereArray(scene);
+
+  // {
+  //   auto model =
+  //       manager->CreateModelFromFile("../test/assets/scene/sponza/sponza.obj");
+  //   auto &obj = scene.addObject(model);
+  //   obj.setScale({0.001, 0.001, 0.001});
+  // }
+
+  // {
+  //   auto model =
+  //       manager->CreateModelFromFile("/home/fx/Downloads/sapien_cube.glb");
+  //   auto &obj = scene.addObject(model);
+  //   obj.setScale({0.1, 0.1, 0.1});
+  //   obj.setPosition({0.5, 0.5, 0.5});
+  // }
+  // {
+  //   auto model =
+  //       manager->CreateModelFromFile("/home/fx/Downloads/sapien_cube_2.glb");
+  //   auto &obj = scene.addObject(model);
+  //   obj.setScale({0.05, 0.05, 0.05});
+  //   obj.setPosition({-0.5, 0.5, 0.5});
+  // }
+  // {
+  //   auto model =
+  //       manager->CreateModelFromFile("/home/fx/Downloads/sapien_cube_2.glb");
+  //   auto &obj = scene.addObject(model);
+  //   obj.setScale({0.05, 0.05, 0.05});
+  //   obj.setPosition({-1.0, 0.5, 0.5});
+  //   obj.setRotation(glm::quat(0.9238795, 0.0, 0.3826834, 0.0));
+  // }
 
   // auto model = manager->CreateModelFromFile(
   //     "/home/fx/source/sapien-project-web/storage/models/partnet/"
@@ -116,32 +156,11 @@ int main() {
   //     vk::Filter::eLinear, vk::SamplerAddressMode::eClampToBorder,
   //     vk::SamplerAddressMode::eClampToBorder, true));
 
-  auto &pl = scene.addPointLight();
-  pl.setPosition({0.5, 0.5, 0});
-  pl.setColor({2, 2, 2});
-  pl.enableShadow(true);
-  pl.setShadowParameters(0.01, 10, 2048);
-
-  // auto &pl = scene.addSpotLight();
-  // pl.setPosition({0.5, 0.5, 0});
-  // pl.setColor({2, 2, 2});
+  // auto &pl = scene.addPointLight();
+  // pl.setPosition({0.5, 0.5, 0.5});
+  // pl.setColor({1, 1, 1});
   // pl.enableShadow(true);
-  // pl.setFovSmall(M_PI / 2);
-  // pl.setFov(M_PI / 2);
-  // pl.setDirection({0, -1, 0});
   // pl.setShadowParameters(0.01, 10, 2048);
-
-  // auto &p2 = scene.addPointLight();
-  // p2.setTransform({.position = glm::vec4{0.0, 0.5, 0.5, 1}});
-  // p2.setColor({0, 1, 0});
-  // p2.enableShadow(true);
-  // p2.setShadowParameters(0.05, 5, 2048);
-
-  // auto &p3 = scene.addPointLight();
-  // p3.setTransform({.position = glm::vec4{-0.5, 0.5, 0, 1}});
-  // p3.setColor({0, 0, 1, 1});
-  // p3.enableShadow(true);
-  // p3.setShadowParameters(0.05, 5);
 
   // auto &dl = scene.addDirectionalLight();
   // dl.setPosition({0, 0, 0});
@@ -150,13 +169,6 @@ int main() {
   // dl.setColor({1, 1, 1});
   // dl.enableShadow(true);
   // dl.setShadowParameters(-10, 10, 5, 2048);
-
-  // auto &dl2 = scene.addDirectionalLight();
-  // dl2.setTransform({.position = {0, 0, 0}});
-  // dl2.setDirection({1, -1, 1});
-  // dl2.setColor({1, 1, 1});
-  // dl2.enableShadow(true);
-  // dl2.setShadowParameters(-5, 5, 3, 2048);
 
   scene.setAmbientLight({0.1f, 0.1f, 0.1f, 0});
 
@@ -241,6 +253,7 @@ int main() {
   auto &cameraNode = scene.addCamera();
   cameraNode.setPerspectiveParameters(0.05, 50, 1, 400, 300);
   FPSCameraController controller(cameraNode, {0, 0, -1}, {0, 1, 0});
+  // controller.setXYZ(0, 0.5, 0);
   controller.setXYZ(0, 0.5, 3);
 
   // auto &customLight = scene.addCustomLight(cameraNode);
@@ -248,9 +261,18 @@ int main() {
   // customLight.setShadowProjectionMatrix(math::perspective(0.7f, 1.f,
   // 0.1f, 5.f));
 
-  // renderer.setCustomTexture("LightMap",
-  //                           context.getResourceManager().CreateTextureFromFile(
-  //                               "../test/assets/image/flashlight.jpg", 1));
+  auto flashlight = context->getResourceManager()->CreateTextureFromFile(
+      "../test/assets/image/flashlight.jpg", 1);
+
+  auto &l = scene.addTexturedLight();
+  l.setColor({1, 1, 1});
+  l.setPosition({0.5, 0.5, 0.5});
+  l.enableShadow(true);
+  l.setFov(2);
+  l.setFovSmall(1);
+  l.setTexture(flashlight);
+  l.setDirection({0, -1, 0});
+  scene.updateModelMatrices();
 
   // renderer.setCustomTexture("BRDFLUT", lutTexture);
 
@@ -275,7 +297,11 @@ int main() {
 
   // cubemap->exportKTX("output.ktx");
 
+  auto cubemap = context->getResourceManager()->CreateCubemapFromKTX(
+      "../test/assets/image/cube2/out.ktx", 5);
   // renderer.setCustomCubemap("Environment", cubemap);
+
+  scene.setEnvironmentMap(cubemap);
 
   auto window = context->createWindow(1024, 1024);
   // glfwGetFramebufferSize(window->getGLFWWindow(), &gSwapchainResizeWidth,
@@ -324,6 +350,8 @@ int main() {
 
   renderer.setScene(scene);
 
+  scene.updateModelMatrices();
+
   int count = 0;
   while (!window->isClosed()) {
     count += 1;
@@ -331,9 +359,13 @@ int main() {
     // / 50.f)});
 
     if (count == 3) {
-      auto &l = scene.addSpotLight();
-      l.enableShadow(true);
-      // scene.removeNode(l);
+      // auto &l = scene.addSpotLight();
+      // l.setColor({1, 1, 1});
+      // l.setPosition({0.5, 0.5, 0.5});
+      // l.enableShadow(true);
+      // l.setFov(2);
+      // l.setFovSmall(1);
+      // scene.updateModelMatrices();
     }
 
     if (gSwapchainRebuild) {
@@ -403,8 +435,6 @@ int main() {
       context->getDevice().resetFences(sceneRenderFence.get());
     }
 
-    scene.updateModelMatrices();
-
     // draw
     // auto sem = context->createTimelineSemaphore(0);
 
@@ -456,22 +486,32 @@ int main() {
       window->close();
     }
 
+    bool update = false;
     float r = 1e-2;
     if (window->isMouseKeyDown(1)) {
       auto [x, y] = window->getMouseDelta();
       controller.rotate(0, -r * y, -r * x);
+      update = true;
     }
     if (window->isKeyDown("w")) {
       controller.move(r, 0, 0);
+      update = true;
     }
     if (window->isKeyDown("s")) {
       controller.move(-r, 0, 0);
+      update = true;
     }
     if (window->isKeyDown("a")) {
       controller.move(0, r, 0);
+      update = true;
     }
     if (window->isKeyDown("d")) {
       controller.move(0, -r, 0);
+      update = true;
+    }
+
+    if (update) {
+      scene.updateModelMatrices();
     }
 
     auto model = cameraNode.computeWorldModelMatrix();

@@ -282,7 +282,7 @@ Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
     auto extensions = device.enumerateDeviceExtensionProperties();
     for (auto &ext : extensions) {
       if (std::strcmp(ext.extensionName,
-                      VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME)) {
+                      VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME) == 0) {
         rayTracing = 1;
       }
     }
