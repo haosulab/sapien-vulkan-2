@@ -9,6 +9,10 @@
 #include "svulkan2/common/log.h"
 #include "svulkan2/common/vk.h"
 
+#ifdef SVULKAN2_CUDA_INTEROP
+#include "svulkan2/common/cuda_helper.h"
+#endif
+
 namespace svulkan2 {
 namespace core {
 
@@ -27,6 +31,7 @@ private:
 
   vk::Image mImage;
   VmaAllocation mAllocation;
+  VmaAllocationInfo mAllocationInfo;
 
 #ifdef TRACK_ALLOCATION
   uint64_t mImageId{};
@@ -69,6 +74,9 @@ public:
   void recordCopyToBuffer(vk::CommandBuffer cb, vk::Buffer buffer,
                           size_t bufferOffset, size_t size, vk::Offset3D offset,
                           vk::Extent3D extent, uint32_t arrayLayer = 0);
+  void recordCopyFromBuffer(vk::CommandBuffer cb, vk::Buffer buffer,
+                          size_t bufferOffset, size_t size, vk::Offset3D offset,
+                          vk::Extent3D extent, uint32_t arrayLayer = 0);
 
   void download(void *data, size_t size, vk::Offset3D offset,
                 vk::Extent3D extent, uint32_t arrayLayer = 0,
@@ -106,6 +114,7 @@ public:
 
   /** call to tell this image its current layout, call before download */
   void setCurrentLayout(vk::ImageLayout layout) { mCurrentLayout = layout; };
+  vk::ImageLayout getCurrentLayout() const { return mCurrentLayout; };
 
   void transitionLayout(vk::CommandBuffer commandBuffer,
                         vk::ImageLayout oldImageLayout,
@@ -130,6 +139,19 @@ public:
   inline vk::ImageUsageFlags getUsage() const { return mUsageFlags; }
   inline vk::SampleCountFlagBits getSampleCount() const { return mSampleCount; }
   inline vk::ImageTiling getTiling() const { return mTiling; }
+
+#ifdef SVULKAN2_CUDA_INTEROP
+private:
+  // TODO: cuda feature is not finished, do not use
+  cudaMipmappedArray_t mCudaArray{};
+  cudaExternalMemory_t mCudaMem{};
+  int mCudaDeviceId{-1};
+
+public:
+  cudaMipmappedArray_t getCudaArray();
+  int getCudaDeviceId();
+  vk::DeviceSize getRowPitch();
+#endif
 };
 
 } // namespace core

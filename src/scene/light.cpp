@@ -126,6 +126,7 @@ glm::mat4 SpotLight::getShadowProjectionMatrix() const {
 
 void TexturedLight::setTexture(std::shared_ptr<resource::SVTexture> texture) {
   mTexture = texture;
+  mScene->updateVersion();
 }
 
 } // namespace scene

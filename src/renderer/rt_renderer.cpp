@@ -19,13 +19,13 @@ RTRenderer::RTRenderer(std::string const &shaderDir) : mShaderDir(shaderDir) {
   mGeometryInstanceBufferLayout =
       mShaderPack->getGeometryInstanceBufferLayout();
   mCameraBufferLayout = mShaderPack->getCameraBufferLayout();
+  mObjectBufferLayout = mShaderPack->getObjectBufferLayout();
 
   // set default values
-  mCustomPropertiesInt["spp"] = 1;
-  mCustomPropertiesInt["maxDepth"] = 0;
+  mCustomPropertiesInt["spp"] = 4;
+  mCustomPropertiesInt["maxDepth"] = 3;
   mCustomPropertiesInt["russianRoulette"] = 0;
   mCustomPropertiesInt["russianRouletteMinBounces"] = 2;
-  mCustomPropertiesVec3["ambientLight"] = {0.f, 0.f, 0.f};
 }
 
 void RTRenderer::resize(int width, int height) {
@@ -42,6 +42,44 @@ void RTRenderer::setScene(scene::Scene &scene) {
   mSceneRenderVersion = 0l;
 }
 
+void RTRenderer::prepareObjects() {
+  auto objects = mScene->getVisibleObjects();
+  mObjectBuffer =
+      std::make_unique<core::Buffer>(objects.size() * mObjectBufferLayout.size,
+                                     vk::BufferUsageFlagBits::eStorageBuffer |
+                                         vk::BufferUsageFlagBits::eTransferDst,
+                                     VMA_MEMORY_USAGE_CPU_TO_GPU);
+}
+
+void RTRenderer::updateObjects() {
+  auto objects = mScene->getVisibleObjects();
+
+  uint32_t segOffset = mObjectBufferLayout.elements.at("segmentation").offset;
+  uint32_t transparencyOffset =
+      mObjectBufferLayout.elements.at("transparency").offset;
+  uint32_t shadeFlatOffset =
+      mObjectBufferLayout.elements.at("shadeFlat").offset;
+
+  uint8_t *memory = static_cast<uint8_t *>(mObjectBuffer->map());
+  uint32_t stride = mObjectBufferLayout.size;
+
+  uint32_t count = 0;
+  for (auto obj : objects) {
+    int shadeFlat = obj->getShadeFlat();
+    glm::uvec4 seg = obj->getSegmentation();
+    float transparency = obj->getTransparency();
+
+    std::memcpy(memory + stride * count + segOffset, &seg, sizeof(glm::uvec4));
+    std::memcpy(memory + stride * count + shadeFlatOffset, &shadeFlat,
+                sizeof(int));
+    std::memcpy(memory + stride * count + transparencyOffset, &transparency,
+                sizeof(float));
+
+    ++count;
+  }
+  mObjectBuffer->unmap();
+}
+
 void RTRenderer::prepareRender(scene::Camera &camera) {
   if (mEnvironmentMap != mScene->getEnvironmentMap()) {
     mEnvironmentMap = mScene->getEnvironmentMap();
@@ -49,7 +87,7 @@ void RTRenderer::prepareRender(scene::Camera &camera) {
     mRequiresRebuild = true;
   }
 
-  auto objects = camera.getScene()->getObjects();
+  auto objects = camera.getScene()->getVisibleObjects();
   auto scene = camera.getScene();
   if (mSceneVersion != scene->getVersion()) {
     mRequiresRebuild = true;
@@ -78,6 +116,8 @@ void RTRenderer::prepareRender(scene::Camera &camera) {
   }
 
   if (mSceneRenderVersion != mScene->getRenderVersion()) {
+    updateObjects();
+
     mScene->updateRTResources();                                // update TLAS
     camera.uploadToDevice(*mCameraBuffer, mCameraBufferLayout); // update camera
     mFrameCount = 0;
@@ -163,6 +203,25 @@ void RTRenderer::updatePushConstant() {
     std::memcpy(mPushConstantBuffer.data() + elem.offset, &mFrameCount,
                 elem.size);
   }
+
+  if (layout->elements.contains("envmap")) {
+    auto &elem = layout->elements.at("envmap");
+    if (elem.dtype != DataType::eINT) {
+      throw std::runtime_error("envmap must be type int");
+    }
+    int envmap = mScene->getEnvironmentMap() != nullptr;
+    std::memcpy(mPushConstantBuffer.data() + elem.offset, &envmap, elem.size);
+  }
+
+  if (layout->elements.contains("ambientLight")) {
+    auto &elem = layout->elements.at("ambientLight");
+    if (elem.dtype != DataType::eFLOAT3) {
+      throw std::runtime_error("ambientLight must be type vec3");
+    }
+    glm::vec3 ambientLight = mScene->getAmbientLight();
+    std::memcpy(mPushConstantBuffer.data() + elem.offset, &ambientLight,
+                elem.size);
+  }
 }
 
 void RTRenderer::recordRender() {
@@ -176,6 +235,27 @@ void RTRenderer::recordRender() {
   auto pushConstantLayout = mShaderPack->getPushConstantLayout();
 
   mRenderCommandBuffer->begin(vk::CommandBufferBeginInfo({}, {}));
+
+  for (auto &[name, image] : mRenderImages) {
+    image->getImage().transitionLayout(
+        mRenderCommandBuffer.get(), vk::ImageLayout::eGeneral,
+        vk::ImageLayout::eGeneral, vk::AccessFlagBits::eTransferRead,
+        vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite,
+        vk::PipelineStageFlagBits::eTransfer,
+        vk::PipelineStageFlagBits::eRayTracingShaderKHR);
+  }
+
+  // for (auto &[name, image] : mRenderImages) {
+  // if (image->getImage().getCurrentLayout() ==
+  //     vk::ImageLayout::eTransferSrcOptimal) {
+  //   image->getImage().transitionLayout(
+  //       mRenderCommandBuffer.get(), vk::ImageLayout::eTransferSrcOptimal,
+  //       vk::ImageLayout::eGeneral, vk::AccessFlagBits::eTransferRead,
+  //       vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite,
+  //       vk::PipelineStageFlagBits::eTransfer,
+  //       vk::PipelineStageFlagBits::eRayTracingShaderKHR);
+  // }
+  // }
 
   mRenderCommandBuffer->pushConstants(
       mShaderPackInstance->getPipelineLayout(),
@@ -209,6 +289,16 @@ void RTRenderer::recordRender() {
       mShaderPackInstance->getRgenRegion(),
       mShaderPackInstance->getMissRegion(), mShaderPackInstance->getHitRegion(),
       mShaderPackInstance->getCallRegion(), mWidth, mHeight, 1);
+
+  // prepare for transfer
+  for (auto &[name, image] : mRenderImages) {
+    image->getImage().transitionLayout(
+        mRenderCommandBuffer.get(), vk::ImageLayout::eGeneral,
+        vk::ImageLayout::eGeneral, vk::AccessFlagBits::eShaderWrite,
+        vk::AccessFlagBits::eTransferRead,
+        vk::PipelineStageFlagBits::eRayTracingShaderKHR,
+        vk::PipelineStageFlagBits::eTransfer);
+  }
 
   mRenderCommandBuffer->end();
 }
@@ -274,6 +364,8 @@ void RTRenderer::prepareOutput() {
 }
 
 void RTRenderer::prepareScene() {
+  prepareObjects();
+
   auto &set = mShaderPack->getSceneDescription();
   uint32_t asCount{0};
   uint32_t storageBufferCount{0};
@@ -308,6 +400,8 @@ void RTRenderer::prepareScene() {
   auto as = mScene->getTLAS()->getVulkanAS();
   vk::WriteDescriptorSetAccelerationStructureKHR asWrite(as);
 
+  vk::DescriptorBufferInfo objectBufferInfo(mObjectBuffer->getVulkanBuffer(), 0,
+                                            VK_WHOLE_SIZE);
   vk::DescriptorBufferInfo geometryInstanceBufferInfo(
       mScene->getRTGeometryInstanceBuffer(), 0, VK_WHOLE_SIZE);
   vk::DescriptorBufferInfo textureIndexBufferInfo(
@@ -350,6 +444,10 @@ void RTRenderer::prepareScene() {
       writeDescriptorSets.push_back(vk::WriteDescriptorSet(
           mSceneSet.get(), bid, 0, 1,
           vk::DescriptorType::eAccelerationStructureKHR, {}, {}, {}, &asWrite));
+    } else if (binding.name == "Objects") {
+      writeDescriptorSets.push_back(vk::WriteDescriptorSet(
+          mSceneSet.get(), bid, 0, vk::DescriptorType::eStorageBuffer, {},
+          objectBufferInfo, {}));
     } else if (binding.name == "GeometryInstances") {
       writeDescriptorSets.push_back(vk::WriteDescriptorSet(
           mSceneSet.get(), bid, 0, vk::DescriptorType::eStorageBuffer, {},
@@ -498,16 +596,17 @@ void RTRenderer::display(std::string const &imageName, vk::Image backBuffer,
     throw std::runtime_error(
         "failed to display: only color textures are supported in display");
   };
-  auto layout = vk::ImageLayout::eGeneral;
-  vk::AccessFlags sourceAccessMask =
-      vk::AccessFlagBits::eShaderWrite | vk::AccessFlagBits::eShaderRead;
-  vk::PipelineStageFlags sourceStage =
-      vk::PipelineStageFlagBits::eRayTracingShaderKHR;
+  // auto layout = vk::ImageLayout::eGeneral;
+  // vk::AccessFlags sourceAccessMask =
+  //     vk::AccessFlagBits::eShaderWrite | vk::AccessFlagBits::eShaderRead;
+  // vk::PipelineStageFlags sourceStage =
+  //     vk::PipelineStageFlagBits::eRayTracingShaderKHR;
 
-  renderTarget->getImage().transitionLayout(
-      mDisplayCommandBuffer.get(), layout, vk::ImageLayout::eTransferSrcOptimal,
-      sourceAccessMask, vk::AccessFlagBits::eTransferRead, sourceStage,
-      vk::PipelineStageFlagBits::eTransfer);
+  // renderTarget->getImage().transitionLayout(
+  //     mDisplayCommandBuffer.get(), layout,
+  //     vk::ImageLayout::eTransferSrcOptimal, sourceAccessMask,
+  //     vk::AccessFlagBits::eTransferRead, sourceStage,
+  //     vk::PipelineStageFlagBits::eTransfer);
 
   {
     vk::ImageSubresourceRange imageSubresourceRange(
@@ -531,7 +630,7 @@ void RTRenderer::display(std::string const &imageName, vk::Image backBuffer,
   log::info("blit image {:x}", renderTarget->getImage().getVulkanImage());
   mDisplayCommandBuffer->blitImage(
       renderTarget->getImage().getVulkanImage(),
-      vk::ImageLayout::eTransferSrcOptimal, backBuffer,
+      vk::ImageLayout::eGeneral, backBuffer,
       vk::ImageLayout::eTransferDstOptimal, imageBlit, vk::Filter::eNearest);
 
   // transfer swap chain back
@@ -549,15 +648,29 @@ void RTRenderer::display(std::string const &imageName, vk::Image backBuffer,
   }
 
   // transfer image layout back
-  renderTarget->getImage().transitionLayout(
-      mDisplayCommandBuffer.get(), vk::ImageLayout::eTransferSrcOptimal,
-      vk::ImageLayout::eGeneral, vk::AccessFlagBits::eTransferRead,
-      vk::AccessFlagBits::eShaderRead, vk::PipelineStageFlagBits::eTransfer,
-      vk::PipelineStageFlagBits::eRayTracingShaderKHR);
+  // renderTarget->getImage().transitionLayout(
+  //     mDisplayCommandBuffer.get(), vk::ImageLayout::eTransferSrcOptimal,
+  //     vk::ImageLayout::eGeneral, vk::AccessFlagBits::eTransferRead,
+  //     vk::AccessFlagBits::eShaderRead, vk::PipelineStageFlagBits::eTransfer,
+  //     vk::PipelineStageFlagBits::eRayTracingShaderKHR);
 
   mDisplayCommandBuffer->end();
   mContext->getQueue().submit(mDisplayCommandBuffer.get(), waitSemaphores,
                               waitStages, signalSemaphores, fence);
+}
+
+std::vector<std::string> RTRenderer::getDisplayTargetNames() const {
+  std::vector<std::string> names;
+  for (auto &[bid, binding] : mShaderPack->getOutputDescription().bindings) {
+    if (binding.type == vk::DescriptorType::eStorageImage &&
+        binding.name.starts_with("out")) {
+      std::string texName = binding.name.substr(3);
+      if (binding.format == vk::Format::eR32G32B32A32Sfloat) {
+        names.push_back(texName);
+      }
+    }
+  }
+  return names;
 }
 
 std::vector<std::string> RTRenderer::getRenderTargetNames() const {

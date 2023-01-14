@@ -30,36 +30,6 @@ struct LightBufferData {
   int height;
 };
 
-struct RTPointLight {
-  glm::vec3 position;
-  float radius;
-  glm::vec3 rgb;
-  float padding;
-};
-static_assert(sizeof(RTPointLight) == 32);
-
-struct RTDirectionalLight {
-  glm::vec3 direction;
-  float softness;
-  glm::vec3 rgb;
-  float padding;
-};
-static_assert(sizeof(RTDirectionalLight) == 32);
-
-struct RTSpotLight {
-  glm::mat4 viewMat;
-  glm::mat4 projMat;
-  glm::vec3 rgb;
-  int padding0;
-  glm::vec3 position;
-  int padding1;
-  float fovInner;
-  float fovOuter;
-  int textureId;
-  int padding2;
-};
-static_assert(sizeof(RTSpotLight) == 176);
-
 Scene::Scene() {
   mNodes.push_back(std::make_unique<Node>());
   mRootNode = mNodes.back().get();
@@ -305,6 +275,17 @@ std::vector<Object *> Scene::getObjects() {
   std::vector<Object *> result;
   for (auto &obj : mObjects) {
     result.push_back(obj.get());
+  }
+  return result;
+}
+
+std::vector<Object *> Scene::getVisibleObjects() {
+  forceRemove();
+  std::vector<Object *> result;
+  for (auto &obj : mObjects) {
+    if (obj->getTransparency() < 1.f) {
+      result.push_back(obj.get());
+    }
   }
   return result;
 }
@@ -649,7 +630,7 @@ void Scene::buildTLAS() {
   auto context = core::Context::Get();
   std::vector<vk::AccelerationStructureInstanceKHR> instances;
   uint32_t globalGeomIdx{0};
-  for (auto obj : getObjects()) {
+  for (auto obj : getVisibleObjects()) {
     glm::mat4 modelTranspose = glm::transpose(
         obj->getTransform().worldModelMatrix); // column major matrix
     vk::TransformMatrixKHR mat;
@@ -672,11 +653,11 @@ void Scene::buildTLAS() {
 
 void Scene::updateTLAS() {
   log::info("updating TLAS");
-  auto objects = getObjects();
+  auto objects = getVisibleObjects();
   std::vector<vk::TransformMatrixKHR> transforms;
   transforms.reserve(objects.size());
 
-  for (auto obj : getObjects()) {
+  for (auto obj : objects) {
     glm::mat4 modelTranspose =
         glm::transpose(obj->getTransform().worldModelMatrix);
     vk::TransformMatrixKHR mat;
@@ -708,7 +689,7 @@ void Scene::createRTStorageBuffers(
       textureIndexBufferLayout.elements.at("roughness").offset;
   uint32_t normalOffset = textureIndexBufferLayout.elements.at("normal").offset;
 
-  auto objects = getObjects();
+  auto objects = getVisibleObjects();
 
   uint32_t instanceCount{0};
   uint32_t meshCount{0};
@@ -836,33 +817,33 @@ void Scene::createRTStorageBuffers(
   mGeometryInstanceBuffer->upload(geometryInstanceBuffer);
 
   // begin lights
-  std::vector<RTPointLight> pointLights;
+  mRTPointLightBufferHost.clear();
   for (auto &l : mPointLights) {
-    pointLights.push_back(RTPointLight{
+    mRTPointLightBufferHost.push_back(RTPointLight{
         .position = l->getPosition(), .radius = 0, .rgb = l->getColor()});
   }
   mRTPointLightBuffer = std::make_unique<core::Buffer>(
       std::max(getPointLights().size(), 1lu) * sizeof(RTPointLight),
       vk::BufferUsageFlagBits::eStorageBuffer |
           vk::BufferUsageFlagBits::eTransferDst,
-      VMA_MEMORY_USAGE_GPU_ONLY);
-  mRTPointLightBuffer->upload(pointLights);
+      VMA_MEMORY_USAGE_CPU_TO_GPU);
+  mRTPointLightBuffer->upload(mRTPointLightBufferHost);
 
-  std::vector<RTDirectionalLight> dirLights;
+  mRTDirectionalLightBufferHost.clear();
   for (auto &l : mDirectionalLights) {
-    dirLights.push_back(RTDirectionalLight{
+    mRTDirectionalLightBufferHost.push_back(RTDirectionalLight{
         .direction = l->getDirection(), .softness = 0, .rgb = l->getColor()});
   }
   mRTDirectionalLightBuffer = std::make_unique<core::Buffer>(
       std::max(getDirectionalLights().size(), 1lu) * sizeof(RTDirectionalLight),
       vk::BufferUsageFlagBits::eStorageBuffer |
           vk::BufferUsageFlagBits::eTransferDst,
-      VMA_MEMORY_USAGE_GPU_ONLY);
-  mRTDirectionalLightBuffer->upload(dirLights);
+      VMA_MEMORY_USAGE_CPU_TO_GPU);
+  mRTDirectionalLightBuffer->upload(mRTDirectionalLightBufferHost);
 
-  std::vector<RTSpotLight> spotLights;
+  mRTSpotLightBufferHost.clear();
   for (auto &l : mSpotLights) {
-    spotLights.push_back(RTSpotLight{
+    mRTSpotLightBufferHost.push_back(RTSpotLight{
         .viewMat = glm::affineInverse(l->getTransform().worldModelMatrix),
         .projMat = l->getShadowProjectionMatrix(),
         .rgb = l->getColor(),
@@ -873,7 +854,7 @@ void Scene::createRTStorageBuffers(
   }
   for (auto &l : mTexturedLights) {
     auto tex = l->getTexture();
-    tex->loadAsync().get();  // TODO: move to top
+    tex->loadAsync().get(); // TODO: move to top
     tex->uploadToDevice();
     if (tex && !texture2Id.contains(tex)) {
       textures.push_back(tex);
@@ -881,7 +862,7 @@ void Scene::createRTStorageBuffers(
     }
     int textureId = texture2Id.at(tex);
 
-    spotLights.push_back(RTSpotLight{
+    mRTSpotLightBufferHost.push_back(RTSpotLight{
         .viewMat = glm::affineInverse(l->getTransform().worldModelMatrix),
         .projMat = l->getShadowProjectionMatrix(),
         .rgb = l->getColor(),
@@ -895,8 +876,8 @@ void Scene::createRTStorageBuffers(
           sizeof(RTSpotLight),
       vk::BufferUsageFlagBits::eStorageBuffer |
           vk::BufferUsageFlagBits::eTransferDst,
-      VMA_MEMORY_USAGE_GPU_ONLY);
-  mRTSpotLightBuffer->upload(spotLights);
+      VMA_MEMORY_USAGE_CPU_TO_GPU);
+  mRTSpotLightBuffer->upload(mRTSpotLightBufferHost);
   // end lights
 
   // build textures
@@ -907,7 +888,48 @@ void Scene::createRTStorageBuffers(
 }
 
 void Scene::updateRTStorageBuffers() {
-  // TODO: update lights here
+  uint32_t i = 0;
+  for (auto &l : mPointLights) {
+    auto &b = mRTPointLightBufferHost.at(i);
+    b.position = l->getPosition();
+    b.radius = 0;
+    b.rgb = l->getColor();
+    ++i;
+  }
+  mRTPointLightBuffer->upload(mRTPointLightBufferHost);
+
+  i = 0;
+  for (auto &l : mDirectionalLights) {
+    auto &b = mRTDirectionalLightBufferHost.at(i);
+    b.direction = l->getDirection();
+    b.softness = 0;
+    b.rgb = l->getColor();
+    ++i;
+  }
+  mRTDirectionalLightBuffer->upload(mRTDirectionalLightBufferHost);
+
+  i = 0;
+  for (auto &l : mSpotLights) {
+    auto &b = mRTSpotLightBufferHost.at(i);
+    b.viewMat = glm::affineInverse(l->getTransform().worldModelMatrix);
+    b.projMat = l->getShadowProjectionMatrix();
+    b.rgb = l->getColor();
+    b.position = l->getPosition();
+    b.fovInner = l->getFovSmall();
+    b.fovOuter = l->getFov();
+    ++i;
+  }
+  for (auto &l : mTexturedLights) {
+    auto &b = mRTSpotLightBufferHost.at(i);
+    b.viewMat = glm::affineInverse(l->getTransform().worldModelMatrix);
+    b.projMat = l->getShadowProjectionMatrix();
+    b.rgb = l->getColor();
+    b.position = l->getPosition();
+    b.fovInner = l->getFovSmall();
+    b.fovOuter = l->getFov();
+    ++i;
+  }
+  mRTSpotLightBuffer->upload(mRTSpotLightBufferHost);
 }
 
 void Scene::buildRTResources(

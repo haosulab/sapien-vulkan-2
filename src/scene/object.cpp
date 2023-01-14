@@ -65,35 +65,45 @@ void Object::uploadToDevice(core::Buffer &objectBuffer, uint32_t offset,
 
 void Object::setSegmentation(glm::uvec4 const &segmentation) {
   mSegmentation = segmentation;
+  mScene->updateRenderVersion();
 }
 
 void Object::setCustomDataFloat(std::string const &name, float x) {
   mCustomData[name] = CustomData{.dtype = DataType::eFLOAT, .floatValue = x};
+  mScene->updateRenderVersion();
 }
 void Object::setCustomDataFloat2(std::string const &name, glm::vec2 x) {
   mCustomData[name] = CustomData{.dtype = DataType::eFLOAT2, .float2Value = x};
+  mScene->updateRenderVersion();
 }
 void Object::setCustomDataFloat3(std::string const &name, glm::vec3 x) {
   mCustomData[name] = CustomData{.dtype = DataType::eFLOAT3, .float3Value = x};
+  mScene->updateRenderVersion();
 }
 void Object::setCustomDataFloat4(std::string const &name, glm::vec4 x) {
   mCustomData[name] = CustomData{.dtype = DataType::eFLOAT4, .float4Value = x};
+  mScene->updateRenderVersion();
 }
 void Object::setCustomDataFloat44(std::string const &name, glm::mat4 x) {
   mCustomData[name] =
       CustomData{.dtype = DataType::eFLOAT44, .float44Value = x};
+  mScene->updateRenderVersion();
 }
 void Object::setCustomDataInt(std::string const &name, int x) {
   mCustomData[name] = CustomData{.dtype = DataType::eINT, .intValue = x};
+  mScene->updateRenderVersion();
 }
 void Object::setCustomDataInt2(std::string const &name, glm::ivec2 x) {
   mCustomData[name] = CustomData{.dtype = DataType::eINT2, .int2Value = x};
+  mScene->updateRenderVersion();
 }
 void Object::setCustomDataInt3(std::string const &name, glm::ivec3 x) {
   mCustomData[name] = CustomData{.dtype = DataType::eINT3, .int3Value = x};
+  mScene->updateRenderVersion();
 }
 void Object::setCustomDataInt4(std::string const &name, glm::ivec4 x) {
   mCustomData[name] = CustomData{.dtype = DataType::eINT4, .int4Value = x};
+  mScene->updateRenderVersion();
 }
 
 void Object::setTransparency(float transparency) {

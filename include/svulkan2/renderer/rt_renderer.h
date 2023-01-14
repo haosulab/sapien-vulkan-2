@@ -58,7 +58,12 @@ public:
     mCustomPropertiesVec4[name] = p;
   }
 
+  std::vector<std::string> getDisplayTargetNames() const override;
   std::vector<std::string> getRenderTargetNames() const override;
+
+  core::Image &getRenderImage(std::string const &name) override {
+    return mRenderImages.at(name)->getImage();
+  };
 
   inline void
   setCustomTexture(std::string const &name,
@@ -82,9 +87,13 @@ private:
   std::unordered_map<std::string, glm::vec3> mCustomPropertiesVec3;
   std::unordered_map<std::string, glm::vec4> mCustomPropertiesVec4;
 
+  void prepareObjects();
+  void updateObjects();
+
   void prepareOutput();
   void prepareScene();
   void prepareCamera();
+
   void recordRender();
   void updatePushConstant();
 
@@ -99,6 +108,7 @@ private:
   StructDataLayout mTextureIndexBufferLayout;
   StructDataLayout mGeometryInstanceBufferLayout;
   StructDataLayout mCameraBufferLayout;
+  StructDataLayout mObjectBufferLayout;
 
   int mWidth{};
   int mHeight{};
@@ -121,6 +131,7 @@ private:
   vk::UniqueDescriptorSet mCameraSet;
 
   std::unique_ptr<core::Buffer> mCameraBuffer;
+  std::unique_ptr<core::Buffer> mObjectBuffer;
 
   std::map<std::string, std::shared_ptr<resource::SVTexture>> mCustomTextures;
   std::map<std::string, std::shared_ptr<resource::SVCubemap>> mCustomCubemaps;

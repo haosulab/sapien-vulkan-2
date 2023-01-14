@@ -13,7 +13,7 @@ layout(location = 0) rayPayloadEXT Ray ray;
 layout(set = 0, binding = 0, rgba32f) uniform image2D outColor;
 layout(set = 0, binding = 1, rgba32f) uniform image2D outAlbedo;
 layout(set = 0, binding = 2, rgba32f) uniform image2D outNormal;
-layout(set = 0, binding = 3, rgba32f) uniform image2D outDebug;
+layout(set = 0, binding = 3, rgba32ui) uniform uimage2D outSegmentation;
 
 layout(set = 1, binding = 0) uniform accelerationStructureEXT tlas;
 
@@ -59,8 +59,8 @@ void main() {
 
     ray.origin = origin.xyz;
     ray.direction = normalize(direction.xyz);
-    ray.albedo = vec3(0.f);
-    ray.normal = vec3(0.f);
+    ray.albedo = vec3(0.);
+    ray.normal = vec3(0.);
     ray.radiance = vec3(0.f);
     ray.attenuation = vec3(1.f);
     ray.depth = 0;
@@ -99,9 +99,9 @@ void main() {
       }
 
       if (first) {
-        imageStore(outNormal, ivec2(gl_LaunchIDEXT.xy), vec4(ray.normal, 1.0));
+        imageStore(outNormal, ivec2(gl_LaunchIDEXT.xy), vec4(mat3(cameraBuffer.viewMatrix) * ray.normal, 1.0));
         imageStore(outAlbedo, ivec2(gl_LaunchIDEXT.xy), vec4(ray.albedo, 1.0));
-        imageStore(outDebug, ivec2(gl_LaunchIDEXT.xy), vec4(ray.debug, 1.0));
+        imageStore(outSegmentation, ivec2(gl_LaunchIDEXT.xy), ray.segmentation);
       }
     }
   //   radiance += attenuation * environmentLight;
@@ -117,5 +117,5 @@ void main() {
     imageStore(outColor, ivec2(gl_LaunchIDEXT.xy), vec4(radiance, 1.0));
   }
 
-  // imageStore(outColor, ivec2(gl_LaunchIDEXT.xy), abs(imageLoad(outNormal, ivec2(gl_LaunchIDEXT.xy))));
+  imageStore(outColor, ivec2(gl_LaunchIDEXT.xy), imageLoad(outNormal, ivec2(gl_LaunchIDEXT.xy)));
 }

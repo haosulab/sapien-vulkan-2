@@ -15,11 +15,13 @@ void SVStorageImage::createDeviceResources() {
       mFormat == vk::Format::eR32G32B32A32Sfloat ||
       mFormat == vk::Format::eR32G32B32A32Uint ||
       mFormat == vk::Format::eR32Sfloat) {
-    usage =
-        vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc;
+    usage = vk::ImageUsageFlagBits::eStorage |
+            vk::ImageUsageFlagBits::eTransferSrc |
+            vk::ImageUsageFlagBits::eTransferDst;
   } else if (mFormat == vk::Format::eD32Sfloat) {
-    usage =
-        vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc;
+    usage = vk::ImageUsageFlagBits::eStorage |
+            vk::ImageUsageFlagBits::eTransferSrc |
+            vk::ImageUsageFlagBits::eTransferDst;
     isDepth = true;
   } else {
     throw std::runtime_error(

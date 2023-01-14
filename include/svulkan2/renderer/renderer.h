@@ -136,47 +136,51 @@ public:
   std::vector<std::string> getDisplayTargetNames() const;
   std::vector<std::string> getRenderTargetNames() const override;
 
-  template <typename T>
-  std::tuple<std::vector<T>, std::array<uint32_t, 3>>
-  download(std::string const &targetName) {
-    auto target = mRenderTargets.at(targetName);
-    uint32_t width = target->getWidth();
-    uint32_t height = target->getHeight();
-    std::vector<T> data = target->download<T>();
-    uint32_t channels = data.size() / (width * height);
-    if (width * height * channels != data.size()) {
-      throw std::runtime_error(
-          "download render target failed: internal format error");
-    }
-    return {data, std::array<uint32_t, 3>{height, width, channels}};
-  }
+  // template <typename T>
+  // std::tuple<std::vector<T>, std::array<uint32_t, 3>>
+  // download(std::string const &targetName) {
+  //   auto target = mRenderTargets.at(targetName);
+  //   uint32_t width = target->getWidth();
+  //   uint32_t height = target->getHeight();
+  //   std::vector<T> data = target->download<T>();
+  //   uint32_t channels = data.size() / (width * height);
+  //   if (width * height * channels != data.size()) {
+  //     throw std::runtime_error(
+  //         "download render target failed: internal format error");
+  //   }
+  //   return {data, std::array<uint32_t, 3>{height, width, channels}};
+  // }
 
-  template <typename T>
-  std::tuple<std::vector<T>, std::array<uint32_t, 3>>
-  downloadRegion(std::string const &targetName, vk::Offset2D offset,
-                 vk::Extent2D extent) {
-    auto target = mRenderTargets.at(targetName);
-    uint32_t width = target->getWidth();
-    uint32_t height = target->getHeight();
-    if (offset.x < 0 || offset.y < 0 || offset.x + extent.width >= width ||
-        offset.y + extent.height >= height) {
-      throw std::runtime_error(
-          "failed to download region: offset or extent is out of bound");
-    }
-    std::vector<T> data = target->getImage().download<T>(
-        vk::Offset3D{offset.x, offset.y, 0},
-        vk::Extent3D{extent.width, extent.height, 1});
-    uint32_t channels = data.size() / (extent.width * extent.height);
-    if (extent.width * extent.height * channels != data.size()) {
-      throw std::runtime_error(
-          "failed to download region: internal format error");
-    }
-    return {data,
-            std::array<uint32_t, 3>{extent.height, extent.width, channels}};
-  }
+  // template <typename T>
+  // std::tuple<std::vector<T>, std::array<uint32_t, 3>>
+  // downloadRegion(std::string const &targetName, vk::Offset2D offset,
+  //                vk::Extent2D extent) {
+  //   auto target = mRenderTargets.at(targetName);
+  //   uint32_t width = target->getWidth();
+  //   uint32_t height = target->getHeight();
+  //   if (offset.x < 0 || offset.y < 0 || offset.x + extent.width >= width ||
+  //       offset.y + extent.height >= height) {
+  //     throw std::runtime_error(
+  //         "failed to download region: offset or extent is out of bound");
+  //   }
+  //   std::vector<T> data = target->getImage().download<T>(
+  //       vk::Offset3D{offset.x, offset.y, 0},
+  //       vk::Extent3D{extent.width, extent.height, 1});
+  //   uint32_t channels = data.size() / (extent.width * extent.height);
+  //   if (extent.width * extent.height * channels != data.size()) {
+  //     throw std::runtime_error(
+  //         "failed to download region: internal format error");
+  //   }
+  //   return {data,
+  //           std::array<uint32_t, 3>{extent.height, extent.width, channels}};
+  // }
 
   std::shared_ptr<resource::SVRenderTarget>
   getRenderTarget(std::string const &name) const;
+
+  core::Image &getRenderImage(std::string const &name) override {
+    return getRenderTarget(name)->getImage();
+  };
 
   void setCustomTexture(std::string const &name,
                         std::shared_ptr<resource::SVTexture> texture) override;

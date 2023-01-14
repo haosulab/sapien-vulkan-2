@@ -560,6 +560,7 @@ void Context::createDevice() {
   features.features.setGeometryShader(true);
   descriptorFeatures.setDescriptorBindingPartiallyBound(true);
   timelineSemaphoreFeatures.setTimelineSemaphore(true);
+  descriptorFeatures.setPNext(&timelineSemaphoreFeatures);
 
   vk::PhysicalDeviceAccelerationStructureFeaturesKHR asFeature;
   asFeature.setAccelerationStructure(true);
@@ -580,7 +581,7 @@ void Context::createDevice() {
     descriptorFeatures.setRuntimeDescriptorArray(true);
     descriptorFeatures.setShaderStorageBufferArrayNonUniformIndexing(true);
     descriptorFeatures.setShaderSampledImageArrayNonUniformIndexing(true);
-    descriptorFeatures.setPNext(&asFeature);
+    timelineSemaphoreFeatures.setPNext(&asFeature);
     asFeature.setPNext(&rtFeature);
     rtFeature.setPNext(&addrFeature);
     addrFeature.setPNext(&clockFeature);

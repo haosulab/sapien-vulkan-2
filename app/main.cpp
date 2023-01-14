@@ -1,6 +1,7 @@
 #include "svulkan2/common/fs.h"
 #include "svulkan2/common/log.h"
 #include "svulkan2/core/context.h"
+#include "svulkan2/renderer/denoiser.h"
 #include "svulkan2/renderer/renderer.h"
 #include "svulkan2/renderer/rt_renderer.h"
 #include "svulkan2/scene/scene.h"
@@ -41,11 +42,12 @@ static void createSphereArray(svulkan2::scene::Scene &scene) {
           std::make_shared<resource::SVMetallicMaterial>(
               glm::vec4{0, 0, 0, 1}, glm::vec4{1, 1, 1, 1}, specular, roughness,
               metallic));
-      scene
-          .addObject(resource::SVModel::FromData({shape}),
-                     {.position = {i / 8.f, 0.2 + j / 8.f, 0},
-                      .scale = {0.05, 0.05, 0.05}})
-          .setShadeFlat(true);
+      auto &o = scene.addObject(resource::SVModel::FromData({shape}),
+                                {.position = {i / 8.f, 0.2 + j / 8.f, 0},
+                                 .scale = {0.05, 0.05, 0.05}});
+
+      o.setShadeFlat(true);
+      o.setSegmentation({0, 0, i, j});
     }
   }
 
@@ -84,6 +86,10 @@ int main() {
   renderer.setCustomProperty("maxDepth", 6);
   renderer.setCustomProperty("russianRoulette", 1);
   renderer.setCustomProperty("russianRouletteMinBounces", 3);
+
+  // renderer::DenoiserOptix denoiser;
+  // denoiser.init(OptixPixelFormat::OPTIX_PIXEL_FORMAT_FLOAT4, true, true, true);
+  // denoiser.allocate(1024, 1024);
 
   svulkan2::scene::Scene scene;
 
@@ -170,7 +176,7 @@ int main() {
   // dl.enableShadow(true);
   // dl.setShadowParameters(-10, 10, 5, 2048);
 
-  scene.setAmbientLight({0.1f, 0.1f, 0.1f, 0});
+  scene.setAmbientLight({0.5f, 0.5f, 0.5f, 0});
 
   // auto material =
   //     std::make_shared<resource::SVMetallicMaterial>(glm::vec4{1, 1, 1, 1});
@@ -301,7 +307,7 @@ int main() {
       "../test/assets/image/cube2/out.ktx", 5);
   // renderer.setCustomCubemap("Environment", cubemap);
 
-  scene.setEnvironmentMap(cubemap);
+  // scene.setEnvironmentMap(cubemap);
 
   auto window = context->createWindow(1024, 1024);
   // glfwGetFramebufferSize(window->getGLFWWindow(), &gSwapchainResizeWidth,
@@ -443,6 +449,12 @@ int main() {
         renderer.render(cameraNode, std::vector<vk::Semaphore>{}, {}, {}, {});
 
         auto imageAcquiredSemaphore = window->getImageAcquiredSemaphore();
+
+        // renderer.getRenderImage("Color")
+        // denoiser.denoise(renderer.getRenderImage("Color"),
+        //                  &renderer.getRenderImage("Albedo"),
+        //                  &renderer.getRenderImage("Normal"));
+
         renderer.display("Color", window->getBackbuffer(),
                          window->getBackBufferFormat(), window->getWidth(),
                          window->getHeight(), {imageAcquiredSemaphore},

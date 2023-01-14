@@ -34,20 +34,18 @@ Image::Image(vk::Extent3D extent, vk::Format format,
   VmaAllocationCreateInfo memoryInfo{};
   memoryInfo.usage = memoryUsage;
 
-  VmaAllocationInfo allocInfo;
-
   mContext = Context::Get();
 
   if (vmaCreateImage(mContext->getAllocator().getVmaAllocator(),
                      reinterpret_cast<VkImageCreateInfo *>(&imageInfo),
                      &memoryInfo, reinterpret_cast<VkImage *>(&mImage),
-                     &mAllocation, &allocInfo) != VK_SUCCESS) {
+                     &mAllocation, &mAllocationInfo) != VK_SUCCESS) {
     throw std::runtime_error("cannot create image");
   }
 
   VkMemoryPropertyFlags memFlags;
   vmaGetMemoryTypeProperties(mContext->getAllocator().getVmaAllocator(),
-                             allocInfo.memoryType, &memFlags);
+                             mAllocationInfo.memoryType, &memFlags);
   mHostVisible = (memFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0;
   mHostCoherent = (memFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0;
 
@@ -219,9 +217,39 @@ void Image::recordCopyToBuffer(vk::CommandBuffer cb, vk::Buffer buffer,
                              std::to_string(size));
   }
 
-  vk::ImageLayout sourceLayout = vk::ImageLayout::eUndefined;
-  vk::AccessFlags sourceAccessFlag{};
-  vk::PipelineStageFlags sourceStage{};
+  if (mCurrentLayout != vk::ImageLayout::eGeneral &&
+      mCurrentLayout != vk::ImageLayout::eTransferSrcOptimal) {
+
+    vk::ImageLayout sourceLayout = vk::ImageLayout::eUndefined;
+    vk::AccessFlags sourceAccessFlag{};
+    vk::PipelineStageFlags sourceStage{};
+
+    switch (mCurrentLayout) {
+    case vk::ImageLayout::eColorAttachmentOptimal:
+      sourceLayout = vk::ImageLayout::eColorAttachmentOptimal;
+      sourceAccessFlag = vk::AccessFlagBits::eColorAttachmentWrite;
+      sourceStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+      break;
+    case vk::ImageLayout::eDepthStencilAttachmentOptimal:
+      sourceLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+      sourceAccessFlag = vk::AccessFlagBits::eDepthStencilAttachmentWrite;
+      sourceStage = vk::PipelineStageFlagBits::eEarlyFragmentTests |
+                    vk::PipelineStageFlagBits::eLateFragmentTests;
+      break;
+    case vk::ImageLayout::eShaderReadOnlyOptimal:
+      sourceLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+      sourceAccessFlag = vk::AccessFlagBits::eShaderRead;
+      sourceStage = vk::PipelineStageFlagBits::eFragmentShader;
+      break;
+    case vk::ImageLayout::eTransferSrcOptimal:
+      break;
+    default:
+      throw std::runtime_error("failed to download image: invalid layout.");
+    }
+    transitionLayout(cb, sourceLayout, vk::ImageLayout::eTransferSrcOptimal,
+                     sourceAccessFlag, vk::AccessFlagBits::eTransferRead,
+                     sourceStage, vk::PipelineStageFlagBits::eTransfer);
+  }
 
   vk::ImageAspectFlags aspect;
   switch (mFormat) {
@@ -240,39 +268,83 @@ void Image::recordCopyToBuffer(vk::CommandBuffer cb, vk::Buffer buffer,
     throw std::runtime_error("failed to download image: unsupported format.");
   }
 
-  switch (mCurrentLayout) {
-  case vk::ImageLayout::eColorAttachmentOptimal:
-    sourceLayout = vk::ImageLayout::eColorAttachmentOptimal;
-    sourceAccessFlag = vk::AccessFlagBits::eColorAttachmentWrite;
-    sourceStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-    break;
-  case vk::ImageLayout::eDepthStencilAttachmentOptimal:
-    sourceLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
-    sourceAccessFlag = vk::AccessFlagBits::eDepthStencilAttachmentWrite;
-    sourceStage = vk::PipelineStageFlagBits::eEarlyFragmentTests |
-                  vk::PipelineStageFlagBits::eLateFragmentTests;
-    break;
-  case vk::ImageLayout::eShaderReadOnlyOptimal:
-    sourceLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-    sourceAccessFlag = vk::AccessFlagBits::eShaderRead;
-    sourceStage = vk::PipelineStageFlagBits::eFragmentShader;
-    break;
-  case vk::ImageLayout::eTransferSrcOptimal:
-    break;
-  default:
-    throw std::runtime_error("failed to download image: invalid layout.");
-  }
-
-  if (mCurrentLayout != vk::ImageLayout::eTransferSrcOptimal) {
-    transitionLayout(cb, sourceLayout, vk::ImageLayout::eTransferSrcOptimal,
-                     sourceAccessFlag, vk::AccessFlagBits::eTransferRead,
-                     sourceStage, vk::PipelineStageFlagBits::eTransfer);
-  }
   vk::BufferImageCopy copyRegion(bufferOffset, mExtent.width, mExtent.height,
                                  {aspect, 0, 0, 1}, offset, extent);
-  cb.copyImageToBuffer(mImage, vk::ImageLayout::eTransferSrcOptimal, buffer,
-                       copyRegion);
-  setCurrentLayout(vk::ImageLayout::eTransferSrcOptimal);
+  cb.copyImageToBuffer(mImage, mCurrentLayout, buffer, copyRegion);
+}
+
+void Image::recordCopyFromBuffer(vk::CommandBuffer cb, vk::Buffer buffer,
+                                 size_t bufferOffset, size_t size,
+                                 vk::Offset3D offset, vk::Extent3D extent,
+                                 uint32_t arrayLayer) {
+  size_t imageSize =
+      extent.width * extent.height * extent.depth * getFormatSize(mFormat);
+
+  if (size != imageSize) {
+    throw std::runtime_error("buffer copy to image failed: expecting size " +
+                             std::to_string(imageSize) + ", got " +
+                             std::to_string(size));
+  }
+
+  if (mCurrentLayout != vk::ImageLayout::eGeneral &&
+      mCurrentLayout != vk::ImageLayout::eTransferDstOptimal) {
+
+    vk::ImageLayout sourceLayout = vk::ImageLayout::eUndefined;
+    vk::AccessFlags sourceAccessFlag{};
+    vk::PipelineStageFlags sourceStage{};
+
+    switch (mCurrentLayout) {
+    case vk::ImageLayout::eColorAttachmentOptimal:
+      sourceLayout = vk::ImageLayout::eColorAttachmentOptimal;
+      sourceAccessFlag = vk::AccessFlagBits::eColorAttachmentWrite;
+      sourceStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+      break;
+    case vk::ImageLayout::eDepthStencilAttachmentOptimal:
+      sourceLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+      sourceAccessFlag = vk::AccessFlagBits::eDepthStencilAttachmentWrite;
+      sourceStage = vk::PipelineStageFlagBits::eEarlyFragmentTests |
+                    vk::PipelineStageFlagBits::eLateFragmentTests;
+      break;
+    case vk::ImageLayout::eShaderReadOnlyOptimal:
+      sourceLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+      sourceAccessFlag = vk::AccessFlagBits::eShaderRead;
+      sourceStage = vk::PipelineStageFlagBits::eFragmentShader;
+      break;
+    case vk::ImageLayout::eTransferSrcOptimal:
+      sourceLayout = vk::ImageLayout::eTransferSrcOptimal;
+      sourceAccessFlag = vk::AccessFlagBits::eTransferWrite;
+      sourceStage = vk::PipelineStageFlagBits::eTransfer;
+      break;
+    case vk::ImageLayout::eTransferDstOptimal:
+      break;
+    default:
+      throw std::runtime_error("failed to download image: invalid layout.");
+    }
+    transitionLayout(cb, sourceLayout, vk::ImageLayout::eTransferDstOptimal,
+                     sourceAccessFlag, vk::AccessFlagBits::eTransferWrite,
+                     sourceStage, vk::PipelineStageFlagBits::eTransfer);
+  }
+
+  vk::ImageAspectFlags aspect;
+  switch (mFormat) {
+  case vk::Format::eR8G8B8A8Unorm:
+  case vk::Format::eR32G32B32A32Uint:
+  case vk::Format::eR32G32B32A32Sfloat:
+    aspect = vk::ImageAspectFlagBits::eColor;
+    break;
+  case vk::Format::eD32Sfloat:
+    aspect = vk::ImageAspectFlagBits::eDepth;
+    break;
+  case vk::Format::eD24UnormS8Uint:
+    vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
+    break;
+  default:
+    throw std::runtime_error("failed to download image: unsupported format.");
+  }
+
+  vk::BufferImageCopy copyRegion(bufferOffset, mExtent.width, mExtent.height,
+                                 {aspect, 0, 0, 1}, offset, extent);
+  cb.copyBufferToImage(buffer, mImage, mCurrentLayout, copyRegion);
 }
 
 void Image::copyToBuffer(vk::Buffer buffer, size_t size, vk::Offset3D offset,
@@ -286,7 +358,6 @@ void Image::copyToBuffer(vk::Buffer buffer, size_t size, vk::Offset3D offset,
   if (result != vk::Result::eSuccess) {
     throw std::runtime_error("failed to wait for fence");
   }
-  setCurrentLayout(vk::ImageLayout::eTransferSrcOptimal);
 }
 
 void Image::download(void *data, size_t size, vk::Offset3D offset,
@@ -409,6 +480,7 @@ void Image::transitionLayout(
       imageSubresourceRange);
   commandBuffer.pipelineBarrier(sourceStage, destStage, {}, nullptr, nullptr,
                                 barrier);
+  mCurrentLayout = newImageLayout;
 }
 
 void Image::transitionLayout(vk::CommandBuffer commandBuffer,
@@ -426,7 +498,83 @@ void Image::transitionLayout(vk::CommandBuffer commandBuffer,
       imageSubresourceRange);
   commandBuffer.pipelineBarrier(sourceStage, destStage, {}, nullptr, nullptr,
                                 barrier);
+  mCurrentLayout = newImageLayout;
 }
+
+#ifdef SVULKAN2_CUDA_INTEROP
+vk::DeviceSize Image::getRowPitch() {
+  vk::ImageSubresource subresource(vk::ImageAspectFlagBits::eColor, 0, 0);
+  vk::SubresourceLayout layout =
+      mContext->getDevice().getImageSubresourceLayout(mImage, subresource);
+  return layout.rowPitch;
+}
+
+cudaMipmappedArray_t Image::getCudaArray() {
+  if (mCudaArray) {
+    return mCudaArray;
+  }
+  mCudaDeviceId =
+      getCudaDeviceIdFromPhysicalDevice(mContext->getPhysicalDevice());
+  if (mCudaDeviceId < 0) {
+    throw std::runtime_error(
+        "Vulkan Device is not visible to CUDA. You probably need to unset the "
+        "CUDA_VISIBLE_DEVICES variable. Or you can try other "
+        "CUDA_VISIBLE_DEVICES until you find a working one.");
+  }
+
+  checkCudaErrors(cudaSetDevice(mCudaDeviceId));
+  cudaExternalMemoryHandleDesc externalMemoryHandleDesc = {};
+  externalMemoryHandleDesc.type = cudaExternalMemoryHandleTypeOpaqueFd;
+  externalMemoryHandleDesc.size =
+      mAllocationInfo.offset + mAllocationInfo.size; // TODO check
+
+  vk::MemoryGetFdInfoKHR vkMemoryGetFdInfoKHR;
+  vkMemoryGetFdInfoKHR.setPNext(nullptr);
+  vkMemoryGetFdInfoKHR.setMemory(mAllocationInfo.deviceMemory);
+  vkMemoryGetFdInfoKHR.setHandleType(
+      vk::ExternalMemoryHandleTypeFlagBits::eOpaqueFd);
+
+  auto cudaFd = mContext->getDevice().getMemoryFdKHR(vkMemoryGetFdInfoKHR);
+  externalMemoryHandleDesc.handle.fd = cudaFd;
+
+  checkCudaErrors(
+      cudaImportExternalMemory(&mCudaMem, &externalMemoryHandleDesc));
+
+  cudaExternalMemoryMipmappedArrayDesc desc = {};
+  desc.extent.width = mExtent.width;
+  desc.extent.height = mExtent.height;
+  desc.extent.depth = mExtent.depth;
+  desc.numLevels = mMipLevels;
+  desc.offset = mAllocationInfo.offset;
+  desc.flags = 0;
+  if (mFormat == vk::Format::eR32G32B32A32Sfloat) {
+    desc.formatDesc.x = 32;
+    desc.formatDesc.y = 32;
+    desc.formatDesc.z = 32;
+    desc.formatDesc.w = 32;
+    desc.formatDesc.f = cudaChannelFormatKindFloat;
+  } else if (mFormat == vk::Format::eR32G32B32Sfloat) {
+    desc.formatDesc.x = 32;
+    desc.formatDesc.y = 32;
+    desc.formatDesc.z = 32;
+    desc.formatDesc.w = 0;
+    desc.formatDesc.f = cudaChannelFormatKindFloat;
+  }
+
+  // TODO: free!!!
+  checkCudaErrors(
+      cudaExternalMemoryGetMappedMipmappedArray(&mCudaArray, mCudaMem, &desc));
+  return mCudaArray;
+}
+
+int Image::getCudaDeviceId() {
+  if (!mCudaArray) {
+    return getCudaDeviceIdFromPhysicalDevice(mContext->getPhysicalDevice());
+  }
+  return mCudaDeviceId;
+}
+
+#endif
 
 } // namespace core
 } // namespace svulkan2

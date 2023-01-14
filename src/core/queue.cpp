@@ -14,7 +14,8 @@ void Queue::submit(
     vk::ArrayProxyNoTemporaries<vk::CommandBuffer const> const &commandBuffers,
     vk::ArrayProxyNoTemporaries<vk::Semaphore const> const &waitSemaphores,
     vk::ArrayProxyNoTemporaries<vk::PipelineStageFlags const> const
-        &waitStageMasks,
+        &waitStageMasks, // none of the commands in this submission can reach
+                         // the wait stage unless the semaphore is signaled
     vk::ArrayProxyNoTemporaries<uint64_t const> const &waitValues,
     vk::ArrayProxyNoTemporaries<vk::Semaphore const> const &signalSemaphores,
     vk::ArrayProxyNoTemporaries<uint64_t const> const &signalValues,

@@ -2,9 +2,19 @@
 #pragma once
 
 #include "vk.h"
+#include <cuda_runtime.h>
 #include <map>
 #include <string>
-#include <cuda_runtime.h>
+
+#define checkCudaErrors(call)                                                  \
+  do {                                                                         \
+    cudaError_t err = call;                                                    \
+    if (err != cudaSuccess) {                                                  \
+      fprintf(stderr, "CUDA error at %s %d: %s\n", __FILE__, __LINE__,         \
+              cudaGetErrorString(err));                                        \
+      exit(EXIT_FAILURE);                                                      \
+    }                                                                          \
+  } while (0)
 
 inline int getPCIBusIdFromCudaDeviceId(int cudaDeviceId) {
   int pciBusId = -1;

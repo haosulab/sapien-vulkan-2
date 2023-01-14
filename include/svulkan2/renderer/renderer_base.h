@@ -8,6 +8,9 @@ namespace renderer {
 
 class RendererBase {
 public:
+  static std::unique_ptr<RendererBase>
+  Create(std::shared_ptr<RendererConfig> config);
+
   virtual void resize(int width, int height) = 0;
   virtual void setScene(scene::Scene &scene) = 0;
 
@@ -45,7 +48,48 @@ public:
   virtual void setCustomProperty(std::string const &name, glm::vec3 p) {}
   virtual void setCustomProperty(std::string const &name, glm::vec4 p) {}
 
+  virtual std::vector<std::string> getDisplayTargetNames() const = 0;
   virtual std::vector<std::string> getRenderTargetNames() const = 0;
+  virtual core::Image &getRenderImage(std::string const &name) = 0;
+
+  template <typename T>
+  std::tuple<std::vector<T>, std::array<uint32_t, 3>>
+  download(std::string const &targetName) {
+    auto &image = getRenderImage(targetName);
+    uint32_t width = image.getExtent().width;
+    uint32_t height = image.getExtent().height;
+    std::vector<T> data = image.download<T>();
+    uint32_t channels = data.size() / (width * height);
+    if (width * height * channels != data.size()) {
+      throw std::runtime_error(
+          "download render target failed: internal format error");
+    }
+    return {data, std::array<uint32_t, 3>{height, width, channels}};
+  }
+
+  template <typename T>
+  std::tuple<std::vector<T>, std::array<uint32_t, 3>>
+  downloadRegion(std::string const &targetName, vk::Offset2D offset,
+                 vk::Extent2D extent) {
+    auto &image = getRenderImage(targetName);
+    uint32_t width = image.getExtent().width;
+    uint32_t height = image.getExtent().height;
+    if (offset.x < 0 || offset.y < 0 || offset.x + extent.width >= width ||
+        offset.y + extent.height >= height) {
+      throw std::runtime_error(
+          "failed to download region: offset or extent is out of bound");
+    }
+    std::vector<T> data =
+        image.download<T>(vk::Offset3D{offset.x, offset.y, 0},
+                          vk::Extent3D{extent.width, extent.height, 1});
+    uint32_t channels = data.size() / (extent.width * extent.height);
+    if (extent.width * extent.height * channels != data.size()) {
+      throw std::runtime_error(
+          "failed to download region: internal format error");
+    }
+    return {data,
+            std::array<uint32_t, 3>{extent.height, extent.width, channels}};
+  }
 
   virtual ~RendererBase() = default;
 };

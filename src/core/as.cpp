@@ -260,6 +260,10 @@ void TLAS::update(std::vector<vk::TransformMatrixKHR> const &transforms) {
   vk::AccelerationStructureBuildRangeInfoKHR buildRange(
       static_cast<uint32_t>(mInstances.size()), 0, 0, 0);
   commandBuffer->buildAccelerationStructuresKHR(buildInfo, &buildRange);
+
+  commandBuffer->end();
+
+  Context::Get()->getQueue().submitAndWait(commandBuffer.get());
 }
 
 vk::DeviceAddress TLAS::getAddress() {

@@ -42,6 +42,8 @@ include_directories("$ENV{VULKAN_SDK}/include")
 include_directories("3rd_party/stb")
 link_directories("$ENV{VULKAN_SDK}/lib")
 include_directories("3rd_party/imgui" "3rd_party/imgui/backends" "3rd_party/ImGuizmo")
+include_directories("3rd_party/OptiX7SDK/include")
+
 
 if (${SVULKAN2_TRACK_ALLOCATION})
     add_definitions(-DTRACK_ALLOCATION)

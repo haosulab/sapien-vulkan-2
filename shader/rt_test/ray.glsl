@@ -5,10 +5,10 @@ struct Ray {
   vec3 normal;
   vec3 radiance;
   vec3 attenuation;
+  uvec4 segmentation;
   uint depth;
   uint done;
   uint seed;
-  vec3 debug;
 };
 
 struct ShadowRay {

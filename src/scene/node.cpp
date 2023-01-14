@@ -17,7 +17,9 @@ void Node::removeChild(Node &child) {
 
 void Node::clearChild() { mChildren = {}; }
 
-void Node::setTransform(Transform const &transform) { mTransform = transform; }
+void Node::setTransform(Transform const &transform) {
+  mTransform = transform;
+}
 
 void Node::setPosition(glm::vec3 const &pos) { mTransform.position = pos; }
 void Node::setRotation(glm::quat const &rot) { mTransform.rotation = rot; }

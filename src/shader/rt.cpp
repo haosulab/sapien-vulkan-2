@@ -253,6 +253,21 @@ StructDataLayout const &RayTracingShaderPack::getMaterialBufferLayout() const {
   throw std::runtime_error("failed to retrieve material buffer in shader");
 }
 
+StructDataLayout const &RayTracingShaderPack::getObjectBufferLayout() const {
+  for (auto &[sid, set] : getResources()) {
+    if (set.type == UniformBindingType::eRTScene) {
+      for (auto &[bid, binding] : set.bindings) {
+        if (binding.name == "Objects") {
+          return *set.buffers.at(binding.arrayIndex)
+                      ->elements.begin()
+                      ->second.member;
+        }
+      }
+    }
+  }
+  throw std::runtime_error("failed to retrieve object buffer in shader");
+}
+
 StructDataLayout const &
 RayTracingShaderPack::getTextureIndexBufferLayout() const {
   for (auto &[sid, set] : getResources()) {

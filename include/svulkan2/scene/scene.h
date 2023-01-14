@@ -60,6 +60,8 @@ public:
   inline glm::vec4 getAmbientLight() const { return mAmbientLight; };
 
   std::vector<Object *> getObjects();
+  std::vector<Object *> getVisibleObjects();
+
   std::vector<LineObject *> getLineObjects();
   std::vector<PointObject *> getPointObjects();
   std::vector<Camera *> getCameras();
@@ -182,9 +184,45 @@ private:
   std::vector<std::tuple<vk::ImageView, vk::Sampler>> mTextures;
   std::unique_ptr<core::Buffer> mTextureIndexBuffer;
   std::unique_ptr<core::Buffer> mGeometryInstanceBuffer;
+
+  struct RTPointLight {
+    glm::vec3 position;
+    float radius;
+    glm::vec3 rgb;
+    float padding;
+  };
+  static_assert(sizeof(RTPointLight) == 32);
+
+  struct RTDirectionalLight {
+    glm::vec3 direction;
+    float softness;
+    glm::vec3 rgb;
+    float padding;
+  };
+  static_assert(sizeof(RTDirectionalLight) == 32);
+
+  struct RTSpotLight {
+    glm::mat4 viewMat;
+    glm::mat4 projMat;
+    glm::vec3 rgb;
+    int padding0;
+    glm::vec3 position;
+    int padding1;
+    float fovInner;
+    float fovOuter;
+    int textureId;
+    int padding2;
+  };
+  static_assert(sizeof(RTSpotLight) == 176);
+
+  std::vector<RTPointLight> mRTPointLightBufferHost;
+  std::vector<RTDirectionalLight> mRTDirectionalLightBufferHost;
+  std::vector<RTSpotLight> mRTSpotLightBufferHost;
+
   std::unique_ptr<core::Buffer> mRTPointLightBuffer;
   std::unique_ptr<core::Buffer> mRTDirectionalLightBuffer;
   std::unique_ptr<core::Buffer> mRTSpotLightBuffer;
+
   uint64_t mRTResourcesVersion{0l};
 };
 

@@ -11,17 +11,20 @@ layout(set = 1, binding = 10) uniform samplerCube samplerEnvironment;  // TODO: 
 void main() {
   vec3 dir = ray.direction;
   dir = vec3(-dir.y, dir.z, -dir.x);
-  ray.radiance = texture(samplerEnvironment, dir).xyz;
+  if (envmap != 0) {
+    ray.radiance = texture(samplerEnvironment, dir).xyz;
+  } else {
+    ray.radiance = ambientLight;
+  }
+
+  ray.albedo = ray.radiance;
+  ray.normal = vec3(0.0);
+
   ray.depth = maxDepth + 1;
-
-
 
   // ray.depth = maxDepth + 1;
   // ray.radiance = vec3(100000.0, 0.0, 100000.0);
   // ray.radiance = vec3(0.24740411, 0.62902375, 0.8324022);
   // ray.radiance = vec3(1.0);
   // ray.radiance = vec3(10.0);
-
-  ray.radiance = vec3(0.1);
-  ray.normal = vec3(0.0);
 }

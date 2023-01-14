@@ -177,6 +177,8 @@ vk::Format get_image_format(spv::ImageFormat format) {
 
   case spv::ImageFormat::ImageFormatRgba32i:
     return vk::Format::eR32G32B32A32Sint;
+  case spv::ImageFormat::ImageFormatRgba32ui:
+    return vk::Format::eR32G32B32A32Uint;
 
   case spv::ImageFormat::ImageFormatRgba8:
     return vk::Format::eR8G8B8A8Unorm;

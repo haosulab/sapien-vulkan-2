@@ -65,6 +65,18 @@ layout(set = 1, binding = 9) readonly buffer Indices {
   uint i[];
 } indices[];
 
+struct Object {
+  uvec4 segmentation;
+  float transparency;
+  int shadeFlat;
+  int padding0;
+  int padding1;
+};
+
+layout(set = 1, binding = 11) readonly buffer Objects {
+  Object o[];
+} objects;
+
 
 void unpackVertex(uint index, uint geometryIndex, out vec3 position, out vec3 normal, out vec2 uv, out vec3 tangent) {
   Vertex v = vertices[nonuniformEXT(geometryIndex)].v[index];
@@ -86,10 +98,6 @@ void sampleDiffuse(inout uint seed, in mat3 tbn, vec3 albedo, out vec3 L, out ve
 
 void sampleGGX(inout uint seed, in mat3 tbn, vec3 F0, vec3 V, float roughness, out vec3 L, out vec3 attenuation) {
   vec3 N = tbn[2];
-
-  // L = 2 * dot(V, N) * N - V;
-
-  // attenuation = F0;
 
   float u0 = rnd(seed);
   float u1 = rnd(seed);
@@ -298,6 +306,8 @@ vec3 traceSpotLights(vec3 pos, vec3 normal, vec3 diffuseColor, vec3 specularColo
 
 
 void main() {
+  Object obj = objects.o[gl_InstanceID];
+
   int instanceId = gl_InstanceCustomIndexEXT + gl_GeometryIndexEXT;
   uint geometryIndex = geometryInstances.i[instanceId].geometryIndex;
   uint materialIndex = geometryInstances.i[instanceId].materialIndex;
@@ -319,7 +329,8 @@ void main() {
   float b2 = attribs.y;
 
   vec3 geometricNormal = cross(p1 - p0, p2 - p0);
-  vec3 shadingNormal = n0 * b0 + n1 * b1 + n2 * b2;
+  vec3 shadingNormal = obj.shadeFlat != 0 ? geometricNormal : (n0 * b0 + n1 * b1 + n2 * b2);
+
   vec2 uv = uv0 * b0 + uv1 * b1 + uv2 * b2;
   vec3 tangent = t0 * b0 + t1 * b1 + t2 * b2;
 
@@ -361,6 +372,16 @@ void main() {
   vec3 emission = mat.emission.rgb;
   if (ti.emission >= 0) {
     emission = texture(textures[nonuniformEXT(ti.emission)], uv).rgb;
+  }
+
+  if (rnd(ray.seed) < obj.transparency) {
+    ray.origin = worldPosition + 0.001 * ray.direction;
+    ray.attenuation = vec3(1.0);
+    ray.normal = worldShadingNormal;
+    ray.albedo = baseColor;
+    ray.segmentation = obj.segmentation;
+    ray.radiance = vec3(0.0);
+    return;
   }
 
   float transmission = clamp(mat.transmission, 0.0, 1.0);
@@ -422,10 +443,10 @@ void main() {
     + traceDirectionalLights(worldPosition, worldShadingNormal, diffuseColor, specularColor, roughness)
     + traceSpotLights(worldPosition, worldShadingNormal, diffuseColor, specularColor, roughness);
 
-  ray.debug = abs(worldTangent);
   ray.origin = worldPosition;
   ray.direction = L;
   ray.attenuation = attenuation;
   ray.normal = worldShadingNormal;
   ray.albedo = baseColor;
+  ray.segmentation = obj.segmentation;
 }

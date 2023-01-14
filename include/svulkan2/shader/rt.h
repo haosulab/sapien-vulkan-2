@@ -69,6 +69,7 @@ public:
   }
 
   StructDataLayout const &getMaterialBufferLayout() const;
+  StructDataLayout const &getObjectBufferLayout() const;
   StructDataLayout const &getTextureIndexBufferLayout() const;
   StructDataLayout const &getGeometryInstanceBufferLayout() const;
   StructDataLayout const &getCameraBufferLayout() const;
