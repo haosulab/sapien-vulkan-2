@@ -18,7 +18,7 @@ void main() {
   }
 
   ray.albedo = ray.radiance;
-  ray.normal = vec3(0.0);
+  ray.normal = -ray.direction;
 
   ray.depth = maxDepth + 1;
 

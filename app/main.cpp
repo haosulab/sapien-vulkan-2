@@ -87,9 +87,9 @@ int main() {
   renderer.setCustomProperty("russianRoulette", 1);
   renderer.setCustomProperty("russianRouletteMinBounces", 3);
 
-  // renderer::DenoiserOptix denoiser;
-  // denoiser.init(OptixPixelFormat::OPTIX_PIXEL_FORMAT_FLOAT4, true, true, true);
-  // denoiser.allocate(1024, 1024);
+  renderer::DenoiserOptix denoiser;
+  denoiser.init(OptixPixelFormat::OPTIX_PIXEL_FORMAT_FLOAT4, true, true, true);
+  denoiser.allocate(1024, 1024);
 
   svulkan2::scene::Scene scene;
 
@@ -450,10 +450,9 @@ int main() {
 
         auto imageAcquiredSemaphore = window->getImageAcquiredSemaphore();
 
-        // renderer.getRenderImage("Color")
-        // denoiser.denoise(renderer.getRenderImage("Color"),
-        //                  &renderer.getRenderImage("Albedo"),
-        //                  &renderer.getRenderImage("Normal"));
+        denoiser.denoise(renderer.getRenderImage("Color"),
+                         &renderer.getRenderImage("Albedo"),
+                         &renderer.getRenderImage("Normal"));
 
         renderer.display("Color", window->getBackbuffer(),
                          window->getBackBufferFormat(), window->getWidth(),
