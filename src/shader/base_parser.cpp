@@ -324,8 +324,8 @@ void verifyCameraBuffer(std::shared_ptr<StructDataLayout> layout) {
 }
 
 void verifyMaterialBuffer(std::shared_ptr<StructDataLayout> layout) {
-  ASSERT(layout->elements.size() == 7,
-         "Material should contain exactly 7 member variables");
+  ASSERT(layout->size == 64, "Material should be exactly 64 bytes in size");
+
   // required variables
   ASSERT(CONTAINS(layout->elements, "emission"),
          "material requires variable emission");
@@ -337,8 +337,12 @@ void verifyMaterialBuffer(std::shared_ptr<StructDataLayout> layout) {
          "material requires variable roughness");
   ASSERT(CONTAINS(layout->elements, "metallic"),
          "material requires variable metallic");
-  ASSERT(CONTAINS(layout->elements, "transparency"),
-         "material requires variable transparency");
+  ASSERT(CONTAINS(layout->elements, "transmission"),
+         "material requires variable transmission");
+  ASSERT(CONTAINS(layout->elements, "ior"),
+         "material requires variable ior");
+  ASSERT(CONTAINS(layout->elements, "transmissionRoughness"),
+         "material requires variable transmissionRoughness");
   ASSERT(CONTAINS(layout->elements, "textureMask"),
          "material requires variable textureMask");
 
@@ -355,6 +359,10 @@ void verifyMaterialBuffer(std::shared_ptr<StructDataLayout> layout) {
          "material metallic should be float");
   ASSERT(layout->elements["transparency"].dtype == DataType::eFLOAT,
          "material transparency should be float");
+  ASSERT(layout->elements["ior"].dtype == DataType::eFLOAT,
+         "material ior should be float");
+  ASSERT(layout->elements["transmissionRoughness"].dtype == DataType::eFLOAT,
+         "material transmissionRoughness should be float");
   ASSERT(layout->elements["textureMask"].dtype == DataType::eINT,
          "material textureMask should be int");
 }

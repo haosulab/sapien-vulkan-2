@@ -46,9 +46,27 @@ static void createSphereArray(svulkan2::scene::Scene &scene) {
                                 {.position = {i / 8.f, 0.2 + j / 8.f, 0},
                                  .scale = {0.05, 0.05, 0.05}});
 
-      o.setShadeFlat(true);
+      // o.setShadeFlat(true);
       o.setSegmentation({0, 0, i, j});
     }
+  }
+
+  {
+    auto shape = resource::SVShape::Create(
+        resource::SVMesh::CreateCube(),
+        std::make_shared<resource::SVMetallicMaterial>(
+            glm::vec4{0, 0, 0, 1}, // emission
+            glm::vec4{1, 1, 1, 1}, // base color
+            0,                     // fresnel
+            0.0,                   // roughness
+            0.0,                   // metallic
+            0.9,                   // transmission
+            3.0,                   // ior
+            0.1                    // transmission roughness
+            ));
+
+    scene.addObject(resource::SVModel::FromData({shape}),
+                    {.position = {0, 0.5, 0.3}, .scale = {0.1, 0.1, 0.02}});
   }
 
   {

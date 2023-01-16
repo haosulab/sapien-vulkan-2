@@ -48,9 +48,10 @@ static void updateDescriptorSets(
 
 SVMetallicMaterial::SVMetallicMaterial(glm::vec4 emission, glm::vec4 baseColor,
                                        float fresnel, float roughness,
-                                       float metallic, float transparency) {
-  mBuffer = {emission, baseColor,    fresnel, roughness,
-             metallic, transparency, 0};
+                                       float metallic, float transparency,
+                                       float ior, float transmissionRoughness) {
+  mBuffer = {emission,     baseColor, fresnel, roughness, metallic,
+             transparency, ior,       transmissionRoughness,     0};
 #ifdef TRACK_ALLOCATION
   mMaterialId = gMaterialId++;
   log::info("Create Material {}; Total {}", mMaterialId, ++gMaterialCount);
@@ -97,6 +98,28 @@ void SVMetallicMaterial::setMetallic(float metallic) {
 }
 
 float SVMetallicMaterial::getMetallic() const { return mBuffer.metallic; }
+
+void SVMetallicMaterial::setTransmission(float transmission) {
+  mRequiresBufferUpload = true;
+  mBuffer.transmission = transmission;
+}
+float SVMetallicMaterial::getTransmission() const {
+  return mBuffer.transmission;
+}
+
+void SVMetallicMaterial::setIor(float ior) {
+  mRequiresBufferUpload = true;
+  mBuffer.ior = ior;
+}
+float SVMetallicMaterial::getIor() const { return mBuffer.ior; }
+
+void SVMetallicMaterial::setTransmissionRoughness(float roughness) {
+  mRequiresBufferUpload = true;
+  mBuffer.transmissionRoughness = roughness;
+}
+float SVMetallicMaterial::getTransmissionRoughness() const {
+  return mBuffer.transmissionRoughness;
+}
 
 std::shared_ptr<SVTexture> SVMetallicMaterial::getDiffuseTexture() const {
   if ((mBuffer.textureMask & 1) == 0) {

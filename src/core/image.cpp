@@ -217,9 +217,15 @@ void Image::recordCopyToBuffer(vk::CommandBuffer cb, vk::Buffer buffer,
                              std::to_string(size));
   }
 
-  if (mCurrentLayout != vk::ImageLayout::eGeneral &&
-      mCurrentLayout != vk::ImageLayout::eTransferSrcOptimal) {
-
+  if (mCurrentLayout == vk::ImageLayout::eGeneral) {
+    // wait for everything in general layout
+    transitionLayout(cb, vk::ImageLayout::eGeneral, vk::ImageLayout::eGeneral,
+                     vk::AccessFlagBits::eMemoryWrite,
+                     vk::AccessFlagBits::eTransferRead,
+                     vk::PipelineStageFlagBits::eAllCommands,
+                     vk::PipelineStageFlagBits::eTransfer);
+  } else if (mCurrentLayout != vk::ImageLayout::eTransferSrcOptimal) {
+    // guess what to wait and transition to TransferSrcOptimal
     vk::ImageLayout sourceLayout = vk::ImageLayout::eUndefined;
     vk::AccessFlags sourceAccessFlag{};
     vk::PipelineStageFlags sourceStage{};

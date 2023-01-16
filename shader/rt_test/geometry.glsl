@@ -12,10 +12,10 @@ struct Material {
   float fresnel;
   float roughness;
   float metallic;
-  float ior;
   float transmission;
+  float ior;
+  float transmissionRoughness;
   int textureMask;
-  int padding0;
   int padding1;
 };
 

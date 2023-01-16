@@ -40,8 +40,11 @@ class SVMetallicMaterial : public SVMaterial {
     float fresnel{};
     float roughness{};
     float metallic{};
-    float transparency{};
+    float transmission{};
+    float ior{};
+    float transmissionRoughness{};
     int textureMask{};
+    int padding1;
   } mBuffer{};
   std::shared_ptr<SVTexture> mBaseColorTexture;
   std::shared_ptr<SVTexture> mRoughnessTexture;
@@ -59,7 +62,8 @@ public:
   SVMetallicMaterial(glm::vec4 emission = {0, 0, 0, 1},
                      glm::vec4 baseColor = {0, 0, 0, 1}, float fresnel = 0,
                      float roughness = 1, float metallic = 0,
-                     float transparency = 0);
+                     float transparency = 0, float ior = 1.f,
+                     float transmissionRoughness = 0.f);
 
   void setEmission(glm::vec4 emission);
   glm::vec4 getEmission() const;
@@ -75,6 +79,15 @@ public:
 
   void setMetallic(float metallic);
   float getMetallic() const;
+
+  void setTransmission(float transmission);
+  float getTransmission() const;
+
+  void setIor(float ior);
+  float getIor() const;
+
+  void setTransmissionRoughness(float roughness);
+  float getTransmissionRoughness() const;
 
   void setDiffuseTexture(std::shared_ptr<SVTexture> texture);
   void setRoughnessTexture(std::shared_ptr<SVTexture> texture);
