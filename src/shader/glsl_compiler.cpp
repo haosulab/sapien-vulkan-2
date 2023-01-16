@@ -247,6 +247,8 @@ static EShLanguage GetEShLanguage(vk::ShaderStageFlagBits stage) {
     return EShLanguage::EShLangClosestHit;
   case vk::ShaderStageFlagBits::eAnyHitKHR:
     return EShLanguage::EShLangAnyHit;
+  case vk::ShaderStageFlagBits::eCompute:
+    return EShLanguage::EShLangCompute;
   default:
     throw std::invalid_argument("GetEShLanguage: invalid shader stage.");
   }

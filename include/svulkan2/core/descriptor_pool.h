@@ -17,7 +17,7 @@ public:
   DynamicDescriptorPool &operator=(DynamicDescriptorPool &other) = delete;
   DynamicDescriptorPool &operator=(DynamicDescriptorPool &&other) = default;
 
-  vk::UniqueDescriptorSet allocateSet(vk::DescriptorSetLayout layout);
+  vk::UniqueDescriptorSet allocateSet(vk::DescriptorSetLayout const &layout);
 
 private:
   void expand();

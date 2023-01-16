@@ -1,5 +1,6 @@
 #pragma once
 #include "base_parser.h"
+#include "postprocessing.h"
 
 namespace svulkan2 {
 namespace core {
@@ -34,12 +35,6 @@ class RayTracingShaderPack {
 public:
   RayTracingShaderPack(std::string const &shaderDir);
 
-  std::future<void>
-  loadGLSLFilesAsync(std::string const &raygenFile,
-                     std::vector<std::string> const &missFiles,
-                     std::vector<std::string> const &anyhitFiles,
-                     std::vector<std::string> const &closestHitFiles);
-
   std::shared_ptr<InputDataLayout> computeCompatibleInputVertexLayout() const;
 
   inline std::unordered_map<uint32_t, DescriptorSetDescription> const &
@@ -67,6 +62,10 @@ public:
   getClosestHitStageParsers() const {
     return mClosestHitStageParsers;
   }
+  inline std::vector<std::unique_ptr<PostprocessingShaderParser>> const &
+  getPostprocessingParsers() const {
+    return mPostprocessingParsers;
+  }
 
   StructDataLayout const &getMaterialBufferLayout() const;
   StructDataLayout const &getObjectBufferLayout() const;
@@ -78,10 +77,19 @@ public:
   DescriptorSetDescription const &getCameraDescription() const;
 
 private:
+  std::future<void>
+  loadGLSLFilesAsync(std::string const &raygenFile,
+                     std::vector<std::string> const &missFiles,
+                     std::vector<std::string> const &anyhitFiles,
+                     std::vector<std::string> const &closestHitFiles);
+
   std::unique_ptr<RayTracingStageParser> mRaygenStageParser;
   std::vector<std::unique_ptr<RayTracingStageParser>> mMissStageParsers;
   std::vector<std::unique_ptr<RayTracingStageParser>> mAnyHitStageParsers;
   std::vector<std::unique_ptr<RayTracingStageParser>> mClosestHitStageParsers;
+
+  std::vector<std::unique_ptr<PostprocessingShaderParser>>
+      mPostprocessingParsers;
 
   std::unordered_map<uint32_t, DescriptorSetDescription> mResources;
   std::shared_ptr<StructDataLayout> mPushConstantLayout;
@@ -114,6 +122,20 @@ public:
   vk::StridedDeviceAddressRegionKHR const &getHitRegion();
   vk::StridedDeviceAddressRegionKHR const &getCallRegion();
 
+  inline std::vector<vk::UniqueDescriptorSetLayout> const &
+  getPostprocessingSetLayouts() const {
+    return mPostprocessingSetLayouts;
+  }
+
+  inline std::vector<vk::UniquePipeline> const &
+  getPostprocessingPipelines() const {
+    return mPostprocessingPipelines;
+  }
+  inline std::vector<vk::UniquePipelineLayout> const &
+  getPostprocessingPipelineLayouts() const {
+    return mPostprocessingPipelineLayouts;
+  }
+
   RayTracingShaderPackInstance(RayTracingShaderPackInstance const &) = delete;
   RayTracingShaderPackInstance &
   operator=(RayTracingShaderPackInstance const &) = delete;
@@ -134,6 +156,10 @@ private:
   vk::StridedDeviceAddressRegionKHR mMissRegion{};
   vk::StridedDeviceAddressRegionKHR mHitRegion{};
   vk::StridedDeviceAddressRegionKHR mCallRegion{};
+
+  std::vector<vk::UniqueDescriptorSetLayout> mPostprocessingSetLayouts;
+  std::vector<vk::UniquePipelineLayout> mPostprocessingPipelineLayouts;
+  std::vector<vk::UniquePipeline> mPostprocessingPipelines;
 
   std::shared_ptr<RayTracingShaderPack> mShaderPack;
 };

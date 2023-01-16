@@ -2,6 +2,7 @@
 #include "renderer_base.h"
 #include "svulkan2/core/context.h"
 #include "svulkan2/core/descriptor_pool.h"
+// #include "svulkan2/renderer/denoiser.h"
 #include "svulkan2/resource/cubemap.h"
 #include "svulkan2/resource/render_target.h"
 #include "svulkan2/resource/storage_image.h"
@@ -44,6 +45,10 @@ public:
                std::vector<vk::PipelineStageFlags> const &waitStages,
                std::vector<vk::Semaphore> const &signalSemaphores,
                vk::Fence fence) override;
+
+  void enableDenoiser(std::string const &colorName,
+                      std::string const &albedoName,
+                      std::string const &normalName);
 
   inline void setCustomProperty(std::string const &name, int p) override {
     mCustomPropertiesInt[name] = p;
@@ -93,8 +98,11 @@ private:
   void prepareOutput();
   void prepareScene();
   void prepareCamera();
+  void preparePostprocessing();
 
   void recordRender();
+  void recordPostprocess();
+
   void updatePushConstant();
 
   void prepareRender(scene::Camera &camera);
@@ -121,6 +129,10 @@ private:
 
   std::unordered_map<std::string, std::shared_ptr<resource::SVStorageImage>>
       mRenderImages;
+  // subset of render images used in RT
+  std::vector<std::shared_ptr<resource::SVStorageImage>> mRTImages;
+  // subset of render images used in postprocess
+  std::vector<std::shared_ptr<resource::SVStorageImage>> mPostprocessImages;
 
   std::unique_ptr<core::DynamicDescriptorPool> mOutputPool;
   std::unique_ptr<core::DynamicDescriptorPool> mCameraPool;
@@ -129,6 +141,9 @@ private:
   vk::UniqueDescriptorSet mSceneSet;
   vk::UniqueDescriptorSet mOutputSet;
   vk::UniqueDescriptorSet mCameraSet;
+
+  std::unique_ptr<core::DynamicDescriptorPool> mPostprocessingPool;
+  std::vector<vk::UniqueDescriptorSet> mPostprocessingSets;
 
   std::unique_ptr<core::Buffer> mCameraBuffer;
   std::unique_ptr<core::Buffer> mObjectBuffer;
@@ -139,6 +154,7 @@ private:
 
   std::unique_ptr<core::CommandPool> mRenderCommandPool;
   vk::UniqueCommandBuffer mRenderCommandBuffer;
+  vk::UniqueCommandBuffer mPostprocessCommandBuffer;
 
   std::unique_ptr<core::CommandPool> mDisplayCommandPool;
   vk::UniqueCommandBuffer mDisplayCommandBuffer;
@@ -146,6 +162,13 @@ private:
   std::vector<uint8_t> mPushConstantBuffer;
 
   bool mRequiresRebuild{true};
+
+#ifdef SVULKAN2_CUDA_INTEROP
+  std::shared_ptr<class DenoiserOptix> mDenoiser;  // HACK: use shared_ptr to avoid including denoiser.h
+  std::string mDenoiseColorName;
+  std::string mDenoiseAlbedoName;
+  std::string mDenoiseNormalName;
+#endif
 };
 
 } // namespace renderer

@@ -21,7 +21,25 @@ layout(set = 1, binding = 2) readonly buffer Materials
 } materials[];
 // TODO: Material m[] may be more efficient?
 
+struct Object {
+  uvec4 segmentation;
+  float transparency;
+  int shadeFlat;
+  int padding0;
+  int padding1;
+};
+
+layout(set = 1, binding = 11) readonly buffer Objects {
+  Object o[];
+} objects;
+
+
 void main() {
+  Object obj = objects.o[gl_InstanceID];
+  if (obj.transparency > 0.99) {
+    ignoreIntersectionEXT;
+  }
+
   // uint materialIndex = geometryInstances.i[gl_InstanceID].materialIndex;
   // Material m = materials[nonuniformEXT(materialIndex)].m;
   // if (m.baseColor.a == 0.0) {

@@ -26,7 +26,7 @@ void DynamicDescriptorPool::expand() {
 }
 
 vk::UniqueDescriptorSet
-DynamicDescriptorPool::allocateSet(vk::DescriptorSetLayout layout) {
+DynamicDescriptorPool::allocateSet(vk::DescriptorSetLayout const &layout) {
   for (auto &pool : mPools) {
     try {
       return std::move(

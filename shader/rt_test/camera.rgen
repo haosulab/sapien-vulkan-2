@@ -10,7 +10,7 @@
 layout(location = 0) rayPayloadEXT Ray ray;
 // layout(location = 1) rayPayloadEXT ShadowRay shadowRay;
 
-layout(set = 0, binding = 0, rgba32f) uniform image2D outColor;
+layout(set = 0, binding = 0, rgba32f) uniform image2D outHdrColor;
 layout(set = 0, binding = 1, rgba32f) uniform image2D outAlbedo;
 layout(set = 0, binding = 2, rgba32f) uniform image2D outNormal;
 layout(set = 0, binding = 3, rgba32ui) uniform uimage2D outSegmentation;
@@ -50,9 +50,11 @@ void main() {
   float tMin = 0.001f;
   float tMax = 10000.0f;
 
+  ray.seed = seed;
+
   for (int i = 0; i < spp; ++i) {
-    // vec2 r = halton2d(frameCount * spp + i, 2, 3);
-    vec2 r = vec2(0.0);  // TODO: AA with jitter
+    vec2 r = halton2d(frameCount * spp + i, 2, 3);
+    // vec2 r = vec2(0.0);  // TODO: AA with jitter
     vec2 d = pixel + r * invScreen;  // jittered pixel position
     vec4 csDir = cameraBuffer.projectionMatrixInverse * vec4(d, 1.f, 1.f);
     vec4 origin = cameraBuffer.viewMatrixInverse * vec4(0.f, 0.f, 0.f, 1.f);
@@ -65,7 +67,6 @@ void main() {
     ray.radiance = vec3(0.f);
     ray.attenuation = vec3(1.f);
     ray.depth = 0;
-    ray.seed = seed;
 
     vec3 attenuation = vec3(1.f);
     for (ray.depth = 0; ray.depth <= maxDepth; ++ray.depth) {
@@ -114,10 +115,10 @@ void main() {
     vec3 oldColor = imageLoad(outRadiance, ivec2(gl_LaunchIDEXT.xy)).xyz;
     vec4 newColor = vec4(mix(oldColor, radiance, 1.0 / float(frameCount + 1)), 1.0);
     imageStore(outRadiance, ivec2(gl_LaunchIDEXT.xy), newColor);
-    imageStore(outColor, ivec2(gl_LaunchIDEXT.xy), newColor);
+    imageStore(outHdrColor, ivec2(gl_LaunchIDEXT.xy), newColor);
   } else {
     imageStore(outRadiance, ivec2(gl_LaunchIDEXT.xy), vec4(radiance, 1.0));
-    imageStore(outColor, ivec2(gl_LaunchIDEXT.xy), vec4(radiance, 1.0));
+    imageStore(outHdrColor, ivec2(gl_LaunchIDEXT.xy), vec4(radiance, 1.0));
   }
 
   // imageStore(outColor, ivec2(gl_LaunchIDEXT.xy), imageLoad(outNormal, ivec2(gl_LaunchIDEXT.xy)));

@@ -421,9 +421,6 @@ void main() {
     tbn *= -1.0;
   }
 
-  diffuseProb = 0.5;  // TODO: delete this
-  specularProb = 0.5;  // TODO: delete this
-
   vec3 attenuation = vec3(0.0);
   vec3 L = vec3(0.0);
   if (rand <= diffuseProb) {

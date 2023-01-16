@@ -1,6 +1,7 @@
 #ifdef SVULKAN2_CUDA_INTEROP
 
 #pragma once
+#include "svulkan2/common/log.h"
 #include "svulkan2/core/buffer.h"
 #include "svulkan2/core/command_pool.h"
 #include "svulkan2/core/image.h"
@@ -9,45 +10,25 @@
 #include <memory>
 #include <optix.h>
 
-#define checkOptix(call)                                                       \
-  do {                                                                         \
-    auto val = (call);                                                         \
-    if (val != OPTIX_SUCCESS) {                                                \
-      fprintf(stderr, "%s:%d: Optix call failed: %d", __FILE__, __LINE__,      \
-              val);                                                            \
-      exit(EXIT_FAILURE);                                                      \
-    }                                                                          \
-  } while (false)
-
-#define checkCudaRuntime(call)                                                 \
-  do {                                                                         \
-    auto val = (call);                                                         \
-    if (val != cudaSuccess) {                                                  \
-      fprintf(stderr, "%s:%d: CUDA runtime call failed", __FILE__, __LINE__);  \
-      exit(EXIT_FAILURE);                                                      \
-    }                                                                          \
-  } while (false)
-
-#define checkCudaDriver(call)                                                  \
-  do {                                                                         \
-    auto val = (call);                                                         \
-    if (val != CUDA_SUCCESS) {                                                 \
-      fprintf(stderr, "%s:%d: CUDA driver call failed %d", __FILE__, __LINE__, \
-              val);                                                            \
-      exit(EXIT_FAILURE);                                                      \
-    }                                                                          \
-  } while (false)
+static_assert(OPTIX_VERSION == 70600);
 
 namespace svulkan2 {
 namespace renderer {
 
 class DenoiserOptix {
 public:
+  // TODO: support and test denoiser without albedo/normal
   bool init(OptixPixelFormat pixelFormat, bool albedo, bool normal, bool hdr);
   void allocate(uint32_t width, uint32_t height);
+  void free();
   void denoise(core::Image &color, core::Image *albedo, core::Image *normal);
 
   core::Buffer &getDenoisedBuffer();
+
+  inline uint32_t getWidth() const { return mWidth; }
+  inline uint32_t getHeight() const { return mHeight; }
+
+  ~DenoiserOptix();
 
 private:
   class Context {
@@ -56,9 +37,6 @@ private:
     ~Context();
 
     OptixDeviceContext optixDevice{};
-    void *libcuda;
-
-    CUresult (*cuStreamCreate)(CUstream *, unsigned int);
   };
 
   static std::weak_ptr<Context> gContext;
@@ -76,11 +54,13 @@ private:
 
   CUdeviceptr mStatePtr{};
   CUdeviceptr mScratchPtr{};
-  CUdeviceptr mMinRgbPtr{};
   CUdeviceptr mIntensityPtr{};
 
   OptixDenoiserGuideLayer mGuideLayer;
   OptixDenoiserLayer mLayer;
+
+  uint32_t mWidth{};
+  uint32_t mHeight{};
 
   std::unique_ptr<core::Buffer> mInputBuffer;
   CUdeviceptr mInputPtr{};

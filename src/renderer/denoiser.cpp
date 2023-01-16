@@ -1,8 +1,8 @@
 #ifdef SVULKAN2_CUDA_INTEROP
-#include "svulkan2/renderer/denoiser.h"
 #include "optix_function_table_definition.h"
 #include "svulkan2/common/log.h"
 #include "svulkan2/core/context.h"
+#include "svulkan2/renderer/denoiser.h"
 #include <cuda_runtime.h>
 #include <filesystem>
 #include <optional>
@@ -12,28 +12,39 @@
 namespace svulkan2 {
 namespace renderer {
 
-DenoiserOptix::Context::Context() {
-  libcuda = dlopen("libcuda.so", RTLD_LOCAL | RTLD_NOW);
-  if (!libcuda) {
-    throw std::runtime_error("failed to load cuda driver");
+static inline bool checkOptix(OptixResult error,
+                              std::string const &message = "") {
+  if (error != OPTIX_SUCCESS) {
+    log::error("{} OptiX Error: {}", message, optixGetErrorName(error));
   }
+  return true;
+}
+
+static inline bool checkCudaRuntime(cudaError_t error,
+                                    std::string const &message = "") {
+  if (error != cudaSuccess) {
+    log::error("{} CUDA Error: {}", message, cudaGetErrorName(error));
+    return false;
+  }
+  return true;
+}
+
+DenoiserOptix::Context::Context() {
   if (cudaFree(0) != cudaSuccess) {
     throw std::runtime_error("failed to init cuda runtime");
   }
   if (optixInit() != OPTIX_SUCCESS) {
     throw std::runtime_error("failed to init optix");
   }
-  checkOptix(optixDeviceContextCreate(nullptr, nullptr, &optixDevice));
-
-  this->cuStreamCreate = reinterpret_cast<decltype(this->cuStreamCreate)>(
-      dlsym(libcuda, "cuStreamCreate"));
-  log::info("optix initialized");
+  if (optixDeviceContextCreate(nullptr, nullptr, &optixDevice) !=
+      OPTIX_SUCCESS) {
+    throw std::runtime_error("failed to create optix device");
+  }
 }
 
 DenoiserOptix::Context::~Context() {
-  optixDeviceContextDestroy(optixDevice);
-  if (libcuda) {
-    dlclose(libcuda);
+  if (optixDevice) {
+    optixDeviceContextDestroy(optixDevice);
   }
 }
 
@@ -41,24 +52,38 @@ std::weak_ptr<DenoiserOptix::Context> DenoiserOptix::gContext = {};
 
 bool DenoiserOptix::init(OptixPixelFormat pixelFormat, bool albedo, bool normal,
                          bool hdr) {
+  std::string const error =
+      "Failed to initialize denoiser. Please make sure the renderer runs "
+      "on NVIDIA GPU with driver version >= 522.25.";
 
   if (!(mContext = gContext.lock())) {
-    gContext = mContext = std::make_shared<Context>();
+    try {
+      gContext = mContext = std::make_shared<Context>();
+    } catch (std::runtime_error const &e) {
+      log::error("{}", error);
+      return false;
+    }
   }
 
   mCommandPool = core::Context::Get()->createCommandPool();
   mCommandBufferIn = mCommandPool->allocateCommandBuffer();
   mCommandBufferOut = mCommandPool->allocateCommandBuffer();
 
-  checkCudaDriver(mContext->cuStreamCreate(&mCudaStream, CU_STREAM_DEFAULT));
+  bool success = checkCudaRuntime(cudaStreamCreate(&mCudaStream));
+  if (!success) {
+    log::error("{}", error);
+  }
 
   mOptions.guideAlbedo = albedo;
   mOptions.guideNormal = normal;
 
-  optixDenoiserCreate(mContext->optixDevice,
-                      hdr ? OPTIX_DENOISER_MODEL_KIND_HDR
-                          : OPTIX_DENOISER_MODEL_KIND_LDR,
-                      &mOptions, &mDenoiser);
+  success = checkOptix(optixDenoiserCreate(mContext->optixDevice,
+                                           hdr ? OPTIX_DENOISER_MODEL_KIND_HDR
+                                               : OPTIX_DENOISER_MODEL_KIND_LDR,
+                                           &mOptions, &mDenoiser));
+  if (!success) {
+    log::error("{}", error);
+  }
 
   mPixelFormat = pixelFormat;
   switch (pixelFormat) {
@@ -95,13 +120,17 @@ bool DenoiserOptix::init(OptixPixelFormat pixelFormat, bool albedo, bool normal,
 }
 
 void DenoiserOptix::allocate(uint32_t width, uint32_t height) {
+  mWidth = width;
+  mHeight = height;
+
+  free();
+
   checkOptix(
       optixDenoiserComputeMemoryResources(mDenoiser, width, height, &mSizes));
 
   checkCudaRuntime(cudaMalloc((void **)&mStatePtr, mSizes.stateSizeInBytes));
   checkCudaRuntime(cudaMalloc((void **)&mScratchPtr,
                               mSizes.withoutOverlapScratchSizeInBytes));
-  checkCudaRuntime(cudaMalloc((void **)&mMinRgbPtr, 4 * sizeof(float)));
 
   checkOptix(optixDenoiserSetup(mDenoiser, mCudaStream, width, height,
                                 mStatePtr, mSizes.stateSizeInBytes, mScratchPtr,
@@ -164,8 +193,30 @@ void DenoiserOptix::allocate(uint32_t width, uint32_t height) {
   desc.handle.fd = fd;
   desc.type = cudaExternalSemaphoreHandleTypeTimelineSemaphoreFd;
   checkCudaRuntime(cudaImportExternalSemaphore(&mCudaSem, &desc));
+}
 
-  // cudaDestroyExternalSemaphore(mCudaSem);  TODO
+void DenoiserOptix::free() {
+  core::Context::Get()->getDevice().waitIdle();
+  if (mCudaSem) {
+    cudaDestroyExternalSemaphore(mCudaSem);
+    mCudaSem = {};
+  }
+
+  checkCudaRuntime(cudaFree((void *)mStatePtr));
+  mStatePtr = {};
+  checkCudaRuntime(cudaFree((void *)mScratchPtr));
+  mScratchPtr = {};
+  checkCudaRuntime(cudaFree((void *)mIntensityPtr));
+  mIntensityPtr = {};
+
+  mInputBuffer.reset();
+  mInputPtr = {};
+  mOutputBuffer.reset();
+  mOutputPtr = {};
+  mAlbedoBuffer.reset();
+  mAlbedoPtr = {};
+  mNormalBuffer.reset();
+  mNormalPtr = {};
 }
 
 void DenoiserOptix::denoise(core::Image &color, core::Image *albedo,
@@ -205,8 +256,9 @@ void DenoiserOptix::denoise(core::Image &color, core::Image *albedo,
 
   if (mIntensityPtr) {
     checkOptix(optixDenoiserComputeIntensity(
-        mDenoiser, mCudaStream, &mLayer.input, mIntensityPtr, mScratchPtr,
-        mSizes.withoutOverlapScratchSizeInBytes));
+                   mDenoiser, mCudaStream, &mLayer.input, mIntensityPtr,
+                   mScratchPtr, mSizes.withoutOverlapScratchSizeInBytes),
+               "Failed to compute intensity");
   }
 
   mParams.blendFactor = 0.f;
@@ -234,7 +286,8 @@ void DenoiserOptix::denoise(core::Image &color, core::Image *albedo,
   checkOptix(optixDenoiserInvoke(mDenoiser, mCudaStream, &mParams, mStatePtr,
                                  mSizes.stateSizeInBytes, &mGuideLayer, &mLayer,
                                  1, 0, 0, mScratchPtr,
-                                 mSizes.withoutOverlapScratchSizeInBytes));
+                                 mSizes.withoutOverlapScratchSizeInBytes),
+             "Failed to denoise");
 
   cudaExternalSemaphoreSignalParams sigParams{};
   sigParams.flags = 0;
@@ -251,6 +304,19 @@ void DenoiserOptix::denoise(core::Image &color, core::Image *albedo,
   vk::PipelineStageFlags waitStage = vk::PipelineStageFlagBits::eTransfer;
   core::Context::Get()->getQueue().submit(mCommandBufferOut.get(), mSem.get(),
                                           waitStage, mSemValue, {}, {}, {});
+}
+
+DenoiserOptix::~DenoiserOptix() {
+  free();
+
+  if (mDenoiser) {
+    optixDenoiserDestroy(mDenoiser);
+    mDenoiser = {};
+  }
+
+  if (mCudaStream) {
+    checkCudaRuntime(cudaStreamDestroy(mCudaStream));
+  }
 }
 
 } // namespace renderer

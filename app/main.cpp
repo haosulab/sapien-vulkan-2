@@ -87,9 +87,7 @@ int main() {
   renderer.setCustomProperty("russianRoulette", 1);
   renderer.setCustomProperty("russianRouletteMinBounces", 3);
 
-  renderer::DenoiserOptix denoiser;
-  denoiser.init(OptixPixelFormat::OPTIX_PIXEL_FORMAT_FLOAT4, true, true, true);
-  denoiser.allocate(1024, 1024);
+  renderer.enableDenoiser("HdrColor", "Albedo", "Normal");
 
   svulkan2::scene::Scene scene;
 
@@ -441,18 +439,11 @@ int main() {
       context->getDevice().resetFences(sceneRenderFence.get());
     }
 
-    // draw
-    // auto sem = context->createTimelineSemaphore(0);
-
     std::async(std::launch::async, [&]() {
       {
         renderer.render(cameraNode, std::vector<vk::Semaphore>{}, {}, {}, {});
 
         auto imageAcquiredSemaphore = window->getImageAcquiredSemaphore();
-
-        denoiser.denoise(renderer.getRenderImage("Color"),
-                         &renderer.getRenderImage("Albedo"),
-                         &renderer.getRenderImage("Normal"));
 
         renderer.display("Color", window->getBackbuffer(),
                          window->getBackBufferFormat(), window->getWidth(),
