@@ -606,12 +606,13 @@ void RTRenderer::preparePostprocessing() {
   commandBuffer->end();
   mContext->getQueue().submitAndWait(commandBuffer.get());
 
+  mPostprocessingSets.clear(); // delete sets before deleting pool
+
   // create descriptor sets, bind images to them
   mPostprocessingPool = std::make_unique<core::DynamicDescriptorPool>(
       std::vector<vk::DescriptorPoolSize>{
           {vk::DescriptorType::eStorageBuffer, 10}}); // TODO adapt
 
-  mPostprocessingSets.clear();
   auto &parsers = mShaderPack->getPostprocessingParsers();
   for (uint32_t pid = 0; pid < parsers.size(); ++pid) {
     auto &layout = layouts.at(pid);

@@ -402,48 +402,56 @@ void Image::download(void *data, size_t size, vk::Offset3D offset,
     throw std::runtime_error("failed to download image: unsupported format.");
   }
 
-  switch (mCurrentLayout) {
-  case vk::ImageLayout::eColorAttachmentOptimal:
-    sourceLayout = vk::ImageLayout::eColorAttachmentOptimal;
-    sourceAccessFlag = vk::AccessFlagBits::eColorAttachmentWrite;
-    sourceStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-    break;
-  case vk::ImageLayout::eDepthStencilAttachmentOptimal:
-    sourceLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
-    sourceAccessFlag = vk::AccessFlagBits::eDepthStencilAttachmentWrite;
-    sourceStage = vk::PipelineStageFlagBits::eEarlyFragmentTests |
-                  vk::PipelineStageFlagBits::eLateFragmentTests;
-    break;
-  case vk::ImageLayout::eShaderReadOnlyOptimal:
-    sourceLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-    sourceAccessFlag = {};
-    sourceStage = vk::PipelineStageFlagBits::eFragmentShader;
-    break;
-  case vk::ImageLayout::eTransferSrcOptimal:
-    break;
-  default:
-    throw std::runtime_error("failed to download image: invalid layout.");
+  EASY_BLOCK("Record command buffer");
+  auto pool = mContext->createCommandPool();
+  auto cb = pool->allocateCommandBuffer();
+  cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+
+  if (mCurrentLayout == vk::ImageLayout::eGeneral) {
+    // wait for everything in general layout
+    transitionLayout(
+        cb.get(), vk::ImageLayout::eGeneral, vk::ImageLayout::eGeneral,
+        vk::AccessFlagBits::eMemoryWrite, vk::AccessFlagBits::eTransferRead,
+        vk::PipelineStageFlagBits::eAllCommands,
+        vk::PipelineStageFlagBits::eTransfer);
+  } else if (mCurrentLayout != vk::ImageLayout::eTransferSrcOptimal) {
+    switch (mCurrentLayout) {
+    case vk::ImageLayout::eColorAttachmentOptimal:
+      sourceLayout = vk::ImageLayout::eColorAttachmentOptimal;
+      sourceAccessFlag = vk::AccessFlagBits::eColorAttachmentWrite;
+      sourceStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+      break;
+    case vk::ImageLayout::eDepthStencilAttachmentOptimal:
+      sourceLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+      sourceAccessFlag = vk::AccessFlagBits::eDepthStencilAttachmentWrite;
+      sourceStage = vk::PipelineStageFlagBits::eEarlyFragmentTests |
+                    vk::PipelineStageFlagBits::eLateFragmentTests;
+      break;
+    case vk::ImageLayout::eShaderReadOnlyOptimal:
+      sourceLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+      sourceAccessFlag = {};
+      sourceStage = vk::PipelineStageFlagBits::eFragmentShader;
+      break;
+    case vk::ImageLayout::eTransferSrcOptimal:
+      break;
+    default:
+      throw std::runtime_error("failed to download image: invalid layout.");
+    }
+
+    transitionLayout(cb.get(), sourceLayout,
+                     vk::ImageLayout::eTransferSrcOptimal, sourceAccessFlag,
+                     vk::AccessFlagBits::eTransferRead, sourceStage,
+                     vk::PipelineStageFlagBits::eTransfer);
   }
 
   EASY_BLOCK("Allocating staging buffer");
   auto stagingBuffer =
       mContext->getAllocator().allocateStagingBuffer(size, true);
   EASY_END_BLOCK;
-
-  EASY_BLOCK("Record command buffer");
-  auto pool = mContext->createCommandPool();
-  auto cb = pool->allocateCommandBuffer();
-  cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
-  if (mCurrentLayout != vk::ImageLayout::eTransferSrcOptimal) {
-    transitionLayout(cb.get(), sourceLayout,
-                     vk::ImageLayout::eTransferSrcOptimal, sourceAccessFlag,
-                     vk::AccessFlagBits::eTransferRead, sourceStage,
-                     vk::PipelineStageFlagBits::eTransfer);
-  }
   vk::BufferImageCopy copyRegion(0, extent.width, extent.height,
                                  {aspect, mipLevel, arrayLayer, 1}, offset,
                                  extent);
-  cb->copyImageToBuffer(mImage, vk::ImageLayout::eTransferSrcOptimal,
+  cb->copyImageToBuffer(mImage, mCurrentLayout,
                         stagingBuffer->getVulkanBuffer(), copyRegion);
   cb->end();
   EASY_END_BLOCK;
