@@ -635,7 +635,7 @@ void Scene::buildTLAS() {
         obj->getTransform().worldModelMatrix); // column major matrix
     vk::TransformMatrixKHR mat;
     static_assert(sizeof(mat) == sizeof(float) * 12);
-    std::memcpy(&mat, &modelTranspose, sizeof(mat));
+    std::memcpy(&mat.matrix[0][0], &modelTranspose, sizeof(mat));
 
     vk::AccelerationStructureInstanceKHR inst(
         mat, globalGeomIdx, 0xff, 0,
@@ -661,7 +661,7 @@ void Scene::updateTLAS() {
     glm::mat4 modelTranspose =
         glm::transpose(obj->getTransform().worldModelMatrix);
     vk::TransformMatrixKHR mat;
-    std::memcpy(&mat, &modelTranspose, sizeof(mat));
+    std::memcpy(&mat.matrix[0][0], &modelTranspose, sizeof(mat));
     transforms.push_back(mat);
   }
   mTLAS->update(transforms);
