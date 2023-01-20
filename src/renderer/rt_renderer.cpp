@@ -827,6 +827,13 @@ void RTRenderer::enableDenoiser(std::string const &colorName,
 #endif
 }
 
+void RTRenderer::disableDenoiser() {
+#ifdef SVULKAN2_CUDA_INTEROP
+  mRequiresRebuild = true;
+  mDenoiser.reset();
+#endif
+}
+
 void RTRenderer::recordPostprocess() {
   mPostprocessCommandBuffer->reset();
   mPostprocessCommandBuffer->begin(vk::CommandBufferBeginInfo({}, {}));
@@ -856,6 +863,12 @@ void RTRenderer::recordPostprocess() {
     mPostprocessCommandBuffer->dispatch(mWidth, mHeight, 1);
   }
   mPostprocessCommandBuffer->end();
+}
+
+RTRenderer::~RTRenderer() {
+  if (mScene && mSceneAccessFence) {
+    mScene->unregisterAccessFence(mSceneAccessFence.get());
+  }
 }
 
 } // namespace renderer

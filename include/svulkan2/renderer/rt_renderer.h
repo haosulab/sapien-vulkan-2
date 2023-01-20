@@ -49,6 +49,8 @@ public:
   void enableDenoiser(std::string const &colorName,
                       std::string const &albedoName,
                       std::string const &normalName);
+  bool denoiserEnabled() const { return mDenoiser != nullptr; }
+  void disableDenoiser();
 
   inline void setCustomProperty(std::string const &name, int p) override {
     mCustomPropertiesInt[name] = p;
@@ -85,6 +87,8 @@ public:
   RTRenderer &operator=(RTRenderer const &other) = delete;
   RTRenderer(RTRenderer &&other) = default;
   RTRenderer &operator=(RTRenderer &&other) = default;
+
+  ~RTRenderer();
 
 private:
   std::unordered_map<std::string, int> mCustomPropertiesInt;
