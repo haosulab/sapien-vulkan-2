@@ -141,6 +141,9 @@ public:
     return mRTSpotLightBuffer->getVulkanBuffer();
   }
 
+  void registerAccessFence(vk::Fence fence);
+  void unregisterAccessFence(vk::Fence fence);
+
 private:
   std::vector<std::unique_ptr<Node>> mNodes{};
   std::vector<std::unique_ptr<Object>> mObjects{};
@@ -224,6 +227,10 @@ private:
   std::unique_ptr<core::Buffer> mRTSpotLightBuffer;
 
   uint64_t mRTResourcesVersion{0l};
+  uint64_t mRTResourcesRenderVersion{0l};
+
+  // indicates whether this scene is being accessed
+  std::vector<vk::Fence> mAccessFences;
 };
 
 } // namespace scene

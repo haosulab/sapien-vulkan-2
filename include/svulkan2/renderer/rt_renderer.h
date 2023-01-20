@@ -24,7 +24,7 @@ public:
   RTRenderer(std::string const &shaderDir);
 
   void resize(int width, int height) override;
-  void setScene(scene::Scene &scene) override;
+  void setScene(std::shared_ptr<scene::Scene> scene) override;
 
   void render(scene::Camera &camera,
               std::vector<vk::Semaphore> const &waitSemaphores,
@@ -121,7 +121,7 @@ private:
   int mWidth{};
   int mHeight{};
 
-  scene::Scene *mScene;
+  std::shared_ptr<scene::Scene> mScene;
   uint64_t mSceneVersion{0l}; // check for rebuild
 
   uint64_t mSceneRenderVersion{0l}; // check for updating matrices
@@ -163,8 +163,11 @@ private:
 
   bool mRequiresRebuild{true};
 
+  vk::UniqueFence mSceneAccessFence;
+
 #ifdef SVULKAN2_CUDA_INTEROP
-  std::shared_ptr<class DenoiserOptix> mDenoiser;  // HACK: use shared_ptr to avoid including denoiser.h
+  std::shared_ptr<class DenoiserOptix>
+      mDenoiser; // HACK: use shared_ptr to avoid including denoiser.h
   std::string mDenoiseColorName;
   std::string mDenoiseAlbedoName;
   std::string mDenoiseNormalName;

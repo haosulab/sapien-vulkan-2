@@ -12,7 +12,7 @@ public:
   Create(std::shared_ptr<RendererConfig> config);
 
   virtual void resize(int width, int height) = 0;
-  virtual void setScene(scene::Scene &scene) = 0;
+  virtual void setScene(std::shared_ptr<scene::Scene> scene) = 0;
 
   virtual void render(scene::Camera &camera,
                       std::vector<vk::Semaphore> const &waitSemaphores,

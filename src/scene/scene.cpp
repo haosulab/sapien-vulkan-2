@@ -938,6 +938,15 @@ void Scene::buildRTResources(
     StructDataLayout const &geometryInstanceBufferLayout) {
 
   std::lock_guard lock(mRTResourcesLock);
+
+  // make sure scene is not in use
+  if (mAccessFences.size()) {
+    if (core::Context::Get()->getDevice().waitForFences(
+            mAccessFences, VK_TRUE, UINT64_MAX) != vk::Result::eSuccess) {
+      throw std::runtime_error("failed to wait for scene access fence");
+    }
+  }
+
   forceRemove();
 
   if (mRTResourcesVersion != mVersion) {
@@ -954,8 +963,29 @@ void Scene::updateRTResources() {
     throw std::runtime_error("updateRTResources failed: scene has changed, "
                              "call buildRTResources first");
   }
-  updateTLAS();
-  updateRTStorageBuffers();
+
+  // if (mRTResourcesRenderVersion != mRenderVersion) {
+
+    // make sure scene is not in use
+    if (mAccessFences.size()) {
+      if (core::Context::Get()->getDevice().waitForFences(
+              mAccessFences, VK_TRUE, UINT64_MAX) != vk::Result::eSuccess) {
+        throw std::runtime_error("failed to wait for scene access fence");
+      }
+    }
+
+    updateTLAS();
+    updateRTStorageBuffers();
+    mRTResourcesRenderVersion = mRenderVersion;
+
+  // }
+}
+
+void Scene::registerAccessFence(vk::Fence fence) {
+  mAccessFences.push_back(fence);
+}
+void Scene::unregisterAccessFence(vk::Fence fence) {
+  std::erase(mAccessFences, fence);
 }
 
 } // namespace scene

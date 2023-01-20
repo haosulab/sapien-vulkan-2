@@ -107,9 +107,9 @@ int main() {
 
   renderer.enableDenoiser("HdrColor", "Albedo", "Normal");
 
-  svulkan2::scene::Scene scene;
+  auto scene = std::make_shared<svulkan2::scene::Scene>();
 
-  createSphereArray(scene);
+  createSphereArray(*scene);
 
   // {
   //   auto model =
@@ -192,7 +192,7 @@ int main() {
   // dl.enableShadow(true);
   // dl.setShadowParameters(-10, 10, 5, 2048);
 
-  scene.setAmbientLight({0.5f, 0.5f, 0.5f, 0});
+  scene->setAmbientLight({0.5f, 0.5f, 0.5f, 0});
 
   // auto material =
   //     std::make_shared<resource::SVMetallicMaterial>(glm::vec4{1, 1, 1, 1});
@@ -272,7 +272,7 @@ int main() {
 
   // scene.addPointObject(pointset).setShadingMode(0);
 
-  auto &cameraNode = scene.addCamera();
+  auto &cameraNode = scene->addCamera();
   cameraNode.setPerspectiveParameters(0.05, 50, 1, 400, 300);
   FPSCameraController controller(cameraNode, {0, 0, -1}, {0, 1, 0});
   // controller.setXYZ(0, 0.5, 0);
@@ -283,10 +283,11 @@ int main() {
   // customLight.setShadowProjectionMatrix(math::perspective(0.7f, 1.f,
   // 0.1f, 5.f));
 
+
   auto flashlight = context->getResourceManager()->CreateTextureFromFile(
       "../test/assets/image/flashlight.jpg", 1);
 
-  auto &l = scene.addTexturedLight();
+  auto &l = scene->addTexturedLight();
   l.setColor({1, 1, 1});
   l.setPosition({0.5, 0.5, 0.5});
   l.enableShadow(true);
@@ -294,7 +295,9 @@ int main() {
   l.setFovSmall(1);
   l.setTexture(flashlight);
   l.setDirection({0, -1, 0});
-  scene.updateModelMatrices();
+  scene->updateModelMatrices();
+
+
 
   // renderer.setCustomTexture("BRDFLUT", lutTexture);
 
@@ -321,9 +324,9 @@ int main() {
 
   auto cubemap = context->getResourceManager()->CreateCubemapFromKTX(
       "../test/assets/image/cube2/out.ktx", 5);
-  // renderer.setCustomCubemap("Environment", cubemap);
+  renderer.setCustomCubemap("Environment", cubemap);
 
-  // scene.setEnvironmentMap(cubemap);
+  scene->setEnvironmentMap(cubemap);
 
   auto window = context->createWindow(1024, 1024);
   // glfwGetFramebufferSize(window->getGLFWWindow(), &gSwapchainResizeWidth,
@@ -372,12 +375,12 @@ int main() {
 
   renderer.setScene(scene);
 
-  scene.updateModelMatrices();
+  scene->updateModelMatrices();
 
   int count = 0;
   while (!window->isClosed()) {
     count += 1;
-    // spotLight.setDirection({glm::cos(count / 50.f), 0, glm::sin(count
+    // spot
     // / 50.f)});
 
     if (count == 3) {
@@ -531,7 +534,7 @@ int main() {
     }
 
     if (update) {
-      scene.updateModelMatrices();
+      scene->updateModelMatrices();
     }
 
     auto model = cameraNode.computeWorldModelMatrix();

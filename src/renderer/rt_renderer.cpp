@@ -27,6 +27,9 @@ RTRenderer::RTRenderer(std::string const &shaderDir) : mShaderDir(shaderDir) {
   mCustomPropertiesInt["maxDepth"] = 3;
   mCustomPropertiesInt["russianRoulette"] = 0;
   mCustomPropertiesInt["russianRouletteMinBounces"] = 2;
+
+  mSceneAccessFence = mContext->getDevice().createFenceUnique(
+      {vk::FenceCreateFlagBits::eSignaled});
 }
 
 void RTRenderer::resize(int width, int height) {
@@ -37,10 +40,21 @@ void RTRenderer::resize(int width, int height) {
   }
 }
 
-void RTRenderer::setScene(scene::Scene &scene) {
-  mScene = &scene;
+void RTRenderer::setScene(std::shared_ptr<scene::Scene> scene) {
+  if (mScene == scene) {
+    return;
+  }
+  if (mScene) {
+    mScene->unregisterAccessFence(mSceneAccessFence.get());
+  }
+
+  mScene = scene;
   mSceneVersion = 0l;
   mSceneRenderVersion = 0l;
+
+  if (mScene) {
+    mScene->registerAccessFence(mSceneAccessFence.get());
+  }
 }
 
 void RTRenderer::prepareObjects() {
@@ -651,7 +665,10 @@ void RTRenderer::render(scene::Camera &camera,
 
   prepareRender(camera);
 
-  mContext->getQueue().submit(mRenderCommandBuffer.get(), {}, {}, {}, {});
+  mContext->getDevice().resetFences(mSceneAccessFence.get());
+  mContext->getQueue().submit(mRenderCommandBuffer.get(), {}, {}, {},
+                              mSceneAccessFence.get());
+
   if (mDenoiser) {
     mDenoiser->denoise(mRenderImages.at(mDenoiseColorName)->getImage(),
                        &mRenderImages.at(mDenoiseAlbedoName)->getImage(),

@@ -365,7 +365,8 @@ void Renderer::preparePipelines() {
       mContext->getResourceManager()->CreateShaderPackInstance(desc);
   mShaderPackInstance->loadAsync().wait();
   if (mShaderPackInstance->getShaderPack() != mShaderPack) {
-    throw std::runtime_error("renderer corrupted! impossible error in shader pack.");
+    throw std::runtime_error(
+        "renderer corrupted! impossible error in shader pack.");
   }
 }
 
