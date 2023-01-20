@@ -1,8 +1,8 @@
 #ifdef SVULKAN2_CUDA_INTEROP
+#include "svulkan2/renderer/denoiser.h"
 #include "optix_function_table_definition.h"
 #include "svulkan2/common/log.h"
 #include "svulkan2/core/context.h"
-#include "svulkan2/renderer/denoiser.h"
 #include <cuda_runtime.h>
 #include <filesystem>
 #include <optional>
@@ -50,6 +50,10 @@ DenoiserOptix::Context::~Context() {
 
 std::weak_ptr<DenoiserOptix::Context> DenoiserOptix::gContext = {};
 
+bool DenoiserOptix::useAlbedo() { return mOptions.guideAlbedo; }
+
+bool DenoiserOptix::useNormal() { return mOptions.guideNormal; }
+
 bool DenoiserOptix::init(OptixPixelFormat pixelFormat, bool albedo, bool normal,
                          bool hdr) {
   std::string const error =
@@ -76,11 +80,11 @@ bool DenoiserOptix::init(OptixPixelFormat pixelFormat, bool albedo, bool normal,
 
   mOptions.guideAlbedo = albedo;
   mOptions.guideNormal = normal;
-
   success = checkOptix(optixDenoiserCreate(mContext->optixDevice,
                                            hdr ? OPTIX_DENOISER_MODEL_KIND_HDR
                                                : OPTIX_DENOISER_MODEL_KIND_LDR,
                                            &mOptions, &mDenoiser));
+
   if (!success) {
     log::error("{}", error);
   }
@@ -89,27 +93,21 @@ bool DenoiserOptix::init(OptixPixelFormat pixelFormat, bool albedo, bool normal,
   switch (pixelFormat) {
   case OPTIX_PIXEL_FORMAT_FLOAT3:
     mPixelSize = static_cast<uint32_t>(3 * sizeof(float));
-    mAlphaMode = OPTIX_DENOISER_ALPHA_MODE_COPY;
     break;
   case OPTIX_PIXEL_FORMAT_FLOAT4:
     mPixelSize = static_cast<uint32_t>(4 * sizeof(float));
-    mAlphaMode = OPTIX_DENOISER_ALPHA_MODE_ALPHA_AS_AOV;
     break;
   case OPTIX_PIXEL_FORMAT_UCHAR3:
     mPixelSize = static_cast<uint32_t>(3 * sizeof(uint8_t));
-    mAlphaMode = OPTIX_DENOISER_ALPHA_MODE_COPY;
     break;
   case OPTIX_PIXEL_FORMAT_UCHAR4:
     mPixelSize = static_cast<uint32_t>(4 * sizeof(uint8_t));
-    mAlphaMode = OPTIX_DENOISER_ALPHA_MODE_ALPHA_AS_AOV;
     break;
   case OPTIX_PIXEL_FORMAT_HALF3:
     mPixelSize = static_cast<uint32_t>(3 * sizeof(uint16_t));
-    mAlphaMode = OPTIX_DENOISER_ALPHA_MODE_COPY;
     break;
   case OPTIX_PIXEL_FORMAT_HALF4:
     mPixelSize = static_cast<uint32_t>(4 * sizeof(uint16_t));
-    mAlphaMode = OPTIX_DENOISER_ALPHA_MODE_ALPHA_AS_AOV;
     break;
   default:
     throw std::runtime_error("Unsupported OPTIX_PIXEL_FORMAT!");
@@ -137,38 +135,38 @@ void DenoiserOptix::allocate(uint32_t width, uint32_t height) {
                                 mSizes.withoutOverlapScratchSizeInBytes));
   checkCudaRuntime(cudaMalloc((void **)&mIntensityPtr, sizeof(float)));
 
-  mInputBuffer =
-      std::make_unique<core::Buffer>(width * height * mPixelSize,
-                                     vk::BufferUsageFlagBits::eTransferDst |
-                                         vk::BufferUsageFlagBits::eTransferSrc,
-                                     VMA_MEMORY_USAGE_GPU_ONLY);
+  mInputBuffer = std::make_unique<core::Buffer>(
+      width * height * mPixelSize,
+      vk::BufferUsageFlagBits::eTransferDst |
+          vk::BufferUsageFlagBits::eTransferSrc,
+      VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags{}, true);
   auto ptr = mInputBuffer->getCudaPtr();
   std::memcpy(&mInputPtr, &ptr, sizeof(ptr));
 
-  mOutputBuffer =
-      std::make_unique<core::Buffer>(width * height * mPixelSize,
-                                     vk::BufferUsageFlagBits::eTransferDst |
-                                         vk::BufferUsageFlagBits::eTransferSrc,
-                                     VMA_MEMORY_USAGE_GPU_ONLY);
+  mOutputBuffer = std::make_unique<core::Buffer>(
+      width * height * mPixelSize,
+      vk::BufferUsageFlagBits::eTransferDst |
+          vk::BufferUsageFlagBits::eTransferSrc,
+      VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags{}, true);
   ptr = mOutputBuffer->getCudaPtr();
   std::memcpy(&mOutputPtr, &ptr, sizeof(ptr));
 
-  if (mOptions.guideAlbedo) {
+  if (useAlbedo()) {
     mAlbedoBuffer = std::make_unique<core::Buffer>(
         width * height * mPixelSize,
         vk::BufferUsageFlagBits::eTransferDst |
             vk::BufferUsageFlagBits::eTransferSrc,
-        VMA_MEMORY_USAGE_GPU_ONLY);
+        VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags{}, true);
     ptr = mAlbedoBuffer->getCudaPtr();
     std::memcpy(&mAlbedoPtr, &ptr, sizeof(ptr));
   }
 
-  if (mOptions.guideNormal) {
+  if (useNormal()) {
     mNormalBuffer = std::make_unique<core::Buffer>(
         width * height * mPixelSize,
         vk::BufferUsageFlagBits::eTransferDst |
             vk::BufferUsageFlagBits::eTransferSrc,
-        VMA_MEMORY_USAGE_GPU_ONLY);
+        VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags{}, true);
     ptr = mNormalBuffer->getCudaPtr();
     std::memcpy(&mNormalPtr, &ptr, sizeof(ptr));
   }
@@ -223,19 +221,22 @@ void DenoiserOptix::denoise(core::Image &color, core::Image *albedo,
                             core::Image *normal) {
   mCommandBufferIn->reset();
   mCommandBufferIn->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+
   color.recordCopyToBuffer(
       mCommandBufferIn.get(), mInputBuffer->getVulkanBuffer(), 0,
       mInputBuffer->getSize(), {0, 0, 0}, color.getExtent());
-  if (albedo) {
+
+  if (useAlbedo() && albedo) {
     albedo->recordCopyToBuffer(
         mCommandBufferIn.get(), mAlbedoBuffer->getVulkanBuffer(), 0,
         mAlbedoBuffer->getSize(), {0, 0, 0}, color.getExtent());
   }
-  if (normal) {
+  if (useNormal() && normal) {
     normal->recordCopyToBuffer(
         mCommandBufferIn.get(), mNormalBuffer->getVulkanBuffer(), 0,
         mNormalBuffer->getSize(), {0, 0, 0}, color.getExtent());
   }
+
   mCommandBufferIn->end();
 
   core::Context::Get()->getQueue().submit(mCommandBufferIn.get(), {}, {}, {},
@@ -247,6 +248,12 @@ void DenoiserOptix::denoise(core::Image &color, core::Image *albedo,
 
   uint32_t width = color.getExtent().width;
   uint32_t height = color.getExtent().height;
+
+  mParams.blendFactor = 0.f;
+  mParams.denoiseAlpha = OPTIX_DENOISER_ALPHA_MODE_COPY;
+  mParams.temporalModeUsePreviousLayers = 0;
+  mParams.hdrIntensity = mIntensityPtr;
+  mParams.hdrAverageColor = 0;
 
   mLayer.input = OptixImage2D{mInputPtr,          width,      height,
                               mPixelSize * width, mPixelSize, mPixelFormat};
@@ -261,28 +268,21 @@ void DenoiserOptix::denoise(core::Image &color, core::Image *albedo,
                "Failed to compute intensity");
   }
 
-  mParams.blendFactor = 0.f;
-  mParams.denoiseAlpha = mAlphaMode;
-  mParams.hdrIntensity = mIntensityPtr;
-  mParams.hdrAverageColor = 0;
-  mParams.temporalModeUsePreviousLayers = 0;
-
   mGuideLayer.flow = {};
   mGuideLayer.outputInternalGuideLayer = {};
   mGuideLayer.previousOutputInternalGuideLayer = {};
   mGuideLayer.albedo = {};
   mGuideLayer.normal = {};
-  if (mOptions.guideAlbedo && albedo) {
+  if (useAlbedo() && albedo) {
     mGuideLayer.albedo =
         OptixImage2D{mAlbedoPtr,         width,      height,
                      mPixelSize * width, mPixelSize, mPixelFormat};
   }
-  if (mOptions.guideNormal && normal) {
+  if (useNormal() && normal) {
     mGuideLayer.normal =
         OptixImage2D{mNormalPtr,         width,      height,
                      mPixelSize * width, mPixelSize, mPixelFormat};
   }
-
   checkOptix(optixDenoiserInvoke(mDenoiser, mCudaStream, &mParams, mStatePtr,
                                  mSizes.stateSizeInBytes, &mGuideLayer, &mLayer,
                                  1, 0, 0, mScratchPtr,
@@ -296,9 +296,11 @@ void DenoiserOptix::denoise(core::Image &color, core::Image *albedo,
 
   mCommandBufferOut->reset();
   mCommandBufferOut->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+
   color.recordCopyFromBuffer(
       mCommandBufferOut.get(), mOutputBuffer->getVulkanBuffer(), 0,
       mOutputBuffer->getSize(), {0, 0, 0}, color.getExtent());
+
   mCommandBufferOut->end();
 
   vk::PipelineStageFlags waitStage = vk::PipelineStageFlagBits::eTransfer;

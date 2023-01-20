@@ -5,6 +5,7 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-variable"
 #define VMA_BUFFER_DEVICE_ADDRESS 1
+#define VMA_EXTERNAL_MEMORY 1
 #define VMA_STATIC_VULKAN_FUNCTIONS 0
 #define VMA_IMPLEMENTATION
 #include <vk_mem_alloc.h>
@@ -17,9 +18,38 @@ Allocator::Allocator(VmaAllocatorCreateInfo const &info) {
   if (vmaCreateAllocator(&info, &mMemoryAllocator) != VK_SUCCESS) {
     throw std::runtime_error("failed to create VmaAllocator");
   }
+
+  // find GPU memory suitable for external buffer
+  VkPhysicalDeviceMemoryProperties properties;
+  vkGetPhysicalDeviceMemoryProperties(info.physicalDevice, &properties);
+  int index = -1;
+  for (uint32_t i = 0; i < properties.memoryTypeCount; ++i) {
+    if (properties.memoryTypes[i].propertyFlags ==
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) {
+      index = i;
+    }
+  }
+  if (index == -1) {
+    for (uint32_t i = 0; i < properties.memoryTypeCount; ++i) {
+      if (properties.memoryTypes[i].propertyFlags &
+          VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) {
+        index = i;
+      }
+    }
+  }
+  VmaPoolCreateInfo poolInfo{};
+  poolInfo.memoryTypeIndex = static_cast<uint32_t>(index);
+  mExternalAllocInfo = vk::ExportMemoryAllocateInfo(
+      vk::ExternalMemoryHandleTypeFlagBits::eOpaqueFd);
+  poolInfo.pMemoryAllocateNext = &mExternalAllocInfo;
+
+  vmaCreatePool(mMemoryAllocator, &poolInfo, &mExternalMemoryPool);
 }
 
-Allocator::~Allocator() { vmaDestroyAllocator(mMemoryAllocator); }
+Allocator::~Allocator() {
+  vmaDestroyPool(mMemoryAllocator, mExternalMemoryPool);
+  vmaDestroyAllocator(mMemoryAllocator);
+}
 
 std::unique_ptr<Buffer> Allocator::allocateStagingBuffer(vk::DeviceSize size,
                                                          bool readback) {

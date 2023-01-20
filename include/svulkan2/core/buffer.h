@@ -23,6 +23,8 @@ protected:
   bool mMapped{};
   void *mMappedData;
 
+  bool mExternal{};
+
 #ifdef TRACK_ALLOCATION
   uint64_t mBufferId{};
 #endif
@@ -30,7 +32,7 @@ protected:
 public:
   Buffer(vk::DeviceSize size, vk::BufferUsageFlags usageFlags,
          VmaMemoryUsage memoryUsage,
-         VmaAllocationCreateFlags allocationFlags = {});
+         VmaAllocationCreateFlags allocationFlags = {}, bool external = false);
 
   Buffer(const Buffer &) = delete;
   Buffer(const Buffer &&) = delete;

@@ -104,13 +104,15 @@ void SVMesh::uploadToDevice() {
             vk::BufferUsageFlagBits::eTransferDst |
             vk::BufferUsageFlagBits::eTransferSrc,
         mDynamic ? VmaMemoryUsage::VMA_MEMORY_USAGE_CPU_TO_GPU
-                 : VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY);
+                 : VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY,
+        VmaAllocationCreateFlags{}, true);
     mIndexBuffer = std::make_unique<core::Buffer>(
         indexBufferSize,
         deviceAddressFlag | vk::BufferUsageFlagBits::eIndexBuffer |
             vk::BufferUsageFlagBits::eTransferDst |
             vk::BufferUsageFlagBits::eTransferSrc,
-        VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY);
+        VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags{},
+        true);
   }
   mVertexBuffer->upload(buffer.data(), bufferSize);
   mIndexBuffer->upload<uint32_t>(mIndices);

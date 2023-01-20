@@ -7,6 +7,8 @@ namespace core {
 
 class Allocator {
   VmaAllocator mMemoryAllocator;
+  VmaPool mExternalMemoryPool;
+  vk::ExportMemoryAllocateInfo mExternalAllocInfo;
 
 public:
   Allocator(VmaAllocatorCreateInfo const &info);
@@ -17,6 +19,7 @@ public:
   Allocator &operator=(Allocator &&other) = delete;
 
   VmaAllocator getVmaAllocator() const { return mMemoryAllocator; }
+  VmaPool getExternalPool() const { return mExternalMemoryPool; };
 
 public:
   std::unique_ptr<class Buffer> allocateStagingBuffer(vk::DeviceSize size,

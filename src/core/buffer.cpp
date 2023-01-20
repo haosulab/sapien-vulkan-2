@@ -14,15 +14,22 @@ static uint64_t gBufferCount = 0;
 
 Buffer::Buffer(vk::DeviceSize size, vk::BufferUsageFlags usageFlags,
                VmaMemoryUsage memoryUsage,
-               VmaAllocationCreateFlags allocationFlags)
-    : mSize(size) {
+               VmaAllocationCreateFlags allocationFlags, bool external)
+    : mSize(size), mExternal(external) {
   mContext = Context::Get();
 
   vk::BufferCreateInfo bufferInfo({}, size, usageFlags);
+  vk::ExternalMemoryBufferCreateInfo externalMemoryBufferInfo(
+      vk::ExternalMemoryHandleTypeFlagBits::eOpaqueFd);
 
   VmaAllocationCreateInfo memoryInfo{};
   memoryInfo.usage = memoryUsage;
   memoryInfo.flags = allocationFlags;
+
+  if (external) {
+    bufferInfo.setPNext(&externalMemoryBufferInfo);
+    memoryInfo.pool = mContext->getAllocator().getExternalPool();
+  }
 
   if (vmaCreateBuffer(mContext->getAllocator().getVmaAllocator(),
                       reinterpret_cast<VkBufferCreateInfo *>(&bufferInfo),
@@ -152,6 +159,10 @@ vk::DeviceAddress Buffer::getAddress() const {
 
 #ifdef SVULKAN2_CUDA_INTEROP
 void *Buffer::getCudaPtr() {
+  if (!mExternal) {
+    throw std::runtime_error("failed to get cuda pointer, \"external\" must be passed at buffer creation");
+  }
+
   if (mCudaPtr) {
     return mCudaPtr;
   }

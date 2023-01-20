@@ -17,7 +17,6 @@ namespace renderer {
 
 class DenoiserOptix {
 public:
-  // TODO: support and test denoiser without albedo/normal
   bool init(OptixPixelFormat pixelFormat, bool albedo, bool normal, bool hdr);
   void allocate(uint32_t width, uint32_t height);
   void free();
@@ -45,12 +44,15 @@ private:
   CUstream mCudaStream{};
   OptixDenoiser mDenoiser{};
   OptixDenoiserOptions mOptions{};
+
+  bool useAlbedo();
+  bool useNormal();
+
   OptixPixelFormat mPixelFormat{};
   uint32_t mPixelSize{};
-  OptixDenoiserAlphaMode mAlphaMode{};
   OptixDenoiserSizes mSizes{};
 
-  OptixDenoiserParams mParams;
+  OptixDenoiserParams mParams{};
 
   CUdeviceptr mStatePtr{};
   CUdeviceptr mScratchPtr{};
