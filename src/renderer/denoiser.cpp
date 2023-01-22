@@ -133,7 +133,6 @@ void DenoiserOptix::allocate(uint32_t width, uint32_t height) {
   checkOptix(optixDenoiserSetup(mDenoiser, mCudaStream, width, height,
                                 mStatePtr, mSizes.stateSizeInBytes, mScratchPtr,
                                 mSizes.withoutOverlapScratchSizeInBytes));
-  checkCudaRuntime(cudaMalloc((void **)&mIntensityPtr, sizeof(float)));
 
   mInputBuffer = std::make_unique<core::Buffer>(
       width * height * mPixelSize,
@@ -204,8 +203,6 @@ void DenoiserOptix::free() {
   mStatePtr = {};
   checkCudaRuntime(cudaFree((void *)mScratchPtr));
   mScratchPtr = {};
-  checkCudaRuntime(cudaFree((void *)mIntensityPtr));
-  mIntensityPtr = {};
 
   mInputBuffer.reset();
   mInputPtr = {};
@@ -252,7 +249,7 @@ void DenoiserOptix::denoise(core::Image &color, core::Image *albedo,
   mParams.blendFactor = 0.f;
   mParams.denoiseAlpha = OPTIX_DENOISER_ALPHA_MODE_COPY;
   mParams.temporalModeUsePreviousLayers = 0;
-  mParams.hdrIntensity = mIntensityPtr;
+  mParams.hdrIntensity = 0;
   mParams.hdrAverageColor = 0;
 
   mLayer.input = OptixImage2D{mInputPtr,          width,      height,
@@ -260,13 +257,6 @@ void DenoiserOptix::denoise(core::Image &color, core::Image *albedo,
   mLayer.output = OptixImage2D{mOutputPtr,         width,      height,
                                mPixelSize * width, mPixelSize, mPixelFormat};
   mLayer.previousOutput = {0};
-
-  if (mIntensityPtr) {
-    checkOptix(optixDenoiserComputeIntensity(
-                   mDenoiser, mCudaStream, &mLayer.input, mIntensityPtr,
-                   mScratchPtr, mSizes.withoutOverlapScratchSizeInBytes),
-               "Failed to compute intensity");
-  }
 
   mGuideLayer.flow = {};
   mGuideLayer.outputInternalGuideLayer = {};

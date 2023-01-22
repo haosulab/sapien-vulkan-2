@@ -56,7 +56,6 @@ private:
 
   CUdeviceptr mStatePtr{};
   CUdeviceptr mScratchPtr{};
-  CUdeviceptr mIntensityPtr{};
 
   OptixDenoiserGuideLayer mGuideLayer;
   OptixDenoiserLayer mLayer;
