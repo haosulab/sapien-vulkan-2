@@ -306,7 +306,7 @@ Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
     ss << std::setw(3) << ord++ << std::setw(40) << name.substr(0, 39)
        << std::setw(10) << present << std::setw(10) << supported << std::hex
        << std::setw(10) << busid << std::dec << std::setw(10)
-       << (cudaId == -1 ? "No Device" : std::to_string(cudaId)) << std::setw(15)
+       << (cudaId < 0 ? "No Device" : std::to_string(cudaId)) << std::setw(15)
        << rayTracing << std::endl;
 
     devices.push_back(
@@ -325,7 +325,10 @@ Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
   ss << "Devices visible to Cuda" << std::endl;
   ss << std::setw(10) << "CudaId" << std::setw(10) << "PciBus" << std::setw(25)
      << "PciBusString" << std::endl;
-  for (uint32_t i = 0; i < 20; ++i) {
+
+  int count{0};
+  cudaGetDeviceCount(&count);
+  for (uint32_t i = 0; i < count; ++i) {
     int busId = getPCIBusIdFromCudaDeviceId(i);
     std::string pciBus(20, '\0');
     auto result = cudaDeviceGetPCIBusId(pciBus.data(), 20, i);

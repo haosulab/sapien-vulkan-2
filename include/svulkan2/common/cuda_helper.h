@@ -47,4 +47,25 @@ inline int getCudaDeviceIdFromPhysicalDevice(const vk::PhysicalDevice &device) {
   return -1; // should never reach here
 }
 
+// int getCudaDeviceIdFromVulkanPhysicalDevice(vk::PhysicalDevice device) {
+//   vk::PhysicalDeviceIDProperties physicalDeviceIDProperties{};
+//   vk::PhysicalDeviceProperties2 physicalDeviceProperties2{};
+//   physicalDeviceProperties2.pNext = &physicalDeviceIDProperties;
+
+//   device.getProperties2(&physicalDeviceProperties2);
+
+//   int cudaDeviceCount;
+//   cudaGetDeviceCount(&cudaDeviceCount);
+
+//   for (int cudaDevice = 0; cudaDevice < cudaDeviceCount; cudaDevice++) {
+//     cudaDeviceProp deviceProp;
+//     cudaGetDeviceProperties(&deviceProp, cudaDevice);
+//     if (!memcmp(&deviceProp.uuid, physicalDeviceIDProperties.deviceUUID,
+//                 VK_UUID_SIZE)) {
+//       return cudaDevice;
+//     }
+//   }
+//   return cudaInvalidDeviceId;
+// }
+
 #endif
