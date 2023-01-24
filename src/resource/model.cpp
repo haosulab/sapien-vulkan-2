@@ -135,11 +135,12 @@ std::future<void> SVModel::loadAsync() {
         auto mat = std::dynamic_pointer_cast<SVMetallicMaterial>(s->material);
         auto newMat = std::make_shared<SVMetallicMaterial>(
             mat->getEmission(), mat->getBaseColor(), mat->getFresnel(),
-            mat->getRoughness(), mat->getMetallic(), mat->getTransmission(), mat->getIor());
-        newMat->setTextures(mat->getDiffuseTexture(),
-                            mat->getRoughnessTexture(), mat->getNormalTexture(),
-                            mat->getMetallicTexture(),
-                            mat->getEmissionTexture());
+            mat->getRoughness(), mat->getMetallic(), mat->getTransmission(),
+            mat->getIor());
+        newMat->setTextures(
+            mat->getDiffuseTexture(), mat->getRoughnessTexture(),
+            mat->getNormalTexture(), mat->getMetallicTexture(),
+            mat->getEmissionTexture(), mat->getTransmissionTexture());
 
         newShape->mesh = s->mesh;
         newShape->material = newMat;
@@ -288,6 +289,7 @@ std::future<void> SVModel::loadAsync() {
       std::shared_ptr<SVTexture> roughnessTexture{};
       std::shared_ptr<SVTexture> metallicTexture{};
       std::shared_ptr<SVTexture> emissionTexture{};
+      std::shared_ptr<SVTexture> transmissionTexture{};
 
       aiString path;
       if (m->GetTextureCount(aiTextureType_DIFFUSE) > 0 &&
@@ -410,12 +412,35 @@ std::future<void> SVModel::loadAsync() {
         }
       }
 
+      if (m->GetTexture(AI_MATKEY_TRANSMISSION_TEXTURE, &path) == AI_SUCCESS) {
+        if (core::Context::Get()->shouldNotLoadTexture()) {
+          log::info("Texture ignored {}", path.C_Str());
+        } else {
+          if (auto texture = scene->GetEmbeddedTexture(path.C_Str())) {
+            if (textureCache.contains(std::string(path.C_Str()))) {
+              transmissionTexture = textureCache[std::string(path.C_Str())];
+            } else {
+              log::info("Loading embeded texture {}", path.C_Str());
+              textureCache[std::string(path.C_Str())] = transmissionTexture =
+                  loadEmbededTexture(texture, MIP_LEVEL);
+            }
+          } else {
+            std::string p = std::string(path.C_Str());
+            std::string fullPath = (parentDir / p).string();
+            transmissionTexture =
+                manager->CreateTextureFromFile(fullPath, MIP_LEVEL);
+            futures.push_back(transmissionTexture->loadAsync());
+          }
+        }
+      }
+
       auto material = std::make_shared<SVMetallicMaterial>(
           glm::vec4{emission.r, emission.g, emission.b, 1},
           glm::vec4{diffuse.r, diffuse.g, diffuse.b, alpha}, glossiness,
           roughness, metallic, transmission, ior);
       material->setTextures(baseColorTexture, roughnessTexture, normalTexture,
-                            metallicTexture, emissionTexture);
+                            metallicTexture, emissionTexture,
+                            transmissionTexture);
       materials.push_back(material);
     }
 

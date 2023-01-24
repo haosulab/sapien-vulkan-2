@@ -688,6 +688,8 @@ void Scene::createRTStorageBuffers(
   uint32_t roughnessOffset =
       textureIndexBufferLayout.elements.at("roughness").offset;
   uint32_t normalOffset = textureIndexBufferLayout.elements.at("normal").offset;
+  uint32_t transmissionOffset =
+      textureIndexBufferLayout.elements.at("transmission").offset;
 
   auto objects = getVisibleObjects();
 
@@ -722,9 +724,9 @@ void Scene::createRTStorageBuffers(
         materials.push_back(mat);
 
         std::array matTextures{
-            mat->getEmissionTexture(), mat->getDiffuseTexture(),
-            mat->getNormalTexture(), mat->getMetallicTexture(),
-            mat->getRoughnessTexture()};
+            mat->getEmissionTexture(),  mat->getDiffuseTexture(),
+            mat->getNormalTexture(),    mat->getMetallicTexture(),
+            mat->getRoughnessTexture(), mat->getTransmissionTexture()};
         for (auto tex : matTextures) {
           if (tex && !texture2Id.contains(tex)) {
             texture2Id[tex] = textureCount++;
@@ -762,12 +764,14 @@ void Scene::createRTStorageBuffers(
     auto normalTex = mat->getNormalTexture();
     auto metallicTex = mat->getMetallicTexture();
     auto roughnessTex = mat->getRoughnessTexture();
+    auto transmissionTex = mat->getTransmissionTexture();
 
     int emissionId = emissionTex ? texture2Id.at(emissionTex) : -1;
     int diffuseId = diffuseTex ? texture2Id.at(diffuseTex) : -1;
     int normalId = normalTex ? texture2Id.at(normalTex) : -1;
     int metallicId = metallicTex ? texture2Id.at(metallicTex) : -1;
     int roughnessId = roughnessTex ? texture2Id.at(roughnessTex) : -1;
+    int transmissionId = transmissionTex ? texture2Id.at(transmissionTex) : -1;
 
     std::memcpy(textureIndexBuffer.data() + materialIndex * textureIndexSize +
                     emissionOffset,
@@ -784,6 +788,9 @@ void Scene::createRTStorageBuffers(
     std::memcpy(textureIndexBuffer.data() + materialIndex * textureIndexSize +
                     roughnessOffset,
                 &roughnessId, sizeof(int));
+    std::memcpy(textureIndexBuffer.data() + materialIndex * textureIndexSize +
+                    transmissionOffset,
+                &transmissionId, sizeof(int));
 
     ++materialIndex;
   }
@@ -966,17 +973,17 @@ void Scene::updateRTResources() {
 
   // if (mRTResourcesRenderVersion != mRenderVersion) {
 
-    // make sure scene is not in use
-    if (mAccessFences.size()) {
-      if (core::Context::Get()->getDevice().waitForFences(
-              mAccessFences, VK_TRUE, UINT64_MAX) != vk::Result::eSuccess) {
-        throw std::runtime_error("failed to wait for scene access fence");
-      }
+  // make sure scene is not in use
+  if (mAccessFences.size()) {
+    if (core::Context::Get()->getDevice().waitForFences(
+            mAccessFences, VK_TRUE, UINT64_MAX) != vk::Result::eSuccess) {
+      throw std::runtime_error("failed to wait for scene access fence");
     }
+  }
 
-    updateTLAS();
-    updateRTStorageBuffers();
-    mRTResourcesRenderVersion = mRenderVersion;
+  updateTLAS();
+  updateRTStorageBuffers();
+  mRTResourcesRenderVersion = mRenderVersion;
 
   // }
 }

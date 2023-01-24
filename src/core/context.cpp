@@ -710,7 +710,8 @@ void Context::createDescriptorPool() {
     bindings.push_back(
         vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eUniformBuffer, 1,
                                        vk::ShaderStageFlagBits::eFragment));
-    for (uint32_t i = 0; i < 5; ++i) {
+    for (uint32_t i = 0; i < 6; ++i) {
+      // 6 textures
       bindings.push_back(vk::DescriptorSetLayoutBinding(
           i + 1, vk::DescriptorType::eCombinedImageSampler, 1,
           vk::ShaderStageFlagBits::eFragment));

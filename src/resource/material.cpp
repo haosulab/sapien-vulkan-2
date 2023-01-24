@@ -50,8 +50,9 @@ SVMetallicMaterial::SVMetallicMaterial(glm::vec4 emission, glm::vec4 baseColor,
                                        float fresnel, float roughness,
                                        float metallic, float transparency,
                                        float ior, float transmissionRoughness) {
-  mBuffer = {emission,     baseColor, fresnel, roughness, metallic,
-             transparency, ior,       transmissionRoughness,     0};
+  mBuffer = {emission, baseColor,    fresnel, roughness,
+             metallic, transparency, ior,     transmissionRoughness,
+             0};
 #ifdef TRACK_ALLOCATION
   mMaterialId = gMaterialId++;
   log::info("Create Material {}; Total {}", mMaterialId, ++gMaterialCount);
@@ -123,47 +124,54 @@ float SVMetallicMaterial::getTransmissionRoughness() const {
 }
 
 std::shared_ptr<SVTexture> SVMetallicMaterial::getDiffuseTexture() const {
-  if ((mBuffer.textureMask & 1) == 0) {
+  if (getBit(mBuffer.textureMask, TextureBit::eBaseColor) == 0) {
     return nullptr;
   }
   return mBaseColorTexture;
 }
 
 std::shared_ptr<SVTexture> SVMetallicMaterial::getRoughnessTexture() const {
-  if ((mBuffer.textureMask & 2) == 0) {
+  if (getBit(mBuffer.textureMask, TextureBit::eRoughness) == 0) {
     return nullptr;
   }
   return mRoughnessTexture;
 }
 
 std::shared_ptr<SVTexture> SVMetallicMaterial::getNormalTexture() const {
-  if ((mBuffer.textureMask & 4) == 0) {
+  if (getBit(mBuffer.textureMask, TextureBit::eNormal) == 0) {
     return nullptr;
   }
   return mNormalTexture;
 }
 
 std::shared_ptr<SVTexture> SVMetallicMaterial::getMetallicTexture() const {
-  if ((mBuffer.textureMask & 8) == 0) {
+  if (getBit(mBuffer.textureMask, TextureBit::eMetallic) == 0) {
     return nullptr;
   }
   return mMetallicTexture;
 }
 
 std::shared_ptr<SVTexture> SVMetallicMaterial::getEmissionTexture() const {
-  if ((mBuffer.textureMask & 16) == 0) {
+  if (getBit(mBuffer.textureMask, TextureBit::eEmission) == 0) {
     return nullptr;
   }
   return mEmissionTexture;
+}
+
+std::shared_ptr<SVTexture> SVMetallicMaterial::getTransmissionTexture() const {
+  if (getBit(mBuffer.textureMask, TextureBit::eTransmission) == 0) {
+    return nullptr;
+  }
+  return mTransmissionTexture;
 }
 
 void SVMetallicMaterial::setDiffuseTexture(std::shared_ptr<SVTexture> texture) {
   mRequiresTextureUpload = true;
   mBaseColorTexture = texture;
   if (mBaseColorTexture) {
-    setBit(mBuffer.textureMask, 0);
+    setBit(mBuffer.textureMask, TextureBit::eBaseColor);
   } else {
-    unsetBit(mBuffer.textureMask, 0);
+    unsetBit(mBuffer.textureMask, TextureBit::eBaseColor);
   }
 }
 void SVMetallicMaterial::setRoughnessTexture(
@@ -171,9 +179,9 @@ void SVMetallicMaterial::setRoughnessTexture(
   mRequiresTextureUpload = true;
   mRoughnessTexture = texture;
   if (mRoughnessTexture) {
-    setBit(mBuffer.textureMask, 1);
+    setBit(mBuffer.textureMask, TextureBit::eRoughness);
   } else {
-    unsetBit(mBuffer.textureMask, 1);
+    unsetBit(mBuffer.textureMask, TextureBit::eRoughness);
   }
 }
 
@@ -181,9 +189,9 @@ void SVMetallicMaterial::setNormalTexture(std::shared_ptr<SVTexture> texture) {
   mRequiresTextureUpload = true;
   mNormalTexture = texture;
   if (mNormalTexture) {
-    setBit(mBuffer.textureMask, 2);
+    setBit(mBuffer.textureMask, TextureBit::eNormal);
   } else {
-    unsetBit(mBuffer.textureMask, 2);
+    unsetBit(mBuffer.textureMask, TextureBit::eNormal);
   }
 }
 
@@ -192,9 +200,9 @@ void SVMetallicMaterial::setMetallicTexture(
   mRequiresTextureUpload = true;
   mMetallicTexture = texture;
   if (mMetallicTexture) {
-    setBit(mBuffer.textureMask, 3);
+    setBit(mBuffer.textureMask, TextureBit::eMetallic);
   } else {
-    unsetBit(mBuffer.textureMask, 3);
+    unsetBit(mBuffer.textureMask, TextureBit::eMetallic);
   }
 }
 
@@ -202,10 +210,21 @@ void SVMetallicMaterial::setEmissionTexture(
     std::shared_ptr<SVTexture> texture) {
   mRequiresTextureUpload = true;
   mEmissionTexture = texture;
-  if (mMetallicTexture) {
-    setBit(mBuffer.textureMask, 4);
+  if (mEmissionTexture) {
+    setBit(mBuffer.textureMask, TextureBit::eEmission);
   } else {
-    unsetBit(mBuffer.textureMask, 4);
+    unsetBit(mBuffer.textureMask, TextureBit::eEmission);
+  }
+}
+
+void SVMetallicMaterial::setTransmissionTexture(
+    std::shared_ptr<SVTexture> texture) {
+  mRequiresTextureUpload = true;
+  mTransmissionTexture = texture;
+  if (mTransmissionTexture) {
+    setBit(mBuffer.textureMask, TextureBit::eTransmission);
+  } else {
+    unsetBit(mBuffer.textureMask, TextureBit::eTransmission);
   }
 }
 
@@ -214,7 +233,8 @@ void SVMetallicMaterial::setTextures(
     std::shared_ptr<SVTexture> roughnessTexture,
     std::shared_ptr<SVTexture> normalTexture,
     std::shared_ptr<SVTexture> metallicTexture,
-    std::shared_ptr<SVTexture> emissionTexture) {
+    std::shared_ptr<SVTexture> emissionTexture,
+    std::shared_ptr<SVTexture> transmissionTexture) {
   mRequiresTextureUpload = true;
 
   mBaseColorTexture = baseColorTexture;
@@ -222,35 +242,42 @@ void SVMetallicMaterial::setTextures(
   mNormalTexture = normalTexture;
   mMetallicTexture = metallicTexture;
   mEmissionTexture = emissionTexture;
+  mTransmissionTexture = transmissionTexture;
 
   if (mBaseColorTexture) {
-    setBit(mBuffer.textureMask, 0);
+    setBit(mBuffer.textureMask, TextureBit::eBaseColor);
   } else {
-    unsetBit(mBuffer.textureMask, 0);
+    unsetBit(mBuffer.textureMask, TextureBit::eBaseColor);
   }
 
   if (mRoughnessTexture) {
-    setBit(mBuffer.textureMask, 1);
+    setBit(mBuffer.textureMask, TextureBit::eRoughness);
   } else {
-    unsetBit(mBuffer.textureMask, 1);
+    unsetBit(mBuffer.textureMask, TextureBit::eRoughness);
   }
 
   if (mNormalTexture) {
-    setBit(mBuffer.textureMask, 2);
+    setBit(mBuffer.textureMask, TextureBit::eNormal);
   } else {
-    unsetBit(mBuffer.textureMask, 2);
+    unsetBit(mBuffer.textureMask, TextureBit::eNormal);
   }
 
   if (mMetallicTexture) {
-    setBit(mBuffer.textureMask, 3);
+    setBit(mBuffer.textureMask, TextureBit::eMetallic);
   } else {
-    unsetBit(mBuffer.textureMask, 3);
+    unsetBit(mBuffer.textureMask, TextureBit::eMetallic);
   }
 
   if (mEmissionTexture) {
-    setBit(mBuffer.textureMask, 4);
+    setBit(mBuffer.textureMask, TextureBit::eEmission);
   } else {
-    unsetBit(mBuffer.textureMask, 4);
+    unsetBit(mBuffer.textureMask, TextureBit::eEmission);
+  }
+
+  if (mTransmissionTexture) {
+    setBit(mBuffer.textureMask, TextureBit::eTransmission);
+  } else {
+    unsetBit(mBuffer.textureMask, TextureBit::eTransmission);
   }
 }
 
@@ -327,6 +354,15 @@ void SVMetallicMaterial::uploadToDevice() {
       textures.push_back(
           {defaultTexture->getImageView(), defaultTexture->getSampler()});
     }
+    if (mTransmissionTexture) {
+      mTransmissionTexture->uploadToDevice();
+      textures.push_back({mTransmissionTexture->getImageView(),
+                          mTransmissionTexture->getSampler()});
+    } else {
+      defaultTexture->uploadToDevice();
+      textures.push_back(
+          {defaultTexture->getImageView(), defaultTexture->getSampler()});
+    }
     updateDescriptorSets(mContext->getDevice(), mDescriptorSet.get(),
                          {{vk::DescriptorType::eUniformBuffer,
                            mDeviceBuffer->getVulkanBuffer(), nullptr}},
@@ -361,6 +397,9 @@ void SVMetallicMaterial::removeFromDevice() {
   }
   if (mEmissionTexture) {
     mEmissionTexture->removeFromDevice();
+  }
+  if (mTransmissionTexture) {
+    mTransmissionTexture->removeFromDevice();
   }
 }
 

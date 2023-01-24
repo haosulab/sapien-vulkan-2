@@ -8,6 +8,7 @@ namespace resource {
 
 inline void setBit(int &number, int bit) { number |= 1 << bit; }
 inline void unsetBit(int &number, int bit) { number &= ~(1 << bit); }
+inline int getBit(int number, int bit) { return (number >> bit) & 1; }
 
 class SVMaterial {
 public:
@@ -34,6 +35,16 @@ protected:
 };
 
 class SVMetallicMaterial : public SVMaterial {
+
+  enum TextureBit {
+    eBaseColor = 0,
+    eRoughness = 1,
+    eNormal = 2,
+    eMetallic = 3,
+    eEmission = 4,
+    eTransmission = 5
+  };
+
   struct Buffer {
     glm::vec4 emission{};
     glm::vec4 baseColor{};
@@ -51,6 +62,7 @@ class SVMetallicMaterial : public SVMaterial {
   std::shared_ptr<SVTexture> mNormalTexture;
   std::shared_ptr<SVTexture> mMetallicTexture;
   std::shared_ptr<SVTexture> mEmissionTexture;
+  std::shared_ptr<SVTexture> mTransmissionTexture;
 
   std::unique_ptr<core::Buffer> mDeviceBuffer;
 
@@ -94,18 +106,21 @@ public:
   void setNormalTexture(std::shared_ptr<SVTexture> texture);
   void setMetallicTexture(std::shared_ptr<SVTexture> texture);
   void setEmissionTexture(std::shared_ptr<SVTexture> texture);
+  void setTransmissionTexture(std::shared_ptr<SVTexture> texture);
 
   std::shared_ptr<SVTexture> getDiffuseTexture() const;
   std::shared_ptr<SVTexture> getRoughnessTexture() const;
   std::shared_ptr<SVTexture> getNormalTexture() const;
   std::shared_ptr<SVTexture> getMetallicTexture() const;
   std::shared_ptr<SVTexture> getEmissionTexture() const;
+  std::shared_ptr<SVTexture> getTransmissionTexture() const;
 
   void setTextures(std::shared_ptr<SVTexture> baseColorTexture,
                    std::shared_ptr<SVTexture> roughnessTexture,
                    std::shared_ptr<SVTexture> normalTexture,
                    std::shared_ptr<SVTexture> metallicTexture,
-                   std::shared_ptr<SVTexture> emissionTexture);
+                   std::shared_ptr<SVTexture> emissionTexture,
+                   std::shared_ptr<SVTexture> transmissionTexture);
 
   void uploadToDevice() override;
   void removeFromDevice() override;
