@@ -81,7 +81,8 @@ void SVPrimitiveSet::uploadToDevice() {
         vk::BufferUsageFlagBits::eVertexBuffer |
             vk::BufferUsageFlagBits::eTransferDst |
             vk::BufferUsageFlagBits::eTransferSrc,
-        VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY);
+        VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags{},
+        true);
   }
   mVertexBuffer->upload(buffer.data(), bufferSize);
   mOnDevice = true;
