@@ -135,7 +135,7 @@ std::future<void> SVModel::loadAsync() {
         auto mat = std::dynamic_pointer_cast<SVMetallicMaterial>(s->material);
         auto newMat = std::make_shared<SVMetallicMaterial>(
             mat->getEmission(), mat->getBaseColor(), mat->getFresnel(),
-            mat->getRoughness(), mat->getMetallic(), 0);
+            mat->getRoughness(), mat->getMetallic(), mat->getTransmission(), mat->getIor());
         newMat->setTextures(mat->getDiffuseTexture(),
                             mat->getRoughnessTexture(), mat->getNormalTexture(),
                             mat->getMetallicTexture(),
@@ -192,6 +192,8 @@ std::future<void> SVModel::loadAsync() {
 
       float alpha = 1.f;
       float metallic = 0.f;
+      float transmission = 0.f;
+      float ior = 1.01f;
 
       float roughness = 1.f;
 
@@ -240,6 +242,13 @@ std::future<void> SVModel::loadAsync() {
           normalizedShininess = normalizedShininess * specularIntensity;
           roughness = 1 - normalizedShininess;
         }
+      }
+
+      if (m->Get(AI_MATKEY_TRANSMISSION_FACTOR, transmission) != AI_SUCCESS) {
+        transmission = 0.f;
+      }
+      if (m->Get(AI_MATKEY_REFRACTI, ior) != AI_SUCCESS) {
+        ior = 1.01f;
       }
 
       // if (m->Get(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_ROUGHNESS_FACTOR,
@@ -404,7 +413,7 @@ std::future<void> SVModel::loadAsync() {
       auto material = std::make_shared<SVMetallicMaterial>(
           glm::vec4{emission.r, emission.g, emission.b, 1},
           glm::vec4{diffuse.r, diffuse.g, diffuse.b, alpha}, glossiness,
-          roughness, metallic, 0);
+          roughness, metallic, transmission, ior);
       material->setTextures(baseColorTexture, roughnessTexture, normalTexture,
                             metallicTexture, emissionTexture);
       materials.push_back(material);
