@@ -55,7 +55,7 @@ public:
 
   static std::shared_ptr<SVTexture> FromImage(std::shared_ptr<SVImage> image,
                                               vk::UniqueImageView imageView,
-                                              vk::UniqueSampler sampler);
+                                              vk::Sampler sampler);
 
   void uploadToDevice();
   void removeFromDevice();
@@ -70,7 +70,7 @@ public:
 
   inline std::shared_ptr<SVImage> getImage() const { return mImage; }
   inline vk::ImageView getImageView() const { return mImageView.get(); }
-  inline vk::Sampler getSampler() const { return mSampler.get(); }
+  inline vk::Sampler getSampler() const { return mSampler; }
 
   SVTexture(SVTexture const &other) = delete;
   SVTexture &operator=(SVTexture const &other) = delete;
@@ -89,7 +89,7 @@ private:
 
   bool mOnDevice{};
   vk::UniqueImageView mImageView{};
-  vk::UniqueSampler mSampler{};
+  vk::Sampler mSampler{};
 
   bool mLoaded{};
 

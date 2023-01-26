@@ -160,7 +160,7 @@ void Renderer::prepareShadowRenderTargets() {
           vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eDepth, 0, 1, 0,
                                     6));
       auto imageView = mContext->getDevice().createImageViewUnique(viewInfo);
-      auto sampler = mContext->getDevice().createSamplerUnique(
+      auto sampler = mContext->createSampler(
           vk::SamplerCreateInfo({}, vk::Filter::eNearest, vk::Filter::eNearest,
                                 vk::SamplerMipmapMode::eNearest,
                                 vk::SamplerAddressMode::eClampToBorder,
@@ -171,7 +171,7 @@ void Renderer::prepareShadowRenderTargets() {
       mPointShadowReadTargets.push_back(
           std::make_shared<resource::SVRenderTarget>(
               "PointShadow", size, size, pointShadowImage, std::move(imageView),
-              std::move(sampler)));
+              sampler));
 
       // write targets
       for (uint32_t faceIndex = 0; faceIndex < 6; ++faceIndex) {
@@ -184,7 +184,7 @@ void Renderer::prepareShadowRenderTargets() {
         mPointShadowWriteTargets.push_back(
             std::make_shared<resource::SVRenderTarget>(
                 "PointShadow", size, size, pointShadowImage,
-                std::move(imageView), vk::UniqueSampler{}));
+                std::move(imageView), vk::Sampler{}));
       }
     }
   }
@@ -214,7 +214,7 @@ void Renderer::prepareShadowRenderTargets() {
                                       1));
         auto imageView = mContext->getDevice().createImageViewUnique(viewInfo);
         auto sampler =
-            mContext->getDevice().createSamplerUnique(vk::SamplerCreateInfo(
+            mContext->createSampler(vk::SamplerCreateInfo(
                 {}, vk::Filter::eNearest, vk::Filter::eNearest,
                 vk::SamplerMipmapMode::eNearest,
                 vk::SamplerAddressMode::eClampToBorder,
@@ -225,7 +225,7 @@ void Renderer::prepareShadowRenderTargets() {
         mDirectionalShadowReadTargets.push_back(
             std::make_shared<resource::SVRenderTarget>(
                 "DirectionalShadow", size, size, directionalShadowImage,
-                std::move(imageView), std::move(sampler)));
+                std::move(imageView), sampler));
       }
 
       {
@@ -238,7 +238,7 @@ void Renderer::prepareShadowRenderTargets() {
         mDirectionalShadowWriteTargets.push_back(
             std::make_shared<resource::SVRenderTarget>(
                 "DirectionalShadow", size, size, directionalShadowImage,
-                std::move(imageView), vk::UniqueSampler{}));
+                std::move(imageView), vk::Sampler{}));
       }
     }
   }
@@ -268,7 +268,7 @@ void Renderer::prepareShadowRenderTargets() {
                                       1));
         auto imageView = mContext->getDevice().createImageViewUnique(viewInfo);
         auto sampler =
-            mContext->getDevice().createSamplerUnique(vk::SamplerCreateInfo(
+            mContext->createSampler(vk::SamplerCreateInfo(
                 {}, vk::Filter::eNearest, vk::Filter::eNearest,
                 vk::SamplerMipmapMode::eNearest,
                 vk::SamplerAddressMode::eClampToBorder,
@@ -279,7 +279,7 @@ void Renderer::prepareShadowRenderTargets() {
         mSpotShadowReadTargets.push_back(
             std::make_shared<resource::SVRenderTarget>(
                 "SpotShadow", size, size, shadowImage, std::move(imageView),
-                std::move(sampler)));
+                sampler));
       }
       {
         vk::ImageViewCreateInfo viewInfo(
@@ -291,7 +291,7 @@ void Renderer::prepareShadowRenderTargets() {
         mSpotShadowWriteTargets.push_back(
             std::make_shared<resource::SVRenderTarget>(
                 "SpotShadow", size, size, shadowImage, std::move(imageView),
-                vk::UniqueSampler{}));
+                vk::Sampler{}));
       }
     }
   }
@@ -321,7 +321,7 @@ void Renderer::prepareShadowRenderTargets() {
                                       1));
         auto imageView = mContext->getDevice().createImageViewUnique(viewInfo);
         auto sampler =
-            mContext->getDevice().createSamplerUnique(vk::SamplerCreateInfo(
+            mContext->createSampler(vk::SamplerCreateInfo(
                 {}, vk::Filter::eNearest, vk::Filter::eNearest,
                 vk::SamplerMipmapMode::eNearest,
                 vk::SamplerAddressMode::eClampToBorder,
@@ -332,7 +332,7 @@ void Renderer::prepareShadowRenderTargets() {
         mTexturedLightShadowReadTargets.push_back(
             std::make_shared<resource::SVRenderTarget>(
                 "TexturedLightShadow", size, size, shadowImage,
-                std::move(imageView), std::move(sampler)));
+                std::move(imageView), sampler));
       }
       {
         vk::ImageViewCreateInfo viewInfo(
@@ -344,7 +344,7 @@ void Renderer::prepareShadowRenderTargets() {
         mTexturedLightShadowWriteTargets.push_back(
             std::make_shared<resource::SVRenderTarget>(
                 "TexturedLightShadow", size, size, shadowImage,
-                std::move(imageView), vk::UniqueSampler{}));
+                std::move(imageView), vk::Sampler{}));
       }
     }
   }

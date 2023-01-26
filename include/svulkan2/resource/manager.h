@@ -163,8 +163,6 @@ private:
   vk::UniqueDescriptorSetLayout mTextureSetLayout;
   vk::UniqueDescriptorSet mTextureSet;
 
-  void allocateTextureResources();
-
   // all materials, used to form the big material buffer for ray tracing
   std::vector<std::weak_ptr<SVMetallicMaterial>> mAllMaterials;
   std::unique_ptr<core::Buffer> mMaterialBuffer;

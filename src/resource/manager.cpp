@@ -245,7 +245,7 @@ std::shared_ptr<SVTexture> SVResourceManager::generateBRDFLUT(uint32_t size) {
     return nullptr;
   }
   auto image = shader::generateBRDFLUT(512);
-  auto sampler = context->getDevice().createSamplerUnique(vk::SamplerCreateInfo(
+  auto sampler = context->createSampler(vk::SamplerCreateInfo(
       {}, vk::Filter::eLinear, vk::Filter::eLinear,
       vk::SamplerMipmapMode::eNearest, vk::SamplerAddressMode::eClampToEdge,
       vk::SamplerAddressMode::eClampToEdge,
@@ -259,7 +259,7 @@ std::shared_ptr<SVTexture> SVResourceManager::generateBRDFLUT(uint32_t size) {
                                     1)));
   return resource::SVTexture::FromImage(
       resource::SVImage::FromDeviceImage(std::move(image)), std::move(view),
-      std::move(sampler));
+      sampler);
 }
 
 // TODO: test this function
@@ -423,49 +423,6 @@ void SVResourceManager::releaseGPUResourcesUnsafe() {
       t->removeFromDevice();
     }
   }
-}
-
-void SVResourceManager::allocateTextureResources() {
-  auto context = core::Context::Get();
-  uint32_t size = mAllTextures.size();
-  if (!mTextureDescriptorPool) {
-    mTextureDescriptorPool = std::make_unique<core::DynamicDescriptorPool>(
-        std::vector<vk::DescriptorPoolSize>{
-            {vk::DescriptorType::eCombinedImageSampler, size}});
-  }
-  std::vector<vk::DescriptorSetLayoutBinding> bindings;
-
-  uint32_t bindingIndex = 3; // TODO: read that binding index from parsed shader
-
-  vk::DescriptorSetLayoutBinding binding{
-      bindingIndex, vk::DescriptorType::eCombinedImageSampler, size,
-      vk::ShaderStageFlagBits::eClosestHitKHR};
-  vk::DescriptorBindingFlags flag =
-      vk::DescriptorBindingFlagBits::ePartiallyBound;
-  vk::DescriptorSetLayoutBindingFlagsCreateInfo flagInfo{flag};
-  vk::DescriptorSetLayoutCreateInfo layoutInfo({}, binding, &flagInfo);
-
-  mTextureSetLayout =
-      context->getDevice().createDescriptorSetLayoutUnique(layoutInfo);
-  mTextureSet = mTextureDescriptorPool->allocateSet(mTextureSetLayout.get());
-
-  // TODO: upload all textures to device
-  std::vector<vk::DescriptorImageInfo> imageInfos;
-  for (auto &t : mAllTextures) {
-    if (auto tex = t.lock()) {
-      imageInfos.push_back(
-          vk::DescriptorImageInfo{tex->getSampler(), tex->getImageView(),
-                                  vk::ImageLayout::eShaderReadOnlyOptimal});
-    } else {
-      // FIXME: does this work?
-      imageInfos.push_back(vk::DescriptorImageInfo{});
-    }
-  }
-
-  vk::WriteDescriptorSet write(mTextureSet.get(), bindingIndex, 0,
-                               vk::DescriptorType::eCombinedImageSampler,
-                               imageInfos);
-  context->getDevice().updateDescriptorSets(write, nullptr);
 }
 
 } // namespace resource

@@ -84,7 +84,7 @@ void SVCubemap::uploadToDevice() {
 
   mImageView = mContext->getDevice().createImageViewUnique(viewInfo);
 
-  mSampler = mContext->getDevice().createSamplerUnique(vk::SamplerCreateInfo(
+  mSampler = mContext->createSampler(vk::SamplerCreateInfo(
       {}, mDescription.magFilter, mDescription.minFilter,
       vk::SamplerMipmapMode::eLinear, vk::SamplerAddressMode::eRepeat,
       vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat, 0.f,
@@ -109,7 +109,6 @@ void SVCubemap::uploadToDevice() {
 void SVCubemap::removeFromDevice() {
   mOnDevice = false;
   mImageView.reset();
-  mSampler.reset();
 }
 
 std::future<void> SVCubemap::loadAsync() {

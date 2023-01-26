@@ -736,6 +736,19 @@ Context::createTimelineSemaphore(uint64_t initialValue = 0) {
   return mDevice->createSemaphoreUnique(createInfo);
 }
 
+vk::Sampler Context::createSampler(vk::SamplerCreateInfo const &info) {
+  std::lock_guard<std::mutex> lock(mSamplerLock);
+  auto it = mSamplerRegistry.find(info);
+  if (it != mSamplerRegistry.end()) {
+    return it->second.get();
+  }
+  auto samplerUnique =
+      core::Context::Get()->getDevice().createSamplerUnique(info);
+  auto sampler = samplerUnique.get();
+  mSamplerRegistry[info] = std::move(samplerUnique);
+  return sampler;
+}
+
 std::unique_ptr<renderer::GuiWindow> Context::createWindow(uint32_t width,
                                                            uint32_t height) {
   if (!mVulkanAvailable) {
@@ -757,32 +770,6 @@ std::unique_ptr<renderer::GuiWindow> Context::createWindow(uint32_t width,
       vk::ColorSpaceKHR::eSrgbNonlinear, width, height,
       std::vector<vk::PresentModeKHR>{vk::PresentModeKHR::eMailbox}, 2);
 };
-
-// std::shared_ptr<resource::SVMetallicMaterial>
-// Context::createMetallicMaterial(glm::vec4 emission, glm::vec4 baseColor,
-//                                 float fresnel, float roughness, float
-//                                 metallic, float transparency) {
-//   return std::make_shared<resource::SVMetallicMaterial>(
-//       emission, baseColor, fresnel, roughness, metallic, transparency);
-// }
-
-// std::shared_ptr<resource::SVModel> Context::createModel(
-//     std::vector<std::shared_ptr<resource::SVMesh>> const &meshes,
-//     std::vector<std::shared_ptr<resource::SVMaterial>> const &materials) {
-//   if (meshes.size() != materials.size()) {
-//     throw std::runtime_error(
-//         "create model failed: meshes and materials must have the same
-//         size.");
-//   }
-//   std::vector<std::shared_ptr<resource::SVShape>> shapes;
-//   for (uint32_t i = 0; i < meshes.size(); ++i) {
-//     auto shape = std::make_shared<resource::SVShape>();
-//     shape->mesh = meshes[i];
-//     shape->material = materials[i];
-//     shapes.push_back(shape);
-//   }
-//   return resource::SVModel::FromData(shapes);
-// }
 
 std::shared_ptr<resource::SVMesh>
 Context::createTriangleMesh(std::vector<glm::vec3> const &vertices,

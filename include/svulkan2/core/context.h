@@ -88,6 +88,8 @@ public:
 
   vk::UniqueSemaphore createTimelineSemaphore(uint64_t initialValue);
 
+  vk::Sampler createSampler(vk::SamplerCreateInfo const &info);
+
 private:
   uint32_t mApiVersion;
   bool mVulkanAvailable;
@@ -130,6 +132,9 @@ private:
   void createMemoryAllocator();
 
   void createDescriptorPool();
+
+  std::mutex mSamplerLock{};
+  std::map<vk::SamplerCreateInfo, vk::UniqueSampler> mSamplerRegistry;
 
   std::vector<PhysicalDeviceInfo>
   summarizeDeviceInfo(VkSurfaceKHR tmpSurface = nullptr);

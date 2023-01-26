@@ -32,7 +32,7 @@ class SVCubemap {
 
   bool mOnDevice{};
   vk::UniqueImageView mImageView;
-  vk::UniqueSampler mSampler;
+  vk::Sampler mSampler;
 
   bool mLoaded{};
 
@@ -70,7 +70,7 @@ public:
 
   inline std::shared_ptr<SVImage> getImage() const { return mImage; }
   inline vk::ImageView getImageView() const { return mImageView.get(); }
-  inline vk::Sampler getSampler() const { return mSampler.get(); }
+  inline vk::Sampler getSampler() const { return mSampler; }
 
   void exportKTX(std::string const &filename);
 

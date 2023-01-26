@@ -17,7 +17,7 @@ class SVRenderTarget {
 
   std::shared_ptr<core::Image> mImage{};
   vk::UniqueImageView mImageView;
-  vk::UniqueSampler mSampler;
+  vk::Sampler mSampler;
 
   bool mOnDevice{};
 
@@ -27,7 +27,7 @@ public:
 
   SVRenderTarget(std::string const &name, uint32_t width, uint32_t height,
                  std::shared_ptr<core::Image> image,
-                 vk::UniqueImageView imageView, vk::UniqueSampler sampler);
+                 vk::UniqueImageView imageView, vk::Sampler sampler);
 
   void createDeviceResources();
   template <typename T> std::vector<T> download() {
@@ -39,7 +39,7 @@ public:
 
   inline core::Image &getImage() const { return *mImage; }
   inline vk::ImageView getImageView() const { return mImageView.get(); };
-  inline vk::Sampler getSampler() const { return mSampler.get(); };
+  inline vk::Sampler getSampler() const { return mSampler; };
   inline vk::Format getFormat() { return mFormat; };
 };
 

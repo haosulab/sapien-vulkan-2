@@ -68,13 +68,13 @@ SVTexture::FromData(uint32_t width, uint32_t height, uint32_t channels,
 
 std::shared_ptr<SVTexture> SVTexture::FromImage(std::shared_ptr<SVImage> image,
                                                 vk::UniqueImageView imageView,
-                                                vk::UniqueSampler sampler) {
+                                                vk::Sampler sampler) {
   auto texture = std::shared_ptr<SVTexture>(new SVTexture);
   texture->mContext = core::Context::Get();
   texture->mDescription = {.source = SVTextureDescription::SourceType::eCUSTOM};
   texture->mImage = image;
   texture->mImageView = std::move(imageView);
-  texture->mSampler = std::move(sampler);
+  texture->mSampler = sampler;
   texture->mLoaded = true;
   return texture;
 }
@@ -107,7 +107,7 @@ void SVTexture::uploadToDevice() {
                                       mDescription.mipLevels, 0, 1)));
   }
   if (!mSampler) {
-    mSampler = mContext->getDevice().createSamplerUnique(vk::SamplerCreateInfo(
+    mSampler = mContext->createSampler(vk::SamplerCreateInfo(
         {}, mDescription.magFilter, mDescription.minFilter,
         vk::SamplerMipmapMode::eLinear, mDescription.addressModeU,
         mDescription.addressModeV, vk::SamplerAddressMode::eRepeat, 0.f, false,
@@ -121,7 +121,6 @@ void SVTexture::uploadToDevice() {
 void SVTexture::removeFromDevice() {
   mOnDevice = false;
   mImageView.reset();
-  mSampler.reset();
 }
 
 std::future<void> SVTexture::loadAsync() {
