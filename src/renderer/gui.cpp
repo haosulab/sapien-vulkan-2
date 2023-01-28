@@ -41,6 +41,11 @@ static vk::UniqueRenderPass createImguiRenderPass(vk::Device device,
   return device.createRenderPassUnique(info);
 }
 
+static void windowCallback(GLFWwindow *window, int count, const char **paths) {
+  static_cast<GuiWindow *>(glfwGetWindowUserPointer(window))
+      ->dropCallback(count, paths);
+}
+
 GuiWindow::GuiWindow(std::vector<vk::Format> const &requestFormats,
                      vk::ColorSpaceKHR requestColorSpace, uint32_t width,
                      uint32_t height,
@@ -285,7 +290,26 @@ void GuiWindow::createGlfwWindow(uint32_t width, uint32_t height) {
     throw std::runtime_error("create window failed: graphics device does not "
                              "have present capability");
   }
+
+  glfwSetWindowUserPointer(mWindow, this);
+  glfwSetDropCallback(mWindow, windowCallback);
 }
+
+void GuiWindow::dropCallback(int count, const char **paths) {
+  std::vector<std::string> v;
+  for (int i = 0; i < count; ++i) {
+    v.push_back(paths[i]);
+  }
+  if (mDropCallback) {
+    mDropCallback(v);
+  }
+}
+
+void GuiWindow::setDropCallback(
+    std::function<void(std::vector<std::string>)> callback) {
+  mDropCallback = callback;
+}
+void GuiWindow::unsetDropCallback() { mDropCallback = {}; }
 
 void GuiWindow::selectSurfaceFormat(
     std::vector<vk::Format> const &requestFormats,
@@ -369,8 +393,9 @@ bool GuiWindow::recreateSwapchain(uint32_t w, uint32_t h) {
       mContext->getPhysicalDevice().getSurfaceCapabilitiesKHR(mSurface.get());
   if (cap.minImageExtent.width > w || cap.maxImageExtent.width < w ||
       cap.minImageExtent.height > h || cap.maxImageExtent.height < h) {
-    log::info("swapchain create ignored: requested size ({}, {}); available {}-{}, {}-{}", w, h,
-              cap.minImageExtent.width, cap.maxImageExtent.width,
+    log::info("swapchain create ignored: requested size ({}, {}); available "
+              "{}-{}, {}-{}",
+              w, h, cap.minImageExtent.width, cap.maxImageExtent.width,
               cap.minImageExtent.height, cap.maxImageExtent.height);
     return false;
   }

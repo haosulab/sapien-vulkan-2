@@ -62,6 +62,8 @@ class GuiWindow {
 
   ImVec2 mMouseWheelDelta{0, 0};
 
+  std::function<void(std::vector<std::string>)> mDropCallback{};
+
 public:
   [[nodiscard]] inline vk::SwapchainKHR getSwapchain() const {
     return mSwapchain.get();
@@ -73,6 +75,10 @@ public:
   [[nodiscard]] inline uint32_t getHeight() const { return mHeight; }
   [[nodiscard]] inline uint32_t getFrameIndex() const { return mFrameIndex; }
   [[nodiscard]] inline float getContentScale() const { return mContentScale; }
+
+  void dropCallback(int count, const char **paths);
+  void setDropCallback(std::function<void(std::vector<std::string>)> callback);
+  void unsetDropCallback();
 
 public:
   /** Acquire new frame, poll events, call ImGui NewFrame */
