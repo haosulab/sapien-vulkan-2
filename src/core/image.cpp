@@ -464,8 +464,6 @@ void Image::download(void *data, size_t size, vk::Offset3D offset,
   }
   EASY_END_BLOCK;
 
-  setCurrentLayout(vk::ImageLayout::eTransferSrcOptimal);
-
   EASY_BLOCK("Copy data to CPU");
   std::memcpy(data, stagingBuffer->map(), size);
   stagingBuffer->unmap();
