@@ -45,6 +45,7 @@ public:
   static std::shared_ptr<SVMesh> CreateCone(int segments);
   static std::shared_ptr<SVMesh> CreateCube();
   static std::shared_ptr<SVMesh> CreateYZPlane();
+  static std::shared_ptr<SVMesh> CreateCylinder(int segments);
   static std::shared_ptr<SVMesh> Create(std::vector<float> const &position,
                                         std::vector<uint32_t> const &index);
 

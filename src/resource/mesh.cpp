@@ -510,6 +510,65 @@ std::shared_ptr<SVMesh> SVMesh::CreateYZPlane() {
   return makeMesh(vertices, indices, normals, uvs);
 }
 
+std::shared_ptr<SVMesh> SVMesh::CreateCylinder(int segments) {
+  std::vector<glm::vec3> vertices;
+  std::vector<glm::vec3> normals;
+  std::vector<glm::vec2> uvs;
+  std::vector<glm::ivec3> indices;
+
+  // circle 1
+  vertices.push_back({1.f, 0.f, 0.f});
+  normals.push_back({1.f, 0.f, 0.f});
+  uvs.push_back({0, 0}); // TODO
+  float step = glm::pi<float>() * 2.f / segments;
+  for (int i = 0; i < segments; ++i) {
+    vertices.push_back({1.f, glm::cos(step * i), glm::sin(step * i)});
+    normals.push_back({1.f, 0.f, 0.f});
+    uvs.push_back({0, 0}); // TODO
+  }
+  for (int i = 0; i < segments; ++i) {
+    indices.push_back({0, i + 1, (i + 1) % segments + 1});
+  }
+
+  // circle 2
+  vertices.push_back({-1.f, 0.f, 0.f});
+  normals.push_back({-1.f, 0.f, 0.f});
+  uvs.push_back({0, 0}); // TODO
+  for (int i = 0; i < segments; ++i) {
+    vertices.push_back({-1.f, glm::cos(step * i), glm::sin(step * i)});
+    normals.push_back({-1.f, 0.f, 0.f});
+    uvs.push_back({0, 0}); // TODO
+  }
+  for (int i = 0; i < segments; ++i) {
+    indices.push_back(
+        {segments + 1, i + segments + 2, (i + 1) % segments + segments + 2});
+  }
+
+  int base = segments * 2 + 2;
+  // make 2 rings
+  for (int i = 0; i < segments; ++i) {
+    vertices.push_back({1.f, glm::cos(step * i), glm::sin(step * i)});
+    normals.push_back({0.f, glm::cos(step * i), glm::sin(step * i)});
+    uvs.push_back({0, 0}); // TODO
+  }
+
+  for (int i = 0; i < segments; ++i) {
+    vertices.push_back({-1.f, glm::cos(step * i), glm::sin(step * i)});
+    normals.push_back({0.f, glm::cos(step * i), glm::sin(step * i)});
+    uvs.push_back({0, 0}); // TODO
+  }
+
+  // connect 2 rings
+  for (int i = 0; i < segments; ++i) {
+    indices.push_back(
+        {base + i, base + i + segments, base + (i + 1) % segments});
+    indices.push_back({base + (i + 1) % segments, base + i + segments,
+                       base + segments + (i + 1) % segments});
+  }
+
+  return makeMesh(vertices, indices, normals, uvs);
+}
+
 std::shared_ptr<SVMesh> SVMesh::Create(std::vector<float> const &position,
                                        std::vector<uint32_t> const &index) {
   auto mesh = std::make_shared<SVMesh>();
