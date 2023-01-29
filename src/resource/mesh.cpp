@@ -541,7 +541,7 @@ std::shared_ptr<SVMesh> SVMesh::CreateCylinder(int segments) {
   }
   for (int i = 0; i < segments; ++i) {
     indices.push_back(
-        {segments + 1, i + segments + 2, (i + 1) % segments + segments + 2});
+        {segments + 1, (i + 1) % segments + segments + 2, i + segments + 2});
   }
 
   int base = segments * 2 + 2;
