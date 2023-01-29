@@ -363,6 +363,28 @@ std::future<void> SVModel::loadAsync() {
         }
       }
 
+      if (m->GetTextureCount(aiTextureType_EMISSIVE) > 0 &&
+          m->GetTexture(aiTextureType_EMISSIVE, 0, &path) == AI_SUCCESS) {
+        if (core::Context::Get()->shouldNotLoadTexture()) {
+          log::info("Texture ignored {}", path.C_Str());
+        } else {
+          if (auto texture = scene->GetEmbeddedTexture(path.C_Str())) {
+            if (textureCache.contains(std::string(path.C_Str()))) {
+              emissionTexture = textureCache[std::string(path.C_Str())];
+            } else {
+              log::info("Loading embeded texture {}", path.C_Str());
+              textureCache[std::string(path.C_Str())] = emissionTexture =
+                  loadEmbededTexture(texture, MIP_LEVEL);
+            }
+          } else {
+            std::string p = std::string(path.C_Str());
+            std::string fullPath = (parentDir / p).string();
+            emissionTexture = manager->CreateTextureFromFile(fullPath, MIP_LEVEL);
+            futures.push_back(emissionTexture->loadAsync());
+          }
+        }
+      }
+
       if (m->GetTextureCount(aiTextureType_DIFFUSE_ROUGHNESS) > 0 &&
           m->GetTexture(aiTextureType_DIFFUSE_ROUGHNESS, 0, &path) ==
               AI_SUCCESS) {
