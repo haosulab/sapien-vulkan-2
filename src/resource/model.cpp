@@ -374,12 +374,15 @@ std::future<void> SVModel::loadAsync() {
             } else {
               log::info("Loading embeded texture {}", path.C_Str());
               textureCache[std::string(path.C_Str())] = emissionTexture =
-                  loadEmbededTexture(texture, MIP_LEVEL);
+                  loadEmbededTexture(texture, MIP_LEVEL, 4, true);
             }
           } else {
             std::string p = std::string(path.C_Str());
             std::string fullPath = (parentDir / p).string();
-            emissionTexture = manager->CreateTextureFromFile(fullPath, MIP_LEVEL);
+            emissionTexture = manager->CreateTextureFromFile(
+                fullPath, MIP_LEVEL, vk::Filter::eLinear, vk::Filter::eLinear,
+                vk::SamplerAddressMode::eRepeat,
+                vk::SamplerAddressMode::eRepeat, true);
             futures.push_back(emissionTexture->loadAsync());
           }
         }
