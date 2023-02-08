@@ -60,7 +60,11 @@ SVMetallicMaterial::SVMetallicMaterial(glm::vec4 emission, glm::vec4 baseColor,
 }
 
 SVMetallicMaterial::~SVMetallicMaterial() {
-  removeFromDevice();
+  if (mContext) {
+    std::scoped_lock lock(mContext->getGlobalLock());
+    mDescriptorSet.reset();
+    mDeviceBuffer.reset();
+  }
 #ifdef TRACK_ALLOCATION
   log::info("Destroy Material {}, Total {}", mMaterialId, --gMaterialCount);
 #endif
