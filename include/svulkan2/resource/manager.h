@@ -82,7 +82,8 @@ public:
 
   std::shared_ptr<SVMetallicMaterial>
   createMetallicMaterial(glm::vec4 emission, glm::vec4 baseColor, float fresnel,
-                         float roughness, float metallic, float transparency);
+                         float roughness, float metallic, float transparency,
+                         float ior);
 
   std::shared_ptr<resource::SVModel> createModel(
       std::vector<std::shared_ptr<resource::SVMesh>> const &meshes,

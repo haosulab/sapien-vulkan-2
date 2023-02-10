@@ -10,7 +10,8 @@ namespace resource {
 
 class SVMesh {
 public:
-  SVMesh(bool dynamic = false);
+  SVMesh(bool dynamic = false, uint32_t vertexCapacity = 0,
+         uint32_t indexCapacity = 0);
 
   void setIndices(std::vector<uint32_t> const &indices);
   std::vector<uint32_t> const &getIndices() const;
@@ -51,6 +52,8 @@ public:
 
 private:
   bool mDynamic;
+  uint32_t mVertexCapacity;
+  uint32_t mIndexCapacity;
   std::vector<uint32_t> mIndices;
   uint32_t mIndexCount{};
   std::unordered_map<std::string, std::vector<float>> mAttributes;

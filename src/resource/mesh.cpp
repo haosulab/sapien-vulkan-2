@@ -7,7 +7,9 @@
 namespace svulkan2 {
 namespace resource {
 
-SVMesh::SVMesh(bool dynamic) : mDynamic(dynamic) {}
+SVMesh::SVMesh(bool dynamic, uint32_t vertexCapacity, uint32_t indexCapacity)
+    : mDynamic(dynamic), mVertexCapacity(vertexCapacity),
+      mIndexCapacity(indexCapacity) {}
 
 void SVMesh::setIndices(std::vector<uint32_t> const &indices) {
   if (indices.size() % 3 != 0) {
@@ -70,8 +72,26 @@ void SVMesh::uploadToDevice() {
 
   mVertexCount = mAttributes["position"].size() / 3;
   size_t vertexSize = layout->getSize();
-  size_t bufferSize = vertexSize * mVertexCount;
-  size_t indexBufferSize = sizeof(uint32_t) * mIndices.size();
+
+  if (mVertexCapacity == 0) {
+    mVertexCapacity = mVertexCount;
+  }
+
+  if (mIndexCapacity == 0) {
+    mIndexCapacity = mIndices.size();
+  }
+
+  if (mVertexCapacity < mVertexCount) {
+    throw std::runtime_error(
+        "failed to upload mesh: vertex count exceeds capacity");
+  }
+  if (mIndexCapacity < mIndexCount) {
+    throw std::runtime_error(
+        "failed to upload mesh: index count exceeds capacity");
+  }
+
+  size_t bufferSize = vertexSize * mVertexCapacity;
+  size_t indexBufferSize = sizeof(uint32_t) * mIndexCapacity;
 
   std::vector<char> buffer(bufferSize, 0);
   auto elements = layout->getElementsSorted();
@@ -114,7 +134,7 @@ void SVMesh::uploadToDevice() {
         VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags{},
         true);
   }
-  mVertexBuffer->upload(buffer.data(), bufferSize);
+  mVertexBuffer->upload(buffer.data(), vertexSize * mVertexCount);
   mIndexBuffer->upload<uint32_t>(mIndices);
   mOnDevice = true;
   mDirty = false;

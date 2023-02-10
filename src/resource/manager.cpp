@@ -340,9 +340,9 @@ SVResourceManager::CreateModelFromFile(std::string const &filename) {
 
 std::shared_ptr<SVMetallicMaterial> SVResourceManager::createMetallicMaterial(
     glm::vec4 emission, glm::vec4 baseColor, float fresnel, float roughness,
-    float metallic, float transparency) {
+    float metallic, float transparency, float ior) {
   return std::make_shared<SVMetallicMaterial>(
-      emission, baseColor, fresnel, roughness, metallic, transparency);
+      emission, baseColor, fresnel, roughness, metallic, transparency, ior);
 }
 
 std::shared_ptr<resource::SVModel> SVResourceManager::createModel(
