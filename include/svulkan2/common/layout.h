@@ -205,4 +205,37 @@ inline void strided_memcpy(void *target, void *source, size_t chunk_size,
   }
 }
 
+struct SpecializationConstantValue {
+  DataType dtype;
+  union {
+    int intValue;
+    float floatValue;
+  };
+
+  bool operator==(SpecializationConstantValue const &other) const {
+    if (dtype != other.dtype) {
+      return false;
+    }
+    if (dtype == DataType::eINT) {
+      return intValue == other.intValue;
+    }
+    if (dtype == DataType::eFLOAT) {
+      return std::abs(floatValue - other.floatValue) < 1e-7;
+    }
+    return false;
+  }
+
+  SpecializationConstantValue &operator=(int value) {
+    dtype = DataType::eINT;
+    intValue = value;
+    return *this;
+  }
+
+  SpecializationConstantValue &operator=(float value) {
+    dtype = DataType::eFLOAT;
+    floatValue = value;
+    return *this;
+  }
+};
+
 }; // namespace svulkan2

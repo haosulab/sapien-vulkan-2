@@ -1,6 +1,11 @@
 #include "svulkan2/shader/shader_pack_instance.h"
 #include "svulkan2/common/launch_policy.h"
 #include "svulkan2/core/context.h"
+#include "svulkan2/shader/deferred.h"
+#include "svulkan2/shader/gbuffer.h"
+#include "svulkan2/shader/primitive.h"
+#include "svulkan2/shader/primitive_shadow.h"
+#include "svulkan2/shader/shadow.h"
 
 namespace svulkan2 {
 namespace shader {

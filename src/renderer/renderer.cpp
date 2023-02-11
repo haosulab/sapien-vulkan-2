@@ -1,5 +1,10 @@
 #include "svulkan2/renderer/renderer.h"
 #include "svulkan2/core/command_pool.h"
+#include "svulkan2/shader/deferred.h"
+#include "svulkan2/shader/gbuffer.h"
+#include "svulkan2/shader/primitive.h"
+#include "svulkan2/shader/primitive_shadow.h"
+#include "svulkan2/shader/shadow.h"
 #include <easy/profiler.h>
 
 namespace svulkan2 {
@@ -160,14 +165,13 @@ void Renderer::prepareShadowRenderTargets() {
           vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eDepth, 0, 1, 0,
                                     6));
       auto imageView = mContext->getDevice().createImageViewUnique(viewInfo);
-      auto sampler = mContext->createSampler(
-          vk::SamplerCreateInfo({}, vk::Filter::eNearest, vk::Filter::eNearest,
-                                vk::SamplerMipmapMode::eNearest,
-                                vk::SamplerAddressMode::eClampToBorder,
-                                vk::SamplerAddressMode::eClampToBorder,
-                                vk::SamplerAddressMode::eClampToBorder, 0.f,
-                                false, 0.f, false, vk::CompareOp::eNever, 0.f,
-                                0.f, vk::BorderColor::eFloatOpaqueWhite));
+      auto sampler = mContext->createSampler(vk::SamplerCreateInfo(
+          {}, vk::Filter::eNearest, vk::Filter::eNearest,
+          vk::SamplerMipmapMode::eNearest,
+          vk::SamplerAddressMode::eClampToBorder,
+          vk::SamplerAddressMode::eClampToBorder,
+          vk::SamplerAddressMode::eClampToBorder, 0.f, false, 0.f, false,
+          vk::CompareOp::eNever, 0.f, 0.f, vk::BorderColor::eFloatOpaqueWhite));
       mPointShadowReadTargets.push_back(
           std::make_shared<resource::SVRenderTarget>(
               "PointShadow", size, size, pointShadowImage, std::move(imageView),
@@ -213,15 +217,14 @@ void Renderer::prepareShadowRenderTargets() {
             vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eDepth, 0, 1, 0,
                                       1));
         auto imageView = mContext->getDevice().createImageViewUnique(viewInfo);
-        auto sampler =
-            mContext->createSampler(vk::SamplerCreateInfo(
-                {}, vk::Filter::eNearest, vk::Filter::eNearest,
-                vk::SamplerMipmapMode::eNearest,
-                vk::SamplerAddressMode::eClampToBorder,
-                vk::SamplerAddressMode::eClampToBorder,
-                vk::SamplerAddressMode::eClampToBorder, 0.f, false, 0.f, false,
-                vk::CompareOp::eNever, 0.f, 0.f,
-                vk::BorderColor::eFloatOpaqueWhite));
+        auto sampler = mContext->createSampler(vk::SamplerCreateInfo(
+            {}, vk::Filter::eNearest, vk::Filter::eNearest,
+            vk::SamplerMipmapMode::eNearest,
+            vk::SamplerAddressMode::eClampToBorder,
+            vk::SamplerAddressMode::eClampToBorder,
+            vk::SamplerAddressMode::eClampToBorder, 0.f, false, 0.f, false,
+            vk::CompareOp::eNever, 0.f, 0.f,
+            vk::BorderColor::eFloatOpaqueWhite));
         mDirectionalShadowReadTargets.push_back(
             std::make_shared<resource::SVRenderTarget>(
                 "DirectionalShadow", size, size, directionalShadowImage,
@@ -267,15 +270,14 @@ void Renderer::prepareShadowRenderTargets() {
             vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eDepth, 0, 1, 0,
                                       1));
         auto imageView = mContext->getDevice().createImageViewUnique(viewInfo);
-        auto sampler =
-            mContext->createSampler(vk::SamplerCreateInfo(
-                {}, vk::Filter::eNearest, vk::Filter::eNearest,
-                vk::SamplerMipmapMode::eNearest,
-                vk::SamplerAddressMode::eClampToBorder,
-                vk::SamplerAddressMode::eClampToBorder,
-                vk::SamplerAddressMode::eClampToBorder, 0.f, false, 0.f, false,
-                vk::CompareOp::eNever, 0.f, 0.f,
-                vk::BorderColor::eFloatOpaqueWhite));
+        auto sampler = mContext->createSampler(vk::SamplerCreateInfo(
+            {}, vk::Filter::eNearest, vk::Filter::eNearest,
+            vk::SamplerMipmapMode::eNearest,
+            vk::SamplerAddressMode::eClampToBorder,
+            vk::SamplerAddressMode::eClampToBorder,
+            vk::SamplerAddressMode::eClampToBorder, 0.f, false, 0.f, false,
+            vk::CompareOp::eNever, 0.f, 0.f,
+            vk::BorderColor::eFloatOpaqueWhite));
         mSpotShadowReadTargets.push_back(
             std::make_shared<resource::SVRenderTarget>(
                 "SpotShadow", size, size, shadowImage, std::move(imageView),
@@ -320,15 +322,14 @@ void Renderer::prepareShadowRenderTargets() {
             vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eDepth, 0, 1, 0,
                                       1));
         auto imageView = mContext->getDevice().createImageViewUnique(viewInfo);
-        auto sampler =
-            mContext->createSampler(vk::SamplerCreateInfo(
-                {}, vk::Filter::eNearest, vk::Filter::eNearest,
-                vk::SamplerMipmapMode::eNearest,
-                vk::SamplerAddressMode::eClampToBorder,
-                vk::SamplerAddressMode::eClampToBorder,
-                vk::SamplerAddressMode::eClampToBorder, 0.f, false, 0.f, false,
-                vk::CompareOp::eNever, 0.f, 0.f,
-                vk::BorderColor::eFloatOpaqueWhite));
+        auto sampler = mContext->createSampler(vk::SamplerCreateInfo(
+            {}, vk::Filter::eNearest, vk::Filter::eNearest,
+            vk::SamplerMipmapMode::eNearest,
+            vk::SamplerAddressMode::eClampToBorder,
+            vk::SamplerAddressMode::eClampToBorder,
+            vk::SamplerAddressMode::eClampToBorder, 0.f, false, 0.f, false,
+            vk::CompareOp::eNever, 0.f, 0.f,
+            vk::BorderColor::eFloatOpaqueWhite));
         mTexturedLightShadowReadTargets.push_back(
             std::make_shared<resource::SVRenderTarget>(
                 "TexturedLightShadow", size, size, shadowImage,

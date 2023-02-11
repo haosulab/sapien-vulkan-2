@@ -1,4 +1,6 @@
 #pragma once
+#include "svulkan2/common/config.h"
+#include "svulkan2/common/layout.h"
 #include "svulkan2/shader/shader_pack.h"
 #include <future>
 #include <map>

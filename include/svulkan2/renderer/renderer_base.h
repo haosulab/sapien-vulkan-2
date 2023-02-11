@@ -1,7 +1,7 @@
 #pragma once
 #include "svulkan2/core/context.h"
+#include "svulkan2/core/image.h"
 #include "svulkan2/scene/scene.h"
-#include "svulkan2/shader/rt.h"
 
 namespace svulkan2 {
 namespace renderer {

@@ -1,6 +1,7 @@
 #include "svulkan2/resource/manager.h"
 #include "svulkan2/core/context.h"
 #include "svulkan2/shader/compute.h"
+#include "svulkan2/shader/rt.h"
 #include <filesystem>
 #include <random>
 

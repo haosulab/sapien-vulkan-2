@@ -7,6 +7,7 @@
 #include "svulkan2/scene/scene.h"
 #include "svulkan2/shader/shader_pack_instance.h"
 #include <map>
+#include <unordered_set>
 
 namespace svulkan2 {
 namespace core {
@@ -86,8 +87,7 @@ class Renderer : public RendererBase {
   std::vector<vk::UniqueDescriptorSet> mInputTextureSets;
 
   bool mSpecializationConstantsChanged = true;
-  std::map<std::string, shader::SpecializationConstantValue>
-      mSpecializationConstants;
+  std::map<std::string, SpecializationConstantValue> mSpecializationConstants;
 
   bool mRequiresRecord{false};
   uint64_t mLastVersion{0};

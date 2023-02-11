@@ -1,3 +1,4 @@
+#include "camera_controller.hpp"
 #include "svulkan2/common/fs.h"
 #include "svulkan2/common/log.h"
 #include "svulkan2/core/context.h"
@@ -8,13 +9,11 @@
 #include "svulkan2/shader/compute.h"
 #include "svulkan2/shader/shader.h"
 #include "svulkan2/ui/ui.h"
+#include <chrono>
 #include <iostream>
 
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "camera_controller.hpp"
-#include <stb_image_write.h>
-
-#include <chrono>
+// #define STB_IMAGE_WRITE_IMPLEMENTATION
+// #include <stb_image_write.h>
 
 using namespace svulkan2;
 
@@ -283,7 +282,6 @@ int main() {
   // customLight.setShadowProjectionMatrix(math::perspective(0.7f, 1.f,
   // 0.1f, 5.f));
 
-
   auto flashlight = context->getResourceManager()->CreateTextureFromFile(
       "../test/assets/image/flashlight.jpg", 1);
 
@@ -296,8 +294,6 @@ int main() {
   l.setTexture(flashlight);
   l.setDirection({0, -1, 0});
   scene->updateModelMatrices();
-
-
 
   // renderer.setCustomTexture("BRDFLUT", lutTexture);
 

@@ -1,18 +1,24 @@
 #pragma once
 
-#include "svulkan2/shader/deferred.h"
-#include "svulkan2/shader/gbuffer.h"
-#include "svulkan2/shader/primitive.h"
-#include "svulkan2/shader/primitive_shadow.h"
-#include "svulkan2/shader/shadow.h"
-
 #include <memory>
+#include <unordered_map>
+#include <vector>
+
 namespace svulkan2 {
 namespace core {
 class Context;
 }
 
 namespace shader {
+
+struct ShaderConfig;
+class BaseParser;
+class GbufferPassParser;
+class DeferredPassParser;
+class PointShadowParser;
+class ShadowPassParser;
+class PointPassParser;
+class LinePassParser;
 
 struct ShaderPackDescription {
   std::string dirname;

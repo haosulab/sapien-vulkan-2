@@ -2,12 +2,10 @@
 #include "renderer_base.h"
 #include "svulkan2/core/context.h"
 #include "svulkan2/core/descriptor_pool.h"
-// #include "svulkan2/renderer/denoiser.h"
 #include "svulkan2/resource/cubemap.h"
 #include "svulkan2/resource/render_target.h"
 #include "svulkan2/resource/storage_image.h"
 #include "svulkan2/scene/scene.h"
-#include "svulkan2/shader/rt.h"
 #include <variant>
 
 namespace svulkan2 {
@@ -15,6 +13,11 @@ namespace core {
 class Context;
 class CommandPool;
 } // namespace core
+
+namespace shader {
+class RayTracingShaderPack;
+class RayTracingShaderPackInstance;
+}; // namespace shader
 
 namespace renderer {
 

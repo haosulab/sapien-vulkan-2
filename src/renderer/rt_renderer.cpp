@@ -1,6 +1,7 @@
 #include "svulkan2/renderer/rt_renderer.h"
 #include "svulkan2/core/context.h"
 #include "svulkan2/renderer/denoiser.h"
+#include "svulkan2/shader/rt.h"
 
 namespace svulkan2 {
 namespace renderer {

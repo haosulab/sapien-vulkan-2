@@ -3,13 +3,16 @@
 #include "model.h"
 #include "svulkan2/common/config.h"
 #include "svulkan2/core/descriptor_pool.h"
-#include "svulkan2/shader/rt.h"
 #include "svulkan2/shader/shader_pack.h"
 #include "svulkan2/shader/shader_pack_instance.h"
 #include <memory>
 #include <unordered_map>
 
 namespace svulkan2 {
+namespace shader {
+class RayTracingShaderPack;
+};
+
 namespace resource {
 
 class SVResourceManager {
