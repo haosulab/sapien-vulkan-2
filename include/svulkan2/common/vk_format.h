@@ -4,7 +4,7 @@
 
 namespace svulkan2 {
 
-enum VulkanBaseType {
+enum class VulkanBaseType {
   eI8,
   eI16,
   eI32,

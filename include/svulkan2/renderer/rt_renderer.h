@@ -49,7 +49,13 @@ public:
   void enableDenoiser(std::string const &colorName,
                       std::string const &albedoName,
                       std::string const &normalName);
-  bool denoiserEnabled() const { return mDenoiser != nullptr; }
+  bool denoiserEnabled() const {
+#ifdef SVULKAN2_CUDA_INTEROP
+    return mDenoiser != nullptr;
+#else
+    return false;
+#endif
+  }
   void disableDenoiser();
 
   inline void setCustomProperty(std::string const &name, int p) override {

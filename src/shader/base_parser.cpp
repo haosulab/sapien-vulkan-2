@@ -156,35 +156,35 @@ std::shared_ptr<InputDataLayout>
 parseVertexInput(spirv_cross::Compiler &compiler) {
   auto vertexData = parseInputData(compiler);
   // required attribute
-  ASSERT(CONTAINS(vertexData->elements, "position"),
+  ASSERT(vertexData->elements.contains("position"),
          "vertex position is required at location 0 with type float3");
 
   // required type
   ASSERT(vertexData->elements["position"].dtype == DataType::eFLOAT3,
          "The following is required: layout(location = 0) in vec3 position;");
-  ASSERT(!CONTAINS(vertexData->elements, "normal") ||
+  ASSERT(!vertexData->elements.contains("normal") ||
              vertexData->elements["normal"].dtype == DataType::eFLOAT3,
          "normal in vertex input must be a float3");
-  ASSERT(!CONTAINS(vertexData->elements, "uv") ||
+  ASSERT(!vertexData->elements.contains("uv") ||
              vertexData->elements["uv"].dtype == DataType::eFLOAT2,
          "uv in vertex input must be a float2");
-  ASSERT(!CONTAINS(vertexData->elements, "tangent") ||
+  ASSERT(!vertexData->elements.contains("tangent") ||
              vertexData->elements["tangent"].dtype == DataType::eFLOAT3,
          "tangent in vertex input must be a float3");
-  ASSERT(!CONTAINS(vertexData->elements, "bitangent") ||
+  ASSERT(!vertexData->elements.contains("bitangent") ||
              vertexData->elements["bitangent"].dtype == DataType::eFLOAT3,
          "bitangent in vertex input must be a float3");
-  ASSERT(!CONTAINS(vertexData->elements, "color") ||
+  ASSERT(!vertexData->elements.contains("color") ||
              vertexData->elements["color"].dtype == DataType::eFLOAT4,
          "color in vertex input must be a float4");
 
   // required associated types
-  ASSERT(!CONTAINS(vertexData->elements, "tangent") ||
-             CONTAINS(vertexData->elements, "normal"),
+  ASSERT(!vertexData->elements.contains("tangent") ||
+             vertexData->elements.contains("normal"),
          "normal in vertex input is required when using tangent");
-  ASSERT(!CONTAINS(vertexData->elements, "bitangent") ||
-             (CONTAINS(vertexData->elements, "normal") &&
-              CONTAINS(vertexData->elements, "tangent")),
+  ASSERT(!vertexData->elements.contains("bitangent") ||
+             (vertexData->elements.contains("normal") &&
+              vertexData->elements.contains("tangent")),
          "normal and tangent in vertex input are required when using tangent");
 
   return vertexData;
@@ -198,16 +198,16 @@ parseTextureOutput(spirv_cross::Compiler &compiler) {
            "all output variables must start with \"out\"");
   }
 
-  ASSERT(!CONTAINS(textureOutput->elements, "outAlbedo") ||
+  ASSERT(!textureOutput->elements.contains("outAlbedo") ||
              textureOutput->elements["outAlbedo"].dtype == DataType::eFLOAT4,
          "outAlbedo must be float4");
-  ASSERT(!CONTAINS(textureOutput->elements, "outPosition") ||
+  ASSERT(!textureOutput->elements.contains("outPosition") ||
              textureOutput->elements["outPosition"].dtype == DataType::eFLOAT4,
          "outPosition must be float4");
-  ASSERT(!CONTAINS(textureOutput->elements, "outNormal") ||
+  ASSERT(!textureOutput->elements.contains("outNormal") ||
              textureOutput->elements["outNormal"].dtype == DataType::eFLOAT4,
          "outNormal must be float4");
-  ASSERT(!CONTAINS(textureOutput->elements, "outSegmentation") ||
+  ASSERT(!textureOutput->elements.contains("outSegmentation") ||
              textureOutput->elements["outSegmentation"].dtype ==
                  DataType::eUINT4,
          "outSegmentation must be uint4");
@@ -285,13 +285,13 @@ std::shared_ptr<StructDataLayout> parseBuffer(spirv_cross::Compiler &compiler,
 
 void verifyCameraBuffer(std::shared_ptr<StructDataLayout> layout) {
   // required fields
-  ASSERT(CONTAINS(layout->elements, "viewMatrix"),
+  ASSERT(layout->elements.contains("viewMatrix"),
          "camera buffer requires viewMatrix");
-  ASSERT(CONTAINS(layout->elements, "viewMatrixInverse"),
+  ASSERT(layout->elements.contains("viewMatrixInverse"),
          "camera buffer requires viewMatrixInverse");
-  ASSERT(CONTAINS(layout->elements, "projectionMatrix"),
+  ASSERT(layout->elements.contains("projectionMatrix"),
          "camera buffer requires projectionMatrix");
-  ASSERT(CONTAINS(layout->elements, "projectionMatrixInverse"),
+  ASSERT(layout->elements.contains("projectionMatrixInverse"),
          "camera buffer requires projectionMatrixInverse");
 
   // required types
@@ -304,20 +304,20 @@ void verifyCameraBuffer(std::shared_ptr<StructDataLayout> layout) {
   ASSERT(layout->elements["projectionMatrixInverse"].dtype ==
              DataType::eFLOAT44,
          "camera projectionMatrixInverse should have type float44");
-  if (CONTAINS(layout->elements, "prevViewMatrix")) {
+  if (layout->elements.contains("prevViewMatrix")) {
     ASSERT(layout->elements["prevViewMatrix"].dtype == DataType::eFLOAT44,
            "camera prevViewMatrix should have type float44");
   }
-  if (CONTAINS(layout->elements, "prevViewMatrixInverse")) {
+  if (layout->elements.contains("prevViewMatrixInverse")) {
     ASSERT(layout->elements["prevViewMatrixInverse"].dtype ==
                DataType::eFLOAT44,
            "camera prevViewMatrixInverse should have type float44");
   }
-  if (CONTAINS(layout->elements, "width")) {
+  if (layout->elements.contains("width")) {
     ASSERT(layout->elements["width"].dtype == DataType::eFLOAT,
            "camera width should have type float");
   }
-  if (CONTAINS(layout->elements, "height")) {
+  if (layout->elements.contains("height")) {
     ASSERT(layout->elements["height"].dtype == DataType::eFLOAT,
            "camera height should have type float");
   }
@@ -327,23 +327,22 @@ void verifyMaterialBuffer(std::shared_ptr<StructDataLayout> layout) {
   ASSERT(layout->size == 64, "Material should be exactly 64 bytes in size");
 
   // required variables
-  ASSERT(CONTAINS(layout->elements, "emission"),
+  ASSERT(layout->elements.contains("emission"),
          "material requires variable emission");
-  ASSERT(CONTAINS(layout->elements, "baseColor"),
+  ASSERT(layout->elements.contains("baseColor"),
          "material requires variable baseColor");
-  ASSERT(CONTAINS(layout->elements, "fresnel"),
+  ASSERT(layout->elements.contains("fresnel"),
          "material requires variable fresnel");
-  ASSERT(CONTAINS(layout->elements, "roughness"),
+  ASSERT(layout->elements.contains("roughness"),
          "material requires variable roughness");
-  ASSERT(CONTAINS(layout->elements, "metallic"),
+  ASSERT(layout->elements.contains("metallic"),
          "material requires variable metallic");
-  ASSERT(CONTAINS(layout->elements, "transmission"),
+  ASSERT(layout->elements.contains("transmission"),
          "material requires variable transmission");
-  ASSERT(CONTAINS(layout->elements, "ior"),
-         "material requires variable ior");
-  ASSERT(CONTAINS(layout->elements, "transmissionRoughness"),
+  ASSERT(layout->elements.contains("ior"), "material requires variable ior");
+  ASSERT(layout->elements.contains("transmissionRoughness"),
          "material requires variable transmissionRoughness");
-  ASSERT(CONTAINS(layout->elements, "textureMask"),
+  ASSERT(layout->elements.contains("textureMask"),
          "material requires variable textureMask");
 
   // variable  types
@@ -371,31 +370,31 @@ void verifyObjectBuffer(std::shared_ptr<StructDataLayout> layout) {
   ASSERT(layout->elements.size() >= 2,
          "object buffer requires modelMatrix and segmentation");
 
-  ASSERT(CONTAINS(layout->elements, "modelMatrix"),
+  ASSERT(layout->elements.contains("modelMatrix"),
          "object buffer requires variable modelMatrix");
-  ASSERT(CONTAINS(layout->elements, "segmentation"),
+  ASSERT(layout->elements.contains("segmentation"),
          "object buffer requires variable modelMatrix");
 
   ASSERT(layout->elements["modelMatrix"].dtype == DataType::eFLOAT44,
          "object modelMatrix should be float44");
   ASSERT(layout->elements["segmentation"].dtype == DataType::eUINT4,
          "object segmentation should be uint4");
-  ASSERT(!CONTAINS(layout->elements, "prevModelMatrix") ||
+  ASSERT(!layout->elements.contains("prevModelMatrix") ||
              layout->elements["prevModelMatrix"].dtype == DataType::eFLOAT44,
          "object prevModelMatrix should be float44");
-  ASSERT(!CONTAINS(layout->elements, "userData") ||
+  ASSERT(!layout->elements.contains("userData") ||
              layout->elements["userData"].dtype == DataType::eFLOAT44,
          "object userData should be float44");
 }
 
 void verifySceneBuffer(std::shared_ptr<StructDataLayout> layout) {
-  ASSERT(CONTAINS(layout->elements, "ambientLight"),
+  ASSERT(layout->elements.contains("ambientLight"),
          "scene buffer requires variable ambientLight");
-  ASSERT(CONTAINS(layout->elements, "directionalLights"),
+  ASSERT(layout->elements.contains("directionalLights"),
          "scene buffer requires variable directionalLights");
-  ASSERT(CONTAINS(layout->elements, "spotLights"),
+  ASSERT(layout->elements.contains("spotLights"),
          "scene buffer requires variable spotLights");
-  ASSERT(CONTAINS(layout->elements, "pointLights"),
+  ASSERT(layout->elements.contains("pointLights"),
          "scene buffer requires variable pointLights");
 
   ASSERT(layout->elements["ambientLight"].dtype == DataType::eFLOAT4,
@@ -405,16 +404,16 @@ void verifySceneBuffer(std::shared_ptr<StructDataLayout> layout) {
          "scene directionalLights should be struct");
 
   ASSERT(layout->elements["directionalLights"].member->elements.size() == 2 &&
-             CONTAINS(layout->elements["directionalLights"].member->elements,
-                      "direction") &&
+             layout->elements["directionalLights"].member->elements.contains(
+                 "direction") &&
              layout->elements["directionalLights"]
                      .member->elements["direction"]
                      .offset == 0 &&
              layout->elements["directionalLights"]
                      .member->elements["direction"]
                      .dtype == DataType::eFLOAT4 &&
-             CONTAINS(layout->elements["directionalLights"].member->elements,
-                      "emission") &&
+             layout->elements["directionalLights"].member->elements.contains(
+                 "emission") &&
              layout->elements["directionalLights"]
                      .member->elements["emission"]
                      .dtype == DataType::eFLOAT4,
@@ -426,20 +425,20 @@ void verifySceneBuffer(std::shared_ptr<StructDataLayout> layout) {
 
   ASSERT(
       layout->elements["spotLights"].member->elements.size() == 3 &&
-          CONTAINS(layout->elements["spotLights"].member->elements,
-                   "position") &&
+          layout->elements["spotLights"].member->elements.contains(
+              "position") &&
           layout->elements["spotLights"].member->elements["position"].offset ==
               0 &&
           layout->elements["spotLights"].member->elements["position"].dtype ==
               DataType::eFLOAT4 &&
-          CONTAINS(layout->elements["spotLights"].member->elements,
-                   "direction") &&
+          layout->elements["spotLights"].member->elements.contains(
+              "direction") &&
           layout->elements["spotLights"].member->elements["direction"].offset ==
               16 &&
           layout->elements["spotLights"].member->elements["direction"].dtype ==
               DataType::eFLOAT4 &&
-          CONTAINS(layout->elements["spotLights"].member->elements,
-                   "emission") &&
+          layout->elements["spotLights"].member->elements.contains(
+              "emission") &&
           layout->elements["spotLights"].member->elements["emission"].dtype ==
               DataType::eFLOAT4,
       "spot lights in scene buffer must be an array of {vec4 "
@@ -447,20 +446,20 @@ void verifySceneBuffer(std::shared_ptr<StructDataLayout> layout) {
 
   ASSERT(
       layout->elements["pointLights"].member->elements.size() == 2 &&
-          CONTAINS(layout->elements["pointLights"].member->elements,
-                   "position") &&
+          layout->elements["pointLights"].member->elements.contains(
+              "position") &&
           layout->elements["pointLights"].member->elements["position"].offset ==
               0 &&
           layout->elements["pointLights"].member->elements["position"].dtype ==
               DataType::eFLOAT4 &&
-          CONTAINS(layout->elements["pointLights"].member->elements,
-                   "emission") &&
+          layout->elements["pointLights"].member->elements.contains(
+              "emission") &&
           layout->elements["pointLights"].member->elements["emission"].dtype ==
               DataType::eFLOAT4,
       "point lights in scene buffer must be an array of {vec4 position; vec4 "
       "emission;}");
 
-  ASSERT(!CONTAINS(layout->elements, "shadowMatrix") ||
+  ASSERT(!layout->elements.contains("shadowMatrix") ||
              layout->elements["shadowMatrix"].dtype == DataType::eFLOAT44,
          "scene shadowMatrix should have type float44");
 }
@@ -473,16 +472,16 @@ void verifyLightSpaceBuffer(std::shared_ptr<StructDataLayout> layout) {
          "projectionMatrixInverse, width, height");
 
   // required fields
-  ASSERT(CONTAINS(layout->elements, "viewMatrix"),
+  ASSERT(layout->elements.contains("viewMatrix"),
          "light buffer requires viewMatrix");
-  ASSERT(CONTAINS(layout->elements, "projectionMatrix"),
+  ASSERT(layout->elements.contains("projectionMatrix"),
          "light buffer requires projectionMatrix");
-  ASSERT(CONTAINS(layout->elements, "viewMatrixInverse"),
+  ASSERT(layout->elements.contains("viewMatrixInverse"),
          "light buffer requires viewMatrixInverse");
-  ASSERT(CONTAINS(layout->elements, "projectionMatrixInverse"),
+  ASSERT(layout->elements.contains("projectionMatrixInverse"),
          "light buffer requires projectionMatrixInverse");
-  ASSERT(CONTAINS(layout->elements, "width"), "light buffer requires width");
-  ASSERT(CONTAINS(layout->elements, "height"), "light buffer requires height");
+  ASSERT(layout->elements.contains("width"), "light buffer requires width");
+  ASSERT(layout->elements.contains("height"), "light buffer requires height");
 
   // required types
   ASSERT(layout->elements["viewMatrix"].dtype == DataType::eFLOAT44,

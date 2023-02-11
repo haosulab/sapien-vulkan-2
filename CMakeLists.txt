@@ -28,7 +28,6 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   link_directories(/usr/local/lib/)
 endif ()
 
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 find_package(assimp 5.0.1 REQUIRED PACKAGE_FIND_VERSION)
 find_package(Vulkan REQUIRED)
 find_package(Ktx REQUIRED)

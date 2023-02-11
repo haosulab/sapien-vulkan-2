@@ -129,12 +129,14 @@ void RTRenderer::prepareRender(scene::Camera &camera) {
     prepareScene();
     preparePostprocessing();
 
+#ifdef SVULKAN2_CUDA_INTEROP
     if (mDenoiser) {
       if (static_cast<int>(mDenoiser->getWidth()) != mWidth ||
           static_cast<int>(mDenoiser->getHeight()) != mHeight) {
         mDenoiser->allocate(mWidth, mHeight);
       }
     }
+#endif
 
     mSceneVersion = scene->getVersion();
   }
@@ -307,6 +309,8 @@ void RTRenderer::recordRender() {
       mShaderPackInstance->getCallRegion(), mWidth, mHeight, 1);
 
   // make sure ray tracing is done
+
+#ifdef SVULKAN2_CUDA_INTEROP
   if (mDenoiser) {
     mRenderImages.at(mDenoiseColorName)
         ->getImage()
@@ -333,6 +337,7 @@ void RTRenderer::recordRender() {
                           vk::PipelineStageFlagBits::eRayTracingShaderKHR,
                           vk::PipelineStageFlagBits::eTransfer);
   }
+#endif
 
   mRenderCommandBuffer->end();
 }
@@ -669,11 +674,13 @@ void RTRenderer::render(scene::Camera &camera,
   mContext->getQueue().submit(mRenderCommandBuffer.get(), {}, {}, {},
                               mSceneAccessFence.get());
 
+#ifdef SVULKAN2_CUDA_INTEROP
   if (mDenoiser) {
     mDenoiser->denoise(mRenderImages.at(mDenoiseColorName)->getImage(),
                        &mRenderImages.at(mDenoiseAlbedoName)->getImage(),
                        &mRenderImages.at(mDenoiseNormalName)->getImage());
   }
+#endif
   mContext->getQueue().submit(mPostprocessCommandBuffer.get(), waitSemaphores,
                               waitStages, signalSemaphores, fence);
 }
@@ -696,11 +703,13 @@ void RTRenderer::render(
   prepareRender(camera);
 
   mContext->getQueue().submit(mRenderCommandBuffer.get(), {}, {}, {}, {});
+#ifdef SVULKAN2_CUDA_INTEROP
   if (mDenoiser) {
     mDenoiser->denoise(mRenderImages.at(mDenoiseColorName)->getImage(),
                        &mRenderImages.at(mDenoiseAlbedoName)->getImage(),
                        &mRenderImages.at(mDenoiseNormalName)->getImage());
   }
+#endif
   mContext->getQueue().submit(mPostprocessCommandBuffer.get(), waitSemaphores,
                               waitStageMasks, waitValues, signalSemaphores,
                               signalValues, {});

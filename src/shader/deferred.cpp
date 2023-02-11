@@ -38,16 +38,16 @@ void DeferredPassParser::validate() const {
   for (auto &desc : mDescriptorSetDescriptions) {
     if (desc.type == UniformBindingType::eScene) {
       // validate constants
-      ASSERT(CONTAINS(mSpecializationConstantLayout->elements,
-                      "NUM_DIRECTIONAL_LIGHTS"),
-             "[frag]NUM_DIRECTIONAL_LIGHTS is a required specialization "
+      ASSERT(mSpecializationConstantLayout->elements.contains(
+                 "NUM_DIRECTIONAL_LIGHTS"),
+             "[frag]NUM_DIRECTIONAL_LIGHTS is a required specialization"
              "constant when using SceneBuffer");
       ASSERT(
-          CONTAINS(mSpecializationConstantLayout->elements, "NUM_POINT_LIGHTS"),
+          mSpecializationConstantLayout->elements.contains("NUM_POINT_LIGHTS"),
           "[frag]NUM_POINT_LIGHTS is a required specialization "
           "constant when using SceneBuffer");
       ASSERT(
-          CONTAINS(mSpecializationConstantLayout->elements, "NUM_SPOT_LIGHTS"),
+          mSpecializationConstantLayout->elements.contains("NUM_SPOT_LIGHTS"),
           "[frag]NUM_SPOT_LIGHTS is a required specialization "
           "constant when using SceneBuffer");
     }
@@ -250,8 +250,10 @@ vk::UniquePipeline DeferredPassParser::createPipeline(
       &pipelineMultisampleStateCreateInfo, &pipelineDepthStencilStateCreateInfo,
       &pipelineColorBlendStateCreateInfo, &pipelineDynamicStateCreateInfo,
       layout, renderPass);
-  return device.createGraphicsPipelineUnique(pipelineCache.get(),
-                                             graphicsPipelineCreateInfo).value;
+  return device
+      .createGraphicsPipelineUnique(pipelineCache.get(),
+                                    graphicsPipelineCreateInfo)
+      .value;
 }
 
 std::vector<std::string> DeferredPassParser::getColorRenderTargetNames() const {
