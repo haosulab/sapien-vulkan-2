@@ -8,14 +8,19 @@ layout(set = 2, binding = 0) uniform MaterialBuffer {
   float fresnel;
   float roughness;
   float metallic;
-  float transparency;
+  float transmission;
+  float ior;
+  float transmissionRoughness;
   int textureMask;
+  int padding1;
 } materialBuffer;
 
 layout(set = 2, binding = 1) uniform sampler2D colorTexture;
 layout(set = 2, binding = 2) uniform sampler2D roughnessTexture;
 layout(set = 2, binding = 3) uniform sampler2D normalTexture;
 layout(set = 2, binding = 4) uniform sampler2D metallicTexture;
+layout(set = 2, binding = 5) uniform sampler2D emissionTexture;
+layout(set = 2, binding = 6) uniform sampler2D transmissionTexture;
 
 layout(location = 0) in vec4 inPosition;
 layout(location = 1) in vec2 inUV;
