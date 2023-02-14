@@ -183,6 +183,13 @@ static void applyStyle() {
 void GuiWindow::initImgui() {
   auto device = mContext->getDevice();
 
+  vk::Instance instance = mContext->getInstance();
+  ImGui_ImplVulkan_LoadFunctions(
+      [](const char *name, void *instance) {
+        return reinterpret_cast<vk::Instance *>(instance)->getProcAddr(name);
+      },
+      &instance);
+
   // create a pool for allocating descriptor sets
   vk::DescriptorPoolSize pool_sizes[] = {
       {vk::DescriptorType::eSampler, 1000},
@@ -583,13 +590,7 @@ bool GuiWindow::isSuperDown() { return ImGui::GetIO().KeySuper; }
 
 ImVec2 GuiWindow::getMouseDelta() { return ImGui::GetIO().MouseDelta; }
 
-ImVec2 GuiWindow::getMouseWheelDelta() {
-  return mMouseWheelDelta;
-  // if (ImGui::GetIO().WantCaptureMouse) {
-  //   return {0, 0};
-  // }
-  // return {ImGui::GetIO().MouseWheel, ImGui::GetIO().MouseWheelH};
-}
+ImVec2 GuiWindow::getMouseWheelDelta() { return mMouseWheelDelta; }
 
 ImVec2 GuiWindow::getMousePosition() { return ImGui::GetIO().MousePos; }
 

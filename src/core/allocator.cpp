@@ -20,19 +20,22 @@ Allocator::Allocator(VmaAllocatorCreateInfo const &info) {
   }
 
   // find GPU memory suitable for external buffer
-  VkPhysicalDeviceMemoryProperties properties;
-  vkGetPhysicalDeviceMemoryProperties(info.physicalDevice, &properties);
+  // VkPhysicalDeviceMemoryProperties properties;
+  vk::PhysicalDeviceMemoryProperties properties;
+  vk::PhysicalDevice(info.physicalDevice).getMemoryProperties(&properties);
+
+
   int index = -1;
-  for (uint32_t i = 0; i < properties.memoryTypeCount; ++i) {
-    if (properties.memoryTypes[i].propertyFlags ==
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) {
-      index = i;
-    }
-  }
+  // for (uint32_t i = 0; i < properties.memoryTypeCount; ++i) {
+  //   if (properties.memoryTypes[i].propertyFlags ==
+  //       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) {
+  //     index = i;
+  //   }
+  // }
   if (index == -1) {
     for (uint32_t i = 0; i < properties.memoryTypeCount; ++i) {
       if (properties.memoryTypes[i].propertyFlags &
-          VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) {
+          vk::MemoryPropertyFlagBits::eDeviceLocal) {
         index = i;
       }
     }

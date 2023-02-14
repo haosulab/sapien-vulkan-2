@@ -31,8 +31,8 @@ static void glfwErrorCallback(int error_code, const char *description) {
   log::error("GLFW error: {}", description);
 }
 
-#ifdef VK_VALIDATION
-static bool checkValidationLayerSupport() {
+static bool checkValidationLayerSupport(
+    PFN_vkEnumerateInstanceLayerProperties vkEnumerateInstanceLayerProperties) {
   static const std::vector<const char *> validationLayers = {
       "VK_LAYER_KHRONOS_validation"};
   uint32_t layerCount;
@@ -54,7 +54,6 @@ static bool checkValidationLayerSupport() {
   }
   return true;
 }
-#endif
 
 std::shared_ptr<Context> Context::Create(bool present, uint32_t maxNumMaterials,
                                          uint32_t maxNumTextures,
@@ -133,8 +132,15 @@ void Context::createInstance() {
     }
   }
 
+  mDynamicLoader = vk::DynamicLoader("libvulkan.so.1");
+  if (!mDynamicLoader.success()) {
+    throw std::runtime_error("cannot find libvulkan.so.1");
+  }
+
 #ifdef VK_VALIDATION
-  if (!checkValidationLayerSupport()) {
+  if (!checkValidationLayerSupport(
+          mDynamicLoader.getProcAddress<PFN_vkEnumerateInstanceLayerProperties>(
+              "vkEnumerateInstanceLayerProperties"))) {
     throw std::runtime_error(
         "createInstance: validation layers are not available");
   }
@@ -182,9 +188,10 @@ void Context::createInstance() {
       }
     }
   }
-  vk::DynamicLoader dl;
+
   PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr =
-      dl.getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr");
+      mDynamicLoader.getProcAddress<PFN_vkGetInstanceProcAddr>(
+          "vkGetInstanceProcAddr");
   VULKAN_HPP_DEFAULT_DISPATCHER.init(vkGetInstanceProcAddr);
 
   vk::InstanceCreateInfo createInfo(
@@ -463,7 +470,8 @@ void Context::pickSuitableGpuAndQueueFamilyIndex() {
   auto devices = summarizeDeviceInfo(tmpSurface);
 
   if (mPresent) {
-    vkDestroySurfaceKHR(mInstance.get(), tmpSurface, nullptr);
+    mDynamicLoader.getProcAddress<PFN_vkDestroySurfaceKHR>(
+        "vkDestroySurfaceKHR")(mInstance.get(), tmpSurface, nullptr);
     glfwDestroyWindow(window);
   }
 

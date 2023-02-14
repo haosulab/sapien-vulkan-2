@@ -97,14 +97,12 @@ int main() {
   config->culling = vk::CullModeFlagBits::eNone;
 
   config->colorFormat4 = vk::Format::eR32G32B32A32Sfloat;
-  // renderer::Renderer renderer(config);
-  renderer::RTRenderer renderer("../shader/rt_test");
-
-  renderer.setCustomProperty("maxDepth", 6);
-  renderer.setCustomProperty("russianRoulette", 1);
-  renderer.setCustomProperty("russianRouletteMinBounces", 3);
-
-  renderer.enableDenoiser("HdrColor", "Albedo", "Normal");
+  renderer::Renderer renderer(config);
+  // renderer::RTRenderer renderer("../shader/rt_test");
+  // renderer.setCustomProperty("maxDepth", 6);
+  // renderer.setCustomProperty("russianRoulette", 1);
+  // renderer.setCustomProperty("russianRouletteMinBounces", 3);
+  // renderer.enableDenoiser("HdrColor", "Albedo", "Normal");
 
   auto scene = std::make_shared<svulkan2::scene::Scene>();
 
@@ -318,11 +316,10 @@ int main() {
 
   // cubemap->exportKTX("output.ktx");
 
-  auto cubemap = context->getResourceManager()->CreateCubemapFromKTX(
-      "../test/assets/image/cube2/out.ktx", 5);
-  renderer.setCustomCubemap("Environment", cubemap);
-
-  scene->setEnvironmentMap(cubemap);
+  // auto cubemap = context->getResourceManager()->CreateCubemapFromKTX(
+  //     "../test/assets/image/cube2/out.ktx", 5);
+  // renderer.setCustomCubemap("Environment", cubemap);
+  // scene->setEnvironmentMap(cubemap);
 
   auto window = context->createWindow(1024, 1024);
   // glfwGetFramebufferSize(window->getGLFWWindow(), &gSwapchainResizeWidth,

@@ -11,7 +11,8 @@ option(SVULKAN2_BUILD_TEST "Build with unit test" OFF)
 option(SVULKAN2_CUDA_INTEROP "Allow CUDA to use Vulkan buffer" ON)
 option(SVULKAN2_TRACK_ALLOCATION "Track allocated resources ofr debugging" OFF)
 
-add_definitions(-DVULKAN_HPP_DISPATCH_LOADER_DYNAMIC)
+# add_definitions(-DVULKAN_HPP_DISPATCH_LOADER_DYNAMIC)
+add_definitions(-DVK_NO_PROTOTYPES)
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
   message("-- DEBUG Build")
@@ -81,7 +82,7 @@ target_include_directories(svulkan2 PRIVATE "3rd_party/SPIRV-Cross")
 target_include_directories(svulkan2 PRIVATE "3rd_party/stb")
 target_include_directories(svulkan2 PRIVATE "3rd_party/OptiX7SDK/include")
 target_link_directories(svulkan2 PUBLIC "$ENV{VULKAN_SDK}/lib")
-target_link_libraries(svulkan2 ${ASSIMP_LIBRARIES} glfw dl pthread Vulkan::Vulkan spdlog glslang SPIRV spirv-cross-cpp ktx ${EASY_PROFILER_LIBRARY})
+target_link_libraries(svulkan2 ${ASSIMP_LIBRARIES} glfw dl pthread spdlog glslang SPIRV spirv-cross-cpp ktx ${EASY_PROFILER_LIBRARY})
 
 if (${SVULKAN2_CUDA_INTEROP})
     target_include_directories(svulkan2 PRIVATE "$ENV{CUDA_PATH}/include")
