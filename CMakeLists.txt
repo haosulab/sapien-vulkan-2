@@ -11,9 +11,6 @@ option(SVULKAN2_BUILD_TEST "Build with unit test" OFF)
 option(SVULKAN2_CUDA_INTEROP "Allow CUDA to use Vulkan buffer" ON)
 option(SVULKAN2_TRACK_ALLOCATION "Track allocated resources ofr debugging" OFF)
 
-# add_definitions(-DVULKAN_HPP_DISPATCH_LOADER_DYNAMIC)
-add_definitions(-DVK_NO_PROTOTYPES)
-
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
   message("-- DEBUG Build")
   set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS_DEBUG})
@@ -88,12 +85,15 @@ if (${SVULKAN2_CUDA_INTEROP})
     target_include_directories(svulkan2 PRIVATE "$ENV{CUDA_PATH}/include")
 endif()
 
+target_compile_definitions(svulkan2 PUBLIC VK_NO_PROTOTYPES)
+
 if (${SVULKAN2_CUDA_INTEROP})
     target_link_libraries(svulkan2 "$ENV{CUDA_PATH}/lib64/libcudart_static.a" rt)
 endif()
 
 add_executable(svulkan2_main app/main.cpp)
 target_link_libraries(svulkan2_main svulkan2 stdc++fs)
+target_include_directories(svulkan2_main PRIVATE "3rd_party/OptiX7SDK/include")
 
 add_executable(gencube app/gencube.cpp)
 target_link_libraries(gencube svulkan2 stdc++fs)

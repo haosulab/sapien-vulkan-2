@@ -31,6 +31,7 @@ static void glfwErrorCallback(int error_code, const char *description) {
   log::error("GLFW error: {}", description);
 }
 
+#ifdef VK_VALIDATION
 static bool checkValidationLayerSupport(
     PFN_vkEnumerateInstanceLayerProperties vkEnumerateInstanceLayerProperties) {
   static const std::vector<const char *> validationLayers = {
@@ -54,6 +55,7 @@ static bool checkValidationLayerSupport(
   }
   return true;
 }
+#endif
 
 std::shared_ptr<Context> Context::Create(bool present, uint32_t maxNumMaterials,
                                          uint32_t maxNumTextures,
@@ -122,6 +124,32 @@ std::shared_ptr<resource::SVResourceManager> Context::createResourceManager() {
 }
 
 void Context::createInstance() {
+  // try to load system Vulkan
+  try {
+    mDynamicLoader = std::make_unique<vk::DynamicLoader>();
+  } catch (std::runtime_error &) {
+    mDynamicLoader.reset();
+  }
+
+  // try to load SAPIEN specified Vulkan
+  if (!mDynamicLoader) {
+    auto path = std::getenv("SAPIEN_VULKAN_LIBRARY_PATH");
+    if (path && std::filesystem::is_regular_file(std::filesystem::path(path))) {
+      try {
+        mDynamicLoader = std::make_unique<vk::DynamicLoader>(path);
+      } catch (std::runtime_error &) {
+        mDynamicLoader.reset();
+      }
+    }
+  }
+
+  // give up
+  if (!mDynamicLoader) {
+    log::error("Failed to load vulkan library! You may not use the renderer to "
+               "render, however, CPU resources will be still available.");
+    return;
+  }
+
   if (mPresent) {
     glfwSetErrorCallback(glfwErrorCallback);
     if (glfwInit()) {
@@ -132,15 +160,11 @@ void Context::createInstance() {
     }
   }
 
-  mDynamicLoader = vk::DynamicLoader("libvulkan.so.1");
-  if (!mDynamicLoader.success()) {
-    throw std::runtime_error("cannot find libvulkan.so.1");
-  }
-
 #ifdef VK_VALIDATION
   if (!checkValidationLayerSupport(
-          mDynamicLoader.getProcAddress<PFN_vkEnumerateInstanceLayerProperties>(
-              "vkEnumerateInstanceLayerProperties"))) {
+          mDynamicLoader
+              ->getProcAddress<PFN_vkEnumerateInstanceLayerProperties>(
+                  "vkEnumerateInstanceLayerProperties"))) {
     throw std::runtime_error(
         "createInstance: validation layers are not available");
   }
@@ -190,7 +214,7 @@ void Context::createInstance() {
   }
 
   PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr =
-      mDynamicLoader.getProcAddress<PFN_vkGetInstanceProcAddr>(
+      mDynamicLoader->getProcAddress<PFN_vkGetInstanceProcAddr>(
           "vkGetInstanceProcAddr");
   VULKAN_HPP_DEFAULT_DISPATCHER.init(vkGetInstanceProcAddr);
 
@@ -470,7 +494,7 @@ void Context::pickSuitableGpuAndQueueFamilyIndex() {
   auto devices = summarizeDeviceInfo(tmpSurface);
 
   if (mPresent) {
-    mDynamicLoader.getProcAddress<PFN_vkDestroySurfaceKHR>(
+    mDynamicLoader->getProcAddress<PFN_vkDestroySurfaceKHR>(
         "vkDestroySurfaceKHR")(mInstance.get(), tmpSurface, nullptr);
     glfwDestroyWindow(window);
   }

@@ -24,22 +24,38 @@ Allocator::Allocator(VmaAllocatorCreateInfo const &info) {
   vk::PhysicalDeviceMemoryProperties properties;
   vk::PhysicalDevice(info.physicalDevice).getMemoryProperties(&properties);
 
+  vk::BufferCreateInfo bufferInfo({}, 64,
+                                  vk::BufferUsageFlagBits::eVertexBuffer |
+                                      vk::BufferUsageFlagBits::eIndexBuffer |
+                                      vk::BufferUsageFlagBits::eTransferDst);
+  vk::ExternalMemoryBufferCreateInfo externalMemoryBufferInfo(
+      vk::ExternalMemoryHandleTypeFlagBits::eOpaqueFd);
+  bufferInfo.setPNext(&externalMemoryBufferInfo);
+
+  vk::MemoryRequirements memReq;
+  {
+    auto buffer = Context::Get()->getDevice().createBufferUnique(bufferInfo);
+    memReq =
+        Context::Get()->getDevice().getBufferMemoryRequirements(buffer.get());
+  }
+
+  // Context::Get()->getDevice().getBufferMemoryRequirements2({&bufferInfo},
+  // &req);
 
   int index = -1;
-  // for (uint32_t i = 0; i < properties.memoryTypeCount; ++i) {
-  //   if (properties.memoryTypes[i].propertyFlags ==
-  //       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) {
-  //     index = i;
-  //   }
-  // }
-  if (index == -1) {
-    for (uint32_t i = 0; i < properties.memoryTypeCount; ++i) {
-      if (properties.memoryTypes[i].propertyFlags &
-          vk::MemoryPropertyFlagBits::eDeviceLocal) {
-        index = i;
-      }
+  for (uint32_t i = 0; i < properties.memoryTypeCount; ++i) {
+    if ((memReq.memoryTypeBits & (1 << i)) &&
+        (properties.memoryTypes[i].propertyFlags &
+         vk::MemoryPropertyFlagBits::eDeviceLocal)) {
+      index = i;
+      break;
     }
   }
+  if (index == -1) {
+    throw std::runtime_error(
+        "Failed to find a suitable memory type for external memory pool");
+  }
+
   VmaPoolCreateInfo poolInfo{};
   poolInfo.memoryTypeIndex = static_cast<uint32_t>(index);
   mExternalAllocInfo = vk::ExportMemoryAllocateInfo(

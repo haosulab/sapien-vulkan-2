@@ -81,7 +81,7 @@ public:
   vk::Sampler createSampler(vk::SamplerCreateInfo const &info);
 
 private:
-  vk::DynamicLoader mDynamicLoader;
+  std::unique_ptr<vk::DynamicLoader> mDynamicLoader;
 
   uint32_t mApiVersion;
   bool mVulkanAvailable;
