@@ -71,14 +71,13 @@ set_target_properties(svulkan2 PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 
 target_include_directories(svulkan2 PUBLIC "include")
 target_include_directories(svulkan2 PUBLIC "3rd_party/VulkanMemoryAllocator")
-target_include_directories(svulkan2 PUBLIC "$ENV{VULKAN_SDK}/include")
 target_include_directories(svulkan2 PUBLIC "3rd_party/imgui" "3rd_party/imgui/backends" "3rd_party/ImGuizmo")
+target_include_directories(svulkan2 PUBLIC "3rd_party/vulkan")
 
 target_include_directories(svulkan2 PRIVATE "3rd_party/glslang")
 target_include_directories(svulkan2 PRIVATE "3rd_party/SPIRV-Cross")
 target_include_directories(svulkan2 PRIVATE "3rd_party/stb")
 target_include_directories(svulkan2 PRIVATE "3rd_party/OptiX7SDK/include")
-target_link_directories(svulkan2 PUBLIC "$ENV{VULKAN_SDK}/lib")
 target_link_libraries(svulkan2 ${ASSIMP_LIBRARIES} glfw dl pthread spdlog glslang SPIRV spirv-cross-cpp ktx ${EASY_PROFILER_LIBRARY})
 
 if (${SVULKAN2_CUDA_INTEROP})
