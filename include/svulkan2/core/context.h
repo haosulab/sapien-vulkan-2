@@ -72,6 +72,7 @@ public:
     int pciBus{-1};
     int queueIndex{-1};
     bool rayTracing{};
+    int cudaComputeMode{-1};
   };
 
   inline bool shouldNotLoadTexture() const { return mDoNotLoadTexture; }

@@ -328,8 +328,19 @@ Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
     device.getProperties2(&p2);
     busid = pciInfo.pciBus;
 
+    int computeMode{-1};
 #ifdef SVULKAN2_CUDA_INTEROP
     cudaId = getCudaDeviceIdFromPhysicalDevice(device);
+    cudaDeviceGetAttribute(&computeMode, cudaDevAttrComputeMode, cudaId);
+    if ((computeMode == cudaComputeModeExclusiveProcess ||
+         computeMode == cudaComputeModeExclusive) &&
+        rayTracing) {
+      log::warn("CUDA device {} is in EXCLUSIVE or EXCLUSIVE_PROCESS mode. Ray "
+                "tracing is disabled. Switch device to DEFAULT mode to use ray "
+                "tracing.",
+                cudaId);
+      rayTracing = 0;
+    }
 #endif
 
     bool supported = required_features && queueIdx != -1;
@@ -347,7 +358,8 @@ Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
                                     .cudaId = cudaId,
                                     .pciBus = busid,
                                     .queueIndex = queueIdx,
-                                    .rayTracing = rayTracing});
+                                    .rayTracing = rayTracing,
+                                    .cudaComputeMode = computeMode});
   }
   log::info(ss.str());
 
@@ -570,7 +582,6 @@ void Context::pickSuitableGpuAndQueueFamilyIndex() {
 
   mPhysicalDeviceInfo = devices[pickedDeviceIdx];
   mPhysicalDeviceLimits = pickedDevice.getProperties().limits;
-  // mQueueFamilyIndex = devices[pickedDeviceIdx].queueIndex;
 }
 
 void Context::createDevice() {
