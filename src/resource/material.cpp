@@ -73,6 +73,9 @@ SVMetallicMaterial::~SVMetallicMaterial() {
 void SVMetallicMaterial::setEmission(glm::vec4 emission) {
   mRequiresBufferUpload = true;
   mBuffer.emission = emission;
+  if (mDeviceBuffer) {
+    uploadToDevice();
+  }
 }
 
 glm::vec4 SVMetallicMaterial::getEmission() const { return mBuffer.emission; }
@@ -80,6 +83,9 @@ glm::vec4 SVMetallicMaterial::getEmission() const { return mBuffer.emission; }
 void SVMetallicMaterial::setBaseColor(glm::vec4 baseColor) {
   mRequiresBufferUpload = true;
   mBuffer.baseColor = baseColor;
+  if (mDeviceBuffer) {
+    uploadToDevice();
+  }
 }
 
 glm::vec4 SVMetallicMaterial::getBaseColor() const { return mBuffer.baseColor; }
@@ -87,6 +93,9 @@ glm::vec4 SVMetallicMaterial::getBaseColor() const { return mBuffer.baseColor; }
 void SVMetallicMaterial::setRoughness(float roughness) {
   mRequiresBufferUpload = true;
   mBuffer.roughness = roughness;
+  if (mDeviceBuffer) {
+    uploadToDevice();
+  }
 }
 
 float SVMetallicMaterial::getRoughness() const { return mBuffer.roughness; }
@@ -94,6 +103,9 @@ float SVMetallicMaterial::getRoughness() const { return mBuffer.roughness; }
 void SVMetallicMaterial::setFresnel(float fresnel) {
   mRequiresBufferUpload = true;
   mBuffer.fresnel = fresnel;
+  if (mDeviceBuffer) {
+    uploadToDevice();
+  }
 }
 
 float SVMetallicMaterial::getFresnel() const { return mBuffer.fresnel; }
@@ -101,6 +113,9 @@ float SVMetallicMaterial::getFresnel() const { return mBuffer.fresnel; }
 void SVMetallicMaterial::setMetallic(float metallic) {
   mRequiresBufferUpload = true;
   mBuffer.metallic = metallic;
+  if (mDeviceBuffer) {
+    uploadToDevice();
+  }
 }
 
 float SVMetallicMaterial::getMetallic() const { return mBuffer.metallic; }
@@ -108,6 +123,9 @@ float SVMetallicMaterial::getMetallic() const { return mBuffer.metallic; }
 void SVMetallicMaterial::setTransmission(float transmission) {
   mRequiresBufferUpload = true;
   mBuffer.transmission = transmission;
+  if (mDeviceBuffer) {
+    uploadToDevice();
+  }
 }
 float SVMetallicMaterial::getTransmission() const {
   return mBuffer.transmission;
@@ -116,12 +134,18 @@ float SVMetallicMaterial::getTransmission() const {
 void SVMetallicMaterial::setIor(float ior) {
   mRequiresBufferUpload = true;
   mBuffer.ior = ior;
+  if (mDeviceBuffer) {
+    uploadToDevice();
+  }
 }
 float SVMetallicMaterial::getIor() const { return mBuffer.ior; }
 
 void SVMetallicMaterial::setTransmissionRoughness(float roughness) {
   mRequiresBufferUpload = true;
   mBuffer.transmissionRoughness = roughness;
+  if (mDeviceBuffer) {
+    uploadToDevice();
+  }
 }
 float SVMetallicMaterial::getTransmissionRoughness() const {
   return mBuffer.transmissionRoughness;
@@ -177,6 +201,9 @@ void SVMetallicMaterial::setDiffuseTexture(std::shared_ptr<SVTexture> texture) {
   } else {
     unsetBit(mBuffer.textureMask, TextureBit::eBaseColor);
   }
+  if (mDeviceBuffer) {
+    uploadToDevice();
+  }
 }
 void SVMetallicMaterial::setRoughnessTexture(
     std::shared_ptr<SVTexture> texture) {
@@ -187,6 +214,9 @@ void SVMetallicMaterial::setRoughnessTexture(
   } else {
     unsetBit(mBuffer.textureMask, TextureBit::eRoughness);
   }
+  if (mDeviceBuffer) {
+    uploadToDevice();
+  }
 }
 
 void SVMetallicMaterial::setNormalTexture(std::shared_ptr<SVTexture> texture) {
@@ -196,6 +226,9 @@ void SVMetallicMaterial::setNormalTexture(std::shared_ptr<SVTexture> texture) {
     setBit(mBuffer.textureMask, TextureBit::eNormal);
   } else {
     unsetBit(mBuffer.textureMask, TextureBit::eNormal);
+  }
+  if (mDeviceBuffer) {
+    uploadToDevice();
   }
 }
 
@@ -208,6 +241,9 @@ void SVMetallicMaterial::setMetallicTexture(
   } else {
     unsetBit(mBuffer.textureMask, TextureBit::eMetallic);
   }
+  if (mDeviceBuffer) {
+    uploadToDevice();
+  }
 }
 
 void SVMetallicMaterial::setEmissionTexture(
@@ -219,6 +255,9 @@ void SVMetallicMaterial::setEmissionTexture(
   } else {
     unsetBit(mBuffer.textureMask, TextureBit::eEmission);
   }
+  if (mDeviceBuffer) {
+    uploadToDevice();
+  }
 }
 
 void SVMetallicMaterial::setTransmissionTexture(
@@ -229,6 +268,9 @@ void SVMetallicMaterial::setTransmissionTexture(
     setBit(mBuffer.textureMask, TextureBit::eTransmission);
   } else {
     unsetBit(mBuffer.textureMask, TextureBit::eTransmission);
+  }
+  if (mDeviceBuffer) {
+    uploadToDevice();
   }
 }
 
@@ -282,6 +324,9 @@ void SVMetallicMaterial::setTextures(
     setBit(mBuffer.textureMask, TextureBit::eTransmission);
   } else {
     unsetBit(mBuffer.textureMask, TextureBit::eTransmission);
+  }
+  if (mDeviceBuffer) {
+    uploadToDevice();
   }
 }
 
