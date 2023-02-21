@@ -329,20 +329,26 @@ Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
     busid = pciInfo.pciBus;
 
     int computeMode{-1};
-#ifdef SVULKAN2_CUDA_INTEROP
-    cudaId = getCudaDeviceIdFromPhysicalDevice(device);
-    cudaDeviceGetAttribute(&computeMode, cudaDevAttrComputeMode, cudaId);
-    if ((computeMode == cudaComputeModeExclusiveProcess ||
-         computeMode == cudaComputeModeExclusive) &&
-        rayTracing) {
-      log::warn("CUDA device {} is in EXCLUSIVE or EXCLUSIVE_PROCESS mode. Ray "
-                "tracing is disabled. Switch device to DEFAULT mode to use ray "
-                "tracing.",
-                cudaId);
+    auto SAPIEN_DISABLE_RAY_TRACING = std::getenv("SAPIEN_DISABLE_RAY_TRACING");
+    if (SAPIEN_DISABLE_RAY_TRACING &&
+        std::strcmp(SAPIEN_DISABLE_RAY_TRACING, "1") == 0) {
       rayTracing = 0;
-    }
+    } else {
+#ifdef SVULKAN2_CUDA_INTEROP
+      cudaId = getCudaDeviceIdFromPhysicalDevice(device);
+      cudaDeviceGetAttribute(&computeMode, cudaDevAttrComputeMode, cudaId);
+      if ((computeMode == cudaComputeModeExclusiveProcess ||
+           computeMode == cudaComputeModeExclusive) &&
+          rayTracing) {
+        log::warn(
+            "CUDA device {} is in EXCLUSIVE or EXCLUSIVE_PROCESS mode. You "
+            "many not use this renderer with external CUDA programs unless "
+            "you switch off ray tracing by environment variable "
+            "SAPIEN_DISABLE_RAY_TRACING=1.",
+            cudaId);
+      }
 #endif
-
+    }
     bool supported = required_features && queueIdx != -1;
 
     ss << std::setw(3) << ord++ << std::setw(40) << name.substr(0, 39)
