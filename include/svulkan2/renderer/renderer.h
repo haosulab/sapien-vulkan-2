@@ -29,6 +29,8 @@ class Renderer : public RendererBase {
   std::shared_ptr<shader::ShaderPackInstance> mShaderPackInstance;
   std::unordered_map<std::string, std::shared_ptr<resource::SVRenderTarget>>
       mRenderTargets;
+  std::unordered_map<std::string, std::shared_ptr<resource::SVRenderTarget>>
+      mMultisampledTargets;
 
   // shadow targets ================================
   std::vector<uint32_t> mPointLightShadowSizes{};

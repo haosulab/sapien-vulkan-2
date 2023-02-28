@@ -68,7 +68,9 @@ static void updateDescriptorSets(
   device.updateDescriptorSets(writeDescriptorSets, nullptr);
 }
 
-Renderer::Renderer(std::shared_ptr<RendererConfig> config) : mConfig(config) {
+Renderer::Renderer(std::shared_ptr<RendererConfig> config) {
+  mConfig = std::make_shared<RendererConfig>(*config);
+
   mContext = core::Context::Get();
   if (!mContext->isVulkanAvailable()) {
     return;
@@ -77,6 +79,11 @@ Renderer::Renderer(std::shared_ptr<RendererConfig> config) : mConfig(config) {
   // preload the shader pack to get vertex layouts
   mShaderPack =
       mContext->getResourceManager()->CreateShaderPack(config->shaderDir);
+
+  // make sure only forward renderer uses msaa
+  if (mShaderPack->hasDeferredPass()) {
+    mConfig->msaa = vk::SampleCountFlagBits::e1;
+  }
 
   vk::DescriptorPoolSize pool_sizes[] = {
       {vk::DescriptorType::eCombinedImageSampler,
@@ -106,6 +113,19 @@ void Renderer::prepareRenderTargets(uint32_t width, uint32_t height) {
         static_cast<uint32_t>(height * scale), format);
     mRenderTargets[name]->createDeviceResources();
   }
+
+  // TODO: remove single sample depth target
+  if (mConfig->msaa != vk::SampleCountFlagBits::e1) {
+    for (auto &[name, format] : renderTargetFormats) {
+      float scale = 1.f;
+      mMultisampledTargets[name];
+      mMultisampledTargets[name] = std::make_shared<resource::SVRenderTarget>(
+          name, static_cast<uint32_t>(width * scale),
+          static_cast<uint32_t>(height * scale), format, mConfig->msaa);
+      mMultisampledTargets[name]->createDeviceResources();
+    }
+  }
+
   mRenderTargetFinalLayouts =
       mShaderPackInstance->getRenderTargetFinalLayouts();
 }
@@ -383,12 +403,27 @@ void Renderer::prepareFramebuffers(uint32_t width, uint32_t height) {
     float scale = 1.0f; // TODO support scale
     auto names = passes[i]->getColorRenderTargetNames();
     std::vector<vk::ImageView> attachments;
-    for (auto &name : names) {
-      attachments.push_back(mRenderTargets[name]->getImageView());
+
+    // color attachments and resolve attachments
+    if (mConfig->msaa != vk::SampleCountFlagBits::e1) {
+      for (auto &name : names) {
+        attachments.push_back(mMultisampledTargets.at(name)->getImageView());
+      }
     }
+    for (auto &name : names) {
+      attachments.push_back(mRenderTargets.at(name)->getImageView());
+    }
+
     auto depthName = passes[i]->getDepthRenderTargetName();
     if (depthName.has_value()) {
-      attachments.push_back(mRenderTargets[depthName.value()]->getImageView());
+      if (mConfig->msaa != vk::SampleCountFlagBits::e1) {
+        // TODO delete the other unused depth completely
+        attachments.push_back(
+            mMultisampledTargets.at(depthName.value())->getImageView());
+      } else {
+        attachments.push_back(
+            mRenderTargets.at(depthName.value())->getImageView());
+      }
     }
 
     vk::FramebufferCreateInfo info(
@@ -809,9 +844,12 @@ void Renderer::recordRenderPasses(scene::Scene &scene) {
                        vk::Extent2D{static_cast<uint32_t>(passWidth),
                                     static_cast<uint32_t>(passHeight)}};
 
+    uint32_t colorCount = pass->getTextureOutputLayout()->elements.size();
     std::vector<vk::ClearValue> clearValues(
-        pass->getTextureOutputLayout()->elements.size(),
+        mConfig->msaa == vk::SampleCountFlagBits::e1 ? colorCount
+                                                     : colorCount * 2,
         vk::ClearColorValue(std::array<float, 4>{0.f, 0.f, 0.f, 0.f}));
+
     clearValues.push_back(vk::ClearDepthStencilValue(1.0f, 0));
     vk::RenderPassBeginInfo renderPassBeginInfo{
         mShaderPackInstance->getNonShadowPassResources()
@@ -1188,6 +1226,13 @@ void Renderer::prepareRender(scene::Camera &camera) {
   for (auto &[name, target] : mRenderTargets) {
     target->getImage().setCurrentLayout(mRenderTargetFinalLayouts[name]);
   }
+
+  // when using multisampling, the original layout is always transfer src
+  for (auto &[name, target] : mMultisampledTargets) {
+    mRenderTargets.at(name)->getImage().setCurrentLayout(
+        vk::ImageLayout::eTransferSrcOptimal);
+    target->getImage().setCurrentLayout(mRenderTargetFinalLayouts[name]);
+  }
 }
 
 void Renderer::render(scene::Camera &camera,
@@ -1303,24 +1348,28 @@ void Renderer::display(std::string const &renderTargetName,
     throw std::runtime_error(
         "failed to display: only color textures are supported in display");
   };
-  auto layout = mRenderTargetFinalLayouts.at(renderTargetName);
-  vk::AccessFlags sourceAccessMask;
-  vk::PipelineStageFlags sourceStage;
-  if (layout == vk::ImageLayout::eColorAttachmentOptimal) {
-    sourceAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
-    sourceStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-  } else if (layout == vk::ImageLayout::eShaderReadOnlyOptimal) {
-    sourceAccessMask = {};
-    sourceStage = vk::PipelineStageFlagBits::eTopOfPipe;
-  } else {
-    throw std::runtime_error("invalid layout");
-  }
+  auto layout = renderTarget->getImage().getCurrentLayout();
+  // auto layout = mRenderTargetFinalLayouts.at(renderTargetName);
 
-  // transfer render target
-  renderTarget->getImage().transitionLayout(
-      mDisplayCommandBuffer.get(), layout, vk::ImageLayout::eTransferSrcOptimal,
-      sourceAccessMask, vk::AccessFlagBits::eTransferRead, sourceStage,
-      vk::PipelineStageFlagBits::eTransfer);
+  if (layout != vk::ImageLayout::eTransferSrcOptimal) {
+    vk::AccessFlags sourceAccessMask;
+    vk::PipelineStageFlags sourceStage;
+    if (layout == vk::ImageLayout::eColorAttachmentOptimal) {
+      sourceAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
+      sourceStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+    } else if (layout == vk::ImageLayout::eShaderReadOnlyOptimal) {
+      sourceAccessMask = {};
+      sourceStage = vk::PipelineStageFlagBits::eTopOfPipe;
+    } else {
+      throw std::runtime_error("invalid layout");
+    }
+    // transfer render target
+    renderTarget->getImage().transitionLayout(
+        mDisplayCommandBuffer.get(), layout,
+        vk::ImageLayout::eTransferSrcOptimal, sourceAccessMask,
+        vk::AccessFlagBits::eTransferRead, sourceStage,
+        vk::PipelineStageFlagBits::eTransfer);
+  }
 
   // transfer swap chain
   {

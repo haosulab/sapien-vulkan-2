@@ -499,47 +499,6 @@ void verifyLightSpaceBuffer(std::shared_ptr<StructDataLayout> layout) {
          "light height should have type int");
 }
 
-// std::shared_ptr<StructDataLayout>
-// parseCameraBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
-//                   uint32_t setNumber) {
-//   auto layout = parseBuffer(compiler, bindingNumber, setNumber);
-//   verifyCameraBuffer(layout);
-//   return layout;
-// }
-
-// std::shared_ptr<StructDataLayout>
-// parseMaterialBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
-//                     uint32_t setNumber) {
-//   auto layout = parseBuffer(compiler, bindingNumber, setNumber);
-//   verifyMaterialBuffer(layout);
-//   return layout;
-// }
-
-// std::shared_ptr<StructDataLayout>
-// parseObjectBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
-//                   uint32_t setNumber) {
-//   auto layout = parseBuffer(compiler, bindingNumber, setNumber);
-//   verifyObjectBuffer(layout);
-//   return layout;
-// }
-
-// std::shared_ptr<StructDataLayout>
-// parseSceneBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
-//                  uint32_t setNumber) {
-//   auto layout = parseBuffer(compiler, bindingNumber, setNumber);
-//   verifySceneBuffer(layout);
-//   return layout;
-// }
-
-// std::shared_ptr<StructDataLayout>
-// parseLightSpaceBuffer(spirv_cross::Compiler &compiler, uint32_t
-// bindingNumber,
-//                       uint32_t setNumber) {
-//   auto layout = parseBuffer(compiler, bindingNumber, setNumber);
-//   verifyLightSpaceBuffer(layout);
-//   return layout;
-// }
-
 std::shared_ptr<SpecializationConstantLayout>
 parseSpecializationConstant(spirv_cross::Compiler &compiler) {
   auto layout = std::make_shared<SpecializationConstantLayout>();
@@ -701,9 +660,6 @@ std::vector<std::string> BaseParser::getInputTextureNames() const { return {}; }
 
 vk::UniquePipelineLayout BaseParser::createPipelineLayout(
     vk::Device device, std::vector<vk::DescriptorSetLayout> layouts) const {
-  vk::PipelineLayoutCreateInfo pipelineLayoutInfo;
-  // pipelineLayoutInfo.setLayoutCount = layouts.size();
-  // pipelineLayoutInfo.pSetLayouts = layouts.data();
   return device.createPipelineLayoutUnique(
       vk::PipelineLayoutCreateInfo({}, layouts));
 }

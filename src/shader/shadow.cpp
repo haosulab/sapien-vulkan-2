@@ -49,13 +49,13 @@ vk::UniqueRenderPass ShadowPassParser::createRenderPass(
     vk::Format depthFormat,
     std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
         &colorTargetLayouts,
-    std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout) const {
+    std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,
+    vk::SampleCountFlagBits sampleCount) const {
   std::vector<vk::AttachmentDescription> attachmentDescriptions;
 
   // Only Depth Attachment needed for Shadow Mapping
   attachmentDescriptions.push_back(vk::AttachmentDescription(
-      vk::AttachmentDescriptionFlags(), depthFormat,
-      vk::SampleCountFlagBits::e1,
+      vk::AttachmentDescriptionFlags(), depthFormat, sampleCount,
       depthLayout.first == vk::ImageLayout::eUndefined
           ? vk::AttachmentLoadOp::eClear
           : vk::AttachmentLoadOp::eLoad,
@@ -106,6 +106,7 @@ vk::UniqueRenderPass ShadowPassParser::createRenderPass(
 vk::UniquePipeline ShadowPassParser::createPipeline(
     vk::Device device, vk::PipelineLayout layout, vk::RenderPass renderPass,
     vk::CullModeFlags cullMode, vk::FrontFace frontFace, bool alphaBlend,
+    vk::SampleCountFlagBits sampleCount,
     std::map<std::string, SpecializationConstantValue> const
         &specializationConstantInfo) const {
 
@@ -151,7 +152,8 @@ vk::UniquePipeline ShadowPassParser::createPipeline(
       1.0f);
 
   // multisample
-  vk::PipelineMultisampleStateCreateInfo pipelineMultisampleStateCreateInfo;
+  vk::PipelineMultisampleStateCreateInfo pipelineMultisampleStateCreateInfo{
+      {}, sampleCount};
 
   // stencil
   vk::StencilOpState stencilOpState{};
@@ -174,8 +176,10 @@ vk::UniquePipeline ShadowPassParser::createPipeline(
       &pipelineViewportStateCreateInfo, &pipelineRasterizationStateCreateInfo,
       &pipelineMultisampleStateCreateInfo, &pipelineDepthStencilStateCreateInfo,
       nullptr, &pipelineDynamicStateCreateInfo, layout, renderPass);
-  return device.createGraphicsPipelineUnique(pipelineCache.get(),
-                                             graphicsPipelineCreateInfo).value;
+  return device
+      .createGraphicsPipelineUnique(pipelineCache.get(),
+                                    graphicsPipelineCreateInfo)
+      .value;
 }
 
 std::vector<UniformBindingType>

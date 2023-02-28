@@ -14,6 +14,7 @@ class SVRenderTarget {
   vk::Format mFormat;
   uint32_t mWidth{};
   uint32_t mHeight{};
+  vk::SampleCountFlagBits mSampleCount{vk::SampleCountFlagBits::e1};
 
   std::shared_ptr<core::Image> mImage{};
   vk::UniqueImageView mImageView;
@@ -22,8 +23,10 @@ class SVRenderTarget {
   bool mOnDevice{};
 
 public:
-  SVRenderTarget(std::string const &name, uint32_t width, uint32_t height,
-                 vk::Format format);
+  SVRenderTarget(
+      std::string const &name, uint32_t width, uint32_t height,
+      vk::Format format,
+      vk::SampleCountFlagBits sampleCount = vk::SampleCountFlagBits::e1);
 
   SVRenderTarget(std::string const &name, uint32_t width, uint32_t height,
                  std::shared_ptr<core::Image> image,

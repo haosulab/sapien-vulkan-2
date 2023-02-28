@@ -25,8 +25,8 @@ public:
       vk::Format depthFormat,
       std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
           &colorTargetLayouts,
-      std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout)
-      const override;
+      std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,
+      vk::SampleCountFlagBits sampleCount) const override;
 
   std::vector<std::string> getColorRenderTargetNames() const override;
   std::optional<std::string> getDepthRenderTargetName() const override;
@@ -47,6 +47,7 @@ protected:
   createPipelineHelper(vk::Device device, vk::PipelineLayout layout,
                        vk::RenderPass renderPass, vk::CullModeFlags cullMode,
                        vk::FrontFace frontFace, bool alphaBlend,
+                       vk::SampleCountFlagBits sampleCount,
                        std::map<std::string, SpecializationConstantValue> const
                            &specializationConstantInfo,
                        int primitiveType, float primitiveSize) const;
@@ -63,6 +64,7 @@ public:
   createPipeline(vk::Device device, vk::PipelineLayout layout,
                  vk::RenderPass renderPass, vk::CullModeFlags cullMode,
                  vk::FrontFace frontFace, bool alphaBlend,
+                 vk::SampleCountFlagBits sampleCount,
                  std::map<std::string, SpecializationConstantValue> const
                      &specializationConstantInfo) const override;
 };
@@ -74,6 +76,7 @@ public:
   createPipeline(vk::Device device, vk::PipelineLayout layout,
                  vk::RenderPass renderPass, vk::CullModeFlags cullMode,
                  vk::FrontFace frontFace, bool alphaBlend,
+                 vk::SampleCountFlagBits sampleCount,
                  std::map<std::string, SpecializationConstantValue> const
                      &specializationConstantInfo) const override;
 };

@@ -149,12 +149,14 @@ public:
       vk::Format depthFormat,
       std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
           &colorTargetLayouts,
-      std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout) const = 0;
+      std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,
+      vk::SampleCountFlagBits sampleCount) const = 0;
 
   virtual vk::UniquePipeline
   createPipeline(vk::Device device, vk::PipelineLayout layout,
                  vk::RenderPass renderPass, vk::CullModeFlags cullMode,
                  vk::FrontFace frontFace, bool alphaBlend,
+                 vk::SampleCountFlagBits sampleCount,
                  std::map<std::string, SpecializationConstantValue> const
                      &specializationConstantInfo) const = 0;
 

@@ -16,6 +16,8 @@ struct RendererConfig {
   vk::Format colorFormat4{
       vk::Format::eR32G32B32A32Sfloat}; // R8G8B8A8Unorm, R32G32B32A32Sfloat
 
+  vk::SampleCountFlagBits msaa{vk::SampleCountFlagBits::e1}; // msaa
+
   // texture foramt for specific textures
   std::unordered_map<std::string, vk::Format> textureFormat;
 

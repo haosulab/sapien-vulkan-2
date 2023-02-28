@@ -62,16 +62,20 @@ vk::UniqueRenderPass GbufferPassParser::createRenderPass(
     vk::Format depthFormat,
     std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
         &colorTargetLayouts,
-    std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout) const {
+    std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,
+    vk::SampleCountFlagBits sampleCount) const {
   std::vector<vk::AttachmentDescription> attachmentDescriptions;
-  std::vector<vk::AttachmentReference> colorAttachments;
+  std::vector<vk::AttachmentReference> colorAttachmentRefs;
+
+  uint32_t attachmentIndex{0};
 
   auto elems = mTextureOutputLayout->getElementsSorted();
-  for (uint32_t i = 0; i < elems.size(); ++i) {
-    colorAttachments.push_back({i, vk::ImageLayout::eColorAttachmentOptimal});
+  for (uint32_t i = 0; i < elems.size(); ++i, ++attachmentIndex) {
+    colorAttachmentRefs.push_back(
+        {attachmentIndex, vk::ImageLayout::eColorAttachmentOptimal});
 
     attachmentDescriptions.push_back(vk::AttachmentDescription(
-        {}, colorFormats.at(i), vk::SampleCountFlagBits::e1,
+        {}, colorFormats.at(i), sampleCount,
         colorTargetLayouts[i].first == vk::ImageLayout::eUndefined
             ? vk::AttachmentLoadOp::eClear
             : vk::AttachmentLoadOp::eLoad,
@@ -79,9 +83,23 @@ vk::UniqueRenderPass GbufferPassParser::createRenderPass(
         vk::AttachmentStoreOp::eDontCare, colorTargetLayouts[i].first,
         colorTargetLayouts[i].second));
   }
+
+  std::vector<vk::AttachmentReference> resolveAttachmentRefs;
+  if (sampleCount != vk::SampleCountFlagBits::e1) {
+    for (uint32_t i = 0; i < elems.size(); ++i, ++attachmentIndex) {
+      resolveAttachmentRefs.push_back(
+          {attachmentIndex, vk::ImageLayout::eColorAttachmentOptimal});
+
+      attachmentDescriptions.push_back(vk::AttachmentDescription(
+          {}, colorFormats.at(i), vk::SampleCountFlagBits::e1,
+          vk::AttachmentLoadOp::eDontCare, vk::AttachmentStoreOp::eStore,
+          vk::AttachmentLoadOp::eDontCare, vk::AttachmentStoreOp::eDontCare,
+          vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferSrcOptimal));
+    }
+  }
+
   attachmentDescriptions.push_back(vk::AttachmentDescription(
-      vk::AttachmentDescriptionFlags(), depthFormat,
-      vk::SampleCountFlagBits::e1,
+      vk::AttachmentDescriptionFlags(), depthFormat, sampleCount,
       depthLayout.first == vk::ImageLayout::eUndefined
           ? vk::AttachmentLoadOp::eClear
           : vk::AttachmentLoadOp::eLoad,
@@ -89,11 +107,16 @@ vk::UniqueRenderPass GbufferPassParser::createRenderPass(
       vk::AttachmentStoreOp::eDontCare, depthLayout.first, depthLayout.second));
 
   vk::AttachmentReference depthAttachment(
-      elems.size(), vk::ImageLayout::eDepthStencilAttachmentOptimal);
+      attachmentIndex, vk::ImageLayout::eDepthStencilAttachmentOptimal);
 
   vk::SubpassDescription subpassDescription(
-      {}, vk::PipelineBindPoint::eGraphics, 0, nullptr, colorAttachments.size(),
-      colorAttachments.data(), nullptr, &depthAttachment);
+      {}, vk::PipelineBindPoint::eGraphics, {}, colorAttachmentRefs,
+      resolveAttachmentRefs, &depthAttachment);
+
+  // vk::SubpassDescription subpassDescription(
+  //     {}, vk::PipelineBindPoint::eGraphics, 0, nullptr,
+  //     colorAttachmentRefs.size(), colorAttachmentRefs.data(), nullptr,
+  //     &depthAttachment);
 
   // ensure previous writes are done
   // TODO: compute a better dependency
@@ -123,13 +146,17 @@ vk::UniqueRenderPass GbufferPassParser::createRenderPass(
   };
 
   return device.createRenderPassUnique(vk::RenderPassCreateInfo(
-      {}, attachmentDescriptions.size(), attachmentDescriptions.data(), 1,
-      &subpassDescription, 2, deps.data()));
+      {}, attachmentDescriptions, subpassDescription, deps));
+
+  // return device.createRenderPassUnique(vk::RenderPassCreateInfo(
+  //     {}, attachmentDescriptions.size(), attachmentDescriptions.data(), 1,
+  //     &subpassDescription, 2, deps.data()));
 }
 
 vk::UniquePipeline GbufferPassParser::createPipeline(
     vk::Device device, vk::PipelineLayout layout, vk::RenderPass renderPass,
     vk::CullModeFlags cullMode, vk::FrontFace frontFace, bool alphaBlend,
+    vk::SampleCountFlagBits sampleCount,
     std::map<std::string, SpecializationConstantValue> const
         &specializationConstantInfo) const {
 
@@ -220,7 +247,8 @@ vk::UniquePipeline GbufferPassParser::createPipeline(
       1.0f);
 
   // multisample
-  vk::PipelineMultisampleStateCreateInfo pipelineMultisampleStateCreateInfo;
+  vk::PipelineMultisampleStateCreateInfo pipelineMultisampleStateCreateInfo{
+      {}, sampleCount};
 
   // stencil
   vk::StencilOpState stencilOpState{};
@@ -275,8 +303,10 @@ vk::UniquePipeline GbufferPassParser::createPipeline(
       &pipelineMultisampleStateCreateInfo, &pipelineDepthStencilStateCreateInfo,
       &pipelineColorBlendStateCreateInfo, &pipelineDynamicStateCreateInfo,
       layout, renderPass);
-  return device.createGraphicsPipelineUnique(pipelineCache.get(),
-                                             graphicsPipelineCreateInfo).value;
+  return device
+      .createGraphicsPipelineUnique(pipelineCache.get(),
+                                    graphicsPipelineCreateInfo)
+      .value;
 }
 
 std::vector<std::string> GbufferPassParser::getColorRenderTargetNames() const {

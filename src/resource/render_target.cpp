@@ -5,8 +5,10 @@ namespace svulkan2 {
 namespace resource {
 
 SVRenderTarget::SVRenderTarget(std::string const &name, uint32_t width,
-                               uint32_t height, vk::Format format)
-    : mName(name), mFormat(format), mWidth(width), mHeight(height) {}
+                               uint32_t height, vk::Format format,
+                               vk::SampleCountFlagBits sampleCount)
+    : mName(name), mFormat(format), mWidth(width), mHeight(height),
+      mSampleCount(sampleCount) {}
 
 SVRenderTarget::SVRenderTarget(std::string const &name, uint32_t width,
                                uint32_t height,
@@ -41,8 +43,7 @@ void SVRenderTarget::createDeviceResources() {
   mContext = core::Context::Get();
   mImage = std::make_shared<core::Image>(
       vk::Extent3D{mWidth, mHeight, 1}, mFormat, usage,
-      VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, vk::SampleCountFlagBits::e1,
-      1);
+      VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, mSampleCount, 1);
   vk::ComponentMapping componentMapping(
       vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG,
       vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA);

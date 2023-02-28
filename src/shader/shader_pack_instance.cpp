@@ -275,6 +275,12 @@ std::future<void> ShaderPackInstance::loadAsync() {
     mLightSetLayout = createLightDescriptorSetLayout(device);
     mTextureSetLayouts = createTextureDescriptorSetLayouts(device, passes);
 
+    // enable msaa only in the forward pipeline
+    vk::SampleCountFlagBits msaa = vk::SampleCountFlagBits::e1;
+    if (!mShaderPack->hasDeferredPass()) {
+      msaa = mDesc.config->msaa;
+    }
+
     // non shadow
     for (uint32_t passIdx = 0; passIdx < passes.size(); ++passIdx) {
       auto pass = passes[passIdx];
@@ -305,21 +311,6 @@ std::future<void> ShaderPackInstance::loadAsync() {
       std::vector<vk::Format> formats;
       for (auto layout : pass->getTextureOutputLayout()->getElementsSorted()) {
         formats.push_back(getRenderTargetFormat(*mDesc.config, layout));
-        // switch (layout.dtype) {
-        // case DataType::eFLOAT:
-        //   formats.push_back(mDesc.config->colorFormat1);
-        //   break;
-        // case DataType::eFLOAT4:
-        //   formats.push_back(mDesc.config->colorFormat4);
-        //   break;
-        // case DataType::eUINT4:
-        //   formats.push_back(vk::Format::eR32G32B32A32Uint);
-        //   break;
-        // default:
-        //   throw std::runtime_error(
-        //       "only float, float4 and uint4 are allowed in output
-        //       attachments");
-        // }
       }
 
       // determine whether to use alpha blend
@@ -336,10 +327,10 @@ std::future<void> ShaderPackInstance::loadAsync() {
       res.renderPass = pass->createRenderPass(
           device, formats, mDesc.config->depthFormat,
           getColorAttachmentLayoutsForPass(textureOperationTable, pass),
-          getDepthAttachmentLayoutsForPass(textureOperationTable, pass));
+          getDepthAttachmentLayoutsForPass(textureOperationTable, pass), msaa);
       res.pipeline = pass->createPipeline(
           device, res.layout.get(), res.renderPass.get(), mDesc.config->culling,
-          vk::FrontFace::eCounterClockwise, alpha,
+          vk::FrontFace::eCounterClockwise, alpha, msaa,
           mDesc.specializationConstants);
 
       mNonShadowPassResources.push_back(std::move(res));
@@ -374,11 +365,12 @@ std::future<void> ShaderPackInstance::loadAsync() {
       res.renderPass = shadowPass->createRenderPass(
           device, {}, mDesc.config->depthFormat, {},
           {vk::ImageLayout::eUndefined,
-           vk::ImageLayout::eShaderReadOnlyOptimal});
+           vk::ImageLayout::eShaderReadOnlyOptimal},
+          vk::SampleCountFlagBits::e1);
       res.pipeline = shadowPass->createPipeline(
           device, res.layout.get(), res.renderPass.get(),
           vk::CullModeFlagBits::eFront, vk::FrontFace::eCounterClockwise, false,
-          mDesc.specializationConstants);
+          msaa, mDesc.specializationConstants);
 
       mShadowPassResources = std::move(res);
     }
@@ -419,11 +411,12 @@ std::future<void> ShaderPackInstance::loadAsync() {
       res.layout =
           pointShadowPass->createPipelineLayout(device, descriptorSetLayouts);
       res.renderPass = pointShadowPass->createRenderPass(
-          device, {}, mDesc.config->depthFormat, {}, layouts);
+          device, {}, mDesc.config->depthFormat, {}, layouts,
+          vk::SampleCountFlagBits::e1);
       res.pipeline = pointShadowPass->createPipeline(
           device, res.layout.get(), res.renderPass.get(),
           vk::CullModeFlagBits::eFront, vk::FrontFace::eCounterClockwise, false,
-          mDesc.specializationConstants);
+          msaa, mDesc.specializationConstants);
 
       mPointShadowPassResources = std::move(res);
     }
@@ -443,19 +436,6 @@ std::future<void> ShaderPackInstance::loadAsync() {
         }
         vk::Format texFormat =
             getRenderTargetFormat(*mDesc.config, elem.second);
-        // switch (elem.second.dtype) {
-        // case DataType::eFLOAT:
-        //   texFormat = mDesc.config->colorFormat1;
-        //   break;
-        // case DataType::eFLOAT4:
-        //   texFormat = mDesc.config->colorFormat4;
-        //   break;
-        // case DataType::eUINT4:
-        //   texFormat = vk::Format::eR32G32B32A32Uint;
-        //   break;
-        // default:
-        //   throw std::runtime_error("Unsupported texture format");
-        // }
 
         if (mRenderTargetFormats.find(texName) != mRenderTargetFormats.end()) {
           if (mRenderTargetFormats.at(texName) != texFormat) {

@@ -69,7 +69,8 @@ vk::UniqueRenderPass PrimitivePassParser::createRenderPass(
     vk::Format depthFormat,
     std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
         &colorTargetLayouts,
-    std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout) const {
+    std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,
+    vk::SampleCountFlagBits sampleCount) const {
   std::vector<vk::AttachmentDescription> attachmentDescriptions;
   std::vector<vk::AttachmentReference> colorAttachments;
 
@@ -77,7 +78,7 @@ vk::UniqueRenderPass PrimitivePassParser::createRenderPass(
   for (uint32_t i = 0; i < elems.size(); ++i) {
     colorAttachments.push_back({i, vk::ImageLayout::eColorAttachmentOptimal});
     attachmentDescriptions.push_back(vk::AttachmentDescription(
-        {}, colorFormats.at(i), vk::SampleCountFlagBits::e1,
+        {}, colorFormats.at(i), sampleCount,
         colorTargetLayouts[i].first == vk::ImageLayout::eUndefined
             ? vk::AttachmentLoadOp::eClear
             : vk::AttachmentLoadOp::eLoad,
@@ -86,8 +87,7 @@ vk::UniqueRenderPass PrimitivePassParser::createRenderPass(
         colorTargetLayouts[i].second));
   }
   attachmentDescriptions.push_back(vk::AttachmentDescription(
-      vk::AttachmentDescriptionFlags(), depthFormat,
-      vk::SampleCountFlagBits::e1,
+      vk::AttachmentDescriptionFlags(), depthFormat, sampleCount,
       depthLayout.first == vk::ImageLayout::eUndefined
           ? vk::AttachmentLoadOp::eClear
           : vk::AttachmentLoadOp::eLoad,
@@ -134,6 +134,7 @@ vk::UniqueRenderPass PrimitivePassParser::createRenderPass(
 vk::UniquePipeline PrimitivePassParser::createPipelineHelper(
     vk::Device device, vk::PipelineLayout layout, vk::RenderPass renderPass,
     vk::CullModeFlags cullMode, vk::FrontFace frontFace, bool alphaBlend,
+    vk::SampleCountFlagBits sampleCount,
     std::map<std::string, SpecializationConstantValue> const
         &specializationConstantInfo,
     int primitiveType, float primitiveSize) const {
@@ -236,7 +237,8 @@ vk::UniquePipeline PrimitivePassParser::createPipelineHelper(
       primitiveSize);
 
   // multisample
-  vk::PipelineMultisampleStateCreateInfo pipelineMultisampleStateCreateInfo;
+  vk::PipelineMultisampleStateCreateInfo pipelineMultisampleStateCreateInfo{
+      {}, sampleCount};
 
   // stencil
   vk::StencilOpState stencilOpState{};
@@ -291,8 +293,10 @@ vk::UniquePipeline PrimitivePassParser::createPipelineHelper(
       &pipelineMultisampleStateCreateInfo, &pipelineDepthStencilStateCreateInfo,
       &pipelineColorBlendStateCreateInfo, &pipelineDynamicStateCreateInfo,
       layout, renderPass);
-  return device.createGraphicsPipelineUnique(pipelineCache.get(),
-                                             graphicsPipelineCreateInfo).value;
+  return device
+      .createGraphicsPipelineUnique(pipelineCache.get(),
+                                    graphicsPipelineCreateInfo)
+      .value;
 }
 
 std::vector<std::string>
@@ -322,20 +326,23 @@ PrimitivePassParser::getUniformBindingTypes() const {
 vk::UniquePipeline PointPassParser::createPipeline(
     vk::Device device, vk::PipelineLayout layout, vk::RenderPass renderPass,
     vk::CullModeFlags cullMode, vk::FrontFace frontFace, bool alphaBlend,
+    vk::SampleCountFlagBits sampleCount,
     std::map<std::string, SpecializationConstantValue> const
         &specializationConstantInfo) const {
   return createPipelineHelper(device, layout, renderPass, cullMode, frontFace,
-                              alphaBlend, specializationConstantInfo, 0, 0.f);
+                              alphaBlend, sampleCount,
+                              specializationConstantInfo, 0, 0.f);
 }
 
 vk::UniquePipeline LinePassParser::createPipeline(
     vk::Device device, vk::PipelineLayout layout, vk::RenderPass renderPass,
     vk::CullModeFlags cullMode, vk::FrontFace frontFace, bool alphaBlend,
+    vk::SampleCountFlagBits sampleCount,
     std::map<std::string, SpecializationConstantValue> const
         &specializationConstantInfo) const {
   return createPipelineHelper(device, layout, renderPass, cullMode, frontFace,
-                              alphaBlend, specializationConstantInfo, 1,
-                              mLineWidth);
+                              alphaBlend, sampleCount,
+                              specializationConstantInfo, 1, mLineWidth);
 }
 
 } // namespace shader

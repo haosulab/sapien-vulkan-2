@@ -93,11 +93,14 @@ int main() {
   }
 
   auto config = std::make_shared<RendererConfig>();
-  config->shaderDir = srcBase + "shader/point";
+  config->shaderDir = srcBase + "shader/trivial";
   config->culling = vk::CullModeFlagBits::eNone;
 
+  config->msaa = vk::SampleCountFlagBits::e1;
   config->colorFormat4 = vk::Format::eR32G32B32A32Sfloat;
+
   renderer::Renderer renderer(config);
+
   // renderer::RTRenderer renderer("../shader/rt_test");
   // renderer.setCustomProperty("maxDepth", 6);
   // renderer.setCustomProperty("russianRoulette", 1);
