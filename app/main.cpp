@@ -93,7 +93,7 @@ int main() {
   }
 
   auto config = std::make_shared<RendererConfig>();
-  config->shaderDir = srcBase + "shader/trivial";
+  config->shaderDir = srcBase + "shader/iccv23";
   config->culling = vk::CullModeFlagBits::eNone;
 
   config->msaa = vk::SampleCountFlagBits::e1;

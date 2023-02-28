@@ -756,6 +756,90 @@ void Renderer::prepareObjects(scene::Scene &scene) {
       }
     }
   }
+
+  // update bindings for custom textures
+  {
+    auto setDesc = mShaderPack->getShaderInputLayouts()->objectSetDescription;
+    for (uint32_t bid = 1; bid < setDesc.bindings.size(); ++bid) {
+      auto binding = setDesc.bindings.at(bid);
+      if (binding.type == vk::DescriptorType::eCombinedImageSampler &&
+          binding.name.substr(0, 7) == "sampler") {
+        auto name = binding.name.substr(7);
+        if (binding.arraySize == 0) {
+          // sampler
+          std::vector<vk::DescriptorImageInfo> imageInfo;
+          for (uint32_t objId = 0; objId < objects.size(); ++objId) {
+            auto t = objects[objId]->getCustomTexture(name);
+            if (!t) {
+              if (binding.imageDim == 1) {
+                t = mContext->getResourceManager()->getDefaultTexture1D();
+              } else if (binding.imageDim == 2) {
+                t = mContext->getResourceManager()->getDefaultTexture();
+              } else {
+                t = mContext->getResourceManager()->getDefaultTexture3D();
+              }
+            }
+
+            t->loadAsync().get();
+            t->uploadToDevice();
+
+            imageInfo.push_back({t->getSampler(), t->getImageView(),
+                                 vk::ImageLayout::eShaderReadOnlyOptimal});
+          }
+
+          std::vector<vk::WriteDescriptorSet> writeDescriptorSets;
+          for (uint32_t objId = 0; objId < objects.size(); ++objId) {
+            writeDescriptorSets.push_back(vk::WriteDescriptorSet(
+                mObjectSet[objId].get(), bid, 0,
+                vk::DescriptorType::eCombinedImageSampler, imageInfo.back()));
+          }
+          mContext->getDevice().updateDescriptorSets(writeDescriptorSets,
+                                                     nullptr);
+        } else {
+          // sampler array
+          std::vector<std::vector<vk::DescriptorImageInfo>> imageInfo;
+          for (uint32_t objId = 0; objId < objects.size(); ++objId) {
+            auto ta = objects[objId]->getCustomTextureArray(name);
+            if (static_cast<int>(ta.size()) > binding.arraySize) {
+              ta.resize(binding.arraySize);
+            } else {
+              std::shared_ptr<resource::SVTexture> t;
+              if (binding.imageDim == 1) {
+                t = mContext->getResourceManager()->getDefaultTexture1D();
+              } else if (binding.imageDim == 2) {
+                t = mContext->getResourceManager()->getDefaultTexture();
+              } else {
+                t = mContext->getResourceManager()->getDefaultTexture3D();
+              }
+
+              ta.resize(binding.arraySize, t);
+            }
+            for (auto t : ta) {
+              t->loadAsync().get();
+              t->uploadToDevice();
+            }
+
+            imageInfo.emplace_back();
+            for (auto t : ta) {
+              imageInfo.back().push_back(
+                  {t->getSampler(), t->getImageView(),
+                   vk::ImageLayout::eShaderReadOnlyOptimal});
+            }
+          }
+
+          std::vector<vk::WriteDescriptorSet> writeDescriptorSets;
+          for (uint32_t objId = 0; objId < objects.size(); ++objId) {
+            writeDescriptorSets.push_back(vk::WriteDescriptorSet(
+                mObjectSet[objId].get(), bid, 0,
+                vk::DescriptorType::eCombinedImageSampler, imageInfo[objId]));
+          }
+
+          mContext->getDevice().updateDescriptorSets(writeDescriptorSets,
+                                                     nullptr);
+        }
+      }
+    }
+  }
 }
 
 void Renderer::recordRenderPasses(scene::Scene &scene) {

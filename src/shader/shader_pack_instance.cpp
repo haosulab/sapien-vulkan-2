@@ -18,13 +18,32 @@ ShaderPackInstance::ShaderPackInstance(ShaderPackInstanceDesc const &desc)
       mContext->getResourceManager()->CreateShaderPack(mDesc.config->shaderDir);
 }
 
-static vk::UniqueDescriptorSetLayout
-createObjectDescriptorSetLayout(vk::Device device) {
-  auto binding = vk::DescriptorSetLayoutBinding(
-      0, vk::DescriptorType::eUniformBuffer, 1,
-      vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment);
+static vk::UniqueDescriptorSetLayout createObjectDescriptorSetLayout(
+    vk::Device device, DescriptorSetDescription const &objectSetDescription) {
+  std::vector<vk::DescriptorSetLayoutBinding> bindings;
+  bindings.push_back(
+      {0, vk::DescriptorType::eUniformBuffer, 1,
+       vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment});
+
+  for (uint32_t bid = 1; bid < objectSetDescription.bindings.size(); ++bid) {
+    auto binding = objectSetDescription.bindings.at(bid);
+    if (binding.type == vk::DescriptorType::eCombinedImageSampler) {
+      if (binding.dim == 0) {
+        bindings.push_back({bid, vk::DescriptorType::eCombinedImageSampler, 1,
+                            vk::ShaderStageFlagBits::eVertex |
+                                vk::ShaderStageFlagBits::eFragment});
+      } else {
+        uint32_t arraySize = binding.arraySize;
+        bindings.push_back({bid, vk::DescriptorType::eCombinedImageSampler,
+                            arraySize,
+                            vk::ShaderStageFlagBits::eVertex |
+                                vk::ShaderStageFlagBits::eFragment});
+      }
+    }
+  }
+
   return device.createDescriptorSetLayoutUnique(
-      vk::DescriptorSetLayoutCreateInfo({}, binding));
+      vk::DescriptorSetLayoutCreateInfo({}, bindings));
 }
 
 static vk::UniqueDescriptorSetLayout
@@ -69,10 +88,8 @@ static vk::UniqueDescriptorSetLayout createSceneDescriptorSetLayout(
       throw std::runtime_error("invalid scene descriptor set");
     }
   }
-  vk::DescriptorSetLayoutBindingFlagsCreateInfo flagInfo(bindingFlags.size(),
-                                                         bindingFlags.data());
-  vk::DescriptorSetLayoutCreateInfo layoutInfo({}, bindings.size(),
-                                               bindings.data());
+  vk::DescriptorSetLayoutBindingFlagsCreateInfo flagInfo(bindingFlags);
+  vk::DescriptorSetLayoutCreateInfo layoutInfo({}, bindings);
   layoutInfo.setPNext(&flagInfo);
   return device.createDescriptorSetLayoutUnique(layoutInfo);
 }
@@ -103,8 +120,7 @@ createTextureDescriptorSetLayouts(
               vk::ShaderStageFlagBits::eFragment));
         }
         layout = device.createDescriptorSetLayoutUnique(
-            vk::DescriptorSetLayoutCreateInfo({}, bindings.size(),
-                                              bindings.data()));
+            vk::DescriptorSetLayoutCreateInfo({}, bindings));
         break;
       }
     }
@@ -270,7 +286,8 @@ std::future<void> ShaderPackInstance::loadAsync() {
     // descriptor set layout
     mSceneSetLayout = createSceneDescriptorSetLayout(
         device, inputLayouts->sceneSetDescription);
-    mObjectSetLayout = createObjectDescriptorSetLayout(device);
+    mObjectSetLayout = createObjectDescriptorSetLayout(
+        device, inputLayouts->objectSetDescription);
     mCameraSetLayout = createCameraDescriptorSetLayout(device);
     mLightSetLayout = createLightDescriptorSetLayout(device);
     mTextureSetLayouts = createTextureDescriptorSetLayouts(device, passes);

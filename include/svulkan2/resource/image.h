@@ -24,6 +24,7 @@ class SVImage {
 
   uint32_t mWidth{};
   uint32_t mHeight{};
+  uint32_t mDepth{1};
   uint32_t mChannels{};
   vk::ImageCreateFlags mCreateFlags{};
   vk::ImageUsageFlags mUsage{vk::ImageUsageFlagBits::eSampled |
@@ -53,9 +54,19 @@ public:
            uint32_t mipLevels = 1);
 
   static std::shared_ptr<SVImage> FromData(uint32_t width, uint32_t height,
+                                           uint32_t depth, uint32_t channels,
+                                           std::vector<float> const &data,
+                                           uint32_t mipLevels);
+
+  static std::shared_ptr<SVImage> FromData(uint32_t width, uint32_t height,
                                            uint32_t channels,
                                            std::vector<float> const &data,
                                            uint32_t mipLevels = 1);
+
+  static std::shared_ptr<SVImage>
+  FromData(uint32_t width, uint32_t height, uint32_t depth, uint32_t channels,
+           std::vector<std::vector<float>> const &data, uint32_t mipLevels);
+
   static std::shared_ptr<SVImage>
   FromData(uint32_t width, uint32_t height, uint32_t channels,
            std::vector<std::vector<float>> const &data, uint32_t mipLevels = 1);
@@ -95,9 +106,11 @@ public:
 
   inline uint32_t getWidth() const { return mWidth; };
   inline uint32_t getHeight() const { return mHeight; };
+  inline uint32_t getDepth() const { return mDepth; };
   inline uint32_t getChannels() const { return mChannels; };
 
-  /** Indicate that the image loads mipmap into the data and does not require generation */
+  /** Indicate that the image loads mipmap into the data and does not require
+   * generation */
   bool mipmapIsLoaded() const { return mMipLoaded; }
 
 private:

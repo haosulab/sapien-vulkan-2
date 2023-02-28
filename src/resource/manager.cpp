@@ -11,8 +11,18 @@ namespace svulkan2 {
 namespace resource {
 
 SVResourceManager::SVResourceManager() {
-  mDefaultTexture =
+  mDefaultTexture2D =
       SVTexture::FromData(1, 1, 4, std::vector<uint8_t>{255, 255, 255, 255});
+
+  // TODO: use uint8
+  mDefaultTexture1D = SVTexture::FromData(
+      1, 1, 1, 4, std::vector<float>{1.0, 1.0, 1.0, 1.0}, 1);
+
+  // TODO: support 3D with 1,1,1
+  mDefaultTexture3D = SVTexture::FromData(
+      1, 1, 2, 4, std::vector<float>{1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0},
+      3);
+
   mDefaultCubemap = SVCubemap::FromData(1, 4,
                                         {
                                             std::vector<uint8_t>{0, 0, 0, 0},
@@ -141,11 +151,6 @@ std::shared_ptr<SVTexture> SVResourceManager::CreateTextureFromFile(
   auto tex = SVTexture::FromFile(path, mipLevels, magFilter, minFilter,
                                  addressModeU, addressModeV, srgb);
   mTextureRegistry[path].push_back(tex);
-
-  // TODO: automate
-  mAllTextures.push_back(tex);
-  tex->setGlobalIndex(static_cast<int>(mAllTextures.size()));
-
   return tex;
 }
 
@@ -157,9 +162,6 @@ std::shared_ptr<SVTexture> SVResourceManager::CreateTextureFromData(
   auto tex =
       SVTexture::FromData(width, height, channels, data, mipLevels, magFilter,
                           minFilter, addressModeU, addressModeV, srgb);
-  // TODO: automate
-  mAllTextures.push_back(tex);
-  tex->setGlobalIndex(static_cast<int>(mAllTextures.size()));
   return tex;
 }
 
@@ -171,9 +173,6 @@ std::shared_ptr<SVTexture> SVResourceManager::CreateTextureFromData(
   auto tex =
       SVTexture::FromData(width, height, channels, data, mipLevels, magFilter,
                           minFilter, addressModeU, addressModeV);
-  // TODO: automate
-  mAllTextures.push_back(tex);
-  tex->setGlobalIndex(static_cast<int>(mAllTextures.size()));
   return tex;
 }
 

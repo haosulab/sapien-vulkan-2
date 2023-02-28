@@ -43,6 +43,7 @@ DescriptorSetDescription::merge(DescriptorSetDescription const &other) const {
                                    std::to_string(bindingIndex) +
                                    ": texture names are different.");
         }
+        // TODO: check array size and imageDim as well
         break;
       case vk::DescriptorType::eStorageImage:
         if (other.images.at(binding.arrayIndex) !=
@@ -80,6 +81,7 @@ DescriptorSetDescription::merge(DescriptorSetDescription const &other) const {
             .type = vk::DescriptorType::eCombinedImageSampler,
             .dim = binding.dim,
             .arraySize = binding.arraySize,
+            .imageDim = binding.imageDim,
             .arrayIndex = static_cast<uint32_t>(newSamplers.size() - 1)};
         break;
       case vk::DescriptorType::eStorageImage:
@@ -89,6 +91,7 @@ DescriptorSetDescription::merge(DescriptorSetDescription const &other) const {
             .type = vk::DescriptorType::eStorageImage,
             .dim = binding.dim,
             .arraySize = binding.arraySize,
+            .imageDim = binding.imageDim,
             .arrayIndex = static_cast<uint32_t>(newSamplers.size() - 1),
             .format = binding.format};
         break;
@@ -554,12 +557,23 @@ getDescriptorSetDescription(spirv_cross::Compiler &compiler,
       result.samplers.push_back(r.name);
       // compiler.get_type(r.type_id).image.dim == spv::DimCube);
       int dim = compiler.get_type(r.type_id).array.size();
+      int imageDim = -1;
+      if (compiler.get_type(r.type_id).image.dim == spv::Dim1D) {
+        imageDim = 1;
+      } else if (compiler.get_type(r.type_id).image.dim == spv::Dim2D) {
+        imageDim = 2;
+      } else if (compiler.get_type(r.type_id).image.dim == spv::Dim3D) {
+        imageDim = 3;
+      } else if (compiler.get_type(r.type_id).image.dim == spv::DimCube) {
+        imageDim = 4;
+      }
       int arraySize = dim == 1 ? compiler.get_type(r.type_id).array[0] : 0;
       result.bindings[bindingNumber] = {
           .name = r.name,
           .type = vk::DescriptorType::eCombinedImageSampler,
           .dim = dim,
           .arraySize = arraySize,
+          .imageDim = imageDim,
           .arrayIndex = static_cast<uint32_t>(result.samplers.size() - 1)};
     }
   }

@@ -106,6 +106,33 @@ void Object::setCustomDataInt4(std::string const &name, glm::ivec4 x) {
   mScene->updateRenderVersion();
 }
 
+void Object::setCustomTexture(std::string const &name,
+                              std::shared_ptr<resource::SVTexture> texture) {
+  mCustomTexture[name] = texture;
+}
+std::shared_ptr<resource::SVTexture> const
+Object::getCustomTexture(std::string const &name) const {
+  auto it = mCustomTexture.find(name);
+  if (it != mCustomTexture.end()) {
+    return it->second;
+  }
+  return nullptr;
+}
+
+void Object::setCustomTextureArray(
+    std::string const &name,
+    std::vector<std::shared_ptr<resource::SVTexture>> textures) {
+  mCustomTextureArray[name] = textures;
+}
+std::vector<std::shared_ptr<resource::SVTexture>>
+Object::getCustomTextureArray(std::string const &name) const {
+  auto it = mCustomTextureArray.find(name);
+  if (it != mCustomTextureArray.end()) {
+    return it->second;
+  }
+  return {};
+}
+
 void Object::setTransparency(float transparency) {
   if (transparency >= 1.f && mTransparency < 1.f) {
     mScene->updateVersion();

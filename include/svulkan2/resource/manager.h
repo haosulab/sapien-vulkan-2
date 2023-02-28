@@ -74,7 +74,15 @@ public:
   std::shared_ptr<SVTexture> CreateRandomTexture(std::string const &name);
 
   inline std::shared_ptr<SVTexture> getDefaultTexture() const {
-    return mDefaultTexture;
+    return mDefaultTexture2D;
+  };
+
+  inline std::shared_ptr<SVTexture> getDefaultTexture1D() const {
+    return mDefaultTexture1D;
+  };
+
+  inline std::shared_ptr<SVTexture> getDefaultTexture3D() const {
+    return mDefaultTexture3D;
   };
 
   inline std::shared_ptr<SVCubemap> getDefaultCubemap() const {
@@ -161,16 +169,6 @@ private:
   std::unordered_map<std::string, std::shared_ptr<SVTexture>>
       mRandomTextureRegistry;
 
-  // all textures, used for indexing in ray tracing
-  std::vector<std::weak_ptr<SVTexture>> mAllTextures;
-  std::unique_ptr<core::DynamicDescriptorPool> mTextureDescriptorPool;
-  vk::UniqueDescriptorSetLayout mTextureSetLayout;
-  vk::UniqueDescriptorSet mTextureSet;
-
-  // all materials, used to form the big material buffer for ray tracing
-  std::vector<std::weak_ptr<SVMetallicMaterial>> mAllMaterials;
-  std::unique_ptr<core::Buffer> mMaterialBuffer;
-
   std::mutex mShaderPackLock{};
   std::unordered_map<std::string, std::shared_ptr<shader::ShaderPack>>
       mShaderPackRegistry;
@@ -187,7 +185,10 @@ private:
   std::shared_ptr<InputDataLayout> mVertexLayout{};
   std::shared_ptr<InputDataLayout> mLineVertexLayout{};
 
-  std::shared_ptr<SVTexture> mDefaultTexture;
+  std::shared_ptr<SVTexture> mDefaultTexture1D;
+  std::shared_ptr<SVTexture> mDefaultTexture2D;
+  std::shared_ptr<SVTexture> mDefaultTexture3D;
+
   std::shared_ptr<SVCubemap> mDefaultCubemap;
   std::shared_ptr<SVTexture> mDefaultBRDFLUT;
 

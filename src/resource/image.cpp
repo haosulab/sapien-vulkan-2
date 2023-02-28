@@ -36,16 +36,15 @@ SVImage::FromData(uint32_t width, uint32_t height, uint32_t channels,
   return image;
 }
 
-std::shared_ptr<SVImage>
-SVImage::FromData(uint32_t width, uint32_t height, uint32_t channels,
-                  std::vector<std::vector<float>> const &data,
-                  uint32_t mipLevels) {
+std::shared_ptr<SVImage> SVImage::FromData(
+    uint32_t width, uint32_t height, uint32_t depth, uint32_t channels,
+    std::vector<std::vector<float>> const &data, uint32_t mipLevels) {
   if (channels != 1 && channels != 4) {
     throw std::runtime_error(
         "failed to create image: image must have 1 or 4 channels");
   }
   for (auto &d : data) {
-    if (width * height * channels != d.size()) {
+    if (width * height * depth * channels != d.size()) {
       throw std::runtime_error("failed to create image: image dimension does "
                                "not match image data size");
     }
@@ -57,10 +56,18 @@ SVImage::FromData(uint32_t width, uint32_t height, uint32_t channels,
                          .mipLevels = mipLevels};
   image->mWidth = width;
   image->mHeight = height;
+  image->mDepth = depth;
   image->mChannels = channels;
   image->mFloatData = data;
   image->mLoaded = true;
   return image;
+}
+
+std::shared_ptr<SVImage>
+SVImage::FromData(uint32_t width, uint32_t height, uint32_t channels,
+                  std::vector<std::vector<float>> const &data,
+                  uint32_t mipLevels) {
+  return FromData(width, height, 1, channels, data, mipLevels);
 }
 
 std::shared_ptr<SVImage> SVImage::FromData(uint32_t width, uint32_t height,
@@ -76,6 +83,14 @@ std::shared_ptr<SVImage> SVImage::FromData(uint32_t width, uint32_t height,
                                            std::vector<float> const &data,
                                            uint32_t mipLevels) {
   return SVImage::FromData(width, height, channels,
+                           std::vector<std::vector<float>>{data}, mipLevels);
+}
+
+std::shared_ptr<SVImage> SVImage::FromData(uint32_t width, uint32_t height,
+                                           uint32_t depth, uint32_t channels,
+                                           std::vector<float> const &data,
+                                           uint32_t mipLevels) {
+  return SVImage::FromData(width, height, depth, channels,
                            std::vector<std::vector<float>>{data}, mipLevels);
 }
 
@@ -141,7 +156,7 @@ void SVImage::uploadToDevice(bool generateMipmaps) {
   }
   if (mDescription.format == SVImageDescription::Format::eUINT8) {
     mImage = std::make_unique<core::Image>(
-        vk::Extent3D{mWidth, mHeight, 1},
+        vk::Extent3D{mWidth, mHeight, mDepth},
         mChannels == 4 ? vk::Format::eR8G8B8A8Unorm : vk::Format::eR8Unorm,
         mUsage, VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY,
         vk::SampleCountFlagBits::e1, mDescription.mipLevels, mData.size(),
@@ -163,7 +178,8 @@ void SVImage::uploadToDevice(bool generateMipmaps) {
       for (uint32_t layer = 0; layer < mData.size(); ++layer) {
         uint32_t idx = 0;
         for (uint32_t l = 0; l < mDescription.mipLevels; ++l) {
-          auto size = computeMipLevelSize({mWidth, mHeight, 1}, l) * mChannels;
+          auto size =
+              computeMipLevelSize({mWidth, mHeight, mDepth}, l) * mChannels;
           mImage->uploadLevel(mData[layer].data() + idx, size * sizeof(uint8_t),
                               layer, l);
           idx += size;
@@ -190,7 +206,7 @@ void SVImage::uploadToDevice(bool generateMipmaps) {
     }
   } else {
     mImage = std::make_unique<core::Image>(
-        vk::Extent3D{mWidth, mHeight, 1},
+        vk::Extent3D{mWidth, mHeight, mDepth},
         mChannels == 4 ? vk::Format::eR32G32B32A32Sfloat
                        : vk::Format::eR32Sfloat,
         mUsage, VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY,

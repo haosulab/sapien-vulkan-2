@@ -27,7 +27,14 @@ namespace scene {
 class Object : public Node {
   std::shared_ptr<resource::SVModel> mModel;
   glm::uvec4 mSegmentation{0};
+
   std::unordered_map<std::string, CustomData> mCustomData;
+  std::unordered_map<std::string, std::shared_ptr<resource::SVTexture>>
+      mCustomTexture;
+  std::unordered_map<std::string,
+                     std::vector<std::shared_ptr<resource::SVTexture>>>
+      mCustomTextureArray;
+
   int mShadingMode{};
   float mTransparency{};
   bool mCastShadow{true};
@@ -55,6 +62,17 @@ public:
   void setCustomDataInt2(std::string const &name, glm::ivec2 x);
   void setCustomDataInt3(std::string const &name, glm::ivec3 x);
   void setCustomDataInt4(std::string const &name, glm::ivec4 x);
+
+  void setCustomTexture(std::string const &name,
+                        std::shared_ptr<resource::SVTexture> texture);
+  std::shared_ptr<resource::SVTexture> const
+  getCustomTexture(std::string const &name) const;
+
+  void setCustomTextureArray(
+      std::string const &name,
+      std::vector<std::shared_ptr<resource::SVTexture>> textures);
+  std::vector<std::shared_ptr<resource::SVTexture>>
+  getCustomTextureArray(std::string const &name) const;
 
   /** used to choose gbuffer pipelines */
   inline void setShadingMode(int mode) { mShadingMode = mode; }

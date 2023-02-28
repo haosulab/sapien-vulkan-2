@@ -15,14 +15,18 @@ struct SVTextureDescription {
   vk::Filter minFilter{vk::Filter::eNearest};
   vk::SamplerAddressMode addressModeU{vk::SamplerAddressMode::eRepeat};
   vk::SamplerAddressMode addressModeV{vk::SamplerAddressMode::eRepeat};
+  vk::SamplerAddressMode addressModeW{vk::SamplerAddressMode::eRepeat};
   bool srgb{false};
+  int dim{2};
 
   inline bool operator==(SVTextureDescription const &other) const {
     return source == other.source && filename == other.filename &&
            format == other.format && mipLevels == other.mipLevels &&
            magFilter == other.magFilter && minFilter == other.minFilter &&
            addressModeU == other.addressModeU &&
-           addressModeV == other.addressModeV && srgb == other.srgb;
+           addressModeV == other.addressModeV &&
+           addressModeW == other.addressModeW && srgb == other.srgb &&
+           dim == other.dim;
   }
 };
 
@@ -53,6 +57,15 @@ public:
       vk::SamplerAddressMode addressModeU = vk::SamplerAddressMode::eRepeat,
       vk::SamplerAddressMode addressModeV = vk::SamplerAddressMode::eRepeat);
 
+  static std::shared_ptr<SVTexture> FromData(
+      uint32_t width, uint32_t height, uint32_t depth, uint32_t channels,
+      std::vector<float> const &data, int dim, uint32_t mipLevels = 1,
+      vk::Filter magFilter = vk::Filter::eLinear,
+      vk::Filter minFilter = vk::Filter::eLinear,
+      vk::SamplerAddressMode addressModeU = vk::SamplerAddressMode::eRepeat,
+      vk::SamplerAddressMode addressModeV = vk::SamplerAddressMode::eRepeat,
+      vk::SamplerAddressMode addressModeW = vk::SamplerAddressMode::eRepeat);
+
   static std::shared_ptr<SVTexture> FromImage(std::shared_ptr<SVImage> image,
                                               vk::UniqueImageView imageView,
                                               vk::Sampler sampler);
@@ -78,9 +91,6 @@ public:
   SVTexture &operator=(SVTexture &&other) = delete;
   inline SVTexture() {}
 
-  inline int getGlobalIndex() const { return mGlobalIndex; }
-  inline void setGlobalIndex(int index) { mGlobalIndex = index; }
-
 private:
   std::shared_ptr<core::Context> mContext; // keep alive for sampler and
                                            // image view
@@ -95,8 +105,6 @@ private:
 
   std::mutex mUploadingMutex;
   std::mutex mLoadingMutex;
-
-  int mGlobalIndex{-1}; // global index global array
 };
 
 } // namespace resource

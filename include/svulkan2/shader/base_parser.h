@@ -33,6 +33,7 @@ struct DescriptorSetDescription {
     vk::DescriptorType type;
     int dim;
     int arraySize;
+    int imageDim{0};     // e.g. sampler1D
     uint32_t arrayIndex; // index in the buffers/samplers vector
     vk::Format format;   // only used for storage image
   };

@@ -19,9 +19,6 @@ public:
   virtual void removeFromDevice() = 0;
   virtual float getOpacity() const = 0;
 
-  inline int getGlobalIndex() const { return mGlobalIndex; }
-  inline void setGlobalIndex(int index) { mGlobalIndex = index; }
-
   virtual ~SVMaterial() = default;
 
 protected:
@@ -30,8 +27,6 @@ protected:
   bool mRequiresTextureUpload{true};
 
   vk::UniqueDescriptorSet mDescriptorSet;
-
-  int mGlobalIndex{-1}; // global index global array
 };
 
 class SVMetallicMaterial : public SVMaterial {
