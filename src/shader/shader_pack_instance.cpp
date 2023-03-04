@@ -26,6 +26,7 @@ static vk::UniqueDescriptorSetLayout createObjectDescriptorSetLayout(
        vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment});
 
   for (uint32_t bid = 1; bid < objectSetDescription.bindings.size(); ++bid) {
+    // TODO: verify bid is consecutive
     auto binding = objectSetDescription.bindings.at(bid);
     if (binding.type == vk::DescriptorType::eCombinedImageSampler) {
       if (binding.dim == 0) {
@@ -331,6 +332,7 @@ std::future<void> ShaderPackInstance::loadAsync() {
       }
 
       // determine whether to use alpha blend
+      // TODO: enable alpha based on config
       bool alpha = false;
       if (auto p = std::dynamic_pointer_cast<GbufferPassParser>(pass)) {
         if (!mShaderPack->hasDeferredPass() ||

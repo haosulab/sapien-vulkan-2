@@ -107,6 +107,7 @@ public:
     return mLineSet;
   }
 
+  // TODO: remove this function
   void uploadToDevice(core::Buffer &objectBuffer, uint32_t offset,
                       StructDataLayout const &objectLayout);
 

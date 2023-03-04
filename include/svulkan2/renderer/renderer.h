@@ -150,6 +150,9 @@ public:
   void setCustomCubemap(std::string const &name,
                         std::shared_ptr<resource::SVCubemap> cubemap) override;
 
+  void setCustomProperty(std::string const &name, int p) override;
+  void setCustomProperty(std::string const &name, float p) override;
+
   Renderer(Renderer const &other) = delete;
   Renderer &operator=(Renderer const &other) = delete;
   Renderer(Renderer &&other) = default;

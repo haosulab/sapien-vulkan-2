@@ -791,7 +791,7 @@ void Renderer::prepareObjects(scene::Scene &scene) {
           for (uint32_t objId = 0; objId < objects.size(); ++objId) {
             writeDescriptorSets.push_back(vk::WriteDescriptorSet(
                 mObjectSet[objId].get(), bid, 0,
-                vk::DescriptorType::eCombinedImageSampler, imageInfo.back()));
+                vk::DescriptorType::eCombinedImageSampler, imageInfo[objId]));
           }
           mContext->getDevice().updateDescriptorSets(writeDescriptorSets,
                                                      nullptr);
@@ -1264,9 +1264,9 @@ void Renderer::prepareRender(scene::Camera &camera) {
               throw std::runtime_error(
                   "Upload object failed: object attribute \"" + name +
                   "\" does not match declared type.");
-              mObjectBuffer->upload(&value.floatValue, elem.size,
-                                    i * bufferSize + elem.offset);
             }
+            mObjectBuffer->upload(&value.floatValue, elem.size,
+                                  i * bufferSize + elem.offset);
           }
         }
       }
@@ -1793,6 +1793,14 @@ void Renderer::setCustomTexture(std::string const &name,
 void Renderer::setCustomCubemap(std::string const &name,
                                 std::shared_ptr<resource::SVCubemap> cubemap) {
   mCustomCubemaps[name] = cubemap;
+}
+
+void Renderer::setCustomProperty(std::string const &name, int p) {
+  setSpecializationConstantInt(name, p);
+}
+
+void Renderer::setCustomProperty(std::string const &name, float p) {
+  setSpecializationConstantFloat(name, p);
 }
 
 std::shared_ptr<resource::SVRenderTarget>

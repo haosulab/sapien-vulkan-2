@@ -11,6 +11,7 @@ Object::Object(std::shared_ptr<resource::SVModel> model,
 
 void Object::uploadToDevice(core::Buffer &objectBuffer, uint32_t offset,
                             StructDataLayout const &objectLayout) {
+  // FIXME: this function is deprecated, remove it
   EASY_BLOCK("allocate");
   std::vector<char> buffer(objectLayout.size);
   EASY_END_BLOCK;
