@@ -235,15 +235,15 @@ void GuiWindow::initImgui() {
 
     // HACK: do not scale content twice
     static bool __called = false;
-    float fontScale = 1.f;
+    static float __fontScale = 1.f;
     if (!__called) {
       ImGui::GetStyle().ScaleAllSizes(mContentScale);
-      fontScale *= mContentScale;
+      __fontScale *= mContentScale;
       __called = true;
     }
 
     auto font = io.Fonts->AddFontFromMemoryCompressedBase85TTF(
-        roboto_compressed_data_base85, std::round(17.f * fontScale));
+        roboto_compressed_data_base85, std::round(17.f * __fontScale));
     if (font != nullptr) {
       io.FontDefault = font;
     }
