@@ -81,6 +81,39 @@ static void createSphereArray(svulkan2::scene::Scene &scene) {
   }
 }
 
+static void setupScene(svulkan2::scene::Scene &scene) {
+  {
+    auto shape = resource::SVShape::Create(
+        resource::SVMesh::CreateUVSphere(32, 16),
+        std::make_shared<resource::SVMetallicMaterial>(
+            glm::vec4{0, 0, 0, 1}, glm::vec4{1, 1, 1, 1}, 0.f, 1.f, 0.f));
+    auto &o = scene.addObject(
+        resource::SVModel::FromData({shape}),
+        {.position = {0.f, 0.15f, 0.f}, .scale = {0.05, 0.05, 0.05}});
+  }
+
+  {
+    auto shape = resource::SVShape::Create(
+        resource::SVMesh::CreateCube(),
+        std::make_shared<resource::SVMetallicMaterial>(
+            glm::vec4{0, 0, 0, 1}, // emission
+            glm::vec4{0.9, 0.9, 0.9, 1}, // base color
+            0,                     // fresnel
+            1.0, 0.0));
+    scene.addObject(resource::SVModel::FromData({shape}),
+                    {.position = {0, -0.1, 0}, .scale = {10, 0.1, 10}});
+  }
+
+  auto &light = scene.addParallelogramLight();
+  light.setColor({10, 10, 10});
+  light.setTransform(
+      scene::Transform{.position = {0, 0.3f, 0.0}, .rotation = {1, 0, 0, 0}});
+  light.setShape({0, 0, 0.1}, {0.1, 0, 0});
+  // auto &light = scene.addPointLight();
+  // light.setColor({1.0, 1.0, 1.0});
+  // light.setPosition({0, 0, 0.4});
+}
+
 int main() {
   svulkan2::log::getLogger()->set_level(spdlog::level::info);
 
@@ -92,24 +125,26 @@ int main() {
     srcBase = "../";
   }
 
-  auto config = std::make_shared<RendererConfig>();
-  config->shaderDir = srcBase + "shader/iccv23";
-  config->culling = vk::CullModeFlagBits::eNone;
+  // auto config = std::make_shared<RendererConfig>();
+  // config->shaderDir = srcBase + "shader/iccv23";
+  // config->culling = vk::CullModeFlagBits::eNone;
 
-  config->msaa = vk::SampleCountFlagBits::e1;
-  config->colorFormat4 = vk::Format::eR32G32B32A32Sfloat;
+  // config->msaa = vk::SampleCountFlagBits::e1;
+  // config->colorFormat4 = vk::Format::eR32G32B32A32Sfloat;
 
-  renderer::Renderer renderer(config);
+  // renderer::Renderer renderer(config);
 
-  // renderer::RTRenderer renderer("../shader/rt_test");
-  // renderer.setCustomProperty("maxDepth", 6);
-  // renderer.setCustomProperty("russianRoulette", 1);
-  // renderer.setCustomProperty("russianRouletteMinBounces", 3);
+  renderer::RTRenderer renderer("../shader/rt");
+  renderer.setCustomProperty("maxDepth", 6);
+  renderer.setCustomProperty("russianRoulette", 1);
+  renderer.setCustomProperty("russianRouletteMinBounces", 3);
   // renderer.enableDenoiser("HdrColor", "Albedo", "Normal");
 
   auto scene = std::make_shared<svulkan2::scene::Scene>();
 
-  createSphereArray(*scene);
+  // createSphereArray(*scene);
+
+  setupScene(*scene);
 
   // {
   //   auto model =
@@ -195,7 +230,8 @@ int main() {
   scene->setAmbientLight({0.5f, 0.5f, 0.5f, 0});
 
   // auto material =
-  //     std::make_shared<resource::SVMetallicMaterial>(glm::vec4{1, 1, 1, 1});
+  //     std::make_shared<resource::SVMetallicMaterial>(glm::vec4{1, 1, 1,
+  //     1});
   // auto shape = std::make_shared<resource::SVShape>();
   // shape->mesh = resource::SVMesh::createCapsule(0.1, 0.2, 32, 8);
   // shape->mesh = resource::SVMesh::createUVSphere(32, 16);
@@ -286,15 +322,15 @@ int main() {
   auto flashlight = context->getResourceManager()->CreateTextureFromFile(
       "../test/assets/image/flashlight.jpg", 1);
 
-  auto &l = scene->addTexturedLight();
-  l.setColor({1, 1, 1});
-  l.setPosition({0.5, 0.5, 0.5});
-  l.enableShadow(true);
-  l.setFov(2);
-  l.setFovSmall(1);
-  l.setTexture(flashlight);
-  l.setDirection({0, -1, 0});
-  scene->updateModelMatrices();
+  // auto &l = scene->addTexturedLight();
+  // l.setColor({1, 1, 1});
+  // l.setPosition({0.5, 0.5, 0.5});
+  // l.enableShadow(true);
+  // l.setFov(2);
+  // l.setFovSmall(1);
+  // l.setTexture(flashlight);
+  // l.setDirection({0, -1, 0});
+  // scene->updateModelMatrices();
 
   // renderer.setCustomTexture("BRDFLUT", lutTexture);
 

@@ -223,6 +223,16 @@ void RTRenderer::updatePushConstant() {
     std::memcpy(mPushConstantBuffer.data() + elem.offset, &v, elem.size);
   }
 
+  if (layout->elements.contains("parallelogramLightCount")) {
+    auto &elem = layout->elements.at("parallelogramLightCount");
+    if (elem.dtype != DataType::eINT) {
+      throw std::runtime_error("parallelogramLightCount must be type int");
+    }
+    uint32_t v = mScene->getParallelogramLights().size() +
+                 mScene->getTexturedLights().size();
+    std::memcpy(mPushConstantBuffer.data() + elem.offset, &v, elem.size);
+  }
+
   if (layout->elements.contains("frameCount")) {
     auto &elem = layout->elements.at("frameCount");
     if (elem.dtype != DataType::eINT) {
@@ -474,6 +484,8 @@ void RTRenderer::prepareScene() {
       mScene->getRTDirectionalLightBuffer(), 0, VK_WHOLE_SIZE);
   vk::DescriptorBufferInfo spotLightBufferInfo(mScene->getRTSpotLightBuffer(),
                                                0, VK_WHOLE_SIZE);
+  vk::DescriptorBufferInfo parallelogramLightBufferInfo(
+      mScene->getRTParallelogramLightBuffer(), 0, VK_WHOLE_SIZE);
 
   auto cube = mEnvironmentMap;
   if (!cube) {
@@ -536,6 +548,10 @@ void RTRenderer::prepareScene() {
       writeDescriptorSets.push_back(vk::WriteDescriptorSet(
           mSceneSet.get(), bid, 0, vk::DescriptorType::eStorageBuffer, {},
           spotLightBufferInfo, {}));
+    } else if (binding.name == "ParallelogramLights") {
+      writeDescriptorSets.push_back(vk::WriteDescriptorSet(
+          mSceneSet.get(), bid, 0, vk::DescriptorType::eStorageBuffer, {},
+          parallelogramLightBufferInfo, {}));
     } else if (binding.name == "samplerEnvironment") {
       writeDescriptorSets.push_back(vk::WriteDescriptorSet(
           mSceneSet.get(), bid, 0, vk::DescriptorType::eCombinedImageSampler,

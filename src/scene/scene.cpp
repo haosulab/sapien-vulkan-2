@@ -11,7 +11,8 @@ struct PointLightData {
 };
 
 struct DirectionalLightData {
-  glm::vec4 direction;
+  glm::vec3 direction;
+  float softness;
   glm::vec4 color;
 };
 
@@ -196,6 +197,21 @@ TexturedLight &Scene::addTexturedLight(Node &parent) {
   return result;
 }
 
+ParallelogramLight &Scene::addParallelogramLight() {
+  return addParallelogramLight(getRootNode());
+}
+ParallelogramLight &Scene::addParallelogramLight(Node &parent) {
+  updateVersion();
+  forceRemove();
+  auto parallelogramLight = std::make_unique<ParallelogramLight>();
+  auto &result = *parallelogramLight;
+  mParallelogramLights.push_back(std::move(parallelogramLight));
+  mParallelogramLights.back()->setScene(this);
+  mParallelogramLights.back()->setParent(parent);
+  parent.addChild(*mParallelogramLights.back());
+  return result;
+}
+
 void Scene::removeNode(Node &node) {
   updateVersion();
   mRequireForceRemove = true;
@@ -266,6 +282,13 @@ void Scene::forceRemove() {
                        return node->isMarkedRemoved();
                      }),
       mTexturedLights.end());
+
+  mParallelogramLights.erase(
+      std::remove_if(mParallelogramLights.begin(), mParallelogramLights.end(),
+                     [](std::unique_ptr<ParallelogramLight> &node) {
+                       return node->isMarkedRemoved();
+                     }),
+      mParallelogramLights.end());
 
   mRequireForceRemove = false;
 }
@@ -353,6 +376,15 @@ std::vector<TexturedLight *> Scene::getTexturedLights() {
   return result;
 }
 
+std::vector<ParallelogramLight *> Scene::getParallelogramLights() {
+  forceRemove();
+  std::vector<ParallelogramLight *> result;
+  for (auto &light : mParallelogramLights) {
+    result.push_back(light.get());
+  }
+  return result;
+}
+
 void Scene::updateModelMatrices() {
   updateRenderVersion();
   mRootNode->updateGlobalModelMatrixRecursive();
@@ -378,8 +410,9 @@ void Scene::uploadToDevice(core::Buffer &sceneBuffer,
 
   for (auto light : directionalLights) {
     directionalLightData.push_back(
-        {.direction =
-             light->getTransform().worldModelMatrix * glm::vec4(0, 0, -1, 0),
+        {.direction = glm::vec3(light->getTransform().worldModelMatrix *
+                                glm::vec4(0, 0, -1, 0)),
+         .softness = light->getSoftness(),
          .color = glm::vec4(light->getColor(), 0)});
   }
 
@@ -885,6 +918,23 @@ void Scene::createRTStorageBuffers(
           vk::BufferUsageFlagBits::eTransferDst,
       VMA_MEMORY_USAGE_CPU_TO_GPU);
   mRTSpotLightBuffer->upload(mRTSpotLightBufferHost);
+
+  mRTParallelogramLightBufferHost.clear();
+  for (auto &l : mParallelogramLights) {
+    mRTParallelogramLightBufferHost.push_back(RTParallelogramLight{
+        .color = l->getColor(),
+        .position = l->getPosition(),
+        .edge0 = glm::rotate(l->getRotation(), l->getEdge0()),
+        .edge1 = glm::rotate(l->getRotation(), l->getEdge1()),
+    });
+  }
+  mRTParallelogramLightBuffer = std::make_unique<core::Buffer>(
+      std::max(getParallelogramLights().size(), 1lu) *
+          sizeof(RTParallelogramLight),
+      vk::BufferUsageFlagBits::eStorageBuffer |
+          vk::BufferUsageFlagBits::eTransferDst,
+      VMA_MEMORY_USAGE_CPU_TO_GPU);
+  mRTParallelogramLightBuffer->upload(mRTParallelogramLightBufferHost);
   // end lights
 
   // build textures
@@ -937,6 +987,17 @@ void Scene::updateRTStorageBuffers() {
     ++i;
   }
   mRTSpotLightBuffer->upload(mRTSpotLightBufferHost);
+
+  i = 0;
+  for (auto &l : mParallelogramLights) {
+    auto &b = mRTParallelogramLightBufferHost.at(i);
+    b.color = l->getColor();
+    b.position = l->getPosition();
+    b.edge0 = glm::rotate(l->getRotation(), l->getEdge0());
+    b.edge1 = glm::rotate(l->getRotation(), l->getEdge1());
+    ++i;
+  }
+  mRTParallelogramLightBuffer->upload(mRTParallelogramLightBufferHost);
 }
 
 void Scene::buildRTResources(

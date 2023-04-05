@@ -8,6 +8,7 @@ namespace scene {
 
 class DirectionalLight : public Node {
   glm::vec3 mColor{0, 0, 0};
+  float mSoftness{0}; // ray tracing only
   bool mCastShadow{};
   float mShadowNear{0};
   float mShadowFar{10};
@@ -18,6 +19,8 @@ public:
   DirectionalLight(std::string const &name = "");
   inline void setColor(glm::vec3 const &color) { mColor = color; }
   inline glm::vec3 getColor() const { return mColor; }
+  inline void setSoftness(float softness) { mSoftness = softness; }
+  inline float getSoftness() const { return mSoftness; }
   void enableShadow(bool enable);
   inline bool isShadowEnabled() const { return mCastShadow; }
   void setShadowParameters(float near, float far, float scaling, uint32_t size);
@@ -95,6 +98,24 @@ public:
   inline std::shared_ptr<resource::SVTexture> getTexture() const {
     return mTexture;
   };
+};
+
+class ParallelogramLight : public Node {
+public:
+  ParallelogramLight(std::string const &name = "");
+  inline void setColor(glm::vec3 const &color) { mColor = color; }
+  inline glm::vec3 getColor() const { return mColor; }
+  inline void setShape(glm::vec3 const &edge0, glm::vec3 const &edge1) {
+    mEdge0 = edge0;
+    mEdge1 = edge1;
+  }
+  inline glm::vec3 getEdge0() const { return mEdge0; }
+  inline glm::vec3 getEdge1() const { return mEdge1; }
+
+private:
+  glm::vec3 mColor{0, 0, 0};
+  glm::vec3 mEdge0{0, 1, 0};
+  glm::vec3 mEdge1{0, 0, 1};
 };
 
 } // namespace scene

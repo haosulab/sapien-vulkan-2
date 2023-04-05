@@ -129,5 +129,7 @@ void TexturedLight::setTexture(std::shared_ptr<resource::SVTexture> texture) {
   mScene->updateVersion();
 }
 
+ParallelogramLight::ParallelogramLight(std::string const &name) : Node(name) {}
+
 } // namespace scene
 } // namespace svulkan2

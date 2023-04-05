@@ -52,6 +52,9 @@ public:
   TexturedLight &addTexturedLight();
   TexturedLight &addTexturedLight(Node &parent);
 
+  ParallelogramLight &addParallelogramLight();
+  ParallelogramLight &addParallelogramLight(Node &parent);
+
   void removeNode(Node &node);
   void clearNodes();
   void forceRemove();
@@ -69,6 +72,7 @@ public:
   std::vector<DirectionalLight *> getDirectionalLights();
   std::vector<SpotLight *> getSpotLights();
   std::vector<TexturedLight *> getTexturedLights();
+  std::vector<ParallelogramLight *> getParallelogramLights();
 
   void setEnvironmentMap(std::shared_ptr<resource::SVCubemap> map) {
     mEnvironmentMap = map;
@@ -140,6 +144,9 @@ public:
   inline vk::Buffer getRTSpotLightBuffer() const {
     return mRTSpotLightBuffer->getVulkanBuffer();
   }
+  inline vk::Buffer getRTParallelogramLightBuffer() const {
+    return mRTParallelogramLightBuffer->getVulkanBuffer();
+  }
 
   void registerAccessFence(vk::Fence fence);
   void unregisterAccessFence(vk::Fence fence);
@@ -154,6 +161,8 @@ private:
   std::vector<std::unique_ptr<DirectionalLight>> mDirectionalLights{};
   std::vector<std::unique_ptr<SpotLight>> mSpotLights{};
   std::vector<std::unique_ptr<TexturedLight>> mTexturedLights{};
+  std::vector<std::unique_ptr<ParallelogramLight>> mParallelogramLights{};
+
 
   Node *mRootNode{nullptr};
 
@@ -218,13 +227,26 @@ private:
   };
   static_assert(sizeof(RTSpotLight) == 176);
 
+  struct RTParallelogramLight {
+    glm::vec3 color;
+    float padding0;
+    glm::vec3 position;
+    float padding1;
+    glm::vec3 edge0;
+    float padding2;
+    glm::vec3 edge1;
+    float padding3;
+  };
+
   std::vector<RTPointLight> mRTPointLightBufferHost;
   std::vector<RTDirectionalLight> mRTDirectionalLightBufferHost;
   std::vector<RTSpotLight> mRTSpotLightBufferHost;
+  std::vector<RTParallelogramLight> mRTParallelogramLightBufferHost;
 
   std::unique_ptr<core::Buffer> mRTPointLightBuffer;
   std::unique_ptr<core::Buffer> mRTDirectionalLightBuffer;
   std::unique_ptr<core::Buffer> mRTSpotLightBuffer;
+  std::unique_ptr<core::Buffer> mRTParallelogramLightBuffer;
 
   uint64_t mRTResourcesVersion{0l};
   uint64_t mRTResourcesRenderVersion{0l};
