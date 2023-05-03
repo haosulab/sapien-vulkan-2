@@ -10,3 +10,4 @@
 #include "widget.h"
 #include "window.h"
 #include "gizmo.h"
+#include "keyframe.h"
