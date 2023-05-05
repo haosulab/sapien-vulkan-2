@@ -83,7 +83,10 @@ Context::Context(bool present, uint32_t maxNumMaterials,
       mDeviceHint(device) {}
 
 void Context::init() {
+#ifdef SVULKAN2_PROFILE
   profiler::startListen();
+#endif
+
   createInstance();
   pickSuitableGpuAndQueueFamilyIndex();
   createDevice();

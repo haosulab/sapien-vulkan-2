@@ -1,0 +1,23 @@
+if(TARGET ktx)
+    return()
+endif()
+
+set(KTX_FEATURE_STATIC_LIBRARY ON CACHE INTERNAL "build static")
+
+include(FetchContent)
+FetchContent_Declare(
+    ktx
+    GIT_REPOSITORY https://github.com/KhronosGroup/KTX-Software.git
+    GIT_TAG        v4.1.0
+    GIT_SHALLOW TRUE
+    GIT_PROGRESS TRUE
+)
+
+set(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME ktx)
+FetchContent_GetProperties(ktx)
+if(NOT ktx_POPULATED)
+  FetchContent_Populate(ktx)
+  add_subdirectory(${ktx_SOURCE_DIR} ${ktx_BINARY_DIR} EXCLUDE_FROM_ALL)
+endif()
+
+set_target_properties(ktx PROPERTIES POSITION_INDEPENDENT_CODE ON)
