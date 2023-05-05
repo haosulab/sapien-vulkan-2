@@ -9,11 +9,16 @@ namespace ui {
 
 UI_CLASS(KeyFrameEditor) {
   UI_ATTRIBUTE(KeyFrameEditor,
-               std::function<void(std::shared_ptr<KeyFrameEditor>)>, Callback);
+               std::function<void(std::shared_ptr<KeyFrameEditor>)>,
+               InsertKeyFrameCallback);
+  UI_ATTRIBUTE(KeyFrameEditor,
+               std::function<void(std::shared_ptr<KeyFrameEditor>)>,
+               DeleteKeyFrameCallback);
 
 public:
   KeyFrameEditor(float contentScale_);
   void build() override;
+  int getCurrentFrame() const { return currentFrame; };
 
 private:
   // Timeline

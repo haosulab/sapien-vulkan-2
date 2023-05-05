@@ -125,13 +125,18 @@ void KeyFrameEditor::build() {
 
   ImGui::SameLine();
 
+  // Insert/delete key frame
   if (keyFrames.find(currentFrame) == keyFrames.end()) { // Not a key frame
-    if (ImGui::Button("Insert Key Frame")) {
+    if (ImGui::Button("Insert Key Frame") && mInsertKeyFrameCallback) {
       keyFrames.insert(currentFrame);
+      mInsertKeyFrameCallback(
+          std::static_pointer_cast<KeyFrameEditor>(shared_from_this()));
     }
   } else {
-    if (ImGui::Button("Delete Key Frame")) {
+    if (ImGui::Button("Delete Key Frame") && mDeleteKeyFrameCallback) {
       keyFrames.erase(currentFrame);
+      mDeleteKeyFrameCallback(
+          std::static_pointer_cast<KeyFrameEditor>(shared_from_this()));
     }
   }
 
