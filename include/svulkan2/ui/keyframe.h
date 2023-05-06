@@ -2,7 +2,7 @@
 #include "widget.h"
 #include <functional>
 #include <imgui_internal.h>
-#include <set>
+#include <vector>
 
 namespace svulkan2 {
 namespace ui {
@@ -17,11 +17,16 @@ UI_CLASS(KeyFrameEditor) {
   UI_ATTRIBUTE(KeyFrameEditor,
                std::function<void(std::shared_ptr<KeyFrameEditor>)>,
                DeleteKeyFrameCallback);
+  UI_ATTRIBUTE(KeyFrameEditor,
+               std::function<void(std::shared_ptr<KeyFrameEditor>)>,
+               DragKeyFrameCallback);
 
 public:
   KeyFrameEditor(float contentScale_);
   void build() override;
   int getCurrentFrame() const { return currentFrame; };
+  int getDraggedIndex() const { return draggedIndex; };
+  int getDraggedNewVal() const { return draggedNewVal; };
 
 private:
   // Timeline
@@ -31,7 +36,10 @@ private:
   int minIntervals{16}; // maxStride = frameRange / minIntervals
   int selectedMaxFrame{0};
   int prevSelectedMaxFrame;
-  std::set<int> keyFrames;
+
+  std::vector<int> keyFrames;
+  int draggedIndex;  // Index of the key frame being dragged
+  int draggedNewVal; // New value of the key frame being dragged
 
   // Visual
   float contentScale;

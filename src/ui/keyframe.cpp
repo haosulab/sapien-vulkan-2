@@ -1,4 +1,5 @@
 #include "svulkan2/ui/keyframe.h"
+#include <algorithm>
 #include <imgui.h>
 #include <string>
 
@@ -126,9 +127,11 @@ void KeyFrameEditor::build() {
   ImGui::SameLine();
 
   // Insert/update/delete key frame
-  if (keyFrames.find(currentFrame) == keyFrames.end()) { // Not a key frame
+  auto it = std::find(keyFrames.begin(), keyFrames.end(), currentFrame);
+  if (it == keyFrames.end()) { // Not a key frame
     if (ImGui::Button("Insert Key Frame") && mInsertKeyFrameCallback) {
-      keyFrames.insert(currentFrame);
+      keyFrames.push_back(currentFrame);
+      std::sort(keyFrames.begin(), keyFrames.end());
       mInsertKeyFrameCallback(
           std::static_pointer_cast<KeyFrameEditor>(shared_from_this()));
     }
@@ -141,7 +144,7 @@ void KeyFrameEditor::build() {
     ImGui::SameLine();
 
     if (ImGui::Button("Delete Key Frame") && mDeleteKeyFrameCallback) {
-      keyFrames.erase(currentFrame);
+      keyFrames.erase(it);
       mDeleteKeyFrameCallback(
           std::static_pointer_cast<KeyFrameEditor>(shared_from_this()));
     }
@@ -373,14 +376,59 @@ void KeyFrameEditor::build() {
     TimelineBackground();
     Timeline();
 
-    for (int keyFrame : keyFrames) {
+    for (int keyFrame : keyFrames) { // Ascending order
       FrameIndicator(keyFrame, TimelineTheme.keyFrame, false, false);
     }
 
-    if (keyFrames.find(currentFrame) == keyFrames.end()) {
+    auto it = std::find(keyFrames.begin(), keyFrames.end(), currentFrame);
+    if (it == keyFrames.end()) {
       FrameIndicator(currentFrame, TimelineTheme.currentFrame, true, true);
     } else {
       FrameIndicator(currentFrame, TimelineTheme.keyFrame, true, true);
+    }
+
+    // Select/drag key frame
+    for (int i = static_cast<int>(keyFrames.size()) - 1; i >= 0;
+         i--) { // Desending order
+      float x = B.x + keyFrames[i] * zoom[0] + pan[0];
+      if (x < B.x || x > canvasPos.x + canvasSize.x) {
+        continue;
+      }
+      float size = TimelineTheme.indicatorSize;
+      ImVec2 topLeft = ImVec2{x - size / 2, C.y - size * 3 / 2};
+
+      ImGui::PushID(i);
+      ImGui::SetCursorPos(topLeft - ImGui::GetWindowPos());
+      ImGui::InvisibleButton("##KeyFrame", ImVec2{size, size});
+
+      if (ImGui::IsItemActive()) {
+        ImVec4 color = ImVec4{
+            TimelineTheme.keyFrame.x * 1.2f, TimelineTheme.keyFrame.y * 1.2f,
+            TimelineTheme.keyFrame.z * 1.2f, TimelineTheme.keyFrame.w};
+        FrameIndicator(keyFrames[i], color, false, false);
+
+        int frameTemp = static_cast<int>(
+            std::round((io.MousePos.x - B.x - pan[0]) / zoom[0]));
+        keyFrames[i] = ImClamp(frameTemp, frameRange[0], frameRange[1]);
+        currentFrame = keyFrames[i];
+      }
+
+      if (ImGui::IsItemDeactivated()) {
+        draggedIndex = i;
+        draggedNewVal = keyFrames[i];
+        if (mDragKeyFrameCallback) {
+          mDragKeyFrameCallback(
+              std::static_pointer_cast<KeyFrameEditor>(shared_from_this()));
+        }
+
+        if (std::count(keyFrames.begin(), keyFrames.end(), keyFrames[i]) ==
+            2) { // Duplicate key frame
+          keyFrames.erase(keyFrames.begin() + i);
+        } else {
+          std::sort(keyFrames.begin(), keyFrames.end());
+        }
+      }
+      ImGui::PopID();
     }
   }
 
@@ -419,7 +467,7 @@ void KeyFrameEditor::build() {
       ImVec4 color = EditorTheme.horizScrollbar;
 
       ImGui::SetCursorPos(barMin - ImGui::GetWindowPos());
-      ImGui::InvisibleButton("##horizScrollbar",
+      ImGui::InvisibleButton("##HorizScrollbar",
                              ImVec2{barWidthVisual, height});
 
       if (ImGui::IsItemActivated()) {
@@ -450,7 +498,7 @@ void KeyFrameEditor::build() {
   float adaptedHandleWidth = buttonRightX - buttonLeftX;
   if (adaptedHandleWidth > 0) {
     ImGui::SetCursorPos(ImVec2{buttonLeftX, B.y} - ImGui::GetWindowPos());
-    ImGui::InvisibleButton("##listerWidthHandle",
+    ImGui::InvisibleButton("##ListerWidthHandle",
                            ImVec2{adaptedHandleWidth, canvasSize.y});
 
     if (ImGui::IsItemHovered()) {
@@ -472,7 +520,7 @@ void KeyFrameEditor::build() {
   if (canvasSize.x - ListerTheme.width > 0) {
     ImGui::SetCursorPos(ImVec2{B.x, B.y} - ImGui::GetWindowPos());
     ImGui::InvisibleButton(
-        "##timeline",
+        "##Timeline",
         ImVec2{canvasSize.x - ListerTheme.width, TimelineTheme.height});
 
     if (ImGui::IsItemHovered()) {
@@ -503,7 +551,7 @@ void KeyFrameEditor::build() {
   if (canvasSize.x - ListerTheme.width > 0 &&
       canvasSize.y - TimelineTheme.height > 0) {
     ImGui::SetCursorPos(ImVec2{C.x, C.y} - ImGui::GetWindowPos());
-    ImGui::InvisibleButton("##editor",
+    ImGui::InvisibleButton("##Editor",
                            ImVec2{canvasSize.x - ListerTheme.width,
                                   canvasSize.y - TimelineTheme.height});
 
