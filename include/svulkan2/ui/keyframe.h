@@ -13,6 +13,9 @@ UI_CLASS(KeyFrameEditor) {
                InsertKeyFrameCallback);
   UI_ATTRIBUTE(KeyFrameEditor,
                std::function<void(std::shared_ptr<KeyFrameEditor>)>,
+               LoadKeyFrameCallback);
+  UI_ATTRIBUTE(KeyFrameEditor,
+               std::function<void(std::shared_ptr<KeyFrameEditor>)>,
                UpdateKeyFrameCallback);
   UI_ATTRIBUTE(KeyFrameEditor,
                std::function<void(std::shared_ptr<KeyFrameEditor>)>,
