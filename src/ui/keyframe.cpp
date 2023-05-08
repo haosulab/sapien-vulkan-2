@@ -127,11 +127,14 @@ void KeyFrameEditor::build() {
   ImGui::SameLine();
 
   // Key frame buttons
-  auto it = std::find(keyFrames.begin(), keyFrames.end(), currentFrame);
+  auto it = std::find_if(keyFrames.begin(), keyFrames.end(),
+                         [&](auto &kf) { return kf->frame == currentFrame; });
   if (it == keyFrames.end()) { // Not a key frame
     if (ImGui::Button("Insert Key Frame") && mInsertKeyFrameCallback) {
-      keyFrames.push_back(currentFrame);
-      std::sort(keyFrames.begin(), keyFrames.end());
+      keyFrames.push_back(
+          std::unique_ptr<UIKeyFrame>(new UIKeyFrame{currentFrame}));
+      std::sort(keyFrames.begin(), keyFrames.end(),
+                [](auto &a, auto &b) { return a->frame < b->frame; });
       mInsertKeyFrameCallback(
           std::static_pointer_cast<KeyFrameEditor>(shared_from_this()));
     }
@@ -383,11 +386,12 @@ void KeyFrameEditor::build() {
     TimelineBackground();
     Timeline();
 
-    for (int keyFrame : keyFrames) { // Ascending order
-      FrameIndicator(keyFrame, TimelineTheme.keyFrame, false, false);
+    for (auto &keyFrame : keyFrames) { // Ascending order
+      FrameIndicator(keyFrame->frame, TimelineTheme.keyFrame, false, false);
     }
 
-    auto it = std::find(keyFrames.begin(), keyFrames.end(), currentFrame);
+    auto it = std::find_if(keyFrames.begin(), keyFrames.end(),
+                           [&](auto &kf) { return kf->frame == currentFrame; });
     if (it == keyFrames.end()) {
       FrameIndicator(currentFrame, TimelineTheme.currentFrame, true, true);
     } else {
@@ -397,7 +401,7 @@ void KeyFrameEditor::build() {
     // Select/drag key frame
     for (int i = static_cast<int>(keyFrames.size()) - 1; i >= 0;
          i--) { // Desending order
-      float x = B.x + keyFrames[i] * zoom[0] + pan[0];
+      float x = B.x + (keyFrames[i])->frame * zoom[0] + pan[0];
       if (x < B.x || x > canvasPos.x + canvasSize.x) {
         continue;
       }
@@ -412,27 +416,30 @@ void KeyFrameEditor::build() {
         ImVec4 color = ImVec4{
             TimelineTheme.keyFrame.x * 1.2f, TimelineTheme.keyFrame.y * 1.2f,
             TimelineTheme.keyFrame.z * 1.2f, TimelineTheme.keyFrame.w};
-        FrameIndicator(keyFrames[i], color, false, false);
+        FrameIndicator((keyFrames[i])->frame, color, false, false);
 
         int frameTemp = static_cast<int>(
             std::round((io.MousePos.x - B.x - pan[0]) / zoom[0]));
-        keyFrames[i] = ImClamp(frameTemp, frameRange[0], frameRange[1]);
-        currentFrame = keyFrames[i];
+        (keyFrames[i])->frame =
+            ImClamp(frameTemp, frameRange[0], frameRange[1]);
+        currentFrame = (keyFrames[i])->frame;
       }
 
       if (ImGui::IsItemDeactivated()) {
         draggedIndex = i;
-        draggedNewVal = keyFrames[i];
+        draggedNewVal = (keyFrames[i])->frame;
         if (mDragKeyFrameCallback) {
           mDragKeyFrameCallback(
               std::static_pointer_cast<KeyFrameEditor>(shared_from_this()));
         }
 
-        if (std::count(keyFrames.begin(), keyFrames.end(), keyFrames[i]) ==
-            2) { // Duplicate key frame
+        if (std::count_if(keyFrames.begin(), keyFrames.end(), [&](auto &kf) {
+              return kf->frame == (keyFrames[i])->frame;
+            }) == 2) { // Duplicate key frame
           keyFrames.erase(keyFrames.begin() + i);
         } else {
-          std::sort(keyFrames.begin(), keyFrames.end());
+          std::sort(keyFrames.begin(), keyFrames.end(),
+                    [](auto &a, auto &b) { return a->frame < b->frame; });
         }
       }
       ImGui::PopID();

@@ -7,6 +7,21 @@
 namespace svulkan2 {
 namespace ui {
 
+struct UIKeyFrame;
+struct UIReward;
+
+struct UIKeyFrame {
+  int frame;
+  std::vector<UIReward *> rewards = {}; // Rewards depending on this key frame
+};
+
+struct UIReward {
+  std::string name;
+  UIKeyFrame *kfa;
+  UIKeyFrame *kfb;
+  std::string definition;
+};
+
 UI_CLASS(KeyFrameEditor) {
   UI_ATTRIBUTE(KeyFrameEditor,
                std::function<void(std::shared_ptr<KeyFrameEditor>)>,
@@ -40,7 +55,7 @@ private:
   int selectedMaxFrame{0};
   int prevSelectedMaxFrame;
 
-  std::vector<int> keyFrames;
+  std::vector<std::unique_ptr<UIKeyFrame>> keyFrames;
   int draggedIndex;  // Index of the key frame being dragged
   int draggedNewVal; // New value of the key frame being dragged
 
