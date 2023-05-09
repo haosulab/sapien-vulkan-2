@@ -1,6 +1,7 @@
 #include "svulkan2/shader/postprocessing.h"
+#include "reflect.h"
 #include "svulkan2/common/launch_policy.h"
-#include "svulkan2/common/log.h"
+#include "../common/logger.h"
 
 namespace svulkan2 {
 namespace shader {
@@ -8,10 +9,10 @@ namespace shader {
 std::future<void>
 PostprocessingShaderParser::loadFileAsync(std::string const &filepath) {
   return std::async(LAUNCH_ASYNC, [=, this]() {
-    log::info("Compiling: " + filepath);
+    logger::info("Compiling: " + filepath);
     mSPVCode = GLSLCompiler::compileGlslFileCached(
         vk::ShaderStageFlagBits::eCompute, filepath);
-    log::info("Compiled: " + filepath);
+    logger::info("Compiled: " + filepath);
     reflectSPV();
   });
 }

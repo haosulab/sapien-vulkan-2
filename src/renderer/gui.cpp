@@ -1,13 +1,22 @@
 #include "svulkan2/renderer/gui.h"
+#include "../common/logger.h"
 #include "svulkan2/common/fonts/roboto.hpp"
 #include "svulkan2/core/context.h"
+#include <GLFW/glfw3.h>
+
+// clang-format off
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_vulkan.h>
+#include <ImGuizmo.h>
+// clang-format on
 
 namespace svulkan2 {
 namespace renderer {
 
 static void checkVKResult(VkResult err) {
   if (err != 0) {
-    log::error("Vulkan result check failed.");
+    logger::error("Vulkan result check failed.");
   }
 }
 
@@ -224,14 +233,14 @@ void GuiWindow::initImgui() {
       float xscale = 0.f;
       float yscale = 0.f;
       glfwGetMonitorContentScale(monitors[i], &xscale, &yscale);
-      log::info("Monitor {} scale: {}", i, xscale);
+      logger::info("Monitor {} scale: {}", i, xscale);
       assert(xscale == yscale); // this should always be true
       mContentScale = std::max(yscale, std::max(xscale, mContentScale));
     }
     if (mContentScale < 0.1f) {
       mContentScale = 1.f;
     }
-    log::info("Largest monitor DPI scale: {}", mContentScale);
+    logger::info("Largest monitor DPI scale: {}", mContentScale);
 
     // HACK: do not scale content twice
     static bool __called = false;
@@ -274,9 +283,40 @@ void GuiWindow::initImgui() {
   ImGui_ImplVulkan_CreateFontsTexture(commandBuffer.get());
   commandBuffer->end();
   mContext->getQueue().submitAndWait(commandBuffer.get());
-  log::info("Imgui initialized");
+  logger::info("Imgui initialized");
   updateSize(mWidth, mHeight);
 }
+
+void GuiWindow::imguiBeginFrame() {
+  ImGui::NewFrame();
+  ImGuizmo::BeginFrame();
+
+  // setup docking window
+  ImGuiWindowFlags flags = ImGuiWindowFlags_MenuBar;
+  flags |= ImGuiWindowFlags_NoDocking;
+  ImGuiViewport *viewport = ImGui::GetMainViewport();
+  ImGui::SetNextWindowPos(viewport->Pos);
+  ImGui::SetNextWindowSize(viewport->Size);
+  ImGui::SetNextWindowViewport(viewport->ID);
+  ImGui::SetNextWindowBgAlpha(0.f);
+  ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+  flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
+           ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+  flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+
+  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+  ImGui::Begin("DockSpace Demo", 0, flags);
+  ImGui::PopStyleVar();
+
+  ImGui::DockSpace(ImGui::GetID("Dockspace"), ImVec2(0, 0),
+                   ImGuiDockNodeFlags_PassthruCentralNode |
+                       ImGuiDockNodeFlags_NoDockingInCentralNode);
+  ImGui::End();
+  ImGui::PopStyleVar();
+}
+
+void GuiWindow::imguiRender() { ImGui::Render(); }
+float GuiWindow::imguiGetFramerate() { return ImGui::GetIO().Framerate; }
 
 void GuiWindow::createGlfwWindow(uint32_t width, uint32_t height) {
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -355,8 +395,8 @@ void GuiWindow::selectSurfaceFormat(
     }
   }
 
-  log::warn("SelectSurfaceFormat: None of the requested surface formats is "
-            "available");
+  logger::warn("SelectSurfaceFormat: None of the requested surface formats is "
+               "available");
   // If none of the requested image formats could be found, use the first
   // available
   mSurfaceFormat = avail_formats[0];
@@ -402,10 +442,10 @@ bool GuiWindow::recreateSwapchain(uint32_t w, uint32_t h) {
       mContext->getPhysicalDevice().getSurfaceCapabilitiesKHR(mSurface.get());
   if (cap.minImageExtent.width > w || cap.maxImageExtent.width < w ||
       cap.minImageExtent.height > h || cap.maxImageExtent.height < h) {
-    log::info("swapchain create ignored: requested size ({}, {}); available "
-              "{}-{}, {}-{}",
-              w, h, cap.minImageExtent.width, cap.maxImageExtent.width,
-              cap.minImageExtent.height, cap.maxImageExtent.height);
+    logger::info("swapchain create ignored: requested size ({}, {}); available "
+                 "{}-{}, {}-{}",
+                 w, h, cap.minImageExtent.width, cap.maxImageExtent.width,
+                 cap.minImageExtent.height, cap.maxImageExtent.height);
     return false;
   }
 
@@ -590,11 +630,19 @@ bool GuiWindow::isCtrlDown() { return ImGui::GetIO().KeyCtrl; }
 bool GuiWindow::isAltDown() { return ImGui::GetIO().KeyAlt; }
 bool GuiWindow::isSuperDown() { return ImGui::GetIO().KeySuper; }
 
-ImVec2 GuiWindow::getMouseDelta() { return ImGui::GetIO().MouseDelta; }
+std::array<float, 2> GuiWindow::getMouseDelta() {
+  auto v = ImGui::GetIO().MouseDelta;
+  return {v.x, v.y};
+}
 
-ImVec2 GuiWindow::getMouseWheelDelta() { return mMouseWheelDelta; }
+std::array<float, 2> GuiWindow::getMouseWheelDelta() {
+  return mMouseWheelDelta;
+}
 
-ImVec2 GuiWindow::getMousePosition() { return ImGui::GetIO().MousePos; }
+std::array<float, 2> GuiWindow::getMousePosition() {
+  auto v = ImGui::GetIO().MousePos;
+  return {v.x, v.y};
+}
 
 bool GuiWindow::isMouseKeyDown(int key) {
   return !ImGui::GetIO().WantCaptureMouse && ImGui::IsMouseDown(key);
@@ -619,6 +667,25 @@ void GuiWindow::setCursorEnabled(bool enabled) {
 }
 
 bool GuiWindow::getCursorEnabled() const { return mCursorEnabled; }
+
+void GuiWindow::setWindowSize(int width, int height) {
+  glfwSetWindowSize(mWindow, width, height);
+}
+std::array<int, 2> GuiWindow::getWindowSize() const {
+  int width, height;
+  glfwGetWindowSize(mWindow, &width, &height);
+  return {width, height};
+}
+std::array<int, 2> GuiWindow::getWindowFramebufferSize() const {
+  int width, height;
+  glfwGetFramebufferSize(mWindow, &width, &height);
+  return {width, height};
+}
+bool GuiWindow::isCloseRequested() const {
+  return glfwWindowShouldClose(mWindow);
+}
+void GuiWindow::hide() { glfwHideWindow(mWindow); }
+void GuiWindow::show() { glfwShowWindow(mWindow); }
 
 } // namespace renderer
 } // namespace svulkan2

@@ -1,5 +1,10 @@
 #include "svulkan2/ui/gizmo.h"
 
+// clang-format off
+#include <imgui.h>
+#include <ImGuizmo.h>
+// clang-format on
+
 namespace svulkan2 {
 namespace ui {
 
@@ -11,10 +16,6 @@ void Gizmo::editTransform() {
   if (ImGui::RadioButton("Rotate##gizmoxx",
                          mCurrentGizmoOperation == ImGuizmo::ROTATE))
     mCurrentGizmoOperation = ImGuizmo::ROTATE;
-  // ImGui::SameLine();
-  // if (ImGui::RadioButton("Scale##gizmoxx",
-  //                        mCurrentGizmoOperation == ImGuizmo::SCALE))
-  //   mCurrentGizmoOperation = ImGuizmo::SCALE;
 
   float matrixTranslation[3], matrixRotation[3], matrixScale[3];
   ImGuizmo::DecomposeMatrixToComponents(&mMatrix[0][0], matrixTranslation,
@@ -48,16 +49,13 @@ void Gizmo::editTransform() {
     snap = {5, 0, 0};
     ImGui::InputFloat("Angle Snap##gizmo", &snap.x);
     break;
-  // case ImGuizmo::SCALE:
-  //   snap = {0.1, 0, 0};
-  //   ImGui::InputFloat("Scale Snap##gizmo", &snap.x);
-  //   break;
   }
   ImGuiIO &io = ImGui::GetIO();
   ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
-  ImGuizmo::Manipulate(&mView[0][0], &mProjection[0][0], mCurrentGizmoOperation,
-                       mCurrentGizmoMode, &mMatrix[0][0], nullptr,
-                       mUseSnap ? &snap.x : nullptr);
+  ImGuizmo::Manipulate(&mView[0][0], &mProjection[0][0],
+                       static_cast<ImGuizmo::OPERATION>(mCurrentGizmoOperation),
+                       static_cast<ImGuizmo::MODE>(mCurrentGizmoMode),
+                       &mMatrix[0][0], nullptr, mUseSnap ? &snap.x : nullptr);
 }
 
 void Gizmo::build() { editTransform(); }

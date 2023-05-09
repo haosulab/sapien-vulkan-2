@@ -1,6 +1,7 @@
 #include "svulkan2/shader/rt.h"
+#include "reflect.h"
 #include "svulkan2/common/launch_policy.h"
-#include "svulkan2/common/log.h"
+#include "../common/logger.h"
 #include "svulkan2/core/buffer.h"
 #include "svulkan2/core/context.h"
 
@@ -67,9 +68,9 @@ std::future<void>
 RayTracingStageParser::loadFileAsync(std::string const &filepath,
                                      vk::ShaderStageFlagBits stage) {
   return std::async(LAUNCH_ASYNC, [=, this]() {
-    log::info("Compiling: " + filepath);
+    logger::info("Compiling: " + filepath);
     mSPVCode = GLSLCompiler::compileGlslFileCached(stage, filepath);
-    log::info("Compiled: " + filepath);
+    logger::info("Compiled: " + filepath);
     reflectSPV();
   });
 }
@@ -89,7 +90,7 @@ void RayTracingStageParser::reflectSPV() {
     int arraySize = dim == 1 ? compiler.get_type(r.type_id).array[0] : 0;
 
     if (mResources[setNumber].bindings.contains(bindingNumber)) {
-      log::critical("duplicated set {} binding {}", setNumber, bindingNumber);
+      logger::critical("duplicated set {} binding {}", setNumber, bindingNumber);
       throw std::runtime_error("shader compilation failed");
     }
 
@@ -112,7 +113,7 @@ void RayTracingStageParser::reflectSPV() {
     int arraySize = dim == 1 ? compiler.get_type(r.type_id).array[0] : 0;
 
     if (mResources[setNumber].bindings.contains(bindingNumber)) {
-      log::critical("duplicated set {} binding {}", setNumber, bindingNumber);
+      logger::critical("duplicated set {} binding {}", setNumber, bindingNumber);
       throw std::runtime_error("shader compilation failed");
     }
 
@@ -191,7 +192,7 @@ void RayTracingStageParser::reflectSPV() {
     mPushConstantLayout = parseBuffer(compiler, type);
   }
 
-  log::info("\n" + summary());
+  logger::info("\n" + summary());
 
   // TODO: analyze rayPayload
   // TODO: enforce light buffer layout

@@ -1,6 +1,7 @@
 #include "svulkan2/shader/base_parser.h"
+#include "reflect.h"
 #include "svulkan2/common/launch_policy.h"
-#include "svulkan2/common/log.h"
+#include "../common/logger.h"
 
 namespace svulkan2 {
 namespace shader {
@@ -639,23 +640,23 @@ std::future<void> BaseParser::loadGLSLFilesAsync(std::string const &vertFile,
 void BaseParser::loadGLSLFiles(std::string const &vertFile,
                                std::string const &fragFile,
                                std::string const &geomFile) {
-  log::info("Compiling: " + vertFile);
+  logger::info("Compiling: " + vertFile);
   mVertSPVCode = GLSLCompiler::compileGlslFileCached(
       vk::ShaderStageFlagBits::eVertex, vertFile);
-  log::info("Compiled: " + vertFile);
+  logger::info("Compiled: " + vertFile);
 
   if (fragFile.length()) {
-    log::info("Compiling: " + fragFile);
+    logger::info("Compiling: " + fragFile);
     mFragSPVCode = GLSLCompiler::compileGlslFileCached(
         vk::ShaderStageFlagBits::eFragment, fragFile);
-    log::info("Compiled: " + fragFile);
+    logger::info("Compiled: " + fragFile);
   }
 
   if (geomFile.length()) {
-    log::info("Compiling: " + geomFile);
+    logger::info("Compiling: " + geomFile);
     mGeomSPVCode = GLSLCompiler::compileGlslFileCached(
         vk::ShaderStageFlagBits::eGeometry, geomFile);
-    log::info("Compiled: " + geomFile);
+    logger::info("Compiled: " + geomFile);
   }
 
   try {

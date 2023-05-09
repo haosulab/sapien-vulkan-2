@@ -52,19 +52,19 @@ else()
     message("-- CUDA not enabled in SVulkan2 ")
 endif()
 
+target_compile_definitions(imgui PRIVATE VK_NO_PROTOTYPES)
+
 target_include_directories(svulkan2 PUBLIC "include")
-target_include_directories(svulkan2 PUBLIC "3rd_party/VulkanMemoryAllocator")
 target_include_directories(svulkan2 PRIVATE "3rd_party/stb")
 target_include_directories(svulkan2 PRIVATE "3rd_party/OptiX7SDK/include")
 target_compile_definitions(svulkan2 PUBLIC VK_NO_PROTOTYPES)
-target_compile_definitions(imgui PRIVATE VK_NO_PROTOTYPES)
 
-target_link_libraries(svulkan2 PUBLIC imgui Vulkan::Headers assimp::assimp glfw
-    dl pthread spdlog::spdlog glslang SPIRV spirv-cross-cpp ktx easy_profiler
-    glm)
+target_link_libraries(svulkan2 PUBLIC Vulkan::Headers glm dl pthread)
+
+target_link_libraries(svulkan2 PRIVATE assimp::assimp glslang SPIRV spirv-cross-cpp glfw spdlog::spdlog easy_profiler ktx imgui)
 
 if (${SVULKAN2_PROFILE})
-    target_compile_definitions(svulkan2 SVULKAN2_PROFILE)
+    target_compile_definitions(svulkan2 PUBLIC SVULKAN2_PROFILE)
 endif()
 
 if (${SVULKAN2_CUDA_INTEROP})
@@ -73,7 +73,7 @@ if (${SVULKAN2_CUDA_INTEROP})
 endif()
 
 add_executable(svulkan2_main app/main.cpp)
-target_link_libraries(svulkan2_main svulkan2 stdc++fs)
+target_link_libraries(svulkan2_main svulkan2 stdc++fs glfw imgui)
 target_include_directories(svulkan2_main PRIVATE "3rd_party/OptiX7SDK/include")
 
 add_executable(gencube app/gencube.cpp)

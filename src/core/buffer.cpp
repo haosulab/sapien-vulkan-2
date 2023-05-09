@@ -1,7 +1,12 @@
 #include "svulkan2/core/buffer.h"
+#include "../common/logger.h"
 #include "svulkan2/core/allocator.h"
 #include "svulkan2/core/context.h"
 #include <easy/profiler.h>
+
+#ifdef SVULKAN2_CUDA_INTEROP
+#include "../common/cuda_helper.h"
+#endif
 
 namespace svulkan2 {
 namespace core {
@@ -46,7 +51,7 @@ Buffer::Buffer(vk::DeviceSize size, vk::BufferUsageFlags usageFlags,
 
 #ifdef TRACK_ALLOCATION
   mBufferId = gBufferId++;
-  log::info("Create Buffer {}; Total {}", mBufferId, ++gBufferCount);
+  logger::info("Create Buffer {}; Total {}", mBufferId, ++gBufferCount);
 #endif
 }
 
@@ -62,7 +67,7 @@ Buffer::~Buffer() {
 
 #ifdef TRACK_ALLOCATION
   mBufferId = gBufferId++;
-  log::info("Destroy Buffer {}, Total {}", mBufferId, --gBufferCount);
+  logger::info("Destroy Buffer {}, Total {}", mBufferId, --gBufferCount);
 #endif
 }
 
@@ -71,7 +76,7 @@ void *Buffer::map() {
     auto result = vmaMapMemory(mContext->getAllocator().getVmaAllocator(),
                                mAllocation, &mMappedData);
     if (result != VK_SUCCESS) {
-      log::critical("unable to map memory");
+      logger::critical("unable to map memory");
       abort();
     }
     mMapped = true;
@@ -160,7 +165,8 @@ vk::DeviceAddress Buffer::getAddress() const {
 #ifdef SVULKAN2_CUDA_INTEROP
 void *Buffer::getCudaPtr() {
   if (!mExternal) {
-    throw std::runtime_error("failed to get cuda pointer, \"external\" must be passed at buffer creation");
+    throw std::runtime_error("failed to get cuda pointer, \"external\" must be "
+                             "passed at buffer creation");
   }
 
   if (mCudaPtr) {

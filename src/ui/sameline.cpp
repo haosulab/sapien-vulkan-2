@@ -1,4 +1,5 @@
 #include "svulkan2/ui/sameline.h"
+#include <imgui.h>
 #include <stdexcept>
 
 namespace svulkan2 {

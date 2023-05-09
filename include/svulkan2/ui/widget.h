@@ -1,5 +1,4 @@
 #pragma once
-#include <imgui.h>
 #include <memory>
 #include <string>
 #include <vector>
@@ -25,7 +24,7 @@ public:                                                                        \
   inline std::shared_ptr<CLASS> NAME(TYPE value) {                             \
     m##NAME = value;                                                           \
     return std::static_pointer_cast<CLASS>(shared_from_this());                \
-  }\
+  }                                                                            \
   inline TYPE get##NAME() { return m##NAME; }
 
 class Widget : public std::enable_shared_from_this<Widget> {

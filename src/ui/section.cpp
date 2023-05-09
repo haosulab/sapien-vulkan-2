@@ -1,4 +1,5 @@
 #include "svulkan2/ui/section.h"
+#include <imgui.h>
 
 namespace svulkan2 {
 namespace ui {

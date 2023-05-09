@@ -179,8 +179,7 @@ private:
   vk::UniqueFence mSceneAccessFence;
 
 #ifdef SVULKAN2_CUDA_INTEROP
-  std::shared_ptr<class DenoiserOptix>
-      mDenoiser; // HACK: use shared_ptr to avoid including denoiser.h
+  std::unique_ptr<class DenoiserOptix> mDenoiser;
   std::string mDenoiseColorName;
   std::string mDenoiseAlbedoName;
   std::string mDenoiseNormalName;

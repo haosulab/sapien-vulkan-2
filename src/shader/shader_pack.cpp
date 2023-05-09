@@ -1,5 +1,5 @@
 #include "svulkan2/shader/shader_pack.h"
-#include "svulkan2/common/log.h"
+#include "../common/logger.h"
 #include "svulkan2/shader/deferred.h"
 #include "svulkan2/shader/gbuffer.h"
 #include "svulkan2/shader/primitive.h"
@@ -377,7 +377,7 @@ ShaderPack::generateTextureOperationTable() const {
   }
   // for (auto &[tex, ops] : operationTable) {
   // }
-  log::info(ss.str());
+  logger::info(ss.str());
 
   return operationTable;
 }

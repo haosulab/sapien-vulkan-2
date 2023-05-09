@@ -1,12 +1,11 @@
 #include "svulkan2/resource/model.h"
 #include "svulkan2/common/image.h"
 #include "svulkan2/common/launch_policy.h"
-#include "svulkan2/common/log.h"
+#include "../common/logger.h"
 #include "svulkan2/core/context.h"
 #include "svulkan2/resource/manager.h"
 #include <assimp/GltfMaterial.h>
 #include <assimp/Importer.hpp>
-// #include <assimp/pbrmaterial.h>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
 #include <filesystem>
@@ -150,7 +149,7 @@ std::future<void> SVModel::loadAsync() {
       return;
     }
 
-    log::info("Loading: {}", mDescription.filename);
+    logger::info("Loading: {}", mDescription.filename);
 
     std::string path = mDescription.filename;
     Assimp::Importer importer;
@@ -200,7 +199,7 @@ std::future<void> SVModel::loadAsync() {
 
       if (m->Get(AI_MATKEY_OPACITY, alpha) == AI_SUCCESS) {
         if (alpha < 1e-5) {
-          log::warn("The file {} has a fully transparent material. This is "
+          logger::warn("The file {} has a fully transparent material. This is "
                     "probably due to modeling error. Setting opacity to 1. If "
                     "it is not an error, please remove the object entirely.",
                     mDescription.filename);
@@ -295,14 +294,14 @@ std::future<void> SVModel::loadAsync() {
       if (m->GetTextureCount(aiTextureType_DIFFUSE) > 0 &&
           m->GetTexture(aiTextureType_DIFFUSE, 0, &path) == AI_SUCCESS) {
         if (core::Context::Get()->shouldNotLoadTexture()) {
-          log::info("Texture ignored {}", path.C_Str());
+          logger::info("Texture ignored {}", path.C_Str());
         } else {
-          log::info("Trying to load texture {}", path.C_Str());
+          logger::info("Trying to load texture {}", path.C_Str());
           if (auto texture = scene->GetEmbeddedTexture(path.C_Str())) {
             if (textureCache.contains(std::string(path.C_Str()))) {
               baseColorTexture = textureCache[std::string(path.C_Str())];
             } else {
-              log::info("Loading embeded texture {}", path.C_Str());
+              logger::info("Loading embeded texture {}", path.C_Str());
               textureCache[std::string(path.C_Str())] = baseColorTexture =
                   loadEmbededTexture(texture, MIP_LEVEL, 4, true);
             }
@@ -321,13 +320,13 @@ std::future<void> SVModel::loadAsync() {
       if (m->GetTextureCount(aiTextureType_METALNESS) > 0 &&
           m->GetTexture(aiTextureType_METALNESS, 0, &path) == AI_SUCCESS) {
         if (core::Context::Get()->shouldNotLoadTexture()) {
-          log::info("Texture ignored {}", path.C_Str());
+          logger::info("Texture ignored {}", path.C_Str());
         } else {
           if (auto texture = scene->GetEmbeddedTexture(path.C_Str())) {
             if (textureCache.contains(std::string(path.C_Str()))) {
               metallicTexture = textureCache[std::string(path.C_Str())];
             } else {
-              log::info("Loading embeded texture {}", path.C_Str());
+              logger::info("Loading embeded texture {}", path.C_Str());
               textureCache[std::string(path.C_Str())] = metallicTexture =
                   loadEmbededTexture(texture, MIP_LEVEL);
             }
@@ -344,13 +343,13 @@ std::future<void> SVModel::loadAsync() {
       if (m->GetTextureCount(aiTextureType_NORMALS) > 0 &&
           m->GetTexture(aiTextureType_NORMALS, 0, &path) == AI_SUCCESS) {
         if (core::Context::Get()->shouldNotLoadTexture()) {
-          log::info("Texture ignored {}", path.C_Str());
+          logger::info("Texture ignored {}", path.C_Str());
         } else {
           if (auto texture = scene->GetEmbeddedTexture(path.C_Str())) {
             if (textureCache.contains(std::string(path.C_Str()))) {
               normalTexture = textureCache[std::string(path.C_Str())];
             } else {
-              log::info("Loading embeded texture {}", path.C_Str());
+              logger::info("Loading embeded texture {}", path.C_Str());
               textureCache[std::string(path.C_Str())] = normalTexture =
                   loadEmbededTexture(texture, MIP_LEVEL);
             }
@@ -366,13 +365,13 @@ std::future<void> SVModel::loadAsync() {
       if (m->GetTextureCount(aiTextureType_EMISSIVE) > 0 &&
           m->GetTexture(aiTextureType_EMISSIVE, 0, &path) == AI_SUCCESS) {
         if (core::Context::Get()->shouldNotLoadTexture()) {
-          log::info("Texture ignored {}", path.C_Str());
+          logger::info("Texture ignored {}", path.C_Str());
         } else {
           if (auto texture = scene->GetEmbeddedTexture(path.C_Str())) {
             if (textureCache.contains(std::string(path.C_Str()))) {
               emissionTexture = textureCache[std::string(path.C_Str())];
             } else {
-              log::info("Loading embeded texture {}", path.C_Str());
+              logger::info("Loading embeded texture {}", path.C_Str());
               textureCache[std::string(path.C_Str())] = emissionTexture =
                   loadEmbededTexture(texture, MIP_LEVEL, 4, true);
             }
@@ -392,13 +391,13 @@ std::future<void> SVModel::loadAsync() {
           m->GetTexture(aiTextureType_DIFFUSE_ROUGHNESS, 0, &path) ==
               AI_SUCCESS) {
         if (core::Context::Get()->shouldNotLoadTexture()) {
-          log::info("Texture ignored {}", path.C_Str());
+          logger::info("Texture ignored {}", path.C_Str());
         } else {
           if (auto texture = scene->GetEmbeddedTexture(path.C_Str())) {
             if (textureCache.contains(std::string(path.C_Str()))) {
               roughnessTexture = textureCache[std::string(path.C_Str())];
             } else {
-              log::info("Loading embeded texture {}", path.C_Str());
+              logger::info("Loading embeded texture {}", path.C_Str());
               textureCache[std::string(path.C_Str())] = roughnessTexture =
                   loadEmbededTexture(texture, MIP_LEVEL);
             }
@@ -416,7 +415,7 @@ std::future<void> SVModel::loadAsync() {
               AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE,
               &path) == AI_SUCCESS) {
         if (core::Context::Get()->shouldNotLoadTexture()) {
-          log::info("Texture ignored {}", path.C_Str());
+          logger::info("Texture ignored {}", path.C_Str());
         } else {
           if (auto texture = scene->GetEmbeddedTexture(path.C_Str())) {
             if (roughnessMetallicTextureCache.contains(
@@ -424,14 +423,14 @@ std::future<void> SVModel::loadAsync() {
               std::tie(roughnessTexture, metallicTexture) =
                   roughnessMetallicTextureCache[std::string(path.C_Str())];
             } else {
-              log::info("Loading embeded roughness metallic texture {}",
+              logger::info("Loading embeded roughness metallic texture {}",
                         path.C_Str());
               std::tie(roughnessTexture, metallicTexture) =
                   roughnessMetallicTextureCache[std::string(path.C_Str())] =
                       loadEmbededRoughnessMetallicTexture(texture, MIP_LEVEL);
             }
           } else {
-            log::warn("Loading non-embeded roughness metallic texture is "
+            logger::warn("Loading non-embeded roughness metallic texture is "
                       "currently not supported");
           }
         }
@@ -439,13 +438,13 @@ std::future<void> SVModel::loadAsync() {
 
       if (m->GetTexture(AI_MATKEY_TRANSMISSION_TEXTURE, &path) == AI_SUCCESS) {
         if (core::Context::Get()->shouldNotLoadTexture()) {
-          log::info("Texture ignored {}", path.C_Str());
+          logger::info("Texture ignored {}", path.C_Str());
         } else {
           if (auto texture = scene->GetEmbeddedTexture(path.C_Str())) {
             if (textureCache.contains(std::string(path.C_Str()))) {
               transmissionTexture = textureCache[std::string(path.C_Str())];
             } else {
-              log::info("Loading embeded texture {}", path.C_Str());
+              logger::info("Loading embeded texture {}", path.C_Str());
               textureCache[std::string(path.C_Str())] = transmissionTexture =
                   loadEmbededTexture(texture, MIP_LEVEL);
             }
@@ -545,7 +544,7 @@ std::future<void> SVModel::loadAsync() {
       }
 
       if (positions.size() == 0 || indices.size() == 0) {
-        log::warn("A mesh in the file has no triangles: {}", path);
+        logger::warn("A mesh in the file has no triangles: {}", path);
         continue;
       }
       auto svmesh = std::make_shared<SVMesh>();
@@ -566,7 +565,7 @@ std::future<void> SVModel::loadAsync() {
       f.get();
     }
     mLoaded = true;
-    log::info("Loaded: {}", mDescription.filename);
+    logger::info("Loaded: {}", mDescription.filename);
   });
 }
 

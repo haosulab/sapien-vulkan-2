@@ -1,7 +1,6 @@
 #pragma once
 #include "svulkan2/common/glm.h"
 #include "widget.h"
-#include <ImGuizmo.h>
 #include <functional>
 
 namespace svulkan2 {
@@ -11,8 +10,11 @@ UI_CLASS(Gizmo) {
   UI_ATTRIBUTE(Gizmo, std::string, Label);
   UI_ATTRIBUTE(Gizmo, glm::mat4, Matrix);
 
-  ImGuizmo::OPERATION mCurrentGizmoOperation{ImGuizmo::TRANSLATE};
-  ImGuizmo::MODE mCurrentGizmoMode{ImGuizmo::WORLD};
+  int mCurrentGizmoOperation{};
+  int mCurrentGizmoMode{};
+
+  // ImGuizmo::OPERATION mCurrentGizmoOperation{ImGuizmo::TRANSLATE};
+  // ImGuizmo::MODE mCurrentGizmoMode{ImGuizmo::WORLD};
   bool mUseSnap{};
 
   glm::mat4 mView{1};

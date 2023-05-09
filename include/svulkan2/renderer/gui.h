@@ -1,14 +1,10 @@
 #pragma once
-#define GLFW_INCLUDE_VULKAN
-#include "svulkan2/common/log.h"
 #include <iostream>
+#include <memory>
 #include <vector>
 #include <vulkan/vulkan.hpp>
 
-#include <GLFW/glfw3.h>
-#include <imgui.h>
-#include <imgui_impl_glfw.h>
-#include <imgui_impl_vulkan.h>
+struct GLFWwindow;
 
 namespace svulkan2 {
 namespace core {
@@ -60,7 +56,7 @@ class GuiWindow {
 
   bool mClosed{};
 
-  ImVec2 mMouseWheelDelta{0, 0};
+  std::array<float, 2> mMouseWheelDelta{0, 0};
 
   std::function<void(std::vector<std::string>)> mDropCallback{};
 
@@ -92,6 +88,10 @@ public:
   /** Create ImGui Context and init ImGui Vulkan implementation. */
   void initImgui();
 
+  void imguiBeginFrame();
+  void imguiRender();
+  float imguiGetFramerate();
+
   inline vk::Semaphore getImageAcquiredSemaphore() {
     return mFrameSemaphores[mSemaphoreIndex].mImageAcquiredSemaphore.get();
   }
@@ -121,6 +121,13 @@ public:
   void close();
   inline bool isClosed() const { return mClosed; }
 
+  void setWindowSize(int width, int height);
+  std::array<int, 2> getWindowSize() const;
+  std::array<int, 2> getWindowFramebufferSize() const;
+  bool isCloseRequested() const;
+  void hide();
+  void show();
+
 public:
   bool isKeyDown(std::string const &key);
   bool isKeyPressed(std::string const &key);
@@ -130,11 +137,11 @@ public:
   bool isAltDown();
   bool isSuperDown();
 
-  ImVec2 getMouseDelta();
+  std::array<float, 2> getMouseDelta();
 
-  ImVec2 getMouseWheelDelta();
+  std::array<float, 2> getMouseWheelDelta();
 
-  ImVec2 getMousePosition();
+  std::array<float, 2> getMousePosition();
 
   bool isMouseKeyDown(int key);
 

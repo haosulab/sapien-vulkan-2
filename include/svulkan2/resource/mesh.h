@@ -1,8 +1,8 @@
 #pragma once
 #include "svulkan2/common/layout.h"
-#include "svulkan2/common/log.h"
 #include "svulkan2/common/vk.h"
 #include "svulkan2/core/buffer.h"
+#include <mutex>
 #include <unordered_map>
 
 namespace svulkan2 {

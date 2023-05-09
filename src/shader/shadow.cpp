@@ -1,5 +1,6 @@
 #include "svulkan2/shader/shadow.h"
-#include "svulkan2/common/log.h"
+#include "reflect.h"
+#include "../common/logger.h"
 
 namespace svulkan2 {
 namespace shader {

@@ -1,7 +1,7 @@
 #ifdef SVULKAN2_CUDA_INTEROP
-#include "svulkan2/renderer/denoiser.h"
+#include "denoiser.h"
 #include "optix_function_table_definition.h"
-#include "svulkan2/common/log.h"
+#include "../common/logger.h"
 #include "svulkan2/core/context.h"
 #include <cuda_runtime.h>
 #include <filesystem>
@@ -15,7 +15,7 @@ namespace renderer {
 static inline bool checkOptix(OptixResult error,
                               std::string const &message = "") {
   if (error != OPTIX_SUCCESS) {
-    log::error("{} OptiX Error: {}", message, optixGetErrorName(error));
+    logger::error("{} OptiX Error: {}", message, optixGetErrorName(error));
   }
   return true;
 }
@@ -23,7 +23,7 @@ static inline bool checkOptix(OptixResult error,
 static inline bool checkCudaRuntime(cudaError_t error,
                                     std::string const &message = "") {
   if (error != cudaSuccess) {
-    log::error("{} CUDA Error: {}", message, cudaGetErrorName(error));
+    logger::error("{} CUDA Error: {}", message, cudaGetErrorName(error));
     return false;
   }
   return true;
@@ -64,7 +64,7 @@ bool DenoiserOptix::init(OptixPixelFormat pixelFormat, bool albedo, bool normal,
     try {
       gContext = mContext = std::make_shared<Context>();
     } catch (std::runtime_error const &e) {
-      log::error("{}", error);
+      logger::error("{}", error);
       return false;
     }
   }
@@ -75,7 +75,7 @@ bool DenoiserOptix::init(OptixPixelFormat pixelFormat, bool albedo, bool normal,
 
   bool success = checkCudaRuntime(cudaStreamCreate(&mCudaStream));
   if (!success) {
-    log::error("{}", error);
+    logger::error("{}", error);
   }
 
   mOptions.guideAlbedo = albedo;
@@ -86,7 +86,7 @@ bool DenoiserOptix::init(OptixPixelFormat pixelFormat, bool albedo, bool normal,
                                            &mOptions, &mDenoiser));
 
   if (!success) {
-    log::error("{}", error);
+    logger::error("{}", error);
   }
 
   mPixelFormat = pixelFormat;

@@ -1,5 +1,6 @@
 #include "svulkan2/ui/widget.h"
 #include <algorithm>
+#include <imgui.h>
 
 namespace svulkan2 {
 namespace ui {

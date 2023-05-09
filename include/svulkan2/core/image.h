@@ -6,12 +6,11 @@
  */
 
 #pragma once
-#include "svulkan2/common/log.h"
 #include "svulkan2/common/vk.h"
+#include <memory>
 
-#ifdef SVULKAN2_CUDA_INTEROP
-#include "svulkan2/common/cuda_helper.h"
-#endif
+typedef struct cudaMipmappedArray *cudaMipmappedArray_t;
+typedef struct CUexternalMemory_st *cudaExternalMemory_t;
 
 namespace svulkan2 {
 namespace core {
@@ -75,8 +74,9 @@ public:
                           size_t bufferOffset, size_t size, vk::Offset3D offset,
                           vk::Extent3D extent, uint32_t arrayLayer = 0);
   void recordCopyFromBuffer(vk::CommandBuffer cb, vk::Buffer buffer,
-                          size_t bufferOffset, size_t size, vk::Offset3D offset,
-                          vk::Extent3D extent, uint32_t arrayLayer = 0);
+                            size_t bufferOffset, size_t size,
+                            vk::Offset3D offset, vk::Extent3D extent,
+                            uint32_t arrayLayer = 0);
 
   void download(void *data, size_t size, vk::Offset3D offset,
                 vk::Extent3D extent, uint32_t arrayLayer = 0,

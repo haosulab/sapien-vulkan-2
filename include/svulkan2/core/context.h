@@ -8,6 +8,13 @@
 #include <future>
 
 namespace svulkan2 {
+
+namespace logger {
+
+void setLogLevel(std::string_view level);
+
+}; // namespace logger
+
 namespace core {
 
 class Context : public std::enable_shared_from_this<Context> {

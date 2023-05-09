@@ -1,4 +1,5 @@
 #include "svulkan2/core/as.h"
+#include "../common/logger.h"
 #include "svulkan2/core/context.h"
 
 namespace svulkan2 {
@@ -94,7 +95,7 @@ void BLAS::build(bool compaction) {
       throw std::runtime_error("failed to get query pool result");
     }
 
-    log::info("BLAS original size {}, compact size {}", size, compactSize);
+    logger::info("BLAS original size {}, compact size {}", size, compactSize);
 
     if (compactSize > size) {
       throw std::runtime_error("something is wrong in compact size query!");
@@ -196,7 +197,7 @@ void TLAS::build() {
       VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY);
   mUpdateScratchBufferAddress = mUpdateScratchBuffer->getAddress();
 
-  log::info("TLAS size {}, build scratch size {}, update scratch size {}",
+  logger::info("TLAS size {}, build scratch size {}, update scratch size {}",
             buildSizeInfo.accelerationStructureSize,
             buildSizeInfo.buildScratchSize, updateSizeInfo.updateScratchSize);
 

@@ -1,4 +1,5 @@
 #include "svulkan2/scene/scene.h"
+#include "../common/logger.h"
 #include "svulkan2/core/context.h"
 #include <algorithm>
 
@@ -450,23 +451,23 @@ void Scene::uploadToDevice(core::Buffer &sceneBuffer,
       sceneLayout.elements.at("texturedLights").member->size;
 
   if (maxNumPointLights < mPointLights.size()) {
-    log::warn("The scene contains more point lights than the maximum number of "
+    logger::warn("The scene contains more point lights than the maximum number of "
               "point lights in the shader. Truncated.");
     numPointLights = maxNumPointLights;
   }
   if (maxNumDirectionalLights < mDirectionalLights.size()) {
-    log::warn(
+    logger::warn(
         "The scene contains more directional lights than the maximum number of "
         "directional lights in the shader. Truncated.");
     numDirectionalLights = maxNumDirectionalLights;
   }
   if (maxNumSpotLights < mSpotLights.size()) {
-    log::warn("The scene contains more spot lights than the maximum number of "
+    logger::warn("The scene contains more spot lights than the maximum number of "
               "spot lights in the shader. Truncated.");
     numSpotLights = maxNumSpotLights;
   }
   if (maxNumTexturedLights < mTexturedLights.size()) {
-    log::warn(
+    logger::warn(
         "The scene contains more textured lights than the maximum number of "
         "textured lights in the shader. Truncated.");
     numTexturedLights = maxNumTexturedLights;
@@ -653,13 +654,13 @@ void Scene::reorderLights() {
 void Scene::updateVersion() {
   mVersion++;
   mRenderVersion++;
-  log::info("Scene updated");
+  logger::info("Scene updated");
 }
 
 void Scene::updateRenderVersion() { mRenderVersion++; }
 
 void Scene::buildTLAS() {
-  log::info("building TLAS");
+  logger::info("building TLAS");
   auto context = core::Context::Get();
   std::vector<vk::AccelerationStructureInstanceKHR> instances;
   uint32_t globalGeomIdx{0};
@@ -685,7 +686,7 @@ void Scene::buildTLAS() {
 }
 
 void Scene::updateTLAS() {
-  log::info("updating TLAS");
+  logger::info("updating TLAS");
   auto objects = getVisibleObjects();
   std::vector<vk::TransformMatrixKHR> transforms;
   transforms.reserve(objects.size());

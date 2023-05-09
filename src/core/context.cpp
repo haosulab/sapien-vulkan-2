@@ -1,7 +1,7 @@
 #include "svulkan2/core/context.h"
-#include "svulkan2/common/cuda_helper.h"
+#include "../common/logger.h"
+#include "../common/cuda_helper.h"
 #include "svulkan2/common/launch_policy.h"
-#include "svulkan2/common/log.h"
 #include "svulkan2/core/allocator.h"
 #include "svulkan2/shader/glsl_compiler.h"
 #include <GLFW/glfw3.h>
@@ -28,7 +28,7 @@ std::shared_ptr<Context> Context::Get() {
 }
 
 static void glfwErrorCallback(int error_code, const char *description) {
-  log::error("GLFW error: {}", description);
+  logger::error("GLFW error: {}", description);
 }
 
 #ifdef VK_VALIDATION
@@ -63,7 +63,7 @@ std::shared_ptr<Context> Context::Create(bool present, uint32_t maxNumMaterials,
                                          bool doNotLoadTexture,
                                          std::string device) {
   if (!gInstance.expired()) {
-    log::warn("Only 1 renderer is allowed per process. All previously created "
+    logger::warn("Only 1 renderer is allowed per process. All previously created "
               "renderer resources are now invalid");
   }
   auto context = std::shared_ptr<Context>(
@@ -104,10 +104,10 @@ Context::~Context() {
   }
   if (mPresent) {
     glfwTerminate();
-    log::info("GLFW terminated");
+    logger::info("GLFW terminated");
   }
 
-  log::info("Vulkan finished");
+  logger::info("Vulkan finished");
 }
 
 std::shared_ptr<resource::SVResourceManager>
@@ -148,7 +148,7 @@ void Context::createInstance() {
 
   // give up
   if (!mDynamicLoader) {
-    log::error("Failed to load vulkan library! You may not use the renderer to "
+    logger::error("Failed to load vulkan library! You may not use the renderer to "
                "render, however, CPU resources will be still available.");
     return;
   }
@@ -156,9 +156,9 @@ void Context::createInstance() {
   if (mPresent) {
     glfwSetErrorCallback(glfwErrorCallback);
     if (glfwInit()) {
-      log::info("GLFW initialized.");
+      logger::info("GLFW initialized.");
     } else {
-      log::warn("Continue without GLFW.");
+      logger::warn("Continue without GLFW.");
       mPresent = false;
     }
   }
@@ -190,7 +190,7 @@ void Context::createInstance() {
 
   if (mPresent) {
     if (!glfwVulkanSupported()) {
-      log::error("createInstance: present requested but GLFW does not support "
+      logger::error("createInstance: present requested but GLFW does not support "
                  "Vulkan. Continue without GLFW.");
       mPresent = false;
     } else {
@@ -229,24 +229,24 @@ void Context::createInstance() {
     mInstance = vk::createInstanceUnique(createInfo);
     VULKAN_HPP_DEFAULT_DISPATCHER.init(mInstance.get());
     mVulkanAvailable = true;
-    log::info("Vulkan instance initialized");
+    logger::info("Vulkan instance initialized");
   } catch (vk::OutOfHostMemoryError const &err) {
     throw err;
   } catch (vk::OutOfDeviceMemoryError const &err) {
     throw err;
   } catch (vk::InitializationFailedError const &err) {
-    log::error("Vulkan initialization failed. You may not use the renderer to "
+    logger::error("Vulkan initialization failed. You may not use the renderer to "
                "render, however, CPU resources will be still available.");
   } catch (vk::LayerNotPresentError const &err) {
-    log::error(
+    logger::error(
         "Some required Vulkan layer is not present. You may not use the "
         "renderer to render, however, CPU resources will be still available.");
   } catch (vk::ExtensionNotPresentError const &err) {
-    log::error(
+    logger::error(
         "Some required Vulkan extension is not present. You may not use the "
         "renderer to render, however, CPU resources will be still available.");
   } catch (vk::IncompatibleDriverError const &err) {
-    log::error(
+    logger::error(
         "Vulkan is incompatible with your driver. You may not use the renderer "
         "to render, however, CPU resources will be still available.");
   }
@@ -343,7 +343,7 @@ Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
       if ((computeMode == cudaComputeModeExclusiveProcess ||
            computeMode == cudaComputeModeExclusive) &&
           rayTracing) {
-        log::warn(
+        logger::warn(
             "CUDA device {} is in EXCLUSIVE or EXCLUSIVE_PROCESS mode. You "
             "many not use this renderer with external CUDA programs unless "
             "you switch off ray tracing by environment variable "
@@ -370,7 +370,7 @@ Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
                                     .rayTracing = rayTracing,
                                     .cudaComputeMode = computeMode});
   }
-  log::info(ss.str());
+  logger::info(ss.str());
 
 #ifdef SVULKAN2_CUDA_INTEROP
   ss = {};
@@ -407,7 +407,7 @@ Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
       break;
     }
   }
-  log::info(ss.str());
+  logger::info(ss.str());
 #endif
 
   return devices;
@@ -580,12 +580,12 @@ void Context::pickSuitableGpuAndQueueFamilyIndex() {
   }
 
   if (mPresent && !devices[pickedDeviceIdx].present) {
-    log::error("Present requested but the selected device does not support "
+    logger::error("Present requested but the selected device does not support "
                "present. Continue without present.");
     mPresent = false;
   }
 
-  log::info("Vulkan picked device: {}", pickedDeviceIdx);
+  logger::info("Vulkan picked device: {}", pickedDeviceIdx);
 
   vk::PhysicalDevice pickedDevice = devices[pickedDeviceIdx].device;
 

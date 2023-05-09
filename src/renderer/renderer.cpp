@@ -1,4 +1,5 @@
 #include "svulkan2/renderer/renderer.h"
+#include "../common/logger.h"
 #include "svulkan2/core/command_pool.h"
 #include "svulkan2/shader/deferred.h"
 #include "svulkan2/shader/gbuffer.h"
@@ -1566,7 +1567,7 @@ void Renderer::prepareSceneBuffer() {
       for (auto l : lights) {
         auto t = l->getTexture();
         if (!t) {
-          log::error("A textured light does not have texture!");
+          logger::error("A textured light does not have texture!");
           t = mContext->getResourceManager()->getDefaultTexture();
           t->loadAsync().get();
           t->uploadToDevice();

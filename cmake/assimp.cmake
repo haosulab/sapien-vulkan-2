@@ -2,6 +2,8 @@ if(TARGET assimp::assimp)
     return()
 endif()
 
+set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+
 include(FetchContent)
 FetchContent_Declare(
     assimp

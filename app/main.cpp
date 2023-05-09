@@ -1,16 +1,20 @@
 #include "camera_controller.hpp"
 #include "svulkan2/common/fs.h"
-#include "svulkan2/common/log.h"
 #include "svulkan2/core/context.h"
-#include "svulkan2/renderer/denoiser.h"
 #include "svulkan2/renderer/renderer.h"
 #include "svulkan2/renderer/rt_renderer.h"
 #include "svulkan2/scene/scene.h"
 #include "svulkan2/shader/compute.h"
 #include "svulkan2/shader/shader.h"
 #include "svulkan2/ui/ui.h"
+#include <GLFW/glfw3.h>
 #include <chrono>
 #include <iostream>
+
+// clang-format off
+#include <imgui.h>
+#include <ImGuizmo.h>
+// clang-format on
 
 // #define STB_IMAGE_WRITE_IMPLEMENTATION
 // #include <stb_image_write.h>
@@ -96,9 +100,9 @@ static void setupScene(svulkan2::scene::Scene &scene) {
     auto shape = resource::SVShape::Create(
         resource::SVMesh::CreateCube(),
         std::make_shared<resource::SVMetallicMaterial>(
-            glm::vec4{0, 0, 0, 1}, // emission
+            glm::vec4{0, 0, 0, 1},       // emission
             glm::vec4{0.9, 0.9, 0.9, 1}, // base color
-            0,                     // fresnel
+            0,                           // fresnel
             1.0, 0.0));
     scene.addObject(resource::SVModel::FromData({shape}),
                     {.position = {0, -0.1, 0}, .scale = {10, 0.1, 10}});
@@ -115,7 +119,7 @@ static void setupScene(svulkan2::scene::Scene &scene) {
 }
 
 int main() {
-  svulkan2::log::getLogger()->set_level(spdlog::level::info);
+  // svulkan2::logger::getLogger()->set_level(spdlog::level::info);
 
   auto context = svulkan2::core::Context::Create(true, 5000, 5000, 4);
   auto manager = context->createResourceManager();
@@ -578,7 +582,7 @@ int main() {
   }
 
   context->getDevice().waitIdle();
-  log::info("finish");
+  // logger::info("finish");
 
   return 0;
 }

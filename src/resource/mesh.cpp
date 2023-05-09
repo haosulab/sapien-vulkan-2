@@ -1,6 +1,6 @@
 #include "svulkan2/resource/mesh.h"
 #include "svulkan2/common/assimp.h"
-#include "svulkan2/common/log.h"
+#include "../common/logger.h"
 #include "svulkan2/core/context.h"
 #include <memory>
 

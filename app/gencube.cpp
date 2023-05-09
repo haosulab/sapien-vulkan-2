@@ -1,5 +1,4 @@
 #include "svulkan2/common/fs.h"
-#include "svulkan2/common/log.h"
 #include "svulkan2/core/context.h"
 #include "svulkan2/renderer/renderer.h"
 #include "svulkan2/scene/scene.h"
@@ -15,8 +14,6 @@ int main(int argc, char *argv[]) {
     std::cerr << "gencube takes exactly 6 filenames" << std::endl;
     return 1;
   }
-
-  svulkan2::log::getLogger()->set_level(spdlog::level::info);
 
   auto context = svulkan2::core::Context::Create(true, 5000, 5000, 4);
   auto manager = context->createResourceManager();

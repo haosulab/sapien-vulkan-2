@@ -5,6 +5,10 @@
 #include "svulkan2/core/buffer.h"
 #include "svulkan2/core/context.h"
 
+#ifdef SVULKAN2_CUDA_INTEROP
+#include "../common/cuda_helper.h"
+#endif
+
 namespace svulkan2 {
 namespace core {
 
@@ -51,7 +55,7 @@ Image::Image(vk::Extent3D extent, vk::Format format,
 
 #ifdef TRACK_ALLOCATION
   mImageId = gImageId++;
-  log::info("Create Image {}; Total {}", mImageId, ++gImageCount);
+  logger::info("Create Image {}; Total {}", mImageId, ++gImageCount);
 #endif
 }
 
@@ -59,7 +63,7 @@ Image::~Image() {
   vmaDestroyImage(mContext->getAllocator().getVmaAllocator(), mImage,
                   mAllocation);
 #ifdef TRACK_ALLOCATION
-  log::info("Destroy Image {}, Total {}", mImageId, --gImageCount);
+  logger::info("Destroy Image {}, Total {}", mImageId, --gImageCount);
 #endif
 }
 

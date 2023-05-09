@@ -1,4 +1,5 @@
 #include "svulkan2/resource/cubemap.h"
+#include "../common/logger.h"
 #include "svulkan2/common/launch_policy.h"
 #include "svulkan2/core/context.h"
 #include "svulkan2/resource/manager.h"
@@ -94,11 +95,11 @@ void SVCubemap::uploadToDevice() {
 
   if (mDescription.mipLevels > 1 && !mImage->mipmapIsLoaded()) {
     if (mImage->mipmapIsLoaded()) {
-      log::info("Cube map mipmaps are loaded, no prefiltering required.");
+      logger::info("Cube map mipmaps are loaded, no prefiltering required.");
     } else {
-      log::info("Prefiltering cube map...");
+      logger::info("Prefiltering cube map...");
       shader::prefilterCubemap(*mImage->getDeviceImage());
-      log::info("Prefiltering cube map completed");
+      logger::info("Prefiltering cube map completed");
     }
   }
   mImage->getDeviceImage()->setCurrentLayout(
@@ -118,11 +119,11 @@ std::future<void> SVCubemap::loadAsync() {
   switch (mDescription.source) {
   case SVCubemapDescription::SourceType::eFILES:
     for (auto f : mDescription.filenames) {
-      log::info("Loading: {}", f);
+      logger::info("Loading: {}", f);
     }
     break;
   case (SVCubemapDescription::SourceType::eSINGLE_FILE):
-    log::info("Loading: {}", mDescription.filenames[0]);
+    logger::info("Loading: {}", mDescription.filenames[0]);
     break;
   default:
     throw std::runtime_error(

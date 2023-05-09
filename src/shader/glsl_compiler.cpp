@@ -1,6 +1,6 @@
 #include "svulkan2/shader/glsl_compiler.h"
 #include "svulkan2/common/fs.h"
-#include "svulkan2/common/log.h"
+#include "../common/logger.h"
 #include "svulkan2/common/vk.h"
 #include <SPIRV/GlslangToSpv.h>
 #include <glslang/Public/ShaderLang.h>
@@ -313,11 +313,11 @@ std::vector<std::uint32_t> GLSLCompiler::compileToSpirv(
           std::string reason = sm[4];
           if (debugInfo.size() > l) {
             auto [file, lineNumber] = debugInfo[l];
-            log::error("ERROR: {}:{}: '{}' :  {}", file, lineNumber, var,
+            logger::error("ERROR: {}:{}: '{}' :  {}", file, lineNumber, var,
                        reason);
           }
         } else if (line.length()) {
-          log::error(line);
+          logger::error(line);
         }
       }
     }
@@ -337,11 +337,11 @@ std::vector<std::uint32_t> GLSLCompiler::compileToSpirv(
   {
     std::string log = program.getInfoLog();
     if (log.length()) {
-      log::getLogger()->warn(log);
+      logger::getLogger()->warn(log);
     }
     log = program.getInfoDebugLog();
     if (log.length()) {
-      log::getLogger()->warn(log);
+      logger::getLogger()->warn(log);
     }
   }
   if (!result) {
@@ -360,7 +360,7 @@ std::vector<std::uint32_t> GLSLCompiler::compileToSpirv(
   {
     std::string log = logger.getAllMessages();
     if (log.length()) {
-      log::getLogger()->warn(log);
+      logger::getLogger()->warn(log);
     }
   }
 

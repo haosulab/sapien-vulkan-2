@@ -1,4 +1,5 @@
 #include "svulkan2/shader/primitive_shadow.h"
+#include "reflect.h"
 
 namespace svulkan2 {
 namespace shader {

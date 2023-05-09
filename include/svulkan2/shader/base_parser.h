@@ -1,12 +1,17 @@
 #pragma once
 #include "glsl_compiler.h"
-#include "reflect.h"
 #include "svulkan2/common/err.h"
 #include "svulkan2/common/fs.h"
 #include "svulkan2/common/layout.h"
 #include <future>
 #include <map>
 #include <optional>
+
+namespace spirv_cross {
+  class Compiler;
+  struct SPIRType;
+  struct Resource;
+};
 
 namespace svulkan2 {
 namespace shader {

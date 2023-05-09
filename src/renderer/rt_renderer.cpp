@@ -1,6 +1,7 @@
 #include "svulkan2/renderer/rt_renderer.h"
+#include "../common/logger.h"
+#include "denoiser.h"
 #include "svulkan2/core/context.h"
-#include "svulkan2/renderer/denoiser.h"
 #include "svulkan2/shader/rt.h"
 
 namespace svulkan2 {
@@ -11,7 +12,7 @@ RTRenderer::RTRenderer(std::string const &shaderDir) : mShaderDir(shaderDir) {
     return;
   }
   if (!mContext->isRayTracingAvailable()) {
-    log::error("The selected GPU does not support ray tracing");
+    logger::error("The selected GPU does not support ray tracing");
     return;
   }
   mShaderPack = mContext->getResourceManager()->CreateRTShaderPack(shaderDir);
@@ -603,7 +604,7 @@ void RTRenderer::preparePostprocessing() {
     return;
   }
 
-  log::info("Postprocessing passes {}", layouts.size());
+  logger::info("Postprocessing passes {}", layouts.size());
 
   // create postprocessing images
   auto pool = mContext->createCommandPool();
@@ -840,9 +841,9 @@ void RTRenderer::enableDenoiser(std::string const &colorName,
 #ifdef SVULKAN2_CUDA_INTEROP
   if (!mDenoiser) {
     mRequiresRebuild = true;
-    mDenoiser = std::make_shared<DenoiserOptix>();
+    mDenoiser = std::make_unique<DenoiserOptix>();
     if (!mDenoiser->init(OPTIX_PIXEL_FORMAT_FLOAT4, true, true, true)) {
-      log::error("Failed to initialize OptiX denoiser");
+      logger::error("Failed to initialize OptiX denoiser");
       mDenoiser.reset();
       return;
     }

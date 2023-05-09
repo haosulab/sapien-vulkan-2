@@ -1,4 +1,5 @@
 #pragma once
+#include "svulkan2/common/glm.h"
 #include "widget.h"
 
 namespace svulkan2 {
@@ -7,8 +8,8 @@ namespace ui {
 UI_CLASS(Window) {
   UI_DECLARE_APPEND(Window);
   UI_ATTRIBUTE(Window, std::string, Label);
-  UI_ATTRIBUTE(Window, ImVec2, Pos);
-  UI_ATTRIBUTE(Window, ImVec2, Size);
+  UI_ATTRIBUTE(Window, glm::vec2, Pos);
+  UI_ATTRIBUTE(Window, glm::vec2, Size);
 
 public:
   void build() override;

@@ -1,10 +1,8 @@
 #pragma once
-#include "svulkan2/common/log.h"
 #include "svulkan2/common/vk.h"
+#include <memory>
 
-#ifdef SVULKAN2_CUDA_INTEROP
-#include "svulkan2/common/cuda_helper.h"
-#endif
+typedef struct CUexternalMemory_st *cudaExternalMemory_t;
 
 namespace svulkan2 {
 namespace core {

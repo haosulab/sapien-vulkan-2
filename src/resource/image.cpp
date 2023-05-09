@@ -1,7 +1,7 @@
 #include "svulkan2/resource/image.h"
 #include "svulkan2/common/image.h"
 #include "svulkan2/common/launch_policy.h"
-#include "svulkan2/common/log.h"
+#include "../common/logger.h"
 #include "svulkan2/core/context.h"
 #include <filesystem>
 
@@ -283,7 +283,7 @@ std::future<void> SVImage::loadAsync() {
 
       if (mDescription.mipLevels != static_cast<uint32_t>(levels)) {
         // levels do not match, only take base level
-        log::warn("ktx texture has {} levels but {} levels requested", levels,
+        logger::warn("ktx texture has {} levels but {} levels requested", levels,
                   mDescription.mipLevels);
         for (uint32_t i = 0; i < static_cast<uint32_t>(faces * layers); ++i) {
           mData.push_back(std::vector<uint8_t>(

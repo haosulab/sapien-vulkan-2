@@ -1,4 +1,5 @@
 #include "svulkan2/ui/slider.h"
+#include <imgui.h>
 
 namespace svulkan2 {
 namespace ui {

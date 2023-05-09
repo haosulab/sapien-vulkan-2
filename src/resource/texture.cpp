@@ -1,4 +1,5 @@
 #include "svulkan2/resource/texture.h"
+#include "../common/logger.h"
 #include "svulkan2/common/launch_policy.h"
 #include "svulkan2/core/context.h"
 #include "svulkan2/resource/manager.h"
@@ -174,7 +175,7 @@ std::future<void> SVTexture::loadAsync() {
   auto context = core::Context::Get();
   auto manager = context->getResourceManager();
 
-  log::info("Loading: {}", mDescription.filename);
+  logger::info("Loading: {}", mDescription.filename);
   if (mDescription.source != SVTextureDescription::SourceType::eFILE) {
     throw std::runtime_error(
         "failed to load texture: the texture is not specified by a file");
@@ -188,7 +189,7 @@ std::future<void> SVTexture::loadAsync() {
                                           mDescription.mipLevels);
     mImage->loadAsync().get();
     mLoaded = true;
-    log::info("Loaded: {}", mDescription.filename);
+    logger::info("Loaded: {}", mDescription.filename);
   });
 }
 

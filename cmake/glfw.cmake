@@ -19,3 +19,4 @@ if(NOT glfw_POPULATED)
 endif()
 
 set_target_properties(glfw PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_compile_definitions(glfw INTERFACE GLFW_INCLUDE_VULKAN)
