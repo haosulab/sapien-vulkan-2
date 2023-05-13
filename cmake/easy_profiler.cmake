@@ -11,7 +11,6 @@ FetchContent_Declare(
     GIT_PROGRESS TRUE
 )
 
-set(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME easy_profiler)
 FetchContent_GetProperties(easy_profiler)
 if(NOT easy_profiler_POPULATED)
   FetchContent_Populate(easy_profiler)
