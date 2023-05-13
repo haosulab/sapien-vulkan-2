@@ -451,8 +451,9 @@ void Scene::uploadToDevice(core::Buffer &sceneBuffer,
       sceneLayout.elements.at("texturedLights").member->size;
 
   if (maxNumPointLights < mPointLights.size()) {
-    logger::warn("The scene contains more point lights than the maximum number of "
-              "point lights in the shader. Truncated.");
+    logger::warn(
+        "The scene contains more point lights than the maximum number of "
+        "point lights in the shader. Truncated.");
     numPointLights = maxNumPointLights;
   }
   if (maxNumDirectionalLights < mDirectionalLights.size()) {
@@ -462,8 +463,9 @@ void Scene::uploadToDevice(core::Buffer &sceneBuffer,
     numDirectionalLights = maxNumDirectionalLights;
   }
   if (maxNumSpotLights < mSpotLights.size()) {
-    logger::warn("The scene contains more spot lights than the maximum number of "
-              "spot lights in the shader. Truncated.");
+    logger::warn(
+        "The scene contains more spot lights than the maximum number of "
+        "spot lights in the shader. Truncated.");
     numSpotLights = maxNumSpotLights;
   }
   if (maxNumTexturedLights < mTexturedLights.size()) {
@@ -864,7 +866,7 @@ void Scene::createRTStorageBuffers(
         .position = l->getPosition(), .radius = 0, .rgb = l->getColor()});
   }
   mRTPointLightBuffer = std::make_unique<core::Buffer>(
-      std::max(getPointLights().size(), 1lu) * sizeof(RTPointLight),
+      std::max(getPointLights().size(), size_t(1)) * sizeof(RTPointLight),
       vk::BufferUsageFlagBits::eStorageBuffer |
           vk::BufferUsageFlagBits::eTransferDst,
       VMA_MEMORY_USAGE_CPU_TO_GPU);
@@ -876,7 +878,8 @@ void Scene::createRTStorageBuffers(
         .direction = l->getDirection(), .softness = 0, .rgb = l->getColor()});
   }
   mRTDirectionalLightBuffer = std::make_unique<core::Buffer>(
-      std::max(getDirectionalLights().size(), 1lu) * sizeof(RTDirectionalLight),
+      std::max(getDirectionalLights().size(), size_t(1)) *
+          sizeof(RTDirectionalLight),
       vk::BufferUsageFlagBits::eStorageBuffer |
           vk::BufferUsageFlagBits::eTransferDst,
       VMA_MEMORY_USAGE_CPU_TO_GPU);
@@ -913,7 +916,7 @@ void Scene::createRTStorageBuffers(
         .textureId = textureId});
   }
   mRTSpotLightBuffer = std::make_unique<core::Buffer>(
-      std::max(getTexturedLights().size() + getSpotLights().size(), 1lu) *
+      std::max(getTexturedLights().size() + getSpotLights().size(), size_t(1)) *
           sizeof(RTSpotLight),
       vk::BufferUsageFlagBits::eStorageBuffer |
           vk::BufferUsageFlagBits::eTransferDst,
@@ -930,7 +933,7 @@ void Scene::createRTStorageBuffers(
     });
   }
   mRTParallelogramLightBuffer = std::make_unique<core::Buffer>(
-      std::max(getParallelogramLights().size(), 1lu) *
+      std::max(getParallelogramLights().size(), size_t(1)) *
           sizeof(RTParallelogramLight),
       vk::BufferUsageFlagBits::eStorageBuffer |
           vk::BufferUsageFlagBits::eTransferDst,

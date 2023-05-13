@@ -40,7 +40,7 @@ if (${SVULKAN2_TRACK_ALLOCATION})
 endif()
 
 file(GLOB_RECURSE SVULKAN2_SRC "src/*.cpp")
-add_library(svulkan2 STATIC ${SVULKAN2_SRC})
+add_library(svulkan2 SHARED ${SVULKAN2_SRC})
 set_target_properties(svulkan2 PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 
 if (${SVULKAN2_CUDA_INTEROP})
@@ -54,14 +54,15 @@ endif()
 
 target_compile_definitions(imgui PRIVATE VK_NO_PROTOTYPES)
 
-target_include_directories(svulkan2 PUBLIC "include")
+target_include_directories(svulkan2 PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 target_include_directories(svulkan2 PRIVATE "3rd_party/stb")
 target_include_directories(svulkan2 PRIVATE "3rd_party/OptiX7SDK/include")
 target_compile_definitions(svulkan2 PUBLIC VK_NO_PROTOTYPES)
 
-target_link_libraries(svulkan2 PUBLIC Vulkan::Headers glm dl pthread)
+target_link_libraries(svulkan2 PRIVATE Vulkan::Headers glm)
 
-target_link_libraries(svulkan2 PRIVATE assimp::assimp glslang SPIRV spirv-cross-cpp glfw spdlog::spdlog easy_profiler ktx imgui)
+find_package(Threads REQUIRED)
+target_link_libraries(svulkan2 PRIVATE assimp::assimp glslang SPIRV spirv-cross-cpp glfw spdlog::spdlog easy_profiler ktx imgui ${CMAKE_DL_LIBS} Threads::Threads)
 
 if (${SVULKAN2_PROFILE})
     target_compile_definitions(svulkan2 PUBLIC SVULKAN2_PROFILE)
@@ -69,7 +70,7 @@ endif()
 
 if (${SVULKAN2_CUDA_INTEROP})
     target_include_directories(svulkan2 PRIVATE "$ENV{CUDA_PATH}/include")
-    target_link_libraries(svulkan2 PRIVATE "$ENV{CUDA_PATH}/lib64/libcudart_static.a" rt)
+    target_link_libraries(svulkan2 PUBLIC "$ENV{CUDA_PATH}/lib64/libcudart_static.a" rt)
 endif()
 
 add_executable(svulkan2_main app/main.cpp)

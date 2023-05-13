@@ -11,7 +11,6 @@ FetchContent_Declare(
     GIT_PROGRESS TRUE
 )
 
-set(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME spdlog)
 FetchContent_GetProperties(spdlog)
 if(NOT spdlog_POPULATED)
   FetchContent_Populate(spdlog)

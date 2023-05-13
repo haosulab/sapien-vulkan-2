@@ -234,15 +234,15 @@ RayTracingShaderPack::RayTracingShaderPack(std::string const &shaderDir) {
         "ray tracing shader directory must contain shadow.rmiss");
   }
 
-  loadGLSLFilesAsync(raygenFile, {cameraRmissFile, shadowRmissFile},
-                     {rahitFile}, {rchitFile})
+  loadGLSLFilesAsync(raygenFile.string(), {cameraRmissFile.string(), shadowRmissFile.string()},
+                     {rahitFile.string()}, {rchitFile.string()})
       .get();
 
   // TODO: handle more postprocessing files
   auto postprocessingFile = path / "postprocessing.comp";
   if (fs::exists(postprocessingFile)) {
     auto pp = std::make_unique<PostprocessingShaderParser>();
-    pp->loadFileAsync(postprocessingFile).get();
+    pp->loadFileAsync(postprocessingFile.string()).get();
     mPostprocessingParsers.push_back(std::move(pp));
   }
 }

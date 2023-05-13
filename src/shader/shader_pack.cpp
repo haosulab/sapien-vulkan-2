@@ -53,7 +53,7 @@ ShaderPack::ShaderPack(std::string const &dirname) {
       gsFile = "";
     }
     futures.push_back(
-        mPointShadowPass->loadGLSLFilesAsync(vsFile, fsFile, gsFile));
+        mPointShadowPass->loadGLSLFilesAsync(vsFile.string(), fsFile.string(), gsFile.string()));
   }
 
   mHasDeferred = fs::is_regular_file(path / "deferred.vert") &&
@@ -165,7 +165,7 @@ ShaderPack::ShaderPack(std::string const &dirname) {
 
   vsFile = (path / "composite.vert").string();
   for (int i = 0; i < numCompositePasses; i++) {
-    fsFile = path / ("composite" + std::to_string(i) + ".frag");
+    fsFile = (path / ("composite" + std::to_string(i) + ".frag")).string();
     auto compositePass = std::make_shared<DeferredPassParser>();
     compositePass->setName("Composite" + std::to_string(i));
     mNonShadowPasses.push_back(compositePass);
