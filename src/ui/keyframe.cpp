@@ -67,8 +67,10 @@ inline ImVec4 operator*(const ImVec4 &lhs, const ImVec4 &rhs) {
 #endif
 
 KeyFrameEditor::KeyFrameEditor(float contentScale_) {
-  prevSelectedMaxFrame = selectedMaxFrame;
+  // Key frame and item
+  keyFrameIdGenerator = IdGenerator();
 
+  // Visual
   if (contentScale_ < 0.1f) {
     contentScale = 1.0f;
   } else {
@@ -76,8 +78,8 @@ KeyFrameEditor::KeyFrameEditor(float contentScale_) {
   }
 
   zoom[1] *= contentScale;
-  resetHorizZoom = true;
 
+  // Theme
   CrossTheme.borderWidth *= contentScale;
 
   ListerTheme.width *= contentScale;
@@ -127,13 +129,15 @@ void KeyFrameEditor::build() {
   ImGui::SameLine();
 
   // Key frame buttons
-  auto it = std::find_if(keyFrames.begin(), keyFrames.end(),
+  auto it = std::find_if(keyFramesInUsed.begin(), keyFramesInUsed.end(),
                          [&](auto &kf) { return kf->frame == currentFrame; });
-  if (it == keyFrames.end()) { // Not a key frame
+  if (it == keyFramesInUsed.end()) { // Not a key frame
     if (ImGui::Button("Insert Key Frame") && mInsertKeyFrameCallback) {
-      keyFrames.push_back(
-          std::unique_ptr<UIKeyFrame>(new UIKeyFrame{currentFrame}));
-      std::sort(keyFrames.begin(), keyFrames.end(),
+      auto kf =
+          std::make_shared<KeyFrame>(keyFrameIdGenerator.next(), currentFrame);
+      keyFrames.push_back(kf);
+      keyFramesInUsed.push_back(kf);
+      std::sort(keyFramesInUsed.begin(), keyFramesInUsed.end(),
                 [](auto &a, auto &b) { return a->frame < b->frame; });
       mInsertKeyFrameCallback(
           std::static_pointer_cast<KeyFrameEditor>(shared_from_this()));
@@ -154,9 +158,9 @@ void KeyFrameEditor::build() {
     ImGui::SameLine();
 
     if (ImGui::Button("Delete Key Frame") && mDeleteKeyFrameCallback) {
-      keyFrames.erase(it);
       mDeleteKeyFrameCallback(
           std::static_pointer_cast<KeyFrameEditor>(shared_from_this()));
+      keyFramesInUsed.erase(it);
     }
   }
 
@@ -386,22 +390,22 @@ void KeyFrameEditor::build() {
     TimelineBackground();
     Timeline();
 
-    for (auto &keyFrame : keyFrames) { // Ascending order
+    for (auto &keyFrame : keyFramesInUsed) { // Ascending order
       FrameIndicator(keyFrame->frame, TimelineTheme.keyFrame, false, false);
     }
 
-    auto it = std::find_if(keyFrames.begin(), keyFrames.end(),
+    auto it = std::find_if(keyFramesInUsed.begin(), keyFramesInUsed.end(),
                            [&](auto &kf) { return kf->frame == currentFrame; });
-    if (it == keyFrames.end()) {
+    if (it == keyFramesInUsed.end()) {
       FrameIndicator(currentFrame, TimelineTheme.currentFrame, true, true);
     } else {
       FrameIndicator(currentFrame, TimelineTheme.keyFrame, true, true);
     }
 
     // Select/drag key frame
-    for (int i = static_cast<int>(keyFrames.size()) - 1; i >= 0;
+    for (int i = static_cast<int>(keyFramesInUsed.size()) - 1; i >= 0;
          i--) { // Desending order
-      float x = B.x + (keyFrames[i])->frame * zoom[0] + pan[0];
+      float x = B.x + (keyFramesInUsed[i])->frame * zoom[0] + pan[0];
       if (x < B.x || x > canvasPos.x + canvasSize.x) {
         continue;
       }
@@ -416,30 +420,32 @@ void KeyFrameEditor::build() {
         ImVec4 color = ImVec4{
             TimelineTheme.keyFrame.x * 1.2f, TimelineTheme.keyFrame.y * 1.2f,
             TimelineTheme.keyFrame.z * 1.2f, TimelineTheme.keyFrame.w};
-        FrameIndicator((keyFrames[i])->frame, color, false, false);
+        FrameIndicator((keyFramesInUsed[i])->frame, color, false, false);
 
         int frameTemp = static_cast<int>(
             std::round((io.MousePos.x - B.x - pan[0]) / zoom[0]));
-        (keyFrames[i])->frame =
+        (keyFramesInUsed[i])->frame =
             ImClamp(frameTemp, frameRange[0], frameRange[1]);
-        currentFrame = (keyFrames[i])->frame;
+        currentFrame = (keyFramesInUsed[i])->frame;
       }
 
       if (ImGui::IsItemDeactivated()) {
-        draggedIndex = i;
-        draggedNewVal = (keyFrames[i])->frame;
-        if (mDragKeyFrameCallback) {
-          mDragKeyFrameCallback(
-              std::static_pointer_cast<KeyFrameEditor>(shared_from_this()));
-        }
+        auto it = std::find_if(
+            keyFramesInUsed.begin(), keyFramesInUsed.end(), [&](auto &kf) {
+              return kf->frame == (keyFramesInUsed[i])->frame &&
+                     kf != keyFramesInUsed[i];
+            });
 
-        if (std::count_if(keyFrames.begin(), keyFrames.end(), [&](auto &kf) {
-              return kf->frame == (keyFrames[i])->frame;
-            }) == 2) { // Duplicate key frame
-          keyFrames.erase(keyFrames.begin() + i);
-        } else {
-          std::sort(keyFrames.begin(), keyFrames.end(),
+        if (it == keyFramesInUsed.end()) { // No duplicate
+          std::sort(keyFramesInUsed.begin(), keyFramesInUsed.end(),
                     [](auto &a, auto &b) { return a->frame < b->frame; });
+        } else {
+          keyFrameToDelete = (*it)->getId();
+          keyFramesInUsed.erase(it);
+          if (mDragKeyFrameCallback) {
+            mDragKeyFrameCallback(
+                std::static_pointer_cast<KeyFrameEditor>(shared_from_this()));
+          }
         }
       }
       ImGui::PopID();
@@ -591,6 +597,14 @@ void KeyFrameEditor::build() {
   }
 
   ImGui::EndGroup();
+}
+
+std::vector<KeyFrame *> KeyFrameEditor::getKeyFramesInUsed() const {
+  std::vector<KeyFrame *> output;
+  for (auto &keyFrame : keyFramesInUsed) {
+    output.push_back(keyFrame.get());
+  }
+  return output;
 }
 
 } // namespace ui

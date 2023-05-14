@@ -7,19 +7,36 @@
 namespace svulkan2 {
 namespace ui {
 
-struct UIKeyFrame;
-struct UIReward;
+class IdGenerator {
+public:
+  inline int next() { return id++; }
+  inline IdGenerator() : id(0) {}
 
-struct UIKeyFrame {
-  int frame;
-  std::vector<UIReward *> rewards = {}; // Rewards depending on this key frame
+private:
+  int id;
 };
 
-struct UIReward {
+class KeyFrame {
+private:
+  int id;
+
+public:
+  int frame;
+  std::vector<int> itemIds; // Items depending on this key frame
+
+  KeyFrame(int id, int frame) : id(id), frame(frame) {}
+  int getId() const { return id; };
+};
+
+class Item {
+private:
+  int id;
+  int kfaId;
+  int kfbId;
+
+public:
   std::string name;
-  UIKeyFrame *kfa;
-  UIKeyFrame *kfb;
-  std::string definition;
+  std::string content;
 };
 
 UI_CLASS(KeyFrameEditor) {
@@ -43,8 +60,8 @@ public:
   KeyFrameEditor(float contentScale_);
   void build() override;
   int getCurrentFrame() const { return currentFrame; };
-  int getDraggedIndex() const { return draggedIndex; };
-  int getDraggedNewVal() const { return draggedNewVal; };
+  std::vector<KeyFrame *> getKeyFramesInUsed() const;
+  int getKeyFrameToDelete() const { return keyFrameToDelete; };
 
 private:
   // Timeline
@@ -53,11 +70,13 @@ private:
   int stride{8};
   int minIntervals{16}; // maxStride = frameRange / minIntervals
   int selectedMaxFrame{0};
-  int prevSelectedMaxFrame;
+  int prevSelectedMaxFrame{0};
 
-  std::vector<std::unique_ptr<UIKeyFrame>> keyFrames;
-  int draggedIndex;  // Index of the key frame being dragged
-  int draggedNewVal; // New value of the key frame being dragged
+  // Key frame container
+  IdGenerator keyFrameIdGenerator;
+  std::vector<std::shared_ptr<KeyFrame>> keyFrames;
+  std::vector<std::shared_ptr<KeyFrame>> keyFramesInUsed;
+  int keyFrameToDelete; // Id of key frame overwritten by dragged key frame
 
   // Visual
   float contentScale;
@@ -68,7 +87,7 @@ private:
   float zoom[2]{10.0f,
                 10.0f}; // Distance between each {frame, object} in pixels
   float horizZoomRange[2];
-  bool resetHorizZoom;
+  bool resetHorizZoom{true};
 
   // Theme
   struct CrossTheme_ {
