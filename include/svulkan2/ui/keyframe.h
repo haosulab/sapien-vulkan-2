@@ -31,12 +31,16 @@ public:
 class Item {
 private:
   int id;
-  int kfaId;
-  int kfbId;
 
 public:
+  int kfaId;
+  int kfbId;
   std::string name;
   std::string content;
+
+  Item(int id, int kfaId, int kfbId, std::string name, std::string content)
+      : id(id), kfaId(kfaId), kfbId(kfbId), name(name), content(content) {}
+  int getId() const { return id; };
 };
 
 UI_CLASS(KeyFrameEditor) {
@@ -88,8 +92,7 @@ private:
   float pan[2]{0.0f, 0.0f}; // Deviation of {timeline, lister} in pixels
   float initialPan[2];
 
-  float zoom[2]{10.0f,
-                10.0f}; // Distance between each {frame, object} in pixels
+  float zoom[2]; // Distance between each {frame, item} in pixels
   float horizZoomRange[2];
   bool resetHorizZoom{true};
 
@@ -103,11 +106,12 @@ private:
 
   struct ListerTheme_ {
     float width{100.0f};
-    float minWidth{100.0f};
+    float minWidth{0.0f};
     float handleWidth{10.0f};
     float initialWidth;
 
     ImVec4 background{ImColor::HSV(0.0f, 0.0f, 0.114f)};
+    ImVec4 text{ImColor::HSV(0.0f, 0.0f, 0.7f)};
   } ListerTheme;
 
   struct TimelineTheme_ {
@@ -122,13 +126,13 @@ private:
   } TimelineTheme;
 
   struct EditorTheme_ {
-    float horizScrollbarPadding{20.0f};
-    float horizScrollbarHeight{10.0f};
+    float scrollbarPadding{20.0f};
+    float scrollbarSize{10.0f};
 
     ImVec4 background{ImColor::HSV(0.0f, 0.0f, 0.188f)};
     ImVec4 dark{ImColor::HSV(0.0f, 0.0f, 0.075f)};
     ImVec4 mid{ImColor::HSV(0.0f, 0.0f, 0.15f)};
-    ImVec4 horizScrollbar{ImColor::HSV(0.0f, 0.0f, 0.33f)};
+    ImVec4 scrollbar{ImColor::HSV(0.0f, 0.0f, 0.33f)};
   } EditorTheme;
 };
 

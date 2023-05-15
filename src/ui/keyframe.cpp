@@ -69,6 +69,7 @@ inline ImVec4 operator*(const ImVec4 &lhs, const ImVec4 &rhs) {
 KeyFrameEditor::KeyFrameEditor(float contentScale_) {
   // Key frame and item
   keyFrameIdGenerator = IdGenerator();
+  itemIdGenerator = IdGenerator();
 
   // Visual
   if (contentScale_ < 0.1f) {
@@ -77,20 +78,23 @@ KeyFrameEditor::KeyFrameEditor(float contentScale_) {
     contentScale = contentScale_;
   }
 
-  zoom[1] *= contentScale;
-
   // Theme
   CrossTheme.borderWidth *= contentScale;
-
   ListerTheme.width *= contentScale;
   ListerTheme.minWidth *= contentScale;
   ListerTheme.handleWidth *= contentScale;
-
   TimelineTheme.height *= contentScale;
   TimelineTheme.indicatorSize *= contentScale;
+  EditorTheme.scrollbarPadding *= contentScale;
+  EditorTheme.scrollbarSize *= contentScale;
 
-  EditorTheme.horizScrollbarPadding *= contentScale;
-  EditorTheme.horizScrollbarHeight *= contentScale;
+  // Testing Lister
+  for (int i = 0; i < 10; i++) {
+    auto text = "test reward" + std::to_string(i);
+    auto item =
+        std::make_shared<Item>(itemIdGenerator.next(), 0, 1, text, "test");
+    itemsInUsed.push_back(item);
+  }
 }
 
 void KeyFrameEditor::build() {
@@ -176,8 +180,11 @@ void KeyFrameEditor::build() {
     return;
   }
 
-  // Update max stride and horizontal zoom range
+  // Frame count and item count
   int frameCount = frameRange[1] - frameRange[0];
+  int itemCount = static_cast<int>(itemsInUsed.size());
+
+  // Update max stride and horizontal zoom range
   int maxStride = frameCount / minIntervals;
   float minTimelineLength =
       std::max(canvasSize.x - ListerTheme.width, 1024.0f * contentScale);
@@ -200,6 +207,10 @@ void KeyFrameEditor::build() {
     stride *= 2;
     minHorizZoom /= 2;
   }
+
+  // Compute vertical zoom
+  ImVec2 textSize = ImGui::CalcTextSize("test");
+  zoom[1] = std::max(textSize.y, TimelineTheme.indicatorSize) * 1.5;
 
   /**
    * Background
@@ -254,6 +265,27 @@ void KeyFrameEditor::build() {
     drawList->AddRectFilled(
         C, C + canvasSize - ImVec2{ListerTheme.width, TimelineTheme.height},
         ImColor(EditorTheme.background));
+  };
+
+  auto Lister = [&]() {
+    float x = A.x + 10.0f * contentScale;
+    for (int i = 0; i < itemCount; i++) {
+      float y = A.y + 5.0f * contentScale + zoom[1] * i + pan[1];
+      if (y < A.y) { // Only draw in visible area
+        continue;
+      }
+
+      std::string name = (itemsInUsed[i])->name;
+      ImVec2 textSize = ImGui::CalcTextSize(name.c_str());
+      float itemHeight = std::max(textSize.y, TimelineTheme.indicatorSize);
+      if (y + itemHeight >
+          canvasPos.y + canvasSize.y) { // Only draw in visible area
+        break;
+      }
+
+      drawList->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2{x, y},
+                        ImColor(ListerTheme.text), name.c_str());
+    }
   };
 
   auto Timeline = [&]() {
@@ -381,6 +413,12 @@ void KeyFrameEditor::build() {
 
   ImGui::BeginGroup();
 
+  // Lister elements
+  if (ListerTheme.width > 0 && canvasSize.y - TimelineTheme.height > 0) {
+    ListerBackground();
+    Lister();
+  }
+
   // Editor elements
   if (canvasSize.y - TimelineTheme.height > 0 &&
       canvasSize.x - ListerTheme.width > 0) {
@@ -456,30 +494,23 @@ void KeyFrameEditor::build() {
     }
   }
 
-  // Lister elements
-  if (ListerTheme.width > 0 && canvasSize.y - TimelineTheme.height > 0) {
-    ListerBackground();
-  }
-
   // Cross elements
   if (ListerTheme.width > 0) {
     CrossBackground();
   }
 
   // Horizontal scrollbar
-  if ((canvasSize.x - ListerTheme.width) / zoom[0] <
-      frameRange[1] - frameRange[0]) { // Visible frame less than total
-    float barPadding = EditorTheme.horizScrollbarPadding;
+  if (frameCount * zoom[0] > canvasSize.x - ListerTheme.width) {
+    float barPadding = EditorTheme.scrollbarPadding;
     float areaWidth = canvasSize.x - ListerTheme.width - 2 * barPadding;
-    float height = EditorTheme.horizScrollbarHeight;
+    float height = EditorTheme.scrollbarSize;
     float heightMin = canvasPos.y + canvasSize.y - height - 4.0f * contentScale;
 
     if (areaWidth > 0 && heightMin > C.y) {
-      float offsetRatio =
-          -pan[0] / (zoom[0] * ((frameRange[1] - frameRange[0])));
+      float offsetRatio = -pan[0] / (zoom[0] * frameCount);
       float offsetWidth = areaWidth * offsetRatio;
-      float visibleFrameCount = (canvasSize.x - ListerTheme.width) / zoom[0];
-      float barWidthRatio = visibleFrameCount / (frameRange[1] - frameRange[0]);
+      float barWidthRatio =
+          (canvasSize.x - ListerTheme.width) / (frameCount * zoom[0]);
       float barWidth = areaWidth * barWidthRatio;
       float barWidthVisual = (barWidth < barPadding - 1.0f * contentScale)
                                  ? barPadding - 1.0f * contentScale
@@ -488,7 +519,7 @@ void KeyFrameEditor::build() {
       ImVec2 barMin = ImVec2{C.x + barPadding + offsetWidth, heightMin};
       ImVec2 barMax = ImVec2{C.x + barPadding + offsetWidth + barWidthVisual,
                              heightMin + height};
-      ImVec4 color = EditorTheme.horizScrollbar;
+      ImVec4 color = EditorTheme.scrollbar;
 
       ImGui::SetCursorPos(barMin - ImGui::GetWindowPos());
       ImGui::InvisibleButton("##HorizScrollbar",
@@ -501,13 +532,60 @@ void KeyFrameEditor::build() {
       if (ImGui::IsItemActive()) {
         color = ImVec4{color.x * 1.2f, color.y * 1.2f, color.z * 1.2f, color.w};
 
-        float minPan = -((frameRange[1] - frameRange[0]) * zoom[0] -
-                         (canvasSize.x - ListerTheme.width));
+        float minPan =
+            -(frameCount * zoom[0] - (canvasSize.x - ListerTheme.width));
         minPan = std::min(minPan, 0.0f);
         float deltaPan =
             (ImGui::GetMouseDragDelta().x / (areaWidth - barWidth)) * minPan;
         float panTemp = initialPan[0] + deltaPan;
         pan[0] = ImClamp(panTemp, minPan, 0.0f);
+      }
+
+      drawList->AddRectFilled(barMin, barMax, ImColor(color),
+                              8.0f * contentScale);
+    }
+  }
+
+  // Vertical scrollbar
+  if (itemCount * zoom[1] + 10.0f * contentScale >
+      canvasSize.y - TimelineTheme.height) {
+    float barPadding = EditorTheme.scrollbarPadding;
+    float areaHeight = canvasSize.y - TimelineTheme.height - 2 * barPadding;
+    float width = EditorTheme.scrollbarSize;
+    float widthMin = canvasPos.x + canvasSize.x - width - 4.0f * contentScale;
+
+    if (areaHeight > 0 && widthMin > C.x) {
+      float offsetRatio = -pan[1] / (zoom[1] * itemCount);
+      float offsetHeight = areaHeight * offsetRatio;
+      float barHeightRatio = (canvasSize.y - TimelineTheme.height) /
+                             (itemCount * zoom[1] + 10.0f * contentScale);
+      float barHeight = areaHeight * barHeightRatio;
+      float barHeightVisual = (barHeight < barPadding - 1.0f * contentScale)
+                                  ? barPadding - 1.0f * contentScale
+                                  : barHeight; // Ensure grabbable
+
+      ImVec2 barMin = ImVec2{widthMin, C.y + barPadding + offsetHeight};
+      ImVec2 barMax = ImVec2{widthMin + width,
+                             C.y + barPadding + offsetHeight + barHeightVisual};
+      ImVec4 color = EditorTheme.scrollbar;
+
+      ImGui::SetCursorPos(barMin - ImGui::GetWindowPos());
+      ImGui::InvisibleButton("##VertScrollbar", ImVec2{width, barHeightVisual});
+
+      if (ImGui::IsItemActivated()) {
+        initialPan[1] = pan[1];
+      }
+
+      if (ImGui::IsItemActive()) {
+        color = ImVec4{color.x * 1.2f, color.y * 1.2f, color.z * 1.2f, color.w};
+
+        float minPan = -(itemCount * zoom[1] + 5.0f * contentScale -
+                         (canvasSize.y - TimelineTheme.height));
+        minPan = std::min(minPan, 0.0f);
+        float deltaPan =
+            (ImGui::GetMouseDragDelta().y / (areaHeight - barHeight)) * minPan;
+        float panTemp = initialPan[1] + deltaPan;
+        pan[1] = ImClamp(panTemp, minPan, 0.0f);
       }
 
       drawList->AddRectFilled(barMin, barMax, ImColor(color),
@@ -540,6 +618,31 @@ void KeyFrameEditor::build() {
     }
   }
 
+  // Editor background input
+  if (canvasSize.x - ListerTheme.width > 0 &&
+      canvasSize.y - TimelineTheme.height > 0) {
+    ImGui::SetCursorPos(ImVec2{C.x, C.y} - ImGui::GetWindowPos());
+    ImGui::InvisibleButton("##Editor",
+                           ImVec2{canvasSize.x - ListerTheme.width,
+                                  canvasSize.y - TimelineTheme.height});
+
+    if (ImGui::IsItemHovered()) {
+      ImGui::SetItemUsingMouseWheel();
+
+      // Horizontal scrolling
+      float minHorizPan =
+          -(frameCount * zoom[0] - (canvasSize.x - ListerTheme.width));
+      minHorizPan = std::min(minHorizPan, 0.0f);
+      pan[0] = ImClamp(pan[0] + io.MouseWheelH * zoom[0], minHorizPan, 0.0f);
+
+      // Vertical scrolling
+      float minVertPan = -(itemCount * zoom[1] + 5.0f * contentScale -
+                           (canvasSize.y - TimelineTheme.height));
+      minVertPan = std::min(minVertPan, 0.0f);
+      pan[1] = ImClamp(pan[1] + io.MouseWheel * zoom[1], minVertPan, 0.0f);
+    }
+  }
+
   // Timeline background input
   if (canvasSize.x - ListerTheme.width > 0) {
     ImGui::SetCursorPos(ImVec2{B.x, B.y} - ImGui::GetWindowPos());
@@ -548,16 +651,17 @@ void KeyFrameEditor::build() {
         ImVec2{canvasSize.x - ListerTheme.width, TimelineTheme.height});
 
     if (ImGui::IsItemHovered()) {
-      // Zooming
       ImGui::SetItemUsingMouseWheel();
+
+      // Zooming
       float initialZoom = zoom[0];
       zoom[0] = ImClamp(zoom[0] + io.MouseWheel, horizZoomRange[0],
                         horizZoomRange[1]);
 
       // Change pan according to zoom
       if (zoom[0] != initialZoom) {
-        float minHorizPan = -((frameRange[1] - frameRange[0]) * zoom[0] -
-                              (canvasSize.x - ListerTheme.width));
+        float minHorizPan =
+            -(frameCount * zoom[0] - (canvasSize.x - ListerTheme.width));
         minHorizPan = std::min(minHorizPan, 0.0f);
         float panTemp = pan[0] / initialZoom * zoom[0];
         pan[0] = ImClamp(panTemp, minHorizPan, 0.0f);
@@ -571,33 +675,23 @@ void KeyFrameEditor::build() {
     }
   }
 
-  // Editor background input
-  if (canvasSize.x - ListerTheme.width > 0 &&
-      canvasSize.y - TimelineTheme.height > 0) {
-    ImGui::SetCursorPos(ImVec2{C.x, C.y} - ImGui::GetWindowPos());
-    ImGui::InvisibleButton("##Editor",
-                           ImVec2{canvasSize.x - ListerTheme.width,
-                                  canvasSize.y - TimelineTheme.height});
-
-    if (ImGui::IsItemHovered()) {
-      // Horizontal scrolling
-      ImGui::SetItemUsingMouseWheel();
-      float minHorizPan = -((frameRange[1] - frameRange[0]) * zoom[0] -
-                            (canvasSize.x - ListerTheme.width));
-      minHorizPan = std::min(minHorizPan, 0.0f);
-      pan[0] = ImClamp(pan[0] + io.MouseWheelH * zoom[0], minHorizPan, 0.0f);
-    }
-  }
-
   // Middle button panning
-  if (ImGui::IsWindowFocused() && io.MouseDown[2]) {
+  if (ImGui::IsWindowHovered() && io.MouseDown[2]) {
     // Horizontal
-    float minHorizPan = -((frameRange[1] - frameRange[0]) * zoom[0] -
-                          (canvasSize.x - ListerTheme.width));
+    float minHorizPan =
+        -(frameCount * zoom[0] - (canvasSize.x - ListerTheme.width));
     minHorizPan = std::min(minHorizPan, 0.0f);
     float deltaHorizPan = io.MouseDelta.x;
     float horizPanTemp = pan[0] + deltaHorizPan;
     pan[0] = ImClamp(horizPanTemp, minHorizPan, 0.0f);
+
+    // Vertical
+    float minVertPan = -(itemCount * zoom[1] + 5.0f * contentScale -
+                         (canvasSize.y - TimelineTheme.height));
+    minVertPan = std::min(minVertPan, 0.0f);
+    float deltaVertPan = io.MouseDelta.y;
+    float vertPanTemp = pan[1] + deltaVertPan;
+    pan[1] = ImClamp(vertPanTemp, minVertPan, 0.0f);
   }
 
   ImGui::EndGroup();
