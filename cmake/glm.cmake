@@ -1,7 +1,3 @@
-if(TARGET glm)
-    return()
-endif()
-
 include(FetchContent)
 FetchContent_Declare(
     glm

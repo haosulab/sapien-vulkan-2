@@ -3,6 +3,7 @@
 #include <memory>
 #include <unordered_map>
 #include <vector>
+#include <string>
 
 namespace svulkan2 {
 namespace core {

@@ -322,7 +322,7 @@ Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
     }
 
     auto properties = device.getProperties();
-    name = std::string(properties.deviceName);
+    name = std::string(properties.deviceName.begin(), properties.deviceName.end());
 
     vk::PhysicalDeviceProperties2KHR p2;
     vk::PhysicalDevicePCIBusInfoPropertiesEXT pciInfo;

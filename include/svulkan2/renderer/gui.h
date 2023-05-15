@@ -3,6 +3,7 @@
 #include <memory>
 #include <vector>
 #include <vulkan/vulkan.hpp>
+#include <functional>
 
 struct GLFWwindow;
 

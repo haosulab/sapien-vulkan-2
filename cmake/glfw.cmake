@@ -1,7 +1,3 @@
-if(TARGET glfw)
-    return()
-endif()
-
 include(FetchContent)
 FetchContent_Declare(
     glfw
@@ -11,7 +7,11 @@ FetchContent_Declare(
     GIT_PROGRESS TRUE
 )
 
-set(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME glfw)
+
+set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
 FetchContent_GetProperties(glfw)
 if(NOT glfw_POPULATED)
   FetchContent_Populate(glfw)

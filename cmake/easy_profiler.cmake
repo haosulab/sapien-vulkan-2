@@ -1,7 +1,3 @@
-if(TARGET easy_profiler)
-    return()
-endif()
-
 include(FetchContent)
 FetchContent_Declare(
     easy_profiler
@@ -11,6 +7,7 @@ FetchContent_Declare(
     GIT_PROGRESS TRUE
 )
 
+set(EASY_PROFILER_NO_GUI ON CACHE BOOL "" FORCE)
 FetchContent_GetProperties(easy_profiler)
 if(NOT easy_profiler_POPULATED)
   FetchContent_Populate(easy_profiler)

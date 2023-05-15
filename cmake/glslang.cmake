@@ -1,8 +1,5 @@
-if(TARGET glslang)
-    return()
-endif()
-
 include(FetchContent)
+
 FetchContent_Declare(
     glslang
     GIT_REPOSITORY https://github.com/KhronosGroup/glslang.git
@@ -11,7 +8,8 @@ FetchContent_Declare(
     GIT_PROGRESS TRUE
 )
 
-set(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME glslang)
+set(ENABLE_CTEST_INSTALL OFF CACHE BOOL "" FORCE)
+set(SKIP_GLSLANG_INSTALL ON CACHE BOOL "" FORCE)
 FetchContent_GetProperties(glslang)
 if(NOT glslang_POPULATED)
   FetchContent_Populate(glslang)

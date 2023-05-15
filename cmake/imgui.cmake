@@ -1,7 +1,3 @@
-if(TARGET imgui)
-    return()
-endif()
-
 include(FetchContent)
 
 FetchContent_Declare(

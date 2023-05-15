@@ -1,11 +1,11 @@
-if(TARGET assimp::assimp)
-    return()
-endif()
-
-set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(ASSIMP_BUILD_MINIZIP OFF CACHE BOOL "" FORCE)
-
 include(FetchContent)
+
+FetchContent_Declare(
+    zlib
+    GIT_REPOSITORY https://github.com/madler/zlib.git
+    GIT_TAG        v1.2.11
+    OVERRIDE_FIND_PACKAGE
+)
 FetchContent_Declare(
     assimp
     GIT_REPOSITORY https://github.com/assimp/assimp.git
@@ -14,14 +14,29 @@ FetchContent_Declare(
     GIT_PROGRESS TRUE
 )
 
-set(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME assimp)
+FetchContent_GetProperties(zlib)
+if(NOT zlib_POPULATED)
+  FetchContent_Populate(zlib)
+  add_subdirectory(${zlib_SOURCE_DIR} ${zlib_BINARY_DIR} EXCLUDE_FROM_ALL)
+endif()
+set_target_properties(zlibstatic PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+set(ZLIB_FOUND TRUE)
+
+add_library(minizip STATIC
+  "${zlib_SOURCE_DIR}/contrib/minizip/minizip.c"
+  "${zlib_SOURCE_DIR}/contrib/minizip/unzip.c")
+target_link_libraries(minizip PRIVATE zlibstatic)
+target_include_directories(minizip PUBLIC "$<BUILD_INTERFACE:${zlib_SOURCE_DIR}/contrib/minizip>")
+install(TARGETS minizip EXPORT assimpTargets)
+
+set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(ASSIMP_INSTALL OFF CACHE BOOL "" FORCE)
+set(ASSIMP_WARNINGS_AS_ERRORS OFF CACHE BOOL "" FORCE)
+
 FetchContent_GetProperties(assimp)
 if(NOT assimp_POPULATED)
   FetchContent_Populate(assimp)
   add_subdirectory(${assimp_SOURCE_DIR} ${assimp_BINARY_DIR} EXCLUDE_FROM_ALL)
 endif()
 
-# HACK
-if (zlib_SOURCE_DIR)
-  target_include_directories(assimp PRIVATE ${zlib_SOURCE_DIR} ${zlib_BINARY_DIR})
-endif()
+set_target_properties(assimp PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
