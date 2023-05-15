@@ -133,16 +133,18 @@ void KeyFrameEditor::build() {
                          [&](auto &kf) { return kf->frame == currentFrame; });
   if (it == keyFramesInUsed.end()) { // Not a key frame
     if (ImGui::Button("Insert Key Frame") && mInsertKeyFrameCallback) {
+      mInsertKeyFrameCallback(
+          std::static_pointer_cast<KeyFrameEditor>(shared_from_this()));
       auto kf =
           std::make_shared<KeyFrame>(keyFrameIdGenerator.next(), currentFrame);
       keyFrames.push_back(kf);
       keyFramesInUsed.push_back(kf);
       std::sort(keyFramesInUsed.begin(), keyFramesInUsed.end(),
                 [](auto &a, auto &b) { return a->frame < b->frame; });
-      mInsertKeyFrameCallback(
-          std::static_pointer_cast<KeyFrameEditor>(shared_from_this()));
     }
   } else {
+    keyFrameToModify = (*it)->getId();
+
     if (ImGui::Button("Load Key Frame") && mLoadKeyFrameCallback) {
       mLoadKeyFrameCallback(
           std::static_pointer_cast<KeyFrameEditor>(shared_from_this()));
@@ -160,6 +162,7 @@ void KeyFrameEditor::build() {
     if (ImGui::Button("Delete Key Frame") && mDeleteKeyFrameCallback) {
       mDeleteKeyFrameCallback(
           std::static_pointer_cast<KeyFrameEditor>(shared_from_this()));
+      keyFrames[keyFrameToModify] = nullptr;
       keyFramesInUsed.erase(it);
     }
   }
@@ -440,12 +443,13 @@ void KeyFrameEditor::build() {
           std::sort(keyFramesInUsed.begin(), keyFramesInUsed.end(),
                     [](auto &a, auto &b) { return a->frame < b->frame; });
         } else {
-          keyFrameToDelete = (*it)->getId();
-          keyFramesInUsed.erase(it);
-          if (mDragKeyFrameCallback) {
-            mDragKeyFrameCallback(
+          keyFrameToModify = (*it)->getId();
+          if (mDeleteKeyFrameCallback) {
+            mDeleteKeyFrameCallback(
                 std::static_pointer_cast<KeyFrameEditor>(shared_from_this()));
           }
+          keyFrames[keyFrameToModify] = nullptr;
+          keyFramesInUsed.erase(it);
         }
       }
       ImGui::PopID();

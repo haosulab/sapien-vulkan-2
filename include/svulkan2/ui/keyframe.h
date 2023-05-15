@@ -52,16 +52,15 @@ UI_CLASS(KeyFrameEditor) {
   UI_ATTRIBUTE(KeyFrameEditor,
                std::function<void(std::shared_ptr<KeyFrameEditor>)>,
                DeleteKeyFrameCallback);
-  UI_ATTRIBUTE(KeyFrameEditor,
-               std::function<void(std::shared_ptr<KeyFrameEditor>)>,
-               DragKeyFrameCallback);
 
 public:
   KeyFrameEditor(float contentScale_);
   void build() override;
   int getCurrentFrame() const { return currentFrame; };
   std::vector<KeyFrame *> getKeyFramesInUsed() const;
-  int getKeyFrameToDelete() const { return keyFrameToDelete; };
+  int getKeyFrameToModify() const {
+    return keyFrameToModify;
+  }; // Notify middleware
 
 private:
   // Timeline
@@ -76,7 +75,12 @@ private:
   IdGenerator keyFrameIdGenerator;
   std::vector<std::shared_ptr<KeyFrame>> keyFrames;
   std::vector<std::shared_ptr<KeyFrame>> keyFramesInUsed;
-  int keyFrameToDelete; // Id of key frame overwritten by dragged key frame
+  int keyFrameToModify; // Id of key frame that need to be modified
+
+  // Item container
+  IdGenerator itemIdGenerator;
+  std::vector<std::shared_ptr<Item>> items;
+  std::vector<std::shared_ptr<Item>> itemsInUsed;
 
   // Visual
   float contentScale;
