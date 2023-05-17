@@ -5,6 +5,7 @@ FetchContent_Declare(
     GIT_TAG v2.1.0
     GIT_SHALLOW TRUE
     GIT_PROGRESS TRUE
+    PATCH_COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_LIST_DIR}/easy_profiler.patch.CMakeLists.txt <SOURCE_DIR>/easy_profiler_core/CMakeLists.txt  # patch for MSVC
 )
 
 set(EASY_PROFILER_NO_GUI ON CACHE BOOL "" FORCE)

@@ -8,11 +8,7 @@
 #include <easy/profiler.h>
 #include <iomanip>
 
-#if !defined(VULKAN_HPP_STORAGE_SHARED)
-#define VULKAN_HPP_STORAGE_SHARED
-#define VULKAN_HPP_STORAGE_SHARED_EXPORT
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
-#endif
 
 namespace svulkan2 {
 namespace core {

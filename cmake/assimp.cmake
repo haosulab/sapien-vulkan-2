@@ -12,6 +12,7 @@ FetchContent_Declare(
     GIT_TAG        v5.2.5
     GIT_SHALLOW TRUE
     GIT_PROGRESS TRUE
+    PATCH_COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_LIST_DIR}/assimp.patch.CMakeLists.txt <SOURCE_DIR>/CMakeLists.txt  # patch for MSVC
 )
 
 FetchContent_GetProperties(zlib)
@@ -21,6 +22,7 @@ if(NOT zlib_POPULATED)
 endif()
 set_target_properties(zlibstatic PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 set(ZLIB_FOUND TRUE)
+set(ZLIB_INCLUDE_DIR "${zlib_SOURCE_DIR} ${zlib_BINARY_DIR}")
 
 add_library(minizip STATIC
   "${zlib_SOURCE_DIR}/contrib/minizip/minizip.c"
@@ -40,3 +42,7 @@ if(NOT assimp_POPULATED)
 endif()
 
 set_target_properties(assimp PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+
+# the following seems needed by MSVC
+target_include_directories(assimp PUBLIC $<BUILD_INTERFACE:${zlib_SOURCE_DIR}> $<BUILD_INTERFACE:${zlib_BINARY_DIR}>)
+target_link_libraries(assimp zlibstatic)

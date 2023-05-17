@@ -80,12 +80,22 @@ if (${SVULKAN2_CUDA_INTEROP})
     target_link_libraries(svulkan2 PUBLIC "$ENV{CUDA_PATH}/lib64/libcudart_static.a" rt)
 endif()
 
+# TODO: add option to control the following variables
+# this library exports the storage api
+target_compile_definitions(svulkan2 PRIVATE VULKAN_HPP_STORAGE_SHARED_EXPORT)
+# other libraries use the exported storage api
+target_compile_definitions(svulkan2 PRIVATE VULKAN_HPP_STORAGE_SHARED)
+
 add_executable(svulkan2_main app/main.cpp)
-target_link_libraries(svulkan2_main svulkan2 stdc++fs glfw imgui)
+target_link_libraries(svulkan2_main svulkan2 glfw imgui)
+if (UNIX)
+    target_link_libraries(svulkan2_main stdc++fs)
+endif()
+
 target_include_directories(svulkan2_main PRIVATE "3rd_party/OptiX7SDK/include")
 
 add_executable(gencube app/gencube.cpp)
-target_link_libraries(gencube svulkan2 stdc++fs)
+target_link_libraries(gencube svulkan2)
 
 if (${SVULKAN2_BUILD_TEST})
     add_subdirectory("3rd_party/googletest" EXCLUDE_FROM_ALL)
