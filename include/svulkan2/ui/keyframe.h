@@ -106,8 +106,7 @@ private:
 
   struct ListerTheme_ {
     float width{100.0f};
-    float minWidth{0.0f};
-    float handleWidth{10.0f};
+    float handleWidth{15.0f};
     float initialWidth;
 
     ImVec4 background{ImColor::HSV(0.0f, 0.0f, 0.114f)};
@@ -128,11 +127,13 @@ private:
   struct EditorTheme_ {
     float scrollbarPadding{20.0f};
     float scrollbarSize{10.0f};
+    float itemSize{15.0f};
 
     ImVec4 background{ImColor::HSV(0.0f, 0.0f, 0.188f)};
     ImVec4 dark{ImColor::HSV(0.0f, 0.0f, 0.075f)};
     ImVec4 mid{ImColor::HSV(0.0f, 0.0f, 0.15f)};
     ImVec4 scrollbar{ImColor::HSV(0.0f, 0.0f, 0.33f)};
+    ImVec4 item{ImColor::HSV(0.12f, 0.8f, 0.95f)};
   } EditorTheme;
 };
 
