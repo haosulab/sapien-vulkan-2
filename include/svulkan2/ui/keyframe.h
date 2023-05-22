@@ -62,11 +62,13 @@ public:
   void build() override;
   int getCurrentFrame() const { return currentFrame; };
   std::vector<KeyFrame *> getKeyFramesInUsed() const;
-  int getKeyFrameToModify() const {
-    return keyFrameToModify;
-  }; // Notify middleware
+  int getKeyFrameToModify() const { return keyFrameToModify; };
 
 private:
+  // Control panel
+  bool addingItem{false};
+  std::vector<std::shared_ptr<KeyFrame>> keyFramesForNewItem;
+
   // Timeline
   int currentFrame{0};
   int totalFrame{128};
@@ -120,6 +122,7 @@ private:
     ImVec4 dark{ImColor::HSV(0.0f, 0.0f, 0.075f)};
     ImVec4 currentFrame{ImColor::HSV(0.6f, 0.6f, 0.95f)};
     ImVec4 keyFrame{ImColor::HSV(0.12f, 0.8f, 0.95f)};
+    ImVec4 selectedKeyFrame{ImColor::HSV(0.75f, 0.25f, 0.95f)};
   } TimelineTheme;
 
   struct EditorTheme_ {
@@ -133,6 +136,8 @@ private:
     ImVec4 scrollbar{ImColor::HSV(0.0f, 0.0f, 0.33f)};
     ImVec4 item{ImColor::HSV(0.12f, 0.8f, 0.95f)};
   } EditorTheme;
+
+  void buildControlPanel();
 };
 
 } // namespace ui

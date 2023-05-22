@@ -87,80 +87,10 @@ KeyFrameEditor::KeyFrameEditor(float contentScale_) {
   EditorTheme.scrollbarPadding *= contentScale;
   EditorTheme.scrollbarSize *= contentScale;
   EditorTheme.itemSize *= contentScale;
-
-  // Testing Lister and Editor
-  // auto kf0 = std::make_shared<KeyFrame>(keyFrameIdGenerator.next(), 8);
-  // keyFrames.push_back(kf0);
-  // keyFramesInUsed.push_back(kf0);
-
-  // auto kf1 = std::make_shared<KeyFrame>(keyFrameIdGenerator.next(), 16);
-  // keyFrames.push_back(kf1);
-  // keyFramesInUsed.push_back(kf1);
-
-  // for (int i = 0; i < 10; i++) {
-  //   auto text = "test reward" + std::to_string(i);
-  //   auto item =
-  //       std::make_shared<Item>(itemIdGenerator.next(), 0, 1, text, "test");
-  //   itemsInUsed.push_back(item);
-  // }
 }
 
 void KeyFrameEditor::build() {
-  int maxFrame = totalFrame - 1; // totalFrame includes frame 0
-
-  // Control panel
-  ImGui::PushItemWidth(50.0f * contentScale);
-  ImGui::DragInt("Current Frame", &currentFrame, 1.0f, 0, maxFrame, "%d",
-                 ImGuiSliderFlags_AlwaysClamp);
-  ImGui::PopItemWidth();
-
-  ImGui::SameLine();
-
-  ImGui::PushItemWidth(50.0f * contentScale);
-  ImGui::DragInt("Total Frame", &totalFrame, 1.0f, 64, 2048, "%d",
-                 ImGuiSliderFlags_AlwaysClamp);
-  ImGui::PopItemWidth();
-  currentFrame = ImClamp(currentFrame, 0, maxFrame); // Clamp currentFrame
-
-  ImGui::SameLine();
-
-  auto it = std::find_if(keyFramesInUsed.begin(), keyFramesInUsed.end(),
-                         [&](auto &kf) { return kf->frame == currentFrame; });
-  if (it == keyFramesInUsed.end()) { // Not a key frame
-    if (ImGui::Button("Insert Key Frame") && mInsertKeyFrameCallback) {
-      mInsertKeyFrameCallback(
-          std::static_pointer_cast<KeyFrameEditor>(shared_from_this()));
-      auto kf =
-          std::make_shared<KeyFrame>(keyFrameIdGenerator.next(), currentFrame);
-      keyFrames.push_back(kf);
-      keyFramesInUsed.push_back(kf);
-      std::sort(keyFramesInUsed.begin(), keyFramesInUsed.end(),
-                [](auto &a, auto &b) { return a->frame < b->frame; });
-    }
-  } else {
-    keyFrameToModify = (*it)->getId();
-
-    if (ImGui::Button("Load Key Frame") && mLoadKeyFrameCallback) {
-      mLoadKeyFrameCallback(
-          std::static_pointer_cast<KeyFrameEditor>(shared_from_this()));
-    }
-
-    ImGui::SameLine();
-
-    if (ImGui::Button("Update Key Frame") && mUpdateKeyFrameCallback) {
-      mUpdateKeyFrameCallback(
-          std::static_pointer_cast<KeyFrameEditor>(shared_from_this()));
-    }
-
-    ImGui::SameLine();
-
-    if (ImGui::Button("Delete Key Frame") && mDeleteKeyFrameCallback) {
-      mDeleteKeyFrameCallback(
-          std::static_pointer_cast<KeyFrameEditor>(shared_from_this()));
-      keyFrames[keyFrameToModify] = nullptr;
-      keyFramesInUsed.erase(it);
-    }
-  }
+  buildControlPanel();
 
   const ImGuiIO &io = ImGui::GetIO();
   ImDrawList *drawList = ImGui::GetWindowDrawList();
@@ -173,8 +103,9 @@ void KeyFrameEditor::build() {
     return;
   }
 
-  // Frame count and item count
-  int itemCount = static_cast<int>(itemsInUsed.size());
+  // Max frame and total item
+  int maxFrame = totalFrame - 1; // totalFrame includes frame 0
+  int totalItem = static_cast<int>(itemsInUsed.size());
 
   // Clamp lister width
   ListerTheme.width = ImClamp(ListerTheme.width, 0.0f, canvasSize.x);
@@ -217,7 +148,7 @@ void KeyFrameEditor::build() {
   zoom[1] = std::max(textSize.y, EditorTheme.itemSize) * 1.5;
 
   // Clampe vertical pan
-  float minVertPan = -(itemCount * zoom[1] + 5.0f * contentScale -
+  float minVertPan = -(totalItem * zoom[1] + 5.0f * contentScale -
                        (canvasSize.y - TimelineTheme.height));
   minVertPan = std::min(minVertPan, 0.0f);
   pan[1] = ImClamp(pan[1], minVertPan, 0.0f);
@@ -265,7 +196,7 @@ void KeyFrameEditor::build() {
       pan[0] = ImClamp(pan[0] + io.MouseWheelH * zoom[0], minHorizPan, 0.0f);
 
       // Vertical scrolling
-      float minVertPan = -(itemCount * zoom[1] + 5.0f * contentScale -
+      float minVertPan = -(totalItem * zoom[1] + 5.0f * contentScale -
                            (canvasSize.y - TimelineTheme.height));
       minVertPan = std::min(minVertPan, 0.0f);
       pan[1] = ImClamp(pan[1] + io.MouseWheel * zoom[1], minVertPan, 0.0f);
@@ -309,7 +240,7 @@ void KeyFrameEditor::build() {
   };
 
   auto Editor = [&]() {
-    for (int i = 0; i < itemCount; i++) {
+    for (int i = 0; i < totalItem; i++) {
       float y = std::round(A.y + 5.0f * contentScale + zoom[1] * i +
                            pan[1]); // Avoid sub-pixel rendering
       if (y < A.y) {                // Start drawing from top of lister
@@ -385,7 +316,7 @@ void KeyFrameEditor::build() {
       }
     }
 
-    if (ImGui::IsItemActive()) {
+    if (!addingItem && ImGui::IsItemActive()) {
       int frameTemp = static_cast<int>(
           std::round((io.MousePos.x - B.x - pan[0]) / zoom[0]));
       currentFrame = ImClamp(frameTemp, 0, maxFrame);
@@ -450,31 +381,61 @@ void KeyFrameEditor::build() {
       ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
     }
 
-    if (ImGui::IsItemActive()) {
-      color = ImVec4{color.x * 1.2f, color.y * 1.2f, color.z * 1.2f, color.w};
-
-      int frameTemp = static_cast<int>(
-          std::round((io.MousePos.x - B.x - pan[0]) / zoom[0]));
-      kf->frame = ImClamp(frameTemp, 0, maxFrame);
-      currentFrame = kf->frame;
-    }
-
-    if (ImGui::IsItemDeactivated()) {
-      auto it = std::find_if(
-          keyFramesInUsed.begin(), keyFramesInUsed.end(),
-          [&](auto &kf2) { return kf->frame == kf2->frame && kf != kf2; });
-
-      if (it == keyFramesInUsed.end()) { // No duplicate
-        std::sort(keyFramesInUsed.begin(), keyFramesInUsed.end(),
-                  [](auto &a, auto &b) { return a->frame < b->frame; });
-      } else {
-        keyFrameToModify = (*it)->getId();
-        if (mDeleteKeyFrameCallback) {
-          mDeleteKeyFrameCallback(
-              std::static_pointer_cast<KeyFrameEditor>(shared_from_this()));
+    if (addingItem) { // Select first and second key frames for new item
+      if (keyFramesForNewItem.size() == 0) {
+        if (ImGui::IsItemClicked()) {
+          keyFramesForNewItem.push_back(kf);
         }
-        keyFrames[keyFrameToModify] = nullptr;
-        keyFramesInUsed.erase(it);
+      } else if (keyFramesForNewItem.size() == 1) {
+        if (ImGui::IsItemClicked()) {
+          auto it = std::find(keyFramesForNewItem.begin(),
+                              keyFramesForNewItem.end(), kf);
+          if (it != keyFramesForNewItem.end()) { // Deselect key frame
+            keyFramesForNewItem.erase(it);
+          } else {
+            // Add item
+            int itemId = itemIdGenerator.next();
+            std::string name = "function " + std::to_string(itemId);
+            int kfaId = (keyFramesForNewItem[0])->getId();
+            int kfbId = kf->getId();
+            auto item = std::make_shared<Item>(itemId, kfaId, kfbId, name,
+                                               "reward = 0");
+            items.push_back(item);
+            itemsInUsed.push_back(item);
+
+            // Exit item adding mode
+            keyFramesForNewItem.clear();
+            addingItem = false;
+          }
+        }
+      }
+    } else { // Drag key frame
+      if (ImGui::IsItemActive()) {
+        color = ImVec4{color.x * 1.2f, color.y * 1.2f, color.z * 1.2f, color.w};
+
+        int frameTemp = static_cast<int>(
+            std::round((io.MousePos.x - B.x - pan[0]) / zoom[0]));
+        kf->frame = ImClamp(frameTemp, 0, maxFrame);
+        currentFrame = kf->frame;
+      }
+
+      if (ImGui::IsItemDeactivated()) {
+        auto it = std::find_if(
+            keyFramesInUsed.begin(), keyFramesInUsed.end(),
+            [&](auto &kf2) { return kf->frame == kf2->frame && kf != kf2; });
+
+        if (it == keyFramesInUsed.end()) { // No duplicate
+          std::sort(keyFramesInUsed.begin(), keyFramesInUsed.end(),
+                    [](auto &a, auto &b) { return a->frame < b->frame; });
+        } else {
+          keyFrameToModify = (*it)->getId();
+          if (mDeleteKeyFrameCallback) {
+            mDeleteKeyFrameCallback(
+                std::static_pointer_cast<KeyFrameEditor>(shared_from_this()));
+          }
+          keyFrames[keyFrameToModify] = nullptr;
+          keyFramesInUsed.erase(it);
+        }
       }
     }
 
@@ -541,7 +502,7 @@ void KeyFrameEditor::build() {
 
   auto Lister = [&]() {
     float x = A.x + 10.0f * contentScale;
-    for (int i = 0; i < itemCount; i++) {
+    for (int i = 0; i < totalItem; i++) {
       float y = std::round(A.y + 5.0f * contentScale + zoom[1] * i +
                            pan[1]); // Avoid sub-pixel rendering
       if (y < A.y) {                // Start drawing from top of lister
@@ -640,10 +601,10 @@ void KeyFrameEditor::build() {
     float widthMin = canvasPos.x + canvasSize.x - width - 8.0f * contentScale;
 
     if (areaHeight > 0 && widthMin > C.x) {
-      float offsetRatio = -pan[1] / (zoom[1] * itemCount);
+      float offsetRatio = -pan[1] / (zoom[1] * totalItem);
       float offsetHeight = areaHeight * offsetRatio;
       float barHeightRatio = (canvasSize.y - TimelineTheme.height) /
-                             (itemCount * zoom[1] + 10.0f * contentScale);
+                             (totalItem * zoom[1] + 10.0f * contentScale);
       float barHeight = areaHeight * barHeightRatio;
       float barHeightVisual = (barHeight < barPadding - 1.0f * contentScale)
                                   ? barPadding - 1.0f * contentScale
@@ -665,7 +626,7 @@ void KeyFrameEditor::build() {
       if (ImGui::IsItemActive()) {
         color = ImVec4{color.x * 1.2f, color.y * 1.2f, color.z * 1.2f, color.w};
 
-        float minPan = -(itemCount * zoom[1] + 5.0f * contentScale -
+        float minPan = -(totalItem * zoom[1] + 5.0f * contentScale -
                          (canvasSize.y - TimelineTheme.height));
         minPan = std::min(minPan, 0.0f);
         float deltaPan =
@@ -718,7 +679,7 @@ void KeyFrameEditor::build() {
     pan[0] = ImClamp(horizPanTemp, minHorizPan, 0.0f);
 
     // Vertical
-    float minVertPan = -(itemCount * zoom[1] + 5.0f * contentScale -
+    float minVertPan = -(totalItem * zoom[1] + 5.0f * contentScale -
                          (canvasSize.y - TimelineTheme.height));
     minVertPan = std::min(minVertPan, 0.0f);
     float deltaVertPan = io.MouseDelta.y;
@@ -741,15 +702,28 @@ void KeyFrameEditor::build() {
     TimelineBackground();
     Timeline();
 
-    for (auto &keyFrame : keyFramesInUsed) { // Ascending order
-      KeyFrameIndicator(keyFrame, TimelineTheme.keyFrame);
+    for (auto &kf : keyFramesInUsed) { // Ascending order
+      if (addingItem) {
+        auto it = std::find(keyFramesForNewItem.begin(),
+                            keyFramesForNewItem.end(), kf);
+        ImVec4 colorVec = (it == keyFramesForNewItem.end())
+                              ? TimelineTheme.keyFrame
+                              : TimelineTheme.selectedKeyFrame;
+        KeyFrameIndicator(kf, colorVec);
+      } else {
+        KeyFrameIndicator(kf, TimelineTheme.keyFrame);
+      }
     }
 
-    auto it = std::find_if(keyFramesInUsed.begin(), keyFramesInUsed.end(),
-                           [&](auto &kf) { return kf->frame == currentFrame; });
-    ImVec4 colorVec = (it == keyFramesInUsed.end()) ? TimelineTheme.currentFrame
-                                                    : TimelineTheme.keyFrame;
-    CurrentFrameIndicator(currentFrame, colorVec);
+    if (!addingItem) {
+      auto it =
+          std::find_if(keyFramesInUsed.begin(), keyFramesInUsed.end(),
+                       [&](auto &kf) { return kf->frame == currentFrame; });
+      ImVec4 colorVec = (it == keyFramesInUsed.end())
+                            ? TimelineTheme.currentFrame
+                            : TimelineTheme.keyFrame;
+      CurrentFrameIndicator(currentFrame, colorVec);
+    }
   }
 
   // Lister elements
@@ -769,7 +743,7 @@ void KeyFrameEditor::build() {
   }
 
   // Vertical scrollbar
-  if (itemCount * zoom[1] + 10.0f * contentScale >
+  if (totalItem * zoom[1] + 10.0f * contentScale >
       canvasSize.y - TimelineTheme.height) {
     VertScrollbar();
   }
@@ -787,10 +761,89 @@ void KeyFrameEditor::build() {
 
 std::vector<KeyFrame *> KeyFrameEditor::getKeyFramesInUsed() const {
   std::vector<KeyFrame *> output;
-  for (auto &keyFrame : keyFramesInUsed) {
-    output.push_back(keyFrame.get());
+  for (auto &kf : keyFramesInUsed) {
+    output.push_back(kf.get());
   }
   return output;
+}
+
+void KeyFrameEditor::buildControlPanel() {
+  if (addingItem) { // Item adding mode
+    if (ImGui::Button("Exit")) {
+      addingItem = false;
+    }
+
+    if (keyFramesForNewItem.size() == 0) {
+      ImGui::SameLine();
+      ImGui::Text("Select first key frame for the new function:");
+    } else if (keyFramesForNewItem.size() == 1) {
+      ImGui::SameLine();
+      ImGui::Text("Select second key frame for the new function:");
+    }
+  } else {                         // Normal mode
+    int maxFrame = totalFrame - 1; // totalFrame includes frame 0
+
+    // Current frame setter
+    ImGui::PushItemWidth(50.0f * contentScale);
+    ImGui::DragInt("Current Frame", &currentFrame, 1.0f, 0, maxFrame, "%d",
+                   ImGuiSliderFlags_AlwaysClamp);
+    ImGui::PopItemWidth();
+
+    // Total frame setter
+    ImGui::SameLine();
+    ImGui::PushItemWidth(50.0f * contentScale);
+    ImGui::DragInt("Total Frame", &totalFrame, 1.0f, 64, 2048, "%d",
+                   ImGuiSliderFlags_AlwaysClamp);
+    ImGui::PopItemWidth();
+    currentFrame = ImClamp(currentFrame, 0, maxFrame); // Clamp currentFrame
+
+    // Key frame control
+    auto it = std::find_if(keyFramesInUsed.begin(), keyFramesInUsed.end(),
+                           [&](auto &kf) { return kf->frame == currentFrame; });
+    if (it == keyFramesInUsed.end()) { // Not a key frame
+      ImGui::SameLine();
+      if (ImGui::Button("Insert Key Frame") && mInsertKeyFrameCallback) {
+        mInsertKeyFrameCallback(
+            std::static_pointer_cast<KeyFrameEditor>(shared_from_this()));
+        auto kf = std::make_shared<KeyFrame>(keyFrameIdGenerator.next(),
+                                             currentFrame);
+        keyFrames.push_back(kf);
+        keyFramesInUsed.push_back(kf);
+        std::sort(keyFramesInUsed.begin(), keyFramesInUsed.end(),
+                  [](auto &a, auto &b) { return a->frame < b->frame; });
+      }
+    } else {
+      keyFrameToModify = (*it)->getId();
+
+      ImGui::SameLine();
+      if (ImGui::Button("Load Key Frame") && mLoadKeyFrameCallback) {
+        mLoadKeyFrameCallback(
+            std::static_pointer_cast<KeyFrameEditor>(shared_from_this()));
+      }
+
+      ImGui::SameLine();
+      if (ImGui::Button("Update Key Frame") && mUpdateKeyFrameCallback) {
+        mUpdateKeyFrameCallback(
+            std::static_pointer_cast<KeyFrameEditor>(shared_from_this()));
+      }
+
+      ImGui::SameLine();
+      if (ImGui::Button("Delete Key Frame") && mDeleteKeyFrameCallback) {
+        mDeleteKeyFrameCallback(
+            std::static_pointer_cast<KeyFrameEditor>(shared_from_this()));
+        keyFrames[keyFrameToModify] = nullptr;
+        keyFramesInUsed.erase(it);
+      }
+    }
+
+    // Function control
+    if (keyFramesInUsed.size() >= 2) { // Exists at least two key frames
+      ImGui::SameLine();
+      if (ImGui::Button("Add Function")) {
+        addingItem = true;
+      }
+    }
+  }
 }
 
 } // namespace ui
