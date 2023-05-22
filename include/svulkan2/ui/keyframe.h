@@ -22,13 +22,13 @@ private:
 
 public:
   int frame;
-  std::vector<int> itemIds; // Items depending on this key frame
+  std::vector<int> rewardIds; // Rewards depending on this key frame
 
   KeyFrame(int id, int frame) : id(id), frame(frame) {}
   int getId() const { return id; };
 };
 
-class Item {
+class Reward {
 private:
   int id;
 
@@ -38,7 +38,7 @@ public:
   std::string name;
   std::string content;
 
-  Item(int id, int kfaId, int kfbId, std::string name, std::string content)
+  Reward(int id, int kfaId, int kfbId, std::string name, std::string content)
       : id(id), kfaId(kfaId), kfbId(kfbId), name(name), content(content) {}
   int getId() const { return id; };
 };
@@ -66,8 +66,8 @@ public:
 
 private:
   // Control panel
-  bool addingItem;
-  std::vector<std::shared_ptr<KeyFrame>> keyFramesForNewItem;
+  bool addingReward;
+  std::vector<std::shared_ptr<KeyFrame>> keyFramesForNewReward;
 
   // Timeline
   int currentFrame;
@@ -80,10 +80,10 @@ private:
   std::vector<std::shared_ptr<KeyFrame>> keyFramesInUsed;
   int keyFrameToModify; // Id of key frame that need to be modified
 
-  // Item container
-  IdGenerator itemIdGenerator;
-  std::vector<std::shared_ptr<Item>> items;
-  std::vector<std::shared_ptr<Item>> itemsInUsed;
+  // Reward container
+  IdGenerator rewardIdGenerator;
+  std::vector<std::shared_ptr<Reward>> rewards;
+  std::vector<std::shared_ptr<Reward>> rewardsInUsed;
 
   // Visual
   float contentScale;
@@ -91,7 +91,7 @@ private:
   float pan[2]{0.0f, 0.0f}; // Deviation of {timeline, lister} in pixels
   float initialPan[2];
 
-  float zoom[2]; // Distance between each {frame, item} in pixels
+  float zoom[2]; // Distance between each {frame, reward} in pixels
   float horizZoomRange[2];
 
   // Theme
@@ -126,13 +126,13 @@ private:
   struct EditorTheme_ {
     float scrollbarPadding{20.0f};
     float scrollbarSize{10.0f};
-    float itemSize{15.0f};
+    float rewardSize{15.0f};
 
     ImVec4 background{ImColor::HSV(0.0f, 0.0f, 0.188f)};
     ImVec4 dark{ImColor::HSV(0.0f, 0.0f, 0.075f)};
     ImVec4 mid{ImColor::HSV(0.0f, 0.0f, 0.15f)};
     ImVec4 scrollbar{ImColor::HSV(0.0f, 0.0f, 0.33f)};
-    ImVec4 item{ImColor::HSV(0.12f, 0.8f, 0.95f)};
+    ImVec4 reward{ImColor::HSV(0.12f, 0.8f, 0.95f)};
   } EditorTheme;
 
   void buildControlPanel();

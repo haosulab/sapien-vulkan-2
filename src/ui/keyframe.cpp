@@ -68,7 +68,7 @@ inline ImVec4 operator*(const ImVec4 &lhs, const ImVec4 &rhs) {
 
 KeyFrameEditor::KeyFrameEditor(float contentScale_) {
   // Control panel
-  addingItem = false;
+  addingReward = false;
 
   // Timeline
   currentFrame = 0;
@@ -77,8 +77,8 @@ KeyFrameEditor::KeyFrameEditor(float contentScale_) {
   // Key frame container
   keyFrameIdGenerator = IdGenerator();
 
-  // Item container
-  itemIdGenerator = IdGenerator();
+  // Reward container
+  rewardIdGenerator = IdGenerator();
 
   // Visual
   if (contentScale_ < 0.1f) {
@@ -99,7 +99,7 @@ KeyFrameEditor::KeyFrameEditor(float contentScale_) {
   TimelineTheme.indicatorSize *= contentScale;
   EditorTheme.scrollbarPadding *= contentScale;
   EditorTheme.scrollbarSize *= contentScale;
-  EditorTheme.itemSize *= contentScale;
+  EditorTheme.rewardSize *= contentScale;
 }
 
 void KeyFrameEditor::build() {
@@ -116,9 +116,9 @@ void KeyFrameEditor::build() {
     return;
   }
 
-  // Max frame and total item
+  // Max frame and total reward
   int maxFrame = totalFrame - 1; // totalFrame includes frame 0
-  int totalItem = static_cast<int>(itemsInUsed.size());
+  int totalReward = static_cast<int>(rewardsInUsed.size());
 
   // Clamp lister width
   ListerTheme.width = ImClamp(ListerTheme.width, 0.0f, canvasSize.x);
@@ -152,10 +152,10 @@ void KeyFrameEditor::build() {
 
   // Compute vertical zoom
   ImVec2 textSize = ImGui::CalcTextSize("test");
-  zoom[1] = std::max(textSize.y, EditorTheme.itemSize) * 1.5;
+  zoom[1] = std::max(textSize.y, EditorTheme.rewardSize) * 1.5;
 
   // Clampe vertical pan
-  float minVertPan = -(totalItem * zoom[1] + 5.0f * contentScale -
+  float minVertPan = -(totalReward * zoom[1] + 5.0f * contentScale -
                        (canvasSize.y - TimelineTheme.height));
   minVertPan = std::min(minVertPan, 0.0f);
   pan[1] = ImClamp(pan[1], minVertPan, 0.0f);
@@ -203,7 +203,7 @@ void KeyFrameEditor::build() {
       pan[0] = ImClamp(pan[0] + io.MouseWheelH * zoom[0], minHorizPan, 0.0f);
 
       // Vertical scrolling
-      float minVertPan = -(totalItem * zoom[1] + 5.0f * contentScale -
+      float minVertPan = -(totalReward * zoom[1] + 5.0f * contentScale -
                            (canvasSize.y - TimelineTheme.height));
       minVertPan = std::min(minVertPan, 0.0f);
       pan[1] = ImClamp(pan[1] + io.MouseWheel * zoom[1], minVertPan, 0.0f);
@@ -247,22 +247,22 @@ void KeyFrameEditor::build() {
   };
 
   auto Editor = [&]() {
-    for (int i = 0; i < totalItem; i++) {
+    for (int i = 0; i < totalReward; i++) {
       float y = std::round(A.y + 5.0f * contentScale + zoom[1] * i +
                            pan[1]); // Avoid sub-pixel rendering
       if (y < A.y) {                // Start drawing from top of lister
         continue;
       }
       ImVec2 textSize = ImGui::CalcTextSize("test");
-      float itemHeight = std::max(textSize.y, EditorTheme.itemSize);
+      float itemHeight = std::max(textSize.y, EditorTheme.rewardSize);
       if (y + itemHeight >
           canvasPos.y + canvasSize.y) { // End drawing when exceeds bottom
         break;
       }
 
-      auto item = itemsInUsed[i];
-      int frameA = (keyFrames[item->kfaId])->frame;
-      int frameB = (keyFrames[item->kfbId])->frame;
+      auto reward = rewardsInUsed[i];
+      int frameA = (keyFrames[reward->kfaId])->frame;
+      int frameB = (keyFrames[reward->kfbId])->frame;
       if (frameA == frameB) {
         continue;
       }
@@ -283,10 +283,10 @@ void KeyFrameEditor::build() {
       }
 
       ImVec2 pMin(xStart, y);
-      ImVec2 pMax(xEnd, y + EditorTheme.itemSize);
+      ImVec2 pMax(xEnd, y + EditorTheme.rewardSize);
       ImColor contourColor(0, 0, 0, 255);
       float contourThickness = 1.2f * contentScale;
-      drawList->AddRectFilled(pMin, pMax, ImColor(EditorTheme.item),
+      drawList->AddRectFilled(pMin, pMax, ImColor(EditorTheme.reward),
                               2.0f * contentScale);
       drawList->AddRect(pMin, pMax, contourColor, 2.0f * contentScale, 0,
                         contourThickness);
@@ -323,7 +323,7 @@ void KeyFrameEditor::build() {
       }
     }
 
-    if (!addingItem && ImGui::IsItemActive()) {
+    if (!addingReward && ImGui::IsItemActive()) {
       int frameTemp = static_cast<int>(
           std::round((io.MousePos.x - B.x - pan[0]) / zoom[0]));
       currentFrame = ImClamp(frameTemp, 0, maxFrame);
@@ -388,31 +388,31 @@ void KeyFrameEditor::build() {
       ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
     }
 
-    if (addingItem) { // Select first and second key frames for new item
-      if (keyFramesForNewItem.size() == 0) {
+    if (addingReward) { // Select first and second key frames for new reward
+      if (keyFramesForNewReward.size() == 0) {
         if (ImGui::IsItemClicked()) {
-          keyFramesForNewItem.push_back(kf);
+          keyFramesForNewReward.push_back(kf);
         }
-      } else if (keyFramesForNewItem.size() == 1) {
+      } else if (keyFramesForNewReward.size() == 1) {
         if (ImGui::IsItemClicked()) {
-          auto it = std::find(keyFramesForNewItem.begin(),
-                              keyFramesForNewItem.end(), kf);
-          if (it != keyFramesForNewItem.end()) { // Deselect key frame
-            keyFramesForNewItem.erase(it);
+          auto it = std::find(keyFramesForNewReward.begin(),
+                              keyFramesForNewReward.end(), kf);
+          if (it != keyFramesForNewReward.end()) { // Deselect key frame
+            keyFramesForNewReward.erase(it);
           } else {
-            // Add item
-            int itemId = itemIdGenerator.next();
-            std::string name = "function " + std::to_string(itemId);
-            int kfaId = (keyFramesForNewItem[0])->getId();
+            // Add reward
+            int rewardId = rewardIdGenerator.next();
+            std::string name = "Reward " + std::to_string(rewardId);
+            int kfaId = (keyFramesForNewReward[0])->getId();
             int kfbId = kf->getId();
-            auto item = std::make_shared<Item>(itemId, kfaId, kfbId, name,
-                                               "reward = 0");
-            items.push_back(item);
-            itemsInUsed.push_back(item);
+            auto reward = std::make_shared<Reward>(rewardId, kfaId, kfbId, name,
+                                                   "reward = 0");
+            rewards.push_back(reward);
+            rewardsInUsed.push_back(reward);
 
-            // Exit item adding mode
-            keyFramesForNewItem.clear();
-            addingItem = false;
+            // Exit reward adding mode
+            keyFramesForNewReward.clear();
+            addingReward = false;
           }
         }
       }
@@ -509,20 +509,20 @@ void KeyFrameEditor::build() {
 
   auto Lister = [&]() {
     float x = A.x + 10.0f * contentScale;
-    for (int i = 0; i < totalItem; i++) {
+    for (int i = 0; i < totalReward; i++) {
       float y = std::round(A.y + 5.0f * contentScale + zoom[1] * i +
                            pan[1]); // Avoid sub-pixel rendering
       if (y < A.y) {                // Start drawing from top of lister
         continue;
       }
       ImVec2 textSize = ImGui::CalcTextSize("test");
-      float itemHeight = std::max(textSize.y, EditorTheme.itemSize);
+      float itemHeight = std::max(textSize.y, EditorTheme.rewardSize);
       if (y + itemHeight >
           canvasPos.y + canvasSize.y) { // End drawing when exceeds bottom
         break;
       }
 
-      std::string name = (itemsInUsed[i])->name;
+      std::string name = (rewardsInUsed[i])->name;
       for (int i = name.size(); i > 0; i--) { // Find visible substring
         std::string str = name.substr(0, i);
         ImVec2 textSize = ImGui::CalcTextSize(str.c_str());
@@ -608,10 +608,10 @@ void KeyFrameEditor::build() {
     float widthMin = canvasPos.x + canvasSize.x - width - 8.0f * contentScale;
 
     if (areaHeight > 0 && widthMin > C.x) {
-      float offsetRatio = -pan[1] / (zoom[1] * totalItem);
+      float offsetRatio = -pan[1] / (zoom[1] * totalReward);
       float offsetHeight = areaHeight * offsetRatio;
       float barHeightRatio = (canvasSize.y - TimelineTheme.height) /
-                             (totalItem * zoom[1] + 10.0f * contentScale);
+                             (totalReward * zoom[1] + 10.0f * contentScale);
       float barHeight = areaHeight * barHeightRatio;
       float barHeightVisual = (barHeight < barPadding - 1.0f * contentScale)
                                   ? barPadding - 1.0f * contentScale
@@ -633,7 +633,7 @@ void KeyFrameEditor::build() {
       if (ImGui::IsItemActive()) {
         color = ImVec4{color.x * 1.2f, color.y * 1.2f, color.z * 1.2f, color.w};
 
-        float minPan = -(totalItem * zoom[1] + 5.0f * contentScale -
+        float minPan = -(totalReward * zoom[1] + 5.0f * contentScale -
                          (canvasSize.y - TimelineTheme.height));
         minPan = std::min(minPan, 0.0f);
         float deltaPan =
@@ -686,7 +686,7 @@ void KeyFrameEditor::build() {
     pan[0] = ImClamp(horizPanTemp, minHorizPan, 0.0f);
 
     // Vertical
-    float minVertPan = -(totalItem * zoom[1] + 5.0f * contentScale -
+    float minVertPan = -(totalReward * zoom[1] + 5.0f * contentScale -
                          (canvasSize.y - TimelineTheme.height));
     minVertPan = std::min(minVertPan, 0.0f);
     float deltaVertPan = io.MouseDelta.y;
@@ -710,10 +710,10 @@ void KeyFrameEditor::build() {
     Timeline();
 
     for (auto &kf : keyFramesInUsed) { // Ascending order
-      if (addingItem) {
-        auto it = std::find(keyFramesForNewItem.begin(),
-                            keyFramesForNewItem.end(), kf);
-        ImVec4 colorVec = (it == keyFramesForNewItem.end())
+      if (addingReward) {
+        auto it = std::find(keyFramesForNewReward.begin(),
+                            keyFramesForNewReward.end(), kf);
+        ImVec4 colorVec = (it == keyFramesForNewReward.end())
                               ? TimelineTheme.keyFrame
                               : TimelineTheme.selectedKeyFrame;
         KeyFrameIndicator(kf, colorVec);
@@ -722,7 +722,7 @@ void KeyFrameEditor::build() {
       }
     }
 
-    if (!addingItem) {
+    if (!addingReward) {
       auto it =
           std::find_if(keyFramesInUsed.begin(), keyFramesInUsed.end(),
                        [&](auto &kf) { return kf->frame == currentFrame; });
@@ -750,7 +750,7 @@ void KeyFrameEditor::build() {
   }
 
   // Vertical scrollbar
-  if (totalItem * zoom[1] + 10.0f * contentScale >
+  if (totalReward * zoom[1] + 10.0f * contentScale >
       canvasSize.y - TimelineTheme.height) {
     VertScrollbar();
   }
@@ -775,17 +775,18 @@ std::vector<KeyFrame *> KeyFrameEditor::getKeyFramesInUsed() const {
 }
 
 void KeyFrameEditor::buildControlPanel() {
-  if (addingItem) { // Item adding mode
+  if (addingReward) { // Reward adding mode
     if (ImGui::Button("Exit")) {
-      addingItem = false;
+      keyFramesForNewReward.clear();
+      addingReward = false;
     }
 
-    if (keyFramesForNewItem.size() == 0) {
+    if (keyFramesForNewReward.size() == 0) {
       ImGui::SameLine();
-      ImGui::Text("Select first key frame for the new function:");
-    } else if (keyFramesForNewItem.size() == 1) {
+      ImGui::Text("Select first key frame for the new reward:");
+    } else if (keyFramesForNewReward.size() == 1) {
       ImGui::SameLine();
-      ImGui::Text("Select second key frame for the new function:");
+      ImGui::Text("Select second key frame for the new reward:");
     }
   } else {                         // Normal mode
     int maxFrame = totalFrame - 1; // totalFrame includes frame 0
@@ -848,11 +849,11 @@ void KeyFrameEditor::buildControlPanel() {
       }
     }
 
-    // Function control
+    // Reward control
     if (keyFramesInUsed.size() >= 2) { // Exists at least two key frames
       ImGui::SameLine();
-      if (ImGui::Button("Add Function")) {
-        addingItem = true;
+      if (ImGui::Button("Add Reward")) {
+        addingReward = true;
       }
     }
   }
