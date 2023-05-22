@@ -67,8 +67,17 @@ inline ImVec4 operator*(const ImVec4 &lhs, const ImVec4 &rhs) {
 #endif
 
 KeyFrameEditor::KeyFrameEditor(float contentScale_) {
-  // Key frame and item
+  // Control panel
+  addingItem = false;
+
+  // Timeline
+  currentFrame = 0;
+  totalFrame = 128;
+
+  // Key frame container
   keyFrameIdGenerator = IdGenerator();
+
+  // Item container
   itemIdGenerator = IdGenerator();
 
   // Visual
@@ -77,6 +86,10 @@ KeyFrameEditor::KeyFrameEditor(float contentScale_) {
   } else {
     contentScale = contentScale_;
   }
+  pan[0] = 0.0f;
+  pan[1] = 0.0f;
+  zoom[0] = 25.0f * contentScale;
+  horizZoomRange[1] = 100.0f * contentScale;
 
   // Theme
   CrossTheme.borderWidth *= contentScale;
@@ -110,19 +123,13 @@ void KeyFrameEditor::build() {
   // Clamp lister width
   ListerTheme.width = ImClamp(ListerTheme.width, 0.0f, canvasSize.x);
 
-  // Update max stride
-  int maxStridePower =
-      static_cast<int>(std::log2(1.0f * totalFrame / minIntervals));
-  int maxStride = std::pow(2, maxStridePower);
-
-  // Update horizontal zoom range
+  // Update minimum horizontal zoom range
   float minTimelineLength = std::max(
       canvasSize.x - ListerTheme.width - 0.01f,
       1024.0f * contentScale); // 0.01f is to make sure no numerical error will
                                // cause horizZoomRange[0] * totalFrame >
                                // canvasSize.x - ListerTheme.width
   horizZoomRange[0] = minTimelineLength / totalFrame;
-  horizZoomRange[1] = horizZoomRange[0] * maxStride;
 
   // Clamp zoom
   float initialZoom = zoom[0];

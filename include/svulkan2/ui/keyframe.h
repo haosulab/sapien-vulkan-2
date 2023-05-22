@@ -66,15 +66,13 @@ public:
 
 private:
   // Control panel
-  bool addingItem{false};
+  bool addingItem;
   std::vector<std::shared_ptr<KeyFrame>> keyFramesForNewItem;
 
   // Timeline
-  int currentFrame{0};
-  int totalFrame{128};
-  int stride{8};
-  int minIntervals{16}; // maxStride = smallest 2^k less than or equal to
-                        // totalFrame / minIntervals
+  int currentFrame;
+  int totalFrame;
+  int stride;
 
   // Key frame container
   IdGenerator keyFrameIdGenerator;
@@ -93,7 +91,7 @@ private:
   float pan[2]{0.0f, 0.0f}; // Deviation of {timeline, lister} in pixels
   float initialPan[2];
 
-  float zoom[2]{10.0f, 10.0f}; // Distance between each {frame, item} in pixels
+  float zoom[2]; // Distance between each {frame, item} in pixels
   float horizZoomRange[2];
 
   // Theme
