@@ -790,9 +790,14 @@ void KeyFrameEditor::buildControlPanel() {
     ImGui::PopItemWidth();
 
     // Total frame setter
+    int minTotalFrame = 64;
+    if (keyFramesInUsed.size() != 0) {
+      auto lastKf = keyFramesInUsed.back();
+      minTotalFrame = std::max(minTotalFrame, lastKf->frame + 1);
+    }
     ImGui::SameLine();
     ImGui::PushItemWidth(50.0f * contentScale);
-    ImGui::DragInt("Total Frame", &totalFrame, 1.0f, 64, 2048, "%d",
+    ImGui::DragInt("Total Frame", &totalFrame, 1.0f, minTotalFrame, 2048, "%d",
                    ImGuiSliderFlags_AlwaysClamp);
     ImGui::PopItemWidth();
     currentFrame = ImClamp(currentFrame, 0, maxFrame); // Clamp currentFrame
