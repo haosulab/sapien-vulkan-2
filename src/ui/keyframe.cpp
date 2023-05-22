@@ -106,37 +106,21 @@ KeyFrameEditor::KeyFrameEditor(float contentScale_) {
 }
 
 void KeyFrameEditor::build() {
+  int maxFrame = totalFrame - 1; // totalFrame includes frame 0
+
   // Control panel
   ImGui::PushItemWidth(50.0f * contentScale);
-  ImGui::DragInt("Current Frame", &currentFrame, 1.0f, frameRange[0],
-                 frameRange[1], "%d", ImGuiSliderFlags_AlwaysClamp);
+  ImGui::DragInt("Current Frame", &currentFrame, 1.0f, 0, maxFrame, "%d",
+                 ImGuiSliderFlags_AlwaysClamp);
   ImGui::PopItemWidth();
 
   ImGui::SameLine();
 
-  ImGui::PushItemWidth(100.0f * contentScale);
-  const char *maxFrames[] = {"128", "256", "512", "1024"};
-  if (ImGui::BeginCombo("Max Frame", maxFrames[selectedMaxFrame])) {
-    for (int i = 0; i < IM_ARRAYSIZE(maxFrames); i++) {
-      bool isSelected = (selectedMaxFrame == i);
-      if (ImGui::Selectable(maxFrames[i], isSelected)) {
-        selectedMaxFrame = i;
-      }
-
-      if (isSelected) {
-        ImGui::SetItemDefaultFocus();
-      }
-    }
-    ImGui::EndCombo();
-  }
+  ImGui::PushItemWidth(50.0f * contentScale);
+  ImGui::DragInt("Total Frame", &totalFrame, 1.0f, 64, 2048, "%d",
+                 ImGuiSliderFlags_AlwaysClamp);
   ImGui::PopItemWidth();
-
-  if (selectedMaxFrame != prevSelectedMaxFrame) {
-    currentFrame = 0;
-    frameRange[1] = std::stoi(maxFrames[selectedMaxFrame]);
-    resetHorizZoom = true;
-    prevSelectedMaxFrame = selectedMaxFrame;
-  }
+  currentFrame = ImClamp(currentFrame, 0, maxFrame); // Clamp currentFrame
 
   ImGui::SameLine();
 
@@ -190,27 +174,35 @@ void KeyFrameEditor::build() {
   }
 
   // Frame count and item count
-  int frameCount = frameRange[1] - frameRange[0];
   int itemCount = static_cast<int>(itemsInUsed.size());
 
   // Clamp lister width
   ListerTheme.width = ImClamp(ListerTheme.width, 0.0f, canvasSize.x);
 
-  // Update max stride and horizontal zoom range
-  int maxStride = frameCount / minIntervals;
-  float minTimelineLength =
-      std::max(canvasSize.x - ListerTheme.width, 1024.0f * contentScale);
-  horizZoomRange[0] = minTimelineLength / frameCount;
+  // Update max stride
+  int maxStridePower =
+      static_cast<int>(std::log2(1.0f * totalFrame / minIntervals));
+  int maxStride = std::pow(2, maxStridePower);
+
+  // Update horizontal zoom range
+  float minTimelineLength = std::max(
+      canvasSize.x - ListerTheme.width - 0.01f,
+      1024.0f * contentScale); // 0.01f is to make sure no numerical error will
+                               // cause horizZoomRange[0] * totalFrame >
+                               // canvasSize.x - ListerTheme.width
+  horizZoomRange[0] = minTimelineLength / totalFrame;
   horizZoomRange[1] = horizZoomRange[0] * maxStride;
 
   // Clamp zoom
-  if (resetHorizZoom) {
-    zoom[0] = horizZoomRange[0];
-    pan[0] = 0.0f;
-    resetHorizZoom = false;
-  } else {
-    zoom[0] = ImClamp(zoom[0], horizZoomRange[0], horizZoomRange[1]);
-  }
+  float initialZoom = zoom[0];
+  zoom[0] = ImClamp(zoom[0], horizZoomRange[0], horizZoomRange[1]);
+
+  // Change pan according to zoom
+  float minHorizPan =
+      -(totalFrame * zoom[0] - (canvasSize.x - ListerTheme.width));
+  minHorizPan = std::min(minHorizPan, 0.0f);
+  float panTemp = pan[0] / initialZoom * zoom[0];
+  pan[0] = ImClamp(panTemp, minHorizPan, 0.0f);
 
   // Update stride
   stride = 1;
@@ -268,7 +260,7 @@ void KeyFrameEditor::build() {
 
       // Horizontal scrolling
       float minHorizPan =
-          -(frameCount * zoom[0] - (canvasSize.x - ListerTheme.width));
+          -(totalFrame * zoom[0] - (canvasSize.x - ListerTheme.width));
       minHorizPan = std::min(minHorizPan, 0.0f);
       pan[0] = ImClamp(pan[0] + io.MouseWheelH * zoom[0], minHorizPan, 0.0f);
 
@@ -282,11 +274,11 @@ void KeyFrameEditor::build() {
 
   auto VerticalGrid = [&]() {
     float interspace = zoom[0] * stride; // Distance between each base frame
-    int start =
+    int frameStart =
         ceil(-pan[0] / interspace) * stride; // Only draw in visible area
-    start = ImClamp(start, frameRange[0], frameRange[1]);
+    frameStart = ImClamp(frameStart, 0, maxFrame);
     float xMidStart =
-        C.x + start / stride * interspace + pan[0] - interspace / 2;
+        C.x + frameStart / stride * interspace + pan[0] - interspace / 2;
     float yMin = C.y;
     float yMax = C.y + canvasSize.y - TimelineTheme.height;
 
@@ -295,7 +287,7 @@ void KeyFrameEditor::build() {
                         ImColor(EditorTheme.mid), 1.0f * contentScale);
     }
 
-    for (int frame = start; frame <= frameRange[1]; frame += stride) {
+    for (int frame = frameStart; frame <= maxFrame; frame += stride) {
       int i = frame / stride; // ith line
 
       float x = C.x + i * interspace + pan[0];
@@ -307,7 +299,7 @@ void KeyFrameEditor::build() {
                         ImColor(EditorTheme.dark), 1.0f * contentScale);
 
       float xMid = x + interspace / 2;
-      if (frame != frameRange[1] && stride > 1 &&
+      if (stride > 1 &&
           xMid <
               canvasPos.x + canvasSize.x) { // Draw when stride > 1 and visible
         drawList->AddLine(ImVec2(xMid, yMin), ImVec2(xMid, yMax),
@@ -386,7 +378,7 @@ void KeyFrameEditor::build() {
       // Change pan according to zoom
       if (zoom[0] != initialZoom) {
         float minHorizPan =
-            -(frameCount * zoom[0] - (canvasSize.x - ListerTheme.width));
+            -(totalFrame * zoom[0] - (canvasSize.x - ListerTheme.width));
         minHorizPan = std::min(minHorizPan, 0.0f);
         float panTemp = pan[0] / initialZoom * zoom[0];
         pan[0] = ImClamp(panTemp, minHorizPan, 0.0f);
@@ -396,19 +388,19 @@ void KeyFrameEditor::build() {
     if (ImGui::IsItemActive()) {
       int frameTemp = static_cast<int>(
           std::round((io.MousePos.x - B.x - pan[0]) / zoom[0]));
-      currentFrame = ImClamp(frameTemp, frameRange[0], frameRange[1]);
+      currentFrame = ImClamp(frameTemp, 0, maxFrame);
     }
   };
 
   auto Timeline = [&]() {
     float interspace = zoom[0] * stride; // Distance between each base frame
-    int start =
+    int frameStart =
         ceil(-pan[0] / interspace) * stride; // Only draw in visible area
-    start = ImClamp(start, frameRange[0], frameRange[1]);
+    frameStart = ImClamp(frameStart, 0, maxFrame);
     float yMin = B.y;
     float yMax = B.y + TimelineTheme.height;
 
-    for (int frame = start; frame <= frameRange[1]; frame += stride) {
+    for (int frame = frameStart; frame <= maxFrame; frame += stride) {
       int i = frame / stride; // ith line
 
       float x = B.x + i * interspace + pan[0];
@@ -421,9 +413,8 @@ void KeyFrameEditor::build() {
 
       ImVec2 textSize =
           ImGui::CalcTextSize(std::to_string(frame).c_str()) * 0.85f;
-      if (frame != frameRange[1] &&
-          x + 5.0f * contentScale + textSize.x <=
-              canvasPos.x + canvasSize.x) { // Only draw in visible area
+      if (x + 5.0f * contentScale + textSize.x <=
+          canvasPos.x + canvasSize.x) { // Only draw in visible area
         drawList->AddText(ImGui::GetFont(), ImGui::GetFontSize() * 0.85f,
                           ImVec2{x + 5.0f * contentScale, yMin},
                           ImColor(TimelineTheme.text),
@@ -464,7 +455,7 @@ void KeyFrameEditor::build() {
 
       int frameTemp = static_cast<int>(
           std::round((io.MousePos.x - B.x - pan[0]) / zoom[0]));
-      kf->frame = ImClamp(frameTemp, frameRange[0], frameRange[1]);
+      kf->frame = ImClamp(frameTemp, 0, maxFrame);
       currentFrame = kf->frame;
     }
 
@@ -602,10 +593,10 @@ void KeyFrameEditor::build() {
     float heightMin = canvasPos.y + canvasSize.y - height - 4.0f * contentScale;
 
     if (areaWidth > 0 && heightMin > C.y) {
-      float offsetRatio = -pan[0] / (zoom[0] * frameCount);
+      float offsetRatio = -pan[0] / (zoom[0] * totalFrame);
       float offsetWidth = areaWidth * offsetRatio;
       float barWidthRatio =
-          (canvasSize.x - ListerTheme.width) / (frameCount * zoom[0]);
+          (canvasSize.x - ListerTheme.width) / (totalFrame * zoom[0]);
       float barWidth = areaWidth * barWidthRatio;
       float barWidthVisual = (barWidth < barPadding - 1.0f * contentScale)
                                  ? barPadding - 1.0f * contentScale
@@ -629,7 +620,7 @@ void KeyFrameEditor::build() {
         color = ImVec4{color.x * 1.2f, color.y * 1.2f, color.z * 1.2f, color.w};
 
         float minPan =
-            -(frameCount * zoom[0] - (canvasSize.x - ListerTheme.width));
+            -(totalFrame * zoom[0] - (canvasSize.x - ListerTheme.width));
         minPan = std::min(minPan, 0.0f);
         float deltaPan =
             (ImGui::GetMouseDragDelta().x / (areaWidth - barWidth)) * minPan;
@@ -720,7 +711,7 @@ void KeyFrameEditor::build() {
   auto MiddleButtonPanning = [&]() {
     // Horizontal
     float minHorizPan =
-        -(frameCount * zoom[0] - (canvasSize.x - ListerTheme.width));
+        -(totalFrame * zoom[0] - (canvasSize.x - ListerTheme.width));
     minHorizPan = std::min(minHorizPan, 0.0f);
     float deltaHorizPan = io.MouseDelta.x;
     float horizPanTemp = pan[0] + deltaHorizPan;
@@ -773,7 +764,7 @@ void KeyFrameEditor::build() {
   }
 
   // Horizontal scrollbar
-  if (frameCount * zoom[0] > canvasSize.x - ListerTheme.width) {
+  if (totalFrame * zoom[0] > canvasSize.x - ListerTheme.width) {
     HorizScrollbar();
   }
 
