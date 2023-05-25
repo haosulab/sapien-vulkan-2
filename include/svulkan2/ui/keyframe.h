@@ -33,13 +33,14 @@ private:
   int id;
 
 public:
-  int kfaId;
-  int kfbId;
+  int kf1Id;
+  int kf2Id;
   std::string name;
-  std::string content;
+  std::string definition;
 
-  Reward(int id, int kfaId, int kfbId, std::string name, std::string content)
-      : id(id), kfaId(kfaId), kfbId(kfbId), name(name), content(content) {}
+  Reward(int id, int kf1Id, int kf2Id, std::string name, std::string definition)
+      : id(id), kf1Id(kf1Id), kf2Id(kf2Id), name(name), definition(definition) {
+  }
   int getId() const { return id; };
 };
 
@@ -72,27 +73,34 @@ private:
   // Timeline
   int currentFrame;
   int totalFrame;
+  int totalFrameRange[2]{32, 2048};
   int stride;
 
-  // Key frame container
+  // Key frame
   IdGenerator keyFrameIdGenerator;
   std::vector<std::shared_ptr<KeyFrame>> keyFrames;
   std::vector<std::shared_ptr<KeyFrame>> keyFramesInUsed;
   int keyFrameToModify; // Id of key frame that need to be modified
 
-  // Reward container
+  // Reward
   IdGenerator rewardIdGenerator;
   std::vector<std::shared_ptr<Reward>> rewards;
   std::vector<std::shared_ptr<Reward>> rewardsInUsed;
+  int selectedReward; // Id of reward that is being selected
+  bool initRewardDetails;
+  char nameBuffer[256];
+  char definitionBuffer[65536];
 
   // Visual
   float contentScale;
 
-  float pan[2]{0.0f, 0.0f}; // Deviation of {timeline, lister} in pixels
+  float pan[2]; // Deviation of {timeline, lister} in pixels
   float initialPan[2];
 
   float zoom[2]; // Distance between each {frame, reward} in pixels
   float horizZoomRange[2];
+
+  float listerInitialWidth;
 
   // Theme
   struct CrossTheme_ {
@@ -105,7 +113,6 @@ private:
   struct ListerTheme_ {
     float width{100.0f};
     float handleWidth{15.0f};
-    float initialWidth;
 
     ImVec4 background{ImColor::HSV(0.0f, 0.0f, 0.114f)};
     ImVec4 text{ImColor::HSV(0.0f, 0.0f, 0.7f)};
@@ -113,7 +120,8 @@ private:
 
   struct TimelineTheme_ {
     float height{40.0f};
-    float indicatorSize{10.0f};
+    float keyFrameIndicatorSize{12.0f};
+    float currentFrameIndicatorSize{22.0f};
 
     ImVec4 background{ImColor::HSV(0.0f, 0.0f, 0.114f)};
     ImVec4 text{ImColor::HSV(0.0f, 0.0f, 0.7f)};
@@ -126,16 +134,14 @@ private:
   struct EditorTheme_ {
     float scrollbarPadding{20.0f};
     float scrollbarSize{10.0f};
-    float rewardSize{15.0f};
+    float rewardHeight{15.0f};
 
     ImVec4 background{ImColor::HSV(0.0f, 0.0f, 0.188f)};
     ImVec4 dark{ImColor::HSV(0.0f, 0.0f, 0.075f)};
     ImVec4 mid{ImColor::HSV(0.0f, 0.0f, 0.15f)};
     ImVec4 scrollbar{ImColor::HSV(0.0f, 0.0f, 0.33f)};
-    ImVec4 reward{ImColor::HSV(0.12f, 0.8f, 0.95f)};
+    ImVec4 reward{ImColor::HSV(0.12f, 0.8f, 0.9f)};
   } EditorTheme;
-
-  void buildControlPanel();
 };
 
 } // namespace ui
