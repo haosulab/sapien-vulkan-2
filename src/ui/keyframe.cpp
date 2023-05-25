@@ -265,6 +265,22 @@ void KeyFrameEditor::build() {
   ImVec2 B = canvasPos + ImVec2{ListerTheme.width, 0.0f};
   ImVec2 C = canvasPos + ImVec2{ListerTheme.width, TimelineTheme.height};
 
+  auto CrossBackground = [&]() {
+    drawList->AddRectFilled(X,
+                            X + ImVec2{ListerTheme.width, TimelineTheme.height},
+                            ImColor(CrossTheme.background));
+
+    drawList->AddLine(
+        X + ImVec2{ListerTheme.width - 1.0f, 0.0f},
+        X + ImVec2{ListerTheme.width - 1.0f, TimelineTheme.height},
+        ImColor(CrossTheme.border), CrossTheme.borderWidth);
+
+    drawList->AddLine(
+        X + ImVec2{0.0f, TimelineTheme.height - 1.0f},
+        X + ImVec2{ListerTheme.width, TimelineTheme.height - 1.0f},
+        ImColor(CrossTheme.border), CrossTheme.borderWidth);
+  };
+
   auto EditorBackground = [&]() {
     drawList->AddRectFilled(
         C, C + canvasSize - ImVec2{ListerTheme.width, TimelineTheme.height},
@@ -697,22 +713,6 @@ void KeyFrameEditor::build() {
       drawList->AddLine(ImVec2{x + lineWidth / 2, yMin},
                         ImVec2{x + lineWidth / 2, yMax}, contourColor, 1.0f);
     }
-  };
-
-  auto CrossBackground = [&]() {
-    drawList->AddRectFilled(X,
-                            X + ImVec2{ListerTheme.width, TimelineTheme.height},
-                            ImColor(CrossTheme.background));
-
-    drawList->AddLine(
-        X + ImVec2{ListerTheme.width - 1.0f, 0.0f},
-        X + ImVec2{ListerTheme.width - 1.0f, TimelineTheme.height},
-        ImColor(CrossTheme.border), CrossTheme.borderWidth);
-
-    drawList->AddLine(
-        X + ImVec2{0.0f, TimelineTheme.height - 1.0f},
-        X + ImVec2{ListerTheme.width, TimelineTheme.height - 1.0f},
-        ImColor(CrossTheme.border), CrossTheme.borderWidth);
   };
 
   auto HorizScrollbar = [&]() {
