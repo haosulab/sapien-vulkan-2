@@ -80,7 +80,9 @@ private:
   IdGenerator keyFrameIdGenerator;
   std::vector<std::shared_ptr<KeyFrame>> keyFrames;
   std::vector<std::shared_ptr<KeyFrame>> keyFramesInUsed;
-  int keyFrameToModify; // Id of key frame that need to be modified
+  int keyFrameToModify;        // Id of key frame that need to be modified
+  bool keyFramesInUsedUpdated; // Use this to break the iteration through
+                               // keyFramesInUsed when update occurs
 
   // Reward
   IdGenerator rewardIdGenerator;

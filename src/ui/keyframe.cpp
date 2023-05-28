@@ -76,6 +76,7 @@ KeyFrameEditor::KeyFrameEditor(float contentScale_) {
 
   // Key frame
   keyFrameIdGenerator = IdGenerator();
+  keyFramesInUsedUpdated = false;
 
   // Reward
   rewardIdGenerator = IdGenerator();
@@ -173,6 +174,19 @@ void KeyFrameEditor::build() {
 
         ImGui::SameLine();
         if (ImGui::Button("Delete Key Frame") && mDeleteKeyFrameCallback) {
+          // Delete all rewards depending on the key frame
+          for (auto it = rewardsInUsed.begin(); it != rewardsInUsed.end();) {
+            auto reward = *it;
+            if (reward->kf1Id == keyFrameToModify ||
+                reward->kf2Id == keyFrameToModify) {
+              rewards[reward->getId()] = nullptr;
+              it = rewardsInUsed.erase(it);
+            } else {
+              it++;
+            }
+          }
+
+          // Delete key frame
           mDeleteKeyFrameCallback(
               std::static_pointer_cast<KeyFrameEditor>(shared_from_this()));
           keyFrames[keyFrameToModify] = nullptr;
@@ -402,8 +416,7 @@ void KeyFrameEditor::build() {
 
         ImGui::OpenPopup("Reward Details");
         bool pOpen = true;
-        if (ImGui::BeginPopupModal("Reward Details", &pOpen,
-                                   ImGuiWindowFlags_AlwaysAutoResize)) {
+        if (ImGui::BeginPopupModal("Reward Details", &pOpen)) {
           if (initRewardDetails) {
             if (reward->name.size() < sizeof(nameBuffer)) {
               strcpy(nameBuffer, reward->name.c_str());
@@ -434,14 +447,31 @@ void KeyFrameEditor::build() {
           ImGui::Text("kf2 (Second Key Frame): %d", kf2->frame);
 
           // Definition
-          ImGui::InputTextMultiline("Python Definition", definitionBuffer,
-                                    sizeof(definitionBuffer));
+          ImVec2 availableSpace = ImGui::GetContentRegionAvail();
+          availableSpace.x -= ImGui::CalcTextSize("Python Definition").x;
+          availableSpace.y -= ImGui::GetFrameHeightWithSpacing();
+          ImGui::InputTextMultiline(
+              "Python Definition", definitionBuffer,
+              sizeof(definitionBuffer) / 4, availableSpace,
+              ImGuiInputTextFlags_AllowTabInput); // Divide by 4 so that
+                                                  // interpreting tab as 4
+                                                  // spaces won't exceed buffer
+                                                  // limit
 
-          // Save changes & Delete Reward
+          // Save changes (tab will be interpreted as 4 spaces)
           if (ImGui::Button("Save Changes")) {
             reward->name = std::string(nameBuffer);
             reward->definition = std::string(definitionBuffer);
+            size_t pos = 0;
+            while ((pos = reward->definition.find("\t", pos)) !=
+                   std::string::npos) {
+              reward->definition.replace(pos, 1, "    ");
+              pos += 4;
+            }
+            initRewardDetails = true; // Update buffer
           }
+
+          // Delete Reward
           ImGui::SameLine();
           if (ImGui::Button("Delete Reward")) {
             ImGui::CloseCurrentPopup();
@@ -645,18 +675,33 @@ void KeyFrameEditor::build() {
             keyFramesInUsed.begin(), keyFramesInUsed.end(),
             [&](auto &kf2) { return kf->frame == kf2->frame && kf != kf2; });
 
-        if (it == keyFramesInUsed.end()) { // No duplicate
-          std::sort(keyFramesInUsed.begin(), keyFramesInUsed.end(),
-                    [](auto &a, auto &b) { return a->frame < b->frame; });
-        } else {
+        if (it != keyFramesInUsed.end()) { // Has duplicate
           keyFrameToModify = (*it)->getId();
+
+          // Delete all rewards depending on the key frame
+          for (auto it = rewardsInUsed.begin(); it != rewardsInUsed.end();) {
+            auto reward = *it;
+            if (reward->kf1Id == keyFrameToModify ||
+                reward->kf2Id == keyFrameToModify) {
+              rewards[reward->getId()] = nullptr;
+              it = rewardsInUsed.erase(it);
+            } else {
+              it++;
+            }
+          }
+
+          // Delete key frame
           if (mDeleteKeyFrameCallback) {
             mDeleteKeyFrameCallback(
                 std::static_pointer_cast<KeyFrameEditor>(shared_from_this()));
           }
           keyFrames[keyFrameToModify] = nullptr;
           keyFramesInUsed.erase(it);
+          keyFramesInUsedUpdated = true;
         }
+
+        std::sort(keyFramesInUsed.begin(), keyFramesInUsed.end(),
+                  [](auto &a, auto &b) { return a->frame < b->frame; });
       }
     }
 
@@ -904,6 +949,10 @@ void KeyFrameEditor::build() {
         KeyFrameIndicator(kf, color);
       } else {
         KeyFrameIndicator(kf, TimelineTheme.keyFrame);
+        if (keyFramesInUsedUpdated) {
+          keyFramesInUsedUpdated = false;
+          break;
+        }
       }
     }
   }
