@@ -521,18 +521,55 @@ void KeyFrameEditor::build() {
         break;
       }
 
-      std::string name = (rewardsInUsed[i])->name;
+      auto reward = rewardsInUsed[i];
+      std::string name = reward->name;
+      std::string visibleName;
       for (int i = name.size(); i > 0; i--) { // Find visible substring
-        std::string str = name.substr(0, i);
-        ImVec2 textSize = ImGui::CalcTextSize(str.c_str());
-        if (x + textSize.x > C.x) {
-          continue;
-        } else {
-          drawList->AddText(ImGui::GetFont(), ImGui::GetFontSize(),
-                            ImVec2{x, y}, ImColor(ListerTheme.text),
-                            str.c_str());
+        visibleName = name.substr(0, i);
+        ImVec2 textSize = ImGui::CalcTextSize(visibleName.c_str());
+        if (x + textSize.x <= C.x) {
           break;
         }
+      }
+
+      if (visibleName.size() > 0) {
+        // Mouse event
+        ImGui::PushID(reward->getId());
+        ImGui::SetCursorPos(ImVec2{x, y} - ImGui::GetWindowPos());
+        ImVec2 textSize = ImGui::CalcTextSize(visibleName.c_str());
+        ImGui::InvisibleButton("##RewardName", textSize);
+        ImGui::SetItemAllowOverlap();
+        ImGui::PopID();
+
+        if (ImGui::IsItemHovered()) {
+          ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+        }
+
+        if (ImGui::BeginDragDropSource()) {
+          int sourceIndex = i;
+          ImGui::SetDragDropPayload("DragReward", &sourceIndex, sizeof(int));
+          ImGui::Text("%s", visibleName.c_str());
+          ImGui::EndDragDropSource();
+        }
+
+        if (ImGui::BeginDragDropTarget()) {
+          if (const ImGuiPayload *payload =
+                  ImGui::AcceptDragDropPayload("DragReward")) {
+            IM_ASSERT(payload->DataSize == sizeof(int));
+            int sourceIndex = *(const int *)payload->Data;
+            int targetIndex = i;
+            auto item = rewardsInUsed[sourceIndex];
+            rewardsInUsed.erase(rewardsInUsed.begin() + sourceIndex);
+            rewardsInUsed.insert(rewardsInUsed.begin() + targetIndex, item);
+            ImGui::EndDragDropTarget();
+            break; // RewardsInUsed updated, stop iterating
+          } else {
+            ImGui::EndDragDropTarget();
+          }
+        }
+
+        drawList->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2{x, y},
+                          ImColor(ListerTheme.text), visibleName.c_str());
       }
     }
   };
