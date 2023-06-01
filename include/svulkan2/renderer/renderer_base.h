@@ -37,6 +37,10 @@ public:
                        vk::Fence fence) = 0;
 
   virtual void
+  setCustomTextureArray(std::string const &name,
+                        std::vector<std::shared_ptr<resource::SVTexture>>
+                            texture){}; // TODO: implement
+  virtual void
   setCustomTexture(std::string const &name,
                    std::shared_ptr<resource::SVTexture> texture) = 0;
   virtual void

@@ -26,7 +26,9 @@ set(ZLIB_INCLUDE_DIR "${zlib_SOURCE_DIR} ${zlib_BINARY_DIR}")
 
 add_library(minizip STATIC
   "${zlib_SOURCE_DIR}/contrib/minizip/minizip.c"
-  "${zlib_SOURCE_DIR}/contrib/minizip/unzip.c")
+  "${zlib_SOURCE_DIR}/contrib/minizip/unzip.c"
+  "${zlib_SOURCE_DIR}/contrib/minizip/ioapi.c"
+)
 target_link_libraries(minizip PRIVATE zlibstatic)
 target_include_directories(minizip PUBLIC "$<BUILD_INTERFACE:${zlib_SOURCE_DIR}/contrib/minizip>")
 install(TARGETS minizip EXPORT assimpTargets)

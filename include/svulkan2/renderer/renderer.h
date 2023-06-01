@@ -69,6 +69,8 @@ class Renderer : public RendererBase {
   std::vector<vk::UniqueFramebuffer> mShadowFramebuffers;
   std::vector<uint32_t> mShadowSizes;
 
+  std::map<std::string, std::vector<std::shared_ptr<resource::SVTexture>>>
+      mCustomTextureArray;
   std::map<std::string, std::shared_ptr<resource::SVTexture>> mCustomTextures;
   std::map<std::string, std::shared_ptr<resource::SVCubemap>> mCustomCubemaps;
 
@@ -145,6 +147,9 @@ public:
     return getRenderTarget(name)->getImage();
   };
 
+  void setCustomTextureArray(
+      std::string const &name,
+      std::vector<std::shared_ptr<resource::SVTexture>> texture) override;
   void setCustomTexture(std::string const &name,
                         std::shared_ptr<resource::SVTexture> texture) override;
   void setCustomCubemap(std::string const &name,

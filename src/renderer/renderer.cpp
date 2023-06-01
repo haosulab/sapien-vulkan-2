@@ -1117,6 +1117,11 @@ void Renderer::prepareRender(scene::Camera &camera) {
       for (auto t : mCustomTextures) {
         futures.push_back(t.second->loadAsync());
       }
+      for (auto a : mCustomTextureArray) {
+        for (auto t : a.second) {
+          futures.push_back(t->loadAsync());
+        }
+      }
       for (auto t : mCustomCubemaps) {
         futures.push_back(t.second->loadAsync());
       }
@@ -1595,6 +1600,15 @@ void Renderer::prepareSceneBuffer() {
             {{mCustomTextures[customTextureName]->getImageView(),
               mCustomTextures[customTextureName]->getSampler()}},
             bindingIndex);
+      } else if (mCustomTextureArray.contains(customTextureName)) {
+        auto textures = mCustomTextureArray.at(customTextureName);
+        std::vector<std::tuple<vk::ImageView, vk::Sampler>> ts;
+        for (auto t : textures) {
+          t->uploadToDevice();
+          ts.push_back({t->getImageView(), t->getSampler()});
+        }
+        updateDescriptorSets(mContext->getDevice(), mSceneSet.get(), {}, ts,
+                             bindingIndex);
       } else if (customTextureName == "BRDFLUT") {
         // generate if BRDFLUT is not supplied
         auto tex = mContext->getResourceManager()->getDefaultBRDFLUT();
@@ -1786,6 +1800,11 @@ void Renderer::prepareCameaBuffer() {
                        {}, 0);
 }
 
+void Renderer::setCustomTextureArray(
+    std::string const &name,
+    std::vector<std::shared_ptr<resource::SVTexture>> textures) {
+  mCustomTextureArray[name] = textures;
+}
 void Renderer::setCustomTexture(std::string const &name,
                                 std::shared_ptr<resource::SVTexture> texture) {
   mCustomTextures[name] = texture;
