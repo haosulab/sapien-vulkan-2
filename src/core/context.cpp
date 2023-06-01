@@ -1,6 +1,6 @@
 #include "svulkan2/core/context.h"
-#include "../common/logger.h"
 #include "../common/cuda_helper.h"
+#include "../common/logger.h"
 #include "svulkan2/common/launch_policy.h"
 #include "svulkan2/core/allocator.h"
 #include "svulkan2/shader/glsl_compiler.h"
@@ -59,8 +59,9 @@ std::shared_ptr<Context> Context::Create(bool present, uint32_t maxNumMaterials,
                                          bool doNotLoadTexture,
                                          std::string device) {
   if (!gInstance.expired()) {
-    logger::warn("Only 1 renderer is allowed per process. All previously created "
-              "renderer resources are now invalid");
+    logger::warn(
+        "Only 1 renderer is allowed per process. All previously created "
+        "renderer resources are now invalid");
   }
   auto context = std::shared_ptr<Context>(
       new Context(present, maxNumMaterials, maxNumTextures, defaultMipLevels,
@@ -144,8 +145,9 @@ void Context::createInstance() {
 
   // give up
   if (!mDynamicLoader) {
-    logger::error("Failed to load vulkan library! You may not use the renderer to "
-               "render, however, CPU resources will be still available.");
+    logger::error(
+        "Failed to load vulkan library! You may not use the renderer to "
+        "render, however, CPU resources will be still available.");
     return;
   }
 
@@ -186,8 +188,9 @@ void Context::createInstance() {
 
   if (mPresent) {
     if (!glfwVulkanSupported()) {
-      logger::error("createInstance: present requested but GLFW does not support "
-                 "Vulkan. Continue without GLFW.");
+      logger::error(
+          "createInstance: present requested but GLFW does not support "
+          "Vulkan. Continue without GLFW.");
       mPresent = false;
     } else {
       uint32_t glfwExtensionCount = 0;
@@ -231,8 +234,9 @@ void Context::createInstance() {
   } catch (vk::OutOfDeviceMemoryError const &err) {
     throw err;
   } catch (vk::InitializationFailedError const &err) {
-    logger::error("Vulkan initialization failed. You may not use the renderer to "
-               "render, however, CPU resources will be still available.");
+    logger::error(
+        "Vulkan initialization failed. You may not use the renderer to "
+        "render, however, CPU resources will be still available.");
   } catch (vk::LayerNotPresentError const &err) {
     logger::error(
         "Some required Vulkan layer is not present. You may not use the "
@@ -248,6 +252,55 @@ void Context::createInstance() {
   }
 }
 
+static inline uint32_t
+computeDevicePriority(Context::PhysicalDeviceInfo const &info,
+                      std::string const &hint, bool presentRequested) {
+
+  // specific cuda device
+  if (hint.starts_with("cuda:")) {
+    if (info.cudaId == std::stoi(hint.substr(5))) {
+      return 1000;
+    }
+    return 0;
+  }
+
+  // any cuda device
+  if (hint == std::string("cuda")) {
+    uint32_t score = 0;
+    if (info.cudaId >= 0) {
+      score += 1000;
+    }
+    if (info.present && presentRequested) {
+      score += 100;
+    }
+    return score;
+  }
+
+  // specific device
+  if (hint.starts_with("pci:")) {
+    if (info.pciBus == std::stoi(hint.substr(4), 0, 16)) {
+      return 1000;
+    }
+    return 0;
+  }
+
+  // no device hint
+  if (!info.supported) {
+    return 0;
+  }
+  uint32_t score = 0;
+  if (info.present && presentRequested) {
+    score += 100;
+  }
+  if (info.discrete) {
+    score += 10;
+  }
+  if (info.rayTracing) {
+    score += 1;
+  }
+  return score;
+}
+
 std::vector<Context::PhysicalDeviceInfo>
 Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
   std::vector<Context::PhysicalDeviceInfo> devices;
@@ -256,7 +309,8 @@ Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
   ss << "Devices visible to Vulkan" << std::endl;
   ss << std::setw(3) << "Id" << std::setw(40) << "name" << std::setw(10)
      << "Present" << std::setw(10) << "Supported" << std::setw(10) << "PciBus"
-     << std::setw(10) << "CudaId" << std::setw(15) << "RayTracing" << std::endl;
+     << std::setw(10) << "CudaId" << std::setw(15) << "RayTracing"
+     << std::setw(10) << "Discrete" << std::endl;
 
   vk::PhysicalDeviceFeatures2 features{};
   vk::PhysicalDeviceDescriptorIndexingFeatures descriptorFeatures{};
@@ -275,6 +329,7 @@ Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
     int queueIdxPresent = -1;
     int queueIdx = -1;
     bool rayTracing = false;
+    bool discrete = false;
 
     // check graphics & compute queues
     std::vector<vk::QueueFamilyProperties> queueFamilyProperties =
@@ -318,7 +373,9 @@ Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
     }
 
     auto properties = device.getProperties();
-    name = std::string(properties.deviceName.begin(), properties.deviceName.end());
+    name =
+        std::string(properties.deviceName.begin(), properties.deviceName.end());
+    discrete = properties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu;
 
     vk::PhysicalDeviceProperties2KHR p2;
     vk::PhysicalDevicePCIBusInfoPropertiesEXT pciInfo;
@@ -350,11 +407,11 @@ Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
     }
     bool supported = required_features && queueIdx != -1;
 
-    ss << std::setw(3) << ord++ << std::setw(40) << name.substr(0, 39)
+    ss << std::setw(3) << ord++ << std::setw(40) << name.substr(0, 39).c_str()
        << std::setw(10) << present << std::setw(10) << supported << std::hex
        << std::setw(10) << busid << std::dec << std::setw(10)
        << (cudaId < 0 ? "No Device" : std::to_string(cudaId)) << std::setw(15)
-       << rayTracing << std::endl;
+       << rayTracing << std::setw(10) << discrete << std::endl;
 
     devices.push_back(
         Context::PhysicalDeviceInfo{.device = device,
@@ -364,7 +421,8 @@ Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
                                     .pciBus = busid,
                                     .queueIndex = queueIdx,
                                     .rayTracing = rayTracing,
-                                    .cudaComputeMode = computeMode});
+                                    .cudaComputeMode = computeMode,
+                                    .discrete = discrete});
   }
   logger::info(ss.str());
 
@@ -409,90 +467,92 @@ Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
   return devices;
 }
 
-int pickCudaDevice(std::vector<Context::PhysicalDeviceInfo> devices, int id) {
-  int idx = 0;
-  for (auto &info : devices) {
-    if (info.cudaId == id && info.supported) {
-      return idx;
-    }
-    idx++;
-  }
-  return -1;
-}
+// int pickCudaDevice(std::vector<Context::PhysicalDeviceInfo> devices, int id)
+// {
+//   int idx = 0;
+//   for (auto &info : devices) {
+//     if (info.cudaId == id && info.supported) {
+//       return idx;
+//     }
+//     idx++;
+//   }
+//   return -1;
+// }
 
-int pickCudaDevice(std::vector<Context::PhysicalDeviceInfo> devices) {
-  int idx = 0;
-  for (auto &info : devices) {
-    if (info.cudaId >= 0 && info.supported) {
-      return idx;
-    }
-    idx++;
-  }
-  return -1;
-}
+// int pickCudaDevice(std::vector<Context::PhysicalDeviceInfo> devices) {
+//   int idx = 0;
+//   for (auto &info : devices) {
+//     if (info.cudaId >= 0 && info.supported) {
+//       return idx;
+//     }
+//     idx++;
+//   }
+//   return -1;
+// }
 
-int pickCudaDeviceWithPresent(
-    std::vector<Context::PhysicalDeviceInfo> devices) {
-  int idx = 0;
-  for (auto &info : devices) {
-    if (info.cudaId >= 0 && info.present && info.supported) {
-      return idx;
-    }
-    idx++;
-  }
-  return -1;
-}
+// int pickCudaDeviceWithPresent(
+//     std::vector<Context::PhysicalDeviceInfo> devices) {
+//   int idx = 0;
+//   for (auto &info : devices) {
+//     if (info.cudaId >= 0 && info.present && info.supported) {
+//       return idx;
+//     }
+//     idx++;
+//   }
+//   return -1;
+// }
 
-int pickPciWithPresent(std::vector<Context::PhysicalDeviceInfo> devices,
-                       int pci) {
-  int idx = 0;
-  for (auto &info : devices) {
-    if (info.pciBus == pci && info.present && info.supported) {
-      return idx;
-    }
-    idx++;
-  }
-  return -1;
-}
+// int pickPciWithPresent(std::vector<Context::PhysicalDeviceInfo> devices,
+//                        int pci) {
+//   int idx = 0;
+//   for (auto &info : devices) {
+//     if (info.pciBus == pci && info.present && info.supported) {
+//       return idx;
+//     }
+//     idx++;
+//   }
+//   return -1;
+// }
 
-int pickPci(std::vector<Context::PhysicalDeviceInfo> devices, int pci) {
-  int idx = 0;
-  for (auto &info : devices) {
-    if (info.pciBus == pci && info.supported) {
-      return idx;
-    }
-    idx++;
-  }
-  return -1;
-}
+// int pickPci(std::vector<Context::PhysicalDeviceInfo> devices, int pci) {
+//   int idx = 0;
+//   for (auto &info : devices) {
+//     if (info.pciBus == pci && info.supported) {
+//       return idx;
+//     }
+//     idx++;
+//   }
+//   return -1;
+// }
 
-int pickPresent(std::vector<Context::PhysicalDeviceInfo> devices) {
-  int idx = 0;
-  for (auto &info : devices) {
-    if (info.present && info.supported) {
-      return idx;
-    }
-    idx++;
-  }
-  return -1;
-}
+// int pickPresent(std::vector<Context::PhysicalDeviceInfo> devices) {
+//   int idx = 0;
+//   for (auto &info : devices) {
+//     if (info.present && info.supported) {
+//       return idx;
+//     }
+//     idx++;
+//   }
+//   return -1;
+// }
 
-int pickAny(std::vector<Context::PhysicalDeviceInfo> devices) {
-  int idx = 0;
-  for (auto &info : devices) {
-    if (info.supported) {
-      return idx;
-    }
-    idx++;
-  }
-  return -1;
-}
+// int pickAny(std::vector<Context::PhysicalDeviceInfo> devices) {
+//   int idx = 0;
+//   for (auto &info : devices) {
+//     if (info.supported) {
+//       return idx;
+//     }
+//     idx++;
+//   }
+//   return -1;
+// }
 
 void Context::pickSuitableGpuAndQueueFamilyIndex() {
   if (!mVulkanAvailable) {
     return;
   }
 
+  // make a temporary GLFW window to test present
   GLFWwindow *window{};
   VkSurfaceKHR tmpSurface = nullptr;
   if (mPresent) {
@@ -508,6 +568,7 @@ void Context::pickSuitableGpuAndQueueFamilyIndex() {
     glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
   }
 
+  // summarize capabilities of all detected devices
   auto devices = summarizeDeviceInfo(tmpSurface);
 
   if (mPresent) {
@@ -516,58 +577,18 @@ void Context::pickSuitableGpuAndQueueFamilyIndex() {
     glfwDestroyWindow(window);
   }
 
+  // pick device with highest priority
   int pickedDeviceIdx = -1;
-  if (mDeviceHint.starts_with("cuda:")) {
-    try {
-      int cudaId = std::stoi(mDeviceHint.substr(5));
-      pickedDeviceIdx = pickCudaDevice(devices, cudaId);
-      if (pickedDeviceIdx == -1) {
-        throw std::runtime_error(
-            "Cannot find cuda device suitable for rendering " + mDeviceHint);
+  {
+    uint32_t maxPriority = 0;
+    uint32_t idx = 0;
+    for (auto &device : devices) {
+      uint32_t priority = computeDevicePriority(device, mDeviceHint, mPresent);
+      if (priority > maxPriority) {
+        maxPriority = priority;
+        pickedDeviceIdx = idx;
       }
-    } catch (std::invalid_argument const &e) {
-      throw std::runtime_error("Invalid device " + mDeviceHint);
-    }
-  } else if (mDeviceHint.starts_with("cuda")) {
-    if (mPresent) {
-      pickedDeviceIdx = pickCudaDeviceWithPresent(devices);
-    }
-    if (pickedDeviceIdx == -1) {
-      pickedDeviceIdx = pickCudaDevice(devices);
-    }
-    if (pickedDeviceIdx == -1) {
-      throw std::runtime_error(
-          "Cannot find any cuda device suitable for rendering.");
-    }
-  } else if (mDeviceHint.starts_with("pci:")) {
-    int pci = -1;
-    try {
-      pci = std::stoi(mDeviceHint.substr(4), 0, 16);
-    } catch (std::invalid_argument const &e) {
-      throw std::runtime_error("Invalid device " + mDeviceHint);
-    }
-    if (mPresent) {
-      pickedDeviceIdx = pickPciWithPresent(devices, pci);
-    }
-    if (pickedDeviceIdx == -1) {
-      pickedDeviceIdx = pickPci(devices, pci);
-    }
-    if (pickedDeviceIdx == -1) {
-      throw std::runtime_error("Cannot find " + mDeviceHint +
-                               " for rendering.");
-    }
-  } else if (mDeviceHint == "") {
-    if (mPresent) {
-      pickedDeviceIdx = pickCudaDeviceWithPresent(devices);
-      if (pickedDeviceIdx == -1) {
-        pickedDeviceIdx = pickPresent(devices);
-      }
-    }
-    if (pickedDeviceIdx == -1) {
-      pickedDeviceIdx = pickCudaDevice(devices);
-    }
-    if (pickedDeviceIdx == -1) {
-      pickedDeviceIdx = pickAny(devices);
+      idx++;
     }
   }
 
@@ -576,8 +597,8 @@ void Context::pickSuitableGpuAndQueueFamilyIndex() {
   }
 
   if (mPresent && !devices[pickedDeviceIdx].present) {
-    logger::error("Present requested but the selected device does not support "
-               "present. Continue without present.");
+    logger::warn("Present requested but the selected device does not support "
+                 "present. Continue without present.");
     mPresent = false;
   }
 

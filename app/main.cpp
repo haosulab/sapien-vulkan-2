@@ -119,7 +119,7 @@ static void setupScene(svulkan2::scene::Scene &scene) {
 }
 
 int main() {
-  // svulkan2::logger::getLogger()->set_level(spdlog::level::info);
+  svulkan2::logger::setLogLevel("info");
 
   auto context = svulkan2::core::Context::Create(true, 5000, 5000, 4);
   auto manager = context->createResourceManager();

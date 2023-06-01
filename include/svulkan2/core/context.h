@@ -80,6 +80,7 @@ public:
     int queueIndex{-1};
     bool rayTracing{};
     int cudaComputeMode{-1};
+    bool discrete{};
   };
 
   inline bool shouldNotLoadTexture() const { return mDoNotLoadTexture; }
