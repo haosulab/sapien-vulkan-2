@@ -12,6 +12,10 @@ public:
   inline int next() { return id++; }
   inline IdGenerator() : id(0) {}
 
+  // Serialization
+  inline int getState() const { return id; }
+  inline void setState(const int &state) { id = state; }
+
 private:
   int id;
 };
@@ -22,7 +26,6 @@ private:
 
 public:
   int frame;
-  std::vector<int> rewardIds; // Rewards depending on this key frame
 
   KeyFrame(int id, int frame) : id(id), frame(frame) {}
   int getId() const { return id; };
@@ -57,13 +60,32 @@ UI_CLASS(KeyFrameEditor) {
   UI_ATTRIBUTE(KeyFrameEditor,
                std::function<void(std::shared_ptr<KeyFrameEditor>)>,
                DeleteKeyFrameCallback);
+  UI_ATTRIBUTE(KeyFrameEditor,
+               std::function<void(std::shared_ptr<KeyFrameEditor>)>,
+               ExportCallback);
+  UI_ATTRIBUTE(KeyFrameEditor,
+               std::function<void(std::shared_ptr<KeyFrameEditor>)>,
+               ImportCallback);
 
 public:
   KeyFrameEditor(float contentScale_);
   void build() override;
   int getCurrentFrame() const { return currentFrame; };
-  std::vector<KeyFrame *> getKeyFramesInUsed() const;
   int getKeyFrameToModify() const { return keyFrameToModify; };
+  IdGenerator *getKeyFrameIdGenerator() { return &keyFrameIdGenerator; };
+  IdGenerator *getRewardIdGenerator() { return &rewardIdGenerator; };
+  std::vector<KeyFrame *> getKeyFramesInUsed() const;
+  std::vector<Reward *> getRewardsInUsed() const;
+
+  // Import helper
+  void setKeyFrameIdGeneratorState(int id) {
+    keyFrameIdGenerator.setState(id);
+  };
+  void setRewardIdGeneratorState(int id) { rewardIdGenerator.setState(id); };
+  void clear(); // Clear key frames and rewards
+  void addKeyFrame(int id, int frame);
+  void addReward(int id, int kf1Id, int kf2Id, std::string name,
+                 std::string definition);
 
 private:
   // Control panel
@@ -92,6 +114,7 @@ private:
   bool initRewardDetails;
   char nameBuffer[256];
   char definitionBuffer[65536];
+  std::string defaultRewardDefinition;
 
   // Visual
   float contentScale;

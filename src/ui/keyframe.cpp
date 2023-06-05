@@ -81,6 +81,7 @@ KeyFrameEditor::KeyFrameEditor(float contentScale_) {
   // Reward
   rewardIdGenerator = IdGenerator();
   selectedReward = -1;
+  defaultRewardDefinition = "reward = 0";
 
   // Visual
   if (contentScale_ < 0.1f) {
@@ -200,6 +201,19 @@ void KeyFrameEditor::build() {
         if (ImGui::Button("Add Reward")) {
           addingReward = true;
         }
+      }
+
+      // Export & import current work
+      ImGui::SameLine();
+      if (ImGui::Button("Export") && mExportCallback) {
+        mExportCallback(
+            std::static_pointer_cast<KeyFrameEditor>(shared_from_this()));
+      }
+
+      ImGui::SameLine();
+      if (ImGui::Button("Import") && mImportCallback) {
+        mImportCallback(
+            std::static_pointer_cast<KeyFrameEditor>(shared_from_this()));
       }
     }
   };
@@ -687,7 +701,7 @@ void KeyFrameEditor::build() {
             int kf1Id = (keyFramesForNewReward[0])->getId();
             int kf2Id = kf->getId();
             auto reward = std::make_shared<Reward>(rewardId, kf1Id, kf2Id, name,
-                                                   "reward = 0");
+                                                   defaultRewardDefinition);
             rewards.push_back(reward);
             rewardsInUsed.push_back(reward);
 
@@ -1022,6 +1036,42 @@ std::vector<KeyFrame *> KeyFrameEditor::getKeyFramesInUsed() const {
     output.push_back(kf.get());
   }
   return output;
+}
+
+std::vector<Reward *> KeyFrameEditor::getRewardsInUsed() const {
+  std::vector<Reward *> output;
+  for (auto &reward : rewardsInUsed) {
+    output.push_back(reward.get());
+  }
+  return output;
+}
+
+void KeyFrameEditor::clear() {
+  keyFrames.clear();
+  keyFramesInUsed.clear();
+  rewards.clear();
+  rewardsInUsed.clear();
+}
+
+void KeyFrameEditor::addKeyFrame(int id, int frame) {
+  auto kf = std::make_shared<KeyFrame>(id, frame);
+  if (id >= static_cast<int>(keyFrames.size())) {
+    keyFrames.resize(id + 1, nullptr);
+  }
+  keyFrames[id] = kf;
+  keyFramesInUsed.push_back(kf);
+  std::sort(keyFramesInUsed.begin(), keyFramesInUsed.end(),
+            [](auto &a, auto &b) { return a->frame < b->frame; });
+}
+
+void KeyFrameEditor::addReward(int id, int kf1Id, int kf2Id, std::string name,
+                               std::string definition) {
+  auto reward = std::make_shared<Reward>(id, kf1Id, kf2Id, name, definition);
+  if (id >= static_cast<int>(rewards.size())) {
+    rewards.resize(id + 1, nullptr);
+  }
+  rewards[id] = reward;
+  rewardsInUsed.push_back(reward);
 }
 
 } // namespace ui
