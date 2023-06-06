@@ -86,6 +86,8 @@ public:
   void addKeyFrame(int id, int frame);
   void addReward(int id, int kf1Id, int kf2Id, std::string name,
                  std::string definition);
+  int getTotalFrame() { return totalFrame; };
+  void setTotalFrame(int totalFrame_) { totalFrame = totalFrame_; };
 
 private:
   // Control panel

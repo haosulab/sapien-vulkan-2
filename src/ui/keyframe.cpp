@@ -1051,13 +1051,13 @@ void KeyFrameEditor::clear() {
   keyFramesInUsed.clear();
   rewards.clear();
   rewardsInUsed.clear();
+
+  keyFrames.resize(keyFrameIdGenerator.getState(), nullptr);
+  rewards.resize(rewardIdGenerator.getState(), nullptr);
 }
 
 void KeyFrameEditor::addKeyFrame(int id, int frame) {
   auto kf = std::make_shared<KeyFrame>(id, frame);
-  if (id >= static_cast<int>(keyFrames.size())) {
-    keyFrames.resize(id + 1, nullptr);
-  }
   keyFrames[id] = kf;
   keyFramesInUsed.push_back(kf);
   std::sort(keyFramesInUsed.begin(), keyFramesInUsed.end(),
@@ -1067,9 +1067,6 @@ void KeyFrameEditor::addKeyFrame(int id, int frame) {
 void KeyFrameEditor::addReward(int id, int kf1Id, int kf2Id, std::string name,
                                std::string definition) {
   auto reward = std::make_shared<Reward>(id, kf1Id, kf2Id, name, definition);
-  if (id >= static_cast<int>(rewards.size())) {
-    rewards.resize(id + 1, nullptr);
-  }
   rewards[id] = reward;
   rewardsInUsed.push_back(reward);
 }
