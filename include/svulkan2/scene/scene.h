@@ -22,20 +22,17 @@ public:
   Node &addNode(Transform const &transform = {});
   Node &addNode(Node &parent, Transform const &transform = {});
 
-  Object &addObject(std::shared_ptr<resource::SVModel> model,
-                    Transform const &transform = {});
+  Object &addObject(std::shared_ptr<resource::SVModel> model, Transform const &transform = {});
   Object &addObject(Node &parent, std::shared_ptr<resource::SVModel> model,
                     Transform const &transform = {});
 
   LineObject &addLineObject(std::shared_ptr<resource::SVLineSet> lineSet,
                             Transform const &transform = {});
-  LineObject &addLineObject(Node &parent,
-                            std::shared_ptr<resource::SVLineSet> lineSet,
+  LineObject &addLineObject(Node &parent, std::shared_ptr<resource::SVLineSet> lineSet,
                             Transform const &transform = {});
   PointObject &addPointObject(std::shared_ptr<resource::SVPointSet> pointSet,
                               Transform const &transform = {});
-  PointObject &addPointObject(Node &parent,
-                              std::shared_ptr<resource::SVPointSet> pointSet,
+  PointObject &addPointObject(Node &parent, std::shared_ptr<resource::SVPointSet> pointSet,
                               Transform const &transform = {});
   Camera &addCamera(Transform const &transform = {});
   Camera &addCamera(Node &parent, Transform const &transform = {});
@@ -74,13 +71,9 @@ public:
   std::vector<TexturedLight *> getTexturedLights();
   std::vector<ParallelogramLight *> getParallelogramLights();
 
-  void setEnvironmentMap(std::shared_ptr<resource::SVCubemap> map) {
-    mEnvironmentMap = map;
-  }
+  void setEnvironmentMap(std::shared_ptr<resource::SVCubemap> map) { mEnvironmentMap = map; }
 
-  std::shared_ptr<resource::SVCubemap> getEnvironmentMap() const {
-    return mEnvironmentMap;
-  }
+  std::shared_ptr<resource::SVCubemap> getEnvironmentMap() const { return mEnvironmentMap; }
 
   Scene();
   Scene(Scene const &other) = delete;
@@ -88,12 +81,10 @@ public:
   Scene(Scene &&other) = default;
   Scene &operator=(Scene &&other) = default;
 
-  void uploadToDevice(core::Buffer &sceneBuffer,
-                      StructDataLayout const &sceneLayout);
-  void
-  uploadShadowToDevice(core::Buffer &shadowBuffer,
-                       std::vector<std::unique_ptr<core::Buffer>> &lightBuffers,
-                       StructDataLayout const &shadowLayout);
+  void uploadToDevice(core::Buffer &sceneBuffer, StructDataLayout const &sceneLayout);
+  void uploadShadowToDevice(core::Buffer &shadowBuffer,
+                            std::vector<std::unique_ptr<core::Buffer>> &lightBuffers,
+                            StructDataLayout const &shadowLayout);
 
   /** call exactly once per time frame to update the object matrices
    *  this function also copies current matrices into the previous matrices
@@ -116,17 +107,10 @@ public:
   void updateRTResources();
   inline core::TLAS *getTLAS() const { return mTLAS.get(); }
 
-  inline std::vector<vk::Buffer> const &getRTVertexBuffers() {
-    return mVertexBuffers;
-  }
-  inline std::vector<vk::Buffer> const &getRTIndexBuffers() const {
-    return mIndexBuffers;
-  }
-  inline std::vector<vk::Buffer> const &getRTMaterialBuffers() const {
-    return mMaterialBuffers;
-  }
-  inline std::vector<std::tuple<vk::ImageView, vk::Sampler>> const &
-  getRTTextures() const {
+  inline std::vector<vk::Buffer> const &getRTVertexBuffers() { return mVertexBuffers; }
+  inline std::vector<vk::Buffer> const &getRTIndexBuffers() const { return mIndexBuffers; }
+  inline std::vector<vk::Buffer> const &getRTMaterialBuffers() const { return mMaterialBuffers; }
+  inline std::vector<std::tuple<vk::ImageView, vk::Sampler>> const &getRTTextures() const {
     return mTextures;
   }
   inline vk::Buffer getRTGeometryInstanceBuffer() const {
@@ -141,9 +125,7 @@ public:
   inline vk::Buffer getRTDirectionalLightBuffer() const {
     return mRTDirectionalLightBuffer->getVulkanBuffer();
   }
-  inline vk::Buffer getRTSpotLightBuffer() const {
-    return mRTSpotLightBuffer->getVulkanBuffer();
-  }
+  inline vk::Buffer getRTSpotLightBuffer() const { return mRTSpotLightBuffer->getVulkanBuffer(); }
   inline vk::Buffer getRTParallelogramLightBuffer() const {
     return mRTParallelogramLightBuffer->getVulkanBuffer();
   }
@@ -163,7 +145,6 @@ private:
   std::vector<std::unique_ptr<TexturedLight>> mTexturedLights{};
   std::vector<std::unique_ptr<ParallelogramLight>> mParallelogramLights{};
 
-
   Node *mRootNode{nullptr};
 
   bool mRequireForceRemove{};
@@ -181,10 +162,9 @@ private:
   // ray tracing helpers
   void buildTLAS();
   void updateTLAS();
-  void
-  createRTStorageBuffers(StructDataLayout const &materialBufferLayout,
-                         StructDataLayout const &textureIndexBufferLayout,
-                         StructDataLayout const &geometryInstanceBufferLayout);
+  void createRTStorageBuffers(StructDataLayout const &materialBufferLayout,
+                              StructDataLayout const &textureIndexBufferLayout,
+                              StructDataLayout const &geometryInstanceBufferLayout);
   void updateRTStorageBuffers();
 
   // ray tracing resources

@@ -23,16 +23,16 @@ layout(set = 2, binding = 4) uniform sampler2D metallicTexture;
 layout(location = 0) in vec4 inPosition;
 layout(location = 1) in vec2 inUV;
 
-layout(location = 0) out vec4 outAlbedo2;
+layout(location = 0) out vec4 outLighting;
 
 void main() {
   if ((materialBuffer.textureMask & 1) != 0) {
-    outAlbedo2 = texture(colorTexture, inUV);
-    outAlbedo2.rgb = outAlbedo2.rgb;  // sRGB to linear
+    outLighting = texture(colorTexture, inUV);
+    outLighting.rgb = outLighting.rgb;  // sRGB to linear
   } else {
-    outAlbedo2 = materialBuffer.baseColor;
+    outLighting = materialBuffer.baseColor;
   }
-  if (outAlbedo2.a == 0) {
+  if (outLighting.a == 0) {
     discard;
   }
 }

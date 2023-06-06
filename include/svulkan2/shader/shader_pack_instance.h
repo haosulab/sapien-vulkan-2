@@ -6,6 +6,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <optional>
 
 namespace svulkan2 {
 namespace core {
@@ -18,10 +19,12 @@ struct ShaderPackInstanceDesc {
   std::map<std::string, SpecializationConstantValue> specializationConstants;
 
   bool operator==(ShaderPackInstanceDesc const &other) const {
-    return *config == *other.config &&
-           specializationConstants == other.specializationConstants;
+    return *config == *other.config && specializationConstants == other.specializationConstants;
   }
 };
+
+enum class RenderTargetOperation { eNoOp, eRead, eColorWrite, eDepthWrite };
+using optable_t = std::unordered_map<std::string, std::vector<RenderTargetOperation>>;
 
 class ShaderPackInstance {
 public:
@@ -37,30 +40,23 @@ public:
     vk::UniquePipeline pipeline{};
   };
 
-  inline std::shared_ptr<ShaderPack> getShaderPack() const {
-    return mShaderPack;
-  }
+  inline std::shared_ptr<ShaderPack> getShaderPack() const { return mShaderPack; }
 
-  inline std::vector<PipelineResources> const &
-  getNonShadowPassResources() const {
+  inline std::vector<PipelineResources> const &getNonShadowPassResources() const {
     return mNonShadowPassResources;
   }
 
-  inline PipelineResources const &getShadowPassResources() const {
-    return mShadowPassResources;
-  }
+  inline PipelineResources const &getShadowPassResources() const { return mShadowPassResources; }
 
   inline PipelineResources const &getPointShadowPassResources() const {
     return mPointShadowPassResources;
   }
 
-  inline std::unordered_map<std::string, vk::Format>
-  getRenderTargetFormats() const {
+  inline std::unordered_map<std::string, vk::Format> getRenderTargetFormats() const {
     return mRenderTargetFormats;
   }
 
-  inline std::unordered_map<std::string, vk::ImageLayout>
-  getRenderTargetFinalLayouts() const {
+  inline std::unordered_map<std::string, vk::ImageLayout> getRenderTargetFinalLayouts() const {
     return mRenderTargetFinalLayouts;
   }
 
@@ -85,6 +81,8 @@ public:
     return result;
   }
 
+  std::optional<std::string> getDepthRenderTargetName(BaseParser const &pass) const;
+
 private:
   ShaderPackInstanceDesc mDesc;
   std::shared_ptr<ShaderPack> mShaderPack;
@@ -95,6 +93,9 @@ private:
   vk::UniqueDescriptorSetLayout mCameraSetLayout;
   vk::UniqueDescriptorSetLayout mLightSetLayout;
   std::vector<vk::UniqueDescriptorSetLayout> mTextureSetLayouts;
+
+  optable_t mTextureOperationTable;
+  optable_t generateTextureOperationTable() const;
 
   std::vector<PipelineResources> mNonShadowPassResources;
   PipelineResources mShadowPassResources;

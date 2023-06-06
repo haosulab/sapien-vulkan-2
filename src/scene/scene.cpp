@@ -656,7 +656,6 @@ void Scene::reorderLights() {
 void Scene::updateVersion() {
   mVersion++;
   mRenderVersion++;
-  logger::info("Scene updated");
 }
 
 void Scene::updateRenderVersion() { mRenderVersion++; }
