@@ -229,8 +229,7 @@ void RTRenderer::updatePushConstant() {
     if (elem.dtype != DataType::eINT) {
       throw std::runtime_error("parallelogramLightCount must be type int");
     }
-    uint32_t v = mScene->getParallelogramLights().size() +
-                 mScene->getTexturedLights().size();
+    uint32_t v = mScene->getParallelogramLights().size();
     std::memcpy(mPushConstantBuffer.data() + elem.offset, &v, elem.size);
   }
 

@@ -1,7 +1,7 @@
 #include "svulkan2/resource/image.h"
+#include "../common/logger.h"
 #include "svulkan2/common/image.h"
 #include "svulkan2/common/launch_policy.h"
-#include "../common/logger.h"
 #include "svulkan2/core/context.h"
 #include <filesystem>
 
@@ -9,13 +9,11 @@ namespace fs = std::filesystem;
 namespace svulkan2 {
 namespace resource {
 
-std::shared_ptr<SVImage>
-SVImage::FromData(uint32_t width, uint32_t height, uint32_t channels,
-                  std::vector<std::vector<uint8_t>> const &data,
-                  uint32_t mipLevels) {
+std::shared_ptr<SVImage> SVImage::FromData(uint32_t width, uint32_t height, uint32_t channels,
+                                           std::vector<std::vector<uint8_t>> const &data,
+                                           uint32_t mipLevels) {
   if (channels != 1 && channels != 4) {
-    throw std::runtime_error(
-        "failed to create image: image must have 1 or 4 channels");
+    throw std::runtime_error("failed to create image: image must have 1 or 4 channels");
   }
   for (auto &d : data) {
     if (width * height * channels != d.size()) {
@@ -36,12 +34,12 @@ SVImage::FromData(uint32_t width, uint32_t height, uint32_t channels,
   return image;
 }
 
-std::shared_ptr<SVImage> SVImage::FromData(
-    uint32_t width, uint32_t height, uint32_t depth, uint32_t channels,
-    std::vector<std::vector<float>> const &data, uint32_t mipLevels) {
+std::shared_ptr<SVImage> SVImage::FromData(uint32_t width, uint32_t height, uint32_t depth,
+                                           uint32_t channels,
+                                           std::vector<std::vector<float>> const &data,
+                                           uint32_t mipLevels) {
   if (channels != 1 && channels != 4) {
-    throw std::runtime_error(
-        "failed to create image: image must have 1 or 4 channels");
+    throw std::runtime_error("failed to create image: image must have 1 or 4 channels");
   }
   for (auto &d : data) {
     if (width * height * depth * channels != d.size()) {
@@ -63,63 +61,51 @@ std::shared_ptr<SVImage> SVImage::FromData(
   return image;
 }
 
-std::shared_ptr<SVImage>
-SVImage::FromData(uint32_t width, uint32_t height, uint32_t channels,
-                  std::vector<std::vector<float>> const &data,
-                  uint32_t mipLevels) {
+std::shared_ptr<SVImage> SVImage::FromData(uint32_t width, uint32_t height, uint32_t channels,
+                                           std::vector<std::vector<float>> const &data,
+                                           uint32_t mipLevels) {
   return FromData(width, height, 1, channels, data, mipLevels);
 }
 
-std::shared_ptr<SVImage> SVImage::FromData(uint32_t width, uint32_t height,
-                                           uint32_t channels,
-                                           std::vector<uint8_t> const &data,
-                                           uint32_t mipLevels) {
-  return SVImage::FromData(width, height, channels,
-                           std::vector<std::vector<uint8_t>>{data}, mipLevels);
+std::shared_ptr<SVImage> SVImage::FromData(uint32_t width, uint32_t height, uint32_t channels,
+                                           std::vector<uint8_t> const &data, uint32_t mipLevels) {
+  return SVImage::FromData(width, height, channels, std::vector<std::vector<uint8_t>>{data},
+                           mipLevels);
 }
 
-std::shared_ptr<SVImage> SVImage::FromData(uint32_t width, uint32_t height,
-                                           uint32_t channels,
-                                           std::vector<float> const &data,
-                                           uint32_t mipLevels) {
-  return SVImage::FromData(width, height, channels,
-                           std::vector<std::vector<float>>{data}, mipLevels);
+std::shared_ptr<SVImage> SVImage::FromData(uint32_t width, uint32_t height, uint32_t channels,
+                                           std::vector<float> const &data, uint32_t mipLevels) {
+  return SVImage::FromData(width, height, channels, std::vector<std::vector<float>>{data},
+                           mipLevels);
 }
 
-std::shared_ptr<SVImage> SVImage::FromData(uint32_t width, uint32_t height,
-                                           uint32_t depth, uint32_t channels,
-                                           std::vector<float> const &data,
+std::shared_ptr<SVImage> SVImage::FromData(uint32_t width, uint32_t height, uint32_t depth,
+                                           uint32_t channels, std::vector<float> const &data,
                                            uint32_t mipLevels) {
-  return SVImage::FromData(width, height, depth, channels,
-                           std::vector<std::vector<float>>{data}, mipLevels);
+  return SVImage::FromData(width, height, depth, channels, std::vector<std::vector<float>>{data},
+                           mipLevels);
 }
 
-std::shared_ptr<SVImage> SVImage::FromFile(std::string const &filename,
-                                           uint32_t mipLevels) {
+std::shared_ptr<SVImage> SVImage::FromFile(std::string const &filename, uint32_t mipLevels) {
   auto image = std::shared_ptr<SVImage>(new SVImage);
-  image->mDescription =
-      SVImageDescription{.source = SVImageDescription::SourceType::eFILE,
-                         .filenames = {filename},
-                         .mipLevels = mipLevels};
+  image->mDescription = SVImageDescription{.source = SVImageDescription::SourceType::eFILE,
+                                           .filenames = {filename},
+                                           .mipLevels = mipLevels};
   return image;
 }
 
-std::shared_ptr<SVImage>
-SVImage::FromFile(std::vector<std::string> const &filenames,
-                  uint32_t mipLevels) {
+std::shared_ptr<SVImage> SVImage::FromFile(std::vector<std::string> const &filenames,
+                                           uint32_t mipLevels) {
   auto image = std::shared_ptr<SVImage>(new SVImage);
-  image->mDescription =
-      SVImageDescription{.source = SVImageDescription::SourceType::eFILE,
-                         .filenames = filenames,
-                         .mipLevels = mipLevels};
+  image->mDescription = SVImageDescription{.source = SVImageDescription::SourceType::eFILE,
+                                           .filenames = filenames,
+                                           .mipLevels = mipLevels};
   return image;
 }
 
-std::shared_ptr<SVImage>
-SVImage::FromDeviceImage(std::unique_ptr<core::Image> image) {
+std::shared_ptr<SVImage> SVImage::FromDeviceImage(std::unique_ptr<core::Image> image) {
   auto result = std::shared_ptr<SVImage>(new SVImage);
-  result->mDescription =
-      SVImageDescription{.source = SVImageDescription::SourceType::eDEVICE};
+  result->mDescription = SVImageDescription{.source = SVImageDescription::SourceType::eDEVICE};
   result->mWidth = image->getExtent().width;
   result->mHeight = image->getExtent().height;
   result->mImage = std::move(image);
@@ -130,16 +116,14 @@ SVImage::FromDeviceImage(std::unique_ptr<core::Image> image) {
 
 void SVImage::setUsage(vk::ImageUsageFlags usage) {
   if (mOnDevice) {
-    throw std::runtime_error(
-        "failed to set usage: device image already created");
+    throw std::runtime_error("failed to set usage: device image already created");
   }
   mUsage = usage;
 }
 
 void SVImage::setCreateFlags(vk::ImageCreateFlags flags) {
   if (mOnDevice) {
-    throw std::runtime_error(
-        "failed to set create flags: device image already created");
+    throw std::runtime_error("failed to set create flags: device image already created");
   }
   mCreateFlags = flags;
 }
@@ -151,37 +135,32 @@ void SVImage::uploadToDevice(bool generateMipmaps) {
   }
   auto context = core::Context::Get();
   if (!mLoaded) {
-    throw std::runtime_error(
-        "failed to upload to device: image does not exist in memory");
+    throw std::runtime_error("failed to upload to device: image does not exist in memory");
   }
   if (mDescription.format == SVImageDescription::Format::eUINT8) {
     mImage = std::make_unique<core::Image>(
         vk::Extent3D{mWidth, mHeight, mDepth},
-        mChannels == 4 ? vk::Format::eR8G8B8A8Unorm : vk::Format::eR8Unorm,
-        mUsage, VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY,
-        vk::SampleCountFlagBits::e1, mDescription.mipLevels, mData.size(),
-        vk::ImageTiling::eOptimal,
+        mChannels == 4 ? vk::Format::eR8G8B8A8Unorm : vk::Format::eR8Unorm, mUsage,
+        VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, vk::SampleCountFlagBits::e1,
+        mDescription.mipLevels, mData.size(), vk::ImageTiling::eOptimal,
         mCreateFlags | vk::ImageCreateFlagBits::eMutableFormat);
 
     if (mMipLoaded) {
       auto pool = context->createCommandPool();
       auto cb = pool->allocateCommandBuffer();
       cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
-      mImage->transitionLayout(cb.get(), vk::ImageLayout::eUndefined,
-                               vk::ImageLayout::eTransferDstOptimal, {},
-                               vk::AccessFlagBits::eTransferWrite,
-                               vk::PipelineStageFlagBits::eTopOfPipe,
-                               vk::PipelineStageFlagBits::eTransfer);
+      mImage->transitionLayout(
+          cb.get(), vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, {},
+          vk::AccessFlagBits::eTransferWrite, vk::PipelineStageFlagBits::eTopOfPipe,
+          vk::PipelineStageFlagBits::eTransfer);
       cb->end();
       context->getQueue().submitAndWait(cb.get());
 
       for (uint32_t layer = 0; layer < mData.size(); ++layer) {
         uint32_t idx = 0;
         for (uint32_t l = 0; l < mDescription.mipLevels; ++l) {
-          auto size =
-              computeMipLevelSize({mWidth, mHeight, mDepth}, l) * mChannels;
-          mImage->uploadLevel(mData[layer].data() + idx, size * sizeof(uint8_t),
-                              layer, l);
+          auto size = computeMipLevelSize({mWidth, mHeight, mDepth}, l) * mChannels;
+          mImage->uploadLevel(mData[layer].data() + idx, size * sizeof(uint8_t), layer, l);
           idx += size;
         }
       }
@@ -190,35 +169,30 @@ void SVImage::uploadToDevice(bool generateMipmaps) {
       cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
       mImage->transitionLayout(cb.get(), vk::ImageLayout::eTransferDstOptimal,
                                vk::ImageLayout::eShaderReadOnlyOptimal,
-                               vk::AccessFlagBits::eTransferWrite,
-                               vk::AccessFlagBits::eShaderRead,
+                               vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eShaderRead,
                                vk::PipelineStageFlagBits::eTransfer,
-                               vk::PipelineStageFlagBits::eFragmentShader);
+                               vk::PipelineStageFlagBits::eFragmentShader |
+                                   vk::PipelineStageFlagBits::eRayTracingShaderKHR);
       cb->end();
       context->getQueue().submitAndWait(cb.get());
 
     } else {
       for (uint32_t layer = 0; layer < mData.size(); ++layer) {
-        mImage->upload(mData[layer].data(),
-                       mData[layer].size() * sizeof(uint8_t), layer,
+        mImage->upload(mData[layer].data(), mData[layer].size() * sizeof(uint8_t), layer,
                        generateMipmaps);
       }
     }
   } else {
     mImage = std::make_unique<core::Image>(
         vk::Extent3D{mWidth, mHeight, mDepth},
-        mChannels == 4 ? vk::Format::eR32G32B32A32Sfloat
-                       : vk::Format::eR32Sfloat,
-        mUsage, VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY,
-        vk::SampleCountFlagBits::e1, mDescription.mipLevels, mFloatData.size(),
-        vk::ImageTiling::eOptimal, mCreateFlags);
+        mChannels == 4 ? vk::Format::eR32G32B32A32Sfloat : vk::Format::eR32Sfloat, mUsage,
+        VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, vk::SampleCountFlagBits::e1,
+        mDescription.mipLevels, mFloatData.size(), vk::ImageTiling::eOptimal, mCreateFlags);
     if (mMipLoaded) {
-      throw std::runtime_error(
-          "precomputed mipmaps are not supported for float textures");
+      throw std::runtime_error("precomputed mipmaps are not supported for float textures");
     }
     for (uint32_t layer = 0; layer < mFloatData.size(); ++layer) {
-      mImage->upload(mFloatData[layer].data(),
-                     mFloatData[layer].size() * sizeof(float), layer,
+      mImage->upload(mFloatData[layer].data(), mFloatData[layer].size() * sizeof(float), layer,
                      generateMipmaps);
     }
   }
@@ -240,8 +214,7 @@ std::future<void> SVImage::loadAsync() {
       return;
     }
     if (mDescription.source != SVImageDescription::SourceType::eFILE) {
-      throw std::runtime_error(
-          "failed to load image: the image is not specified with a file");
+      throw std::runtime_error("failed to load image: the image is not specified with a file");
     }
 
     mWidth = 0;
@@ -249,19 +222,17 @@ std::future<void> SVImage::loadAsync() {
     mChannels = 4;
 
     // load ktx file
-    if (mDescription.filenames.size() &&
-        mDescription.filenames[0].ends_with(".ktx")) {
+    if (mDescription.filenames.size() && mDescription.filenames[0].ends_with(".ktx")) {
       if (mDescription.format != SVImageDescription::Format::eUINT8) {
         throw std::runtime_error("Only unity is supported for ktx texture");
       }
 
       int width, height, levels, faces, layers;
       vk::Format format;
-      auto data = loadKTXImage(mDescription.filenames[0], width, height, levels,
-                               faces, layers, format);
+      auto data =
+          loadKTXImage(mDescription.filenames[0], width, height, levels, faces, layers, format);
       if (format != vk::Format::eR8G8B8A8Unorm) {
-        throw std::runtime_error(
-            "Only uint8 RGBA texture is currently supported for ktx");
+        throw std::runtime_error("Only uint8 RGBA texture is currently supported for ktx");
       }
 
       mWidth = width;
@@ -284,17 +255,16 @@ std::future<void> SVImage::loadAsync() {
       if (mDescription.mipLevels != static_cast<uint32_t>(levels)) {
         // levels do not match, only take base level
         logger::warn("ktx texture has {} levels but {} levels requested", levels,
-                  mDescription.mipLevels);
+                     mDescription.mipLevels);
         for (uint32_t i = 0; i < static_cast<uint32_t>(faces * layers); ++i) {
           mData.push_back(std::vector<uint8_t>(
               data.begin() + i * stride,
-              data.begin() +
-                  (i * stride + width * height * getFormatSize(format))));
+              data.begin() + (i * stride + width * height * getFormatSize(format))));
         }
       } else {
         for (uint32_t i = 0; i < static_cast<uint32_t>(faces * layers); ++i) {
-          mData.push_back(std::vector<uint8_t>(
-              data.begin() + i * stride, data.begin() + ((i + 1) * stride)));
+          mData.push_back(
+              std::vector<uint8_t>(data.begin() + i * stride, data.begin() + ((i + 1) * stride)));
         }
         mMipLoaded = true;
       }
@@ -306,8 +276,7 @@ std::future<void> SVImage::loadAsync() {
 
         if ((mWidth != 0 && mWidth != static_cast<uint32_t>(width)) ||
             (mHeight != 0 && mHeight != static_cast<uint32_t>(height))) {
-          throw std::runtime_error(
-              "image load failed: provided files have different sizes");
+          throw std::runtime_error("image load failed: provided files have different sizes");
         }
         mWidth = width;
         mHeight = height;
