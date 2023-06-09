@@ -46,6 +46,7 @@ public:
 };
 
 UI_CLASS(KeyFrameEditor) {
+  UI_DECLARE_APPEND(KeyFrameEditor);
   UI_ATTRIBUTE(KeyFrameEditor, std::function<void(std::shared_ptr<KeyFrameEditor>)>,
                InsertKeyFrameCallback);
   UI_ATTRIBUTE(KeyFrameEditor, std::function<void(std::shared_ptr<KeyFrameEditor>)>,
@@ -54,10 +55,6 @@ UI_CLASS(KeyFrameEditor) {
                UpdateKeyFrameCallback);
   UI_ATTRIBUTE(KeyFrameEditor, std::function<void(std::shared_ptr<KeyFrameEditor>)>,
                DeleteKeyFrameCallback);
-  UI_ATTRIBUTE(KeyFrameEditor, std::function<void(std::shared_ptr<KeyFrameEditor>)>,
-               ExportCallback);
-  UI_ATTRIBUTE(KeyFrameEditor, std::function<void(std::shared_ptr<KeyFrameEditor>)>,
-               ImportCallback);
 
 public:
   KeyFrameEditor(float contentScale_);
@@ -70,6 +67,8 @@ public:
   std::vector<Duration *> getDurationsInUsed() const;
 
   // Import helper
+  auto getKeyFrameIdGeneratorState() const { return keyFrameIdGenerator.getState(); };
+  auto getDurationIdGeneratorState() const { return durationIdGenerator.getState(); };
   void setKeyFrameIdGeneratorState(int id) { keyFrameIdGenerator.setState(id); };
   void setDurationIdGeneratorState(int id) { durationIdGenerator.setState(id); };
   void clear(); // Clear key frames and durations
@@ -80,7 +79,7 @@ public:
 
 private:
   // Control panel
-  bool addingDuration;
+  bool addingDuration{};
   std::vector<std::shared_ptr<KeyFrame>> keyFramesForNewDuration;
 
   // Timeline
@@ -108,7 +107,7 @@ private:
   std::string defaultDurationDefinition;
 
   // Visual
-  float contentScale;
+  float contentScale{1.f};
 
   float pan[2]; // Deviation of {timeline, lister} in pixels
   float initialPan[2];
@@ -116,7 +115,7 @@ private:
   float zoom[2]; // Distance between each {frame, duration} in pixels
   float horizZoomRange[2];
 
-  float listerInitialWidth;
+  float listerInitialWidth{};
 };
 
 } // namespace ui

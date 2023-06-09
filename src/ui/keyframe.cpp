@@ -240,15 +240,9 @@ void KeyFrameEditor::build() {
         }
       }
 
-      // Export & import current work
-      ImGui::SameLine();
-      if (ImGui::Button("Export") && mExportCallback) {
-        mExportCallback(std::static_pointer_cast<KeyFrameEditor>(shared_from_this()));
-      }
-
-      ImGui::SameLine();
-      if (ImGui::Button("Import") && mImportCallback) {
-        mImportCallback(std::static_pointer_cast<KeyFrameEditor>(shared_from_this()));
+      for (uint32_t i = 0; i < mChildren.size(); ++i) {
+        ImGui::SameLine();
+        mChildren[i]->build();
       }
     }
   };
