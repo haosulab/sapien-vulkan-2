@@ -19,12 +19,10 @@ public:
   /** create a model based on a prototype model. Their meshes and textures will
    * be shared but materials will be copied to allow modifications. It also
    * keeps a shared_ptr to the prototype model. */
-  static std::shared_ptr<SVModel>
-  FromPrototype(std::shared_ptr<SVModel> prototype);
+  static std::shared_ptr<SVModel> FromPrototype(std::shared_ptr<SVModel> prototype);
 
   static std::shared_ptr<SVModel> FromFile(std::string const &filename);
-  static std::shared_ptr<SVModel>
-  FromData(std::vector<std::shared_ptr<SVShape>> shapes);
+  static std::shared_ptr<SVModel> FromData(std::vector<std::shared_ptr<SVShape>> shapes);
 
   /** get shapes. model will load if it is not loaded. */
   std::vector<std::shared_ptr<SVShape>> const &getShapes();
@@ -40,8 +38,9 @@ public:
   inline ModelDescription const &getDescription() const { return mDescription; }
 
   /** must be called only in 1 thread currently */
-  void buildBLAS();
-  core::BLAS* getBLAS();
+  void buildBLAS(bool update = false);
+  void recordUpdateBLAS(vk::CommandBuffer commandBuffer);
+  core::BLAS *getBLAS();
 
   ~SVModel();
 
@@ -55,6 +54,8 @@ private:
   std::mutex mLoadingMutex;
 
   std::unique_ptr<core::BLAS> mBLAS;
+
+  bool mExclusive{};
 
 #ifdef TRACK_ALLOCATION
   uint64_t mModelId{};

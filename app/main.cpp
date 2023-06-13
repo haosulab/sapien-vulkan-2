@@ -116,18 +116,18 @@ int main() {
   auto context = svulkan2::core::Context::Create(true, 5000, 5000, 4);
   auto manager = context->createResourceManager();
 
-  auto config = std::make_shared<RendererConfig>();
-  config->shaderDir = "../shader/ibl";
+  // auto config = std::make_shared<RendererConfig>();
+  // config->shaderDir = "../shader/ibl";
   // config->culling = vk::CullModeFlagBits::eNone;
   // config->msaa = vk::SampleCountFlagBits::e1;
-  config->colorFormat4 = vk::Format::eR32G32B32A32Sfloat;
-  renderer::Renderer renderer(config);
+  // config->colorFormat4 = vk::Format::eR32G32B32A32Sfloat;
+  // renderer::Renderer renderer(config);
 
-  // renderer::RTRenderer renderer("../shader/rt");
-  // renderer.setCustomProperty("maxDepth", 6);
-  // renderer.setCustomProperty("russianRoulette", 1);
-  // renderer.setCustomProperty("russianRouletteMinBounces", 3);
-  // renderer.enableDenoiser("HdrColor", "Albedo", "Normal");
+  renderer::RTRenderer renderer("../shader/rt");
+  renderer.setCustomProperty("maxDepth", 6);
+  renderer.setCustomProperty("russianRoulette", 1);
+  renderer.setCustomProperty("russianRouletteMinBounces", 3);
+  renderer.enableDenoiser("HdrColor", "Albedo", "Normal");
 
   auto scene = std::make_shared<svulkan2::scene::Scene>();
 

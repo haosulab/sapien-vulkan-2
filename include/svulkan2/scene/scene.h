@@ -4,6 +4,7 @@
 #include "node.h"
 #include "object.h"
 #include "svulkan2/core/as.h"
+#include "svulkan2/core/command_pool.h"
 #include <memory>
 #include <vector>
 
@@ -25,6 +26,8 @@ public:
   Object &addObject(std::shared_ptr<resource::SVModel> model, Transform const &transform = {});
   Object &addObject(Node &parent, std::shared_ptr<resource::SVModel> model,
                     Transform const &transform = {});
+
+  Object &addDeformableObject(std::shared_ptr<resource::SVModel> model);
 
   LineObject &addLineObject(std::shared_ptr<resource::SVLineSet> lineSet,
                             Transform const &transform = {});
@@ -62,6 +65,9 @@ public:
   std::vector<Object *> getObjects();
   std::vector<Object *> getVisibleObjects();
 
+  std::vector<Object *> getVisibleRigidObjects();
+  std::vector<Object *> getVisibleDeformableObjects();
+
   std::vector<LineObject *> getLineObjects();
   std::vector<PointObject *> getPointObjects();
   std::vector<Camera *> getCameras();
@@ -98,6 +104,9 @@ public:
   void updateVersion();
 
   uint64_t getRenderVersion() const { return mRenderVersion; }
+
+  /** call this function to notify something has changed in the scene but the scene does not know.
+   * E.g., some deformable mesh is modified */
   void updateRenderVersion();
 
   // ray tracing
@@ -136,6 +145,7 @@ public:
 private:
   std::vector<std::unique_ptr<Node>> mNodes{};
   std::vector<std::unique_ptr<Object>> mObjects{};
+  std::vector<std::unique_ptr<Object>> mDeformableObjects{};
   std::vector<std::unique_ptr<LineObject>> mLineObjects{};
   std::vector<std::unique_ptr<PointObject>> mPointObjects{};
   std::vector<std::unique_ptr<Camera>> mCameras{};
@@ -160,7 +170,10 @@ private:
   uint64_t mRenderVersion{1l};
 
   // ray tracing helpers
+  void ensureBLAS();
   void buildTLAS();
+
+  void updateDynamicBLAS();
   void updateTLAS();
   void createRTStorageBuffers(StructDataLayout const &materialBufferLayout,
                               StructDataLayout const &textureIndexBufferLayout,
@@ -233,6 +246,10 @@ private:
 
   // indicates whether this scene is being accessed
   std::vector<vk::Fence> mAccessFences;
+
+  // used to update AS
+  std::unique_ptr<core::CommandPool> mASUpdateCommandPool;
+  vk::UniqueCommandBuffer mASUpdateCommandBuffer;
 };
 
 } // namespace scene

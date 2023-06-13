@@ -1,7 +1,7 @@
 #include "svulkan2/resource/model.h"
+#include "../common/logger.h"
 #include "svulkan2/common/image.h"
 #include "svulkan2/common/launch_policy.h"
-#include "../common/logger.h"
 #include "svulkan2/core/context.h"
 #include "svulkan2/resource/manager.h"
 #include <assimp/GltfMaterial.h>
@@ -20,8 +20,7 @@ static uint64_t gModelId = 1;
 static uint64_t gModelCount = 0;
 #endif
 
-std::shared_ptr<SVModel>
-SVModel::FromPrototype(std::shared_ptr<SVModel> prototype) {
+std::shared_ptr<SVModel> SVModel::FromPrototype(std::shared_ptr<SVModel> prototype) {
   auto model = std::shared_ptr<SVModel>(new SVModel);
   model->mPrototype = prototype;
   model->mDescription = prototype->mDescription;
@@ -30,16 +29,13 @@ SVModel::FromPrototype(std::shared_ptr<SVModel> prototype) {
 
 std::shared_ptr<SVModel> SVModel::FromFile(std::string const &filename) {
   auto model = std::shared_ptr<SVModel>(new SVModel);
-  model->mDescription = {.source = ModelDescription::SourceType::eFILE,
-                         .filename = filename};
+  model->mDescription = {.source = ModelDescription::SourceType::eFILE, .filename = filename};
   return model;
 }
 
-std::shared_ptr<SVModel>
-SVModel::FromData(std::vector<std::shared_ptr<SVShape>> shapes) {
+std::shared_ptr<SVModel> SVModel::FromData(std::vector<std::shared_ptr<SVShape>> shapes) {
   auto model = std::shared_ptr<SVModel>(new SVModel);
-  model->mDescription = {.source = ModelDescription::SourceType::eCUSTOM,
-                         .filename = {}};
+  model->mDescription = {.source = ModelDescription::SourceType::eCUSTOM, .filename = {}};
   model->mShapes = shapes;
   model->mLoaded = true;
   return model;
@@ -50,16 +46,14 @@ std::vector<std::shared_ptr<SVShape>> const &SVModel::getShapes() {
   return mShapes;
 }
 
-static std::vector<uint8_t> loadCompressedTexture(aiTexture const *texture,
-                                                  int &width, int &height) {
-  return loadImageFromMemory(reinterpret_cast<unsigned char *>(texture->pcData),
-                             texture->mWidth, width, height);
+static std::vector<uint8_t> loadCompressedTexture(aiTexture const *texture, int &width,
+                                                  int &height) {
+  return loadImageFromMemory(reinterpret_cast<unsigned char *>(texture->pcData), texture->mWidth,
+                             width, height);
 }
 
-static std::shared_ptr<SVTexture> loadEmbededTexture(aiTexture const *texture,
-                                                     uint32_t mipLevels,
-                                                     uint32_t channels = 4,
-                                                     bool srgb = false) {
+static std::shared_ptr<SVTexture> loadEmbededTexture(aiTexture const *texture, uint32_t mipLevels,
+                                                     uint32_t channels = 4, bool srgb = false) {
   if (channels != 1 && channels != 4) {
     throw std::runtime_error("Texture must contain 1 or 4 channels");
   }
@@ -75,21 +69,18 @@ static std::shared_ptr<SVTexture> loadEmbededTexture(aiTexture const *texture,
     } else {
       data = loaded;
     }
-    return SVTexture::FromData(width, height, channels, data, mipLevels,
-                               vk::Filter::eLinear, vk::Filter::eLinear,
-                               vk::SamplerAddressMode::eRepeat,
+    return SVTexture::FromData(width, height, channels, data, mipLevels, vk::Filter::eLinear,
+                               vk::Filter::eLinear, vk::SamplerAddressMode::eRepeat,
                                vk::SamplerAddressMode::eRepeat, srgb);
   }
   data = std::vector<uint8_t>(reinterpret_cast<uint8_t *>(texture->pcData),
                               reinterpret_cast<uint8_t *>(texture->pcData) +
                                   texture->mWidth * texture->mHeight * 4);
-  return SVTexture::FromData(texture->mWidth, texture->mHeight, 4, data,
-                             mipLevels);
+  return SVTexture::FromData(texture->mWidth, texture->mHeight, 4, data, mipLevels);
 }
 
 static std::tuple<std::shared_ptr<SVTexture>, std::shared_ptr<SVTexture>>
-loadEmbededRoughnessMetallicTexture(aiTexture const *texture,
-                                    uint32_t mipLevels) {
+loadEmbededRoughnessMetallicTexture(aiTexture const *texture, uint32_t mipLevels) {
   std::vector<uint8_t> roughness;
   std::vector<uint8_t> metallic;
   if (texture->mHeight != 0) {
@@ -114,8 +105,7 @@ std::future<void> SVModel::loadAsync() {
     return std::async(std::launch::deferred, []() {});
   }
   if (mDescription.source != ModelDescription::SourceType::eFILE) {
-    throw std::runtime_error(
-        "loading failed: only mesh created from files can be loaded");
+    throw std::runtime_error("loading failed: only mesh created from files can be loaded");
   }
   auto context = core::Context::Get();
   auto manager = context->getResourceManager();
@@ -133,13 +123,11 @@ std::future<void> SVModel::loadAsync() {
 
         auto mat = std::dynamic_pointer_cast<SVMetallicMaterial>(s->material);
         auto newMat = std::make_shared<SVMetallicMaterial>(
-            mat->getEmission(), mat->getBaseColor(), mat->getFresnel(),
-            mat->getRoughness(), mat->getMetallic(), mat->getTransmission(),
-            mat->getIor());
-        newMat->setTextures(
-            mat->getDiffuseTexture(), mat->getRoughnessTexture(),
-            mat->getNormalTexture(), mat->getMetallicTexture(),
-            mat->getEmissionTexture(), mat->getTransmissionTexture());
+            mat->getEmission(), mat->getBaseColor(), mat->getFresnel(), mat->getRoughness(),
+            mat->getMetallic(), mat->getTransmission(), mat->getIor());
+        newMat->setTextures(mat->getDiffuseTexture(), mat->getRoughnessTexture(),
+                            mat->getNormalTexture(), mat->getMetallicTexture(),
+                            mat->getEmissionTexture(), mat->getTransmissionTexture());
 
         newShape->mesh = s->mesh;
         newShape->material = newMat;
@@ -153,24 +141,20 @@ std::future<void> SVModel::loadAsync() {
 
     std::string path = mDescription.filename;
     Assimp::Importer importer;
-    uint32_t flags = aiProcess_CalcTangentSpace | aiProcess_Triangulate |
-                     aiProcess_GenNormals | aiProcess_FlipUVs |
-                     aiProcess_PreTransformVertices;
+    uint32_t flags = aiProcess_CalcTangentSpace | aiProcess_Triangulate | aiProcess_GenNormals |
+                     aiProcess_FlipUVs | aiProcess_PreTransformVertices;
 
-    importer.SetPropertyBool(AI_CONFIG_IMPORT_COLLADA_IGNORE_UP_DIRECTION,
-                             true);
+    importer.SetPropertyBool(AI_CONFIG_IMPORT_COLLADA_IGNORE_UP_DIRECTION, true);
 
     const aiScene *scene = importer.ReadFile(path, flags);
 
     if (scene->mRootNode->mMetaData) {
-      throw std::runtime_error(
-          "Failed to load mesh file: file contains unsupported metadata, " +
-          path);
+      throw std::runtime_error("Failed to load mesh file: file contains unsupported metadata, " +
+                               path);
     }
     if (!scene) {
-      throw std::runtime_error(
-          "Failed to load scene: " + std::string(importer.GetErrorString()) +
-          ", " + path);
+      throw std::runtime_error("Failed to load scene: " + std::string(importer.GetErrorString()) +
+                               ", " + path);
     }
 
     fs::path parentDir = fs::path(path).parent_path();
@@ -180,8 +164,8 @@ std::future<void> SVModel::loadAsync() {
     const uint32_t MIP_LEVEL = manager->getDefaultMipLevels();
     std::vector<std::shared_ptr<SVMaterial>> materials;
     std::unordered_map<std::string, std::shared_ptr<SVTexture>> textureCache;
-    std::unordered_map<std::string, std::tuple<std::shared_ptr<SVTexture>,
-                                               std::shared_ptr<SVTexture>>>
+    std::unordered_map<std::string,
+                       std::tuple<std::shared_ptr<SVTexture>, std::shared_ptr<SVTexture>>>
         roughnessMetallicTextureCache;
 
     for (uint32_t mat_idx = 0; mat_idx < scene->mNumMaterials; ++mat_idx) {
@@ -200,9 +184,9 @@ std::future<void> SVModel::loadAsync() {
       if (m->Get(AI_MATKEY_OPACITY, alpha) == AI_SUCCESS) {
         if (alpha < 1e-5) {
           logger::warn("The file {} has a fully transparent material. This is "
-                    "probably due to modeling error. Setting opacity to 1. If "
-                    "it is not an error, please remove the object entirely.",
-                    mDescription.filename);
+                       "probably due to modeling error. Setting opacity to 1. If "
+                       "it is not an error, please remove the object entirely.",
+                       mDescription.filename);
           alpha = 1.f;
         }
       } else {
@@ -233,12 +217,10 @@ std::future<void> SVModel::loadAsync() {
         ai_real shininess;
         if (m->Get(AI_MATKEY_COLOR_SPECULAR, specularColor) == AI_SUCCESS &&
             m->Get(AI_MATKEY_SHININESS, shininess) == AI_SUCCESS) {
-          float specularIntensity = specularColor[0] * 0.2125f +
-                                    specularColor[1] * 0.7154f +
-                                    specularColor[2] * 0.0721f;
+          float specularIntensity =
+              specularColor[0] * 0.2125f + specularColor[1] * 0.7154f + specularColor[2] * 0.0721f;
           float normalizedShininess = std::sqrt(shininess / 1000);
-          normalizedShininess =
-              std::min(std::max(normalizedShininess, 0.0f), 1.0f);
+          normalizedShininess = std::min(std::max(normalizedShininess, 0.0f), 1.0f);
           normalizedShininess = normalizedShininess * specularIntensity;
           roughness = 1 - normalizedShininess;
         }
@@ -251,37 +233,12 @@ std::future<void> SVModel::loadAsync() {
         ior = 1.01f;
       }
 
-      // if (m->Get(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_ROUGHNESS_FACTOR,
-      //            roughness) != AI_SUCCESS) {
-      //   aiColor4D specularColor;
-      //   ai_real shininess;
-      //   if (m->Get(AI_MATKEY_COLOR_SPECULAR, specularColor) == AI_SUCCESS &&
-      //       m->Get(AI_MATKEY_SHININESS, shininess) == AI_SUCCESS) {
-      //     float specularIntensity = specularColor[0] * 0.2125f +
-      //                               specularColor[1] * 0.7154f +
-      //                               specularColor[2] * 0.0721f;
-      //     float normalizedShininess = std::sqrt(shininess / 1000);
-      //     normalizedShininess =
-      //         std::min(std::max(normalizedShininess, 0.0f), 1.0f);
-      //     normalizedShininess = normalizedShininess * specularIntensity;
-      //     roughness = 1 - normalizedShininess;
-      //   }
-      // }
-
       if (m->Get(AI_MATKEY_GLOSSINESS_FACTOR, glossiness) != AI_SUCCESS) {
         float shininess;
         if (m->Get(AI_MATKEY_SHININESS, shininess)) {
           glossiness = shininess / 1000;
         }
       }
-
-      // if (m->Get(AI_MATKEY_GLTF_PBRSPECULARGLOSSINESS_GLOSSINESS_FACTOR,
-      //            glossiness) != AI_SUCCESS) {
-      //   float shininess;
-      //   if (m->Get(AI_MATKEY_SHININESS, shininess)) {
-      //     glossiness = shininess / 1000;
-      //   }
-      // }
 
       std::shared_ptr<SVTexture> baseColorTexture{};
       std::shared_ptr<SVTexture> normalTexture{};
@@ -310,8 +267,7 @@ std::future<void> SVModel::loadAsync() {
             std::string fullPath = (parentDir / p).string();
             baseColorTexture = manager->CreateTextureFromFile(
                 fullPath, MIP_LEVEL, vk::Filter::eLinear, vk::Filter::eLinear,
-                vk::SamplerAddressMode::eRepeat,
-                vk::SamplerAddressMode::eRepeat, true);
+                vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat, true);
             futures.push_back(baseColorTexture->loadAsync());
           }
         }
@@ -333,8 +289,7 @@ std::future<void> SVModel::loadAsync() {
           } else {
             std::string p = std::string(path.C_Str());
             std::string fullPath = (parentDir / p).string();
-            metallicTexture =
-                manager->CreateTextureFromFile(fullPath, MIP_LEVEL);
+            metallicTexture = manager->CreateTextureFromFile(fullPath, MIP_LEVEL);
             futures.push_back(metallicTexture->loadAsync());
           }
         }
@@ -380,16 +335,14 @@ std::future<void> SVModel::loadAsync() {
             std::string fullPath = (parentDir / p).string();
             emissionTexture = manager->CreateTextureFromFile(
                 fullPath, MIP_LEVEL, vk::Filter::eLinear, vk::Filter::eLinear,
-                vk::SamplerAddressMode::eRepeat,
-                vk::SamplerAddressMode::eRepeat, true);
+                vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat, true);
             futures.push_back(emissionTexture->loadAsync());
           }
         }
       }
 
       if (m->GetTextureCount(aiTextureType_DIFFUSE_ROUGHNESS) > 0 &&
-          m->GetTexture(aiTextureType_DIFFUSE_ROUGHNESS, 0, &path) ==
-              AI_SUCCESS) {
+          m->GetTexture(aiTextureType_DIFFUSE_ROUGHNESS, 0, &path) == AI_SUCCESS) {
         if (core::Context::Get()->shouldNotLoadTexture()) {
           logger::info("Texture ignored {}", path.C_Str());
         } else {
@@ -404,34 +357,30 @@ std::future<void> SVModel::loadAsync() {
           } else {
             std::string p = std::string(path.C_Str());
             std::string fullPath = (parentDir / p).string();
-            roughnessTexture =
-                manager->CreateTextureFromFile(fullPath, MIP_LEVEL);
+            roughnessTexture = manager->CreateTextureFromFile(fullPath, MIP_LEVEL);
             futures.push_back(roughnessTexture->loadAsync());
           }
         }
       }
 
-      if (m->GetTexture(
-              AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE,
-              &path) == AI_SUCCESS) {
+      if (m->GetTexture(AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE, &path) ==
+          AI_SUCCESS) {
         if (core::Context::Get()->shouldNotLoadTexture()) {
           logger::info("Texture ignored {}", path.C_Str());
         } else {
           if (auto texture = scene->GetEmbeddedTexture(path.C_Str())) {
-            if (roughnessMetallicTextureCache.contains(
-                    std::string(path.C_Str()))) {
+            if (roughnessMetallicTextureCache.contains(std::string(path.C_Str()))) {
               std::tie(roughnessTexture, metallicTexture) =
                   roughnessMetallicTextureCache[std::string(path.C_Str())];
             } else {
-              logger::info("Loading embeded roughness metallic texture {}",
-                        path.C_Str());
+              logger::info("Loading embeded roughness metallic texture {}", path.C_Str());
               std::tie(roughnessTexture, metallicTexture) =
                   roughnessMetallicTextureCache[std::string(path.C_Str())] =
                       loadEmbededRoughnessMetallicTexture(texture, MIP_LEVEL);
             }
           } else {
             logger::warn("Loading non-embeded roughness metallic texture is "
-                      "currently not supported");
+                         "currently not supported");
           }
         }
       }
@@ -451,20 +400,18 @@ std::future<void> SVModel::loadAsync() {
           } else {
             std::string p = std::string(path.C_Str());
             std::string fullPath = (parentDir / p).string();
-            transmissionTexture =
-                manager->CreateTextureFromFile(fullPath, MIP_LEVEL);
+            transmissionTexture = manager->CreateTextureFromFile(fullPath, MIP_LEVEL);
             futures.push_back(transmissionTexture->loadAsync());
           }
         }
       }
 
-      auto material = std::make_shared<SVMetallicMaterial>(
-          glm::vec4{emission.r, emission.g, emission.b, 1},
-          glm::vec4{diffuse.r, diffuse.g, diffuse.b, alpha}, glossiness,
-          roughness, metallic, transmission, ior);
-      material->setTextures(baseColorTexture, roughnessTexture, normalTexture,
-                            metallicTexture, emissionTexture,
-                            transmissionTexture);
+      auto material =
+          std::make_shared<SVMetallicMaterial>(glm::vec4{emission.r, emission.g, emission.b, 1},
+                                               glm::vec4{diffuse.r, diffuse.g, diffuse.b, alpha},
+                                               glossiness, roughness, metallic, transmission, ior);
+      material->setTextures(baseColorTexture, roughnessTexture, normalTexture, metallicTexture,
+                            emissionTexture, transmissionTexture);
       materials.push_back(material);
     }
 
@@ -485,27 +432,24 @@ std::future<void> SVModel::loadAsync() {
         glm::vec4 color = glm::vec4(1, 1, 1, 1);
         glm::vec3 normal = glm::vec3(0);
         glm::vec2 texcoord = glm::vec2(0);
-        glm::vec3 position = glm::vec3(
-            mesh->mVertices[v].x, mesh->mVertices[v].y, mesh->mVertices[v].z);
+        glm::vec3 position =
+            glm::vec3(mesh->mVertices[v].x, mesh->mVertices[v].y, mesh->mVertices[v].z);
         glm::vec3 tangent = glm::vec3(0);
         glm::vec3 bitangent = glm::vec3(0);
         if (mesh->HasNormals()) {
-          normal = glm::vec3{mesh->mNormals[v].x, mesh->mNormals[v].y,
-                             mesh->mNormals[v].z};
+          normal = glm::vec3{mesh->mNormals[v].x, mesh->mNormals[v].y, mesh->mNormals[v].z};
         }
         if (mesh->HasTextureCoords(0)) {
-          texcoord = glm::vec2{mesh->mTextureCoords[0][v].x,
-                               mesh->mTextureCoords[0][v].y};
+          texcoord = glm::vec2{mesh->mTextureCoords[0][v].x, mesh->mTextureCoords[0][v].y};
         }
         if (mesh->HasTangentsAndBitangents()) {
-          tangent = glm::vec3{mesh->mTangents[v].x, mesh->mTangents[v].y,
-                              mesh->mTangents[v].z};
-          bitangent = glm::vec3{mesh->mBitangents[v].x, mesh->mBitangents[v].y,
-                                mesh->mBitangents[v].z};
+          tangent = glm::vec3{mesh->mTangents[v].x, mesh->mTangents[v].y, mesh->mTangents[v].z};
+          bitangent =
+              glm::vec3{mesh->mBitangents[v].x, mesh->mBitangents[v].y, mesh->mBitangents[v].z};
         }
         if (mesh->HasVertexColors(0)) {
-          color = glm::vec4{mesh->mColors[0][v].r, mesh->mColors[0][v].g,
-                            mesh->mColors[0][v].b, mesh->mColors[0][v].a};
+          color = glm::vec4{mesh->mColors[0][v].r, mesh->mColors[0][v].g, mesh->mColors[0][v].b,
+                            mesh->mColors[0][v].a};
         }
         positions.push_back(position.x);
         positions.push_back(position.y);
@@ -569,26 +513,29 @@ std::future<void> SVModel::loadAsync() {
   });
 }
 
-// TODO: batch build?
-void SVModel::buildBLAS() {
+void SVModel::buildBLAS(bool update) {
   std::vector<vk::AccelerationStructureGeometryKHR> geometries;
   std::vector<vk::AccelerationStructureBuildRangeInfoKHR> ranges;
+  std::vector<uint32_t> maxPrimitiveCount;
   for (auto shape : getShapes()) {
-    auto [geometry, range] = shape->mesh->getASGeometry();
-    geometries.push_back(geometry);
-    ranges.push_back(range);
+    geometries.push_back(shape->mesh->getASGeometry());
+    ranges.push_back({shape->mesh->getIndexCount() / 3, 0, 0, 0});
+    maxPrimitiveCount.push_back(shape->mesh->getIndexCapacity() / 3);
   }
 
-  mBLAS = std::make_unique<core::BLAS>(geometries, ranges);
+  mBLAS = std::make_unique<core::BLAS>(geometries, ranges, maxPrimitiveCount, !update, update);
   mBLAS->build();
 }
 
-core::BLAS *SVModel::getBLAS() {
-  if (!mBLAS) {
-    buildBLAS();
+void SVModel::recordUpdateBLAS(vk::CommandBuffer commandBuffer) {
+  std::vector<vk::AccelerationStructureBuildRangeInfoKHR> ranges;
+  for (auto shape : getShapes()) {
+    ranges.push_back({shape->mesh->getIndexCount() / 3, 0, 0, 0});
   }
-  return mBLAS.get();
+  mBLAS->recordUpdate(commandBuffer, ranges);
 }
+
+core::BLAS *SVModel::getBLAS() { return mBLAS.get(); }
 
 SVModel::SVModel() {
 #ifdef TRACK_ALLOCATION

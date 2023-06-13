@@ -1,6 +1,6 @@
 #include "svulkan2/resource/mesh.h"
-#include "svulkan2/common/assimp.h"
 #include "../common/logger.h"
+#include "svulkan2/common/assimp.h"
 #include "svulkan2/core/context.h"
 #include <memory>
 
@@ -8,13 +8,11 @@ namespace svulkan2 {
 namespace resource {
 
 SVMesh::SVMesh(bool dynamic, uint32_t vertexCapacity, uint32_t indexCapacity)
-    : mDynamic(dynamic), mVertexCapacity(vertexCapacity),
-      mIndexCapacity(indexCapacity) {}
+    : mDynamic(dynamic), mVertexCapacity(vertexCapacity), mIndexCapacity(indexCapacity) {}
 
 void SVMesh::setIndices(std::vector<uint32_t> const &indices) {
   if (indices.size() % 3 != 0) {
-    throw std::runtime_error(
-        "set indices failed: provided number is not a multiple of 3");
+    throw std::runtime_error("set indices failed: provided number is not a multiple of 3");
   }
   mDirty = true;
   mIndices = indices;
@@ -23,8 +21,8 @@ void SVMesh::setIndices(std::vector<uint32_t> const &indices) {
 
 std::vector<uint32_t> const &SVMesh::getIndices() const { return mIndices; }
 
-void SVMesh::setVertexAttribute(std::string const &name,
-                                std::vector<float> const &attrib, bool upload) {
+void SVMesh::setVertexAttribute(std::string const &name, std::vector<float> const &attrib,
+                                bool upload) {
   mDirty = true;
   mAttributes[name] = attrib;
   if (upload) {
@@ -32,8 +30,7 @@ void SVMesh::setVertexAttribute(std::string const &name,
   }
 }
 
-std::vector<float> const &
-SVMesh::getVertexAttribute(std::string const &name) const {
+std::vector<float> const &SVMesh::getVertexAttribute(std::string const &name) const {
   if (mAttributes.find(name) == mAttributes.end()) {
     throw std::runtime_error("attribute " + name + " does not exist on vertex");
   }
@@ -53,21 +50,18 @@ void SVMesh::uploadToDevice() {
 
   auto layout = context->getResourceManager()->getVertexLayout();
 
-  if (mAttributes.find("position") == mAttributes.end() ||
-      mAttributes["position"].size() == 0) {
+  if (mAttributes.find("position") == mAttributes.end() || mAttributes["position"].size() == 0) {
     throw std::runtime_error("mesh upload failed: no vertex positions");
   }
   if (!mIndices.size()) {
     throw std::runtime_error("mesh upload failed: empty vertex indices");
   }
-  if (mAttributes["position"].size() / 3 * 3 !=
-      mAttributes["position"].size()) {
+  if (mAttributes["position"].size() / 3 * 3 != mAttributes["position"].size()) {
     throw std::runtime_error(
         "mesh upload failed: size of vertex positions is not a multiple of 3");
   }
   if (mIndices.size() / 3 * 3 != mIndices.size()) {
-    throw std::runtime_error(
-        "mesh upload failed: size of vertex indices is not a multiple of 3");
+    throw std::runtime_error("mesh upload failed: size of vertex indices is not a multiple of 3");
   }
 
   mVertexCount = mAttributes["position"].size() / 3;
@@ -82,12 +76,10 @@ void SVMesh::uploadToDevice() {
   }
 
   if (mVertexCapacity < mVertexCount) {
-    throw std::runtime_error(
-        "failed to upload mesh: vertex count exceeds capacity");
+    throw std::runtime_error("failed to upload mesh: vertex count exceeds capacity");
   }
   if (mIndexCapacity < mIndexCount) {
-    throw std::runtime_error(
-        "failed to upload mesh: index count exceeds capacity");
+    throw std::runtime_error("failed to upload mesh: index count exceeds capacity");
   }
 
   size_t bufferSize = vertexSize * mVertexCapacity;
@@ -98,13 +90,11 @@ void SVMesh::uploadToDevice() {
   uint32_t offset = 0;
   for (auto &elem : elements) {
     if (mAttributes.find(elem.name) != mAttributes.end()) {
-      if (mAttributes[elem.name].size() * sizeof(float) !=
-          mVertexCount * elem.getSize()) {
-        throw std::runtime_error("vertex attribute " + elem.name +
-                                 " has incorrect size");
+      if (mAttributes[elem.name].size() * sizeof(float) != mVertexCount * elem.getSize()) {
+        throw std::runtime_error("vertex attribute " + elem.name + " has incorrect size");
       }
-      strided_memcpy(buffer.data() + offset, mAttributes[elem.name].data(),
-                     elem.getSize(), mVertexCount, vertexSize);
+      strided_memcpy(buffer.data() + offset, mAttributes[elem.name].data(), elem.getSize(),
+                     mVertexCount, vertexSize);
     }
     offset += elem.getSize();
   }
@@ -113,26 +103,22 @@ void SVMesh::uploadToDevice() {
     vk::BufferUsageFlags deviceAddressFlag =
         context->isRayTracingAvailable()
             ? vk::BufferUsageFlagBits::eShaderDeviceAddress |
-                  vk::BufferUsageFlagBits::
-                      eAccelerationStructureBuildInputReadOnlyKHR |
+                  vk::BufferUsageFlagBits::eAccelerationStructureBuildInputReadOnlyKHR |
                   vk::BufferUsageFlagBits::eStorageBuffer
             : vk::BufferUsageFlags{};
 
     mVertexBuffer = std::make_unique<core::Buffer>(
         bufferSize,
         deviceAddressFlag | vk::BufferUsageFlagBits::eVertexBuffer |
-            vk::BufferUsageFlagBits::eTransferDst |
-            vk::BufferUsageFlagBits::eTransferSrc,
+            vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc,
         mDynamic ? VmaMemoryUsage::VMA_MEMORY_USAGE_CPU_TO_GPU
                  : VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY,
         VmaAllocationCreateFlags{}, true);
     mIndexBuffer = std::make_unique<core::Buffer>(
         indexBufferSize,
         deviceAddressFlag | vk::BufferUsageFlagBits::eIndexBuffer |
-            vk::BufferUsageFlagBits::eTransferDst |
-            vk::BufferUsageFlagBits::eTransferSrc,
-        VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags{},
-        true);
+            vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc,
+        VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags{}, true);
   }
   mVertexBuffer->upload(buffer.data(), vertexSize * mVertexCount);
   mIndexBuffer->upload<uint32_t>(mIndices);
@@ -141,17 +127,35 @@ void SVMesh::uploadToDevice() {
 }
 
 uint32_t SVMesh::getVertexSize() const {
-  return core::Context::Get()
-      ->getResourceManager()
-      ->getVertexLayout()
-      ->getSize();
+  return core::Context::Get()->getResourceManager()->getVertexLayout()->getSize();
 }
 
-size_t SVMesh::getVertexCount() {
+uint32_t SVMesh::getVertexCount() {
   if (mVertexCount == 0) {
     uploadToDevice();
   }
   return mVertexCount;
+}
+
+uint32_t SVMesh::getVertexCapacity() {
+  if (mVertexCapacity == 0) {
+    uploadToDevice();
+  }
+  return mVertexCapacity;
+}
+
+uint32_t SVMesh::getIndexCount() {
+  if (mIndexCount == 0) {
+    uploadToDevice();
+  }
+  return mIndexCount;
+}
+
+uint32_t SVMesh::getIndexCapacity() {
+  if (mIndexCapacity == 0) {
+    uploadToDevice();
+  }
+  return mIndexCapacity;
 }
 
 core::Buffer &SVMesh::getVertexBuffer() {
@@ -176,16 +180,14 @@ void SVMesh::removeFromDevice() {
 }
 
 void SVMesh::exportToFile(std::string const &filename) const {
-  exportTriangleMesh(
-      filename,
-      mAttributes.find("position") != mAttributes.end()
-          ? mAttributes.at("position")
-          : std::vector<float>{},
-      mIndices,
-      mAttributes.find("normal") != mAttributes.end() ? mAttributes.at("normal")
-                                                      : std::vector<float>{},
-      mAttributes.find("uv") != mAttributes.end() ? mAttributes.at("uv")
-                                                  : std::vector<float>{});
+  exportTriangleMesh(filename,
+                     mAttributes.find("position") != mAttributes.end() ? mAttributes.at("position")
+                                                                       : std::vector<float>{},
+                     mIndices,
+                     mAttributes.find("normal") != mAttributes.end() ? mAttributes.at("normal")
+                                                                     : std::vector<float>{},
+                     mAttributes.find("uv") != mAttributes.end() ? mAttributes.at("uv")
+                                                                 : std::vector<float>{});
 }
 
 static std::shared_ptr<SVMesh> makeMesh(std::vector<glm::vec3> const &vertices,
@@ -257,8 +259,7 @@ std::shared_ptr<SVMesh> SVMesh::CreateUVSphere(int segments, int rings) {
       float y = yz * glm::cos(phi);
       float z = yz * glm::sin(phi);
       vertices.push_back({x, y, z});
-      uvs.push_back({static_cast<float>(s) / segments,
-                     1.f - static_cast<float>(r) / rings});
+      uvs.push_back({static_cast<float>(s) / segments, 1.f - static_cast<float>(r) / rings});
     }
   }
   for (int s = 0; s < segments; ++s) {
@@ -291,8 +292,8 @@ std::shared_ptr<SVMesh> SVMesh::CreateUVSphere(int segments, int rings) {
   return makeMesh(vertices, indices, vertices, uvs);
 }
 
-std::shared_ptr<SVMesh> SVMesh::CreateCapsule(float radius, float halfLength,
-                                              int segments, int halfRings) {
+std::shared_ptr<SVMesh> SVMesh::CreateCapsule(float radius, float halfLength, int segments,
+                                              int halfRings) {
   std::vector<glm::vec3> vertices;
   std::vector<glm::vec3> normals;
   std::vector<glm::vec2> uvs;
@@ -312,11 +313,10 @@ std::shared_ptr<SVMesh> SVMesh::CreateCapsule(float radius, float halfLength,
       float phi = glm::pi<float>() * s * 2 / segments;
       float y = yz * glm::cos(phi);
       float z = yz * glm::sin(phi);
-      vertices.push_back(glm::vec3{x, y, z} * radius +
-                         glm::vec3{halfLength, 0, 0});
+      vertices.push_back(glm::vec3{x, y, z} * radius + glm::vec3{halfLength, 0, 0});
       normals.push_back({x, y, z});
-      uvs.push_back({static_cast<float>(s) / segments,
-                     1.f - 0.5f * static_cast<float>(r) / rings});
+      uvs.push_back(
+          {static_cast<float>(s) / segments, 1.f - 0.5f * static_cast<float>(r) / rings});
     }
   }
   for (int r = halfRings; r < rings; ++r) {
@@ -327,11 +327,10 @@ std::shared_ptr<SVMesh> SVMesh::CreateCapsule(float radius, float halfLength,
       float phi = glm::pi<float>() * s * 2 / segments;
       float y = yz * glm::cos(phi);
       float z = yz * glm::sin(phi);
-      vertices.push_back(glm::vec3{x, y, z} * radius -
-                         glm::vec3{halfLength, 0, 0});
+      vertices.push_back(glm::vec3{x, y, z} * radius - glm::vec3{halfLength, 0, 0});
       normals.push_back({x, y, z});
-      uvs.push_back({static_cast<float>(s) / segments,
-                     0.5f - 0.5f * static_cast<float>(r) / rings});
+      uvs.push_back(
+          {static_cast<float>(s) / segments, 0.5f - 0.5f * static_cast<float>(r) / rings});
     }
   }
 
@@ -399,8 +398,7 @@ std::shared_ptr<SVMesh> SVMesh::CreateCone(int segments) {
     indices.push_back({s, s + segments, segments + (s + 1) % segments});
   }
   for (int s = 0; s < segments; ++s) {
-    indices.push_back(
-        {segments * 2 + (s + 1) % segments, segments * 2 + s, segments * 3});
+    indices.push_back({segments * 2 + (s + 1) % segments, segments * 2 + s, segments * 3});
   }
 
   return makeMesh(vertices, indices, normals, uvs);
@@ -560,8 +558,7 @@ std::shared_ptr<SVMesh> SVMesh::CreateCylinder(int segments) {
     uvs.push_back({0, 0}); // TODO
   }
   for (int i = 0; i < segments; ++i) {
-    indices.push_back(
-        {segments + 1, (i + 1) % segments + segments + 2, i + segments + 2});
+    indices.push_back({segments + 1, (i + 1) % segments + segments + 2, i + segments + 2});
   }
 
   int base = segments * 2 + 2;
@@ -580,10 +577,9 @@ std::shared_ptr<SVMesh> SVMesh::CreateCylinder(int segments) {
 
   // connect 2 rings
   for (int i = 0; i < segments; ++i) {
+    indices.push_back({base + i, base + i + segments, base + (i + 1) % segments});
     indices.push_back(
-        {base + i, base + i + segments, base + (i + 1) % segments});
-    indices.push_back({base + (i + 1) % segments, base + i + segments,
-                       base + segments + (i + 1) % segments});
+        {base + (i + 1) % segments, base + i + segments, base + segments + (i + 1) % segments});
   }
 
   return makeMesh(vertices, indices, normals, uvs);
@@ -597,9 +593,7 @@ std::shared_ptr<SVMesh> SVMesh::Create(std::vector<float> const &position,
   return mesh;
 }
 
-std::tuple<vk::AccelerationStructureGeometryKHR,
-           vk::AccelerationStructureBuildRangeInfoKHR>
-SVMesh::getASGeometry() {
+vk::AccelerationStructureGeometryKHR SVMesh::getASGeometry() {
   auto context = core::Context::Get();
   uploadToDevice();
 
@@ -613,13 +607,9 @@ SVMesh::getASGeometry() {
       context->getResourceManager()->getVertexLayout()->getSize(), mVertexCount,
       vk::IndexType::eUint32, indexAddress, {});
 
-  vk::AccelerationStructureGeometryKHR asGeom(vk::GeometryTypeKHR::eTriangles,
-                                              trianglesData,
-                                              {}); // TODO: add opaque flag?
-
-  vk::AccelerationStructureBuildRangeInfoKHR range(mIndexCount / 3, 0, 0, 0);
-
-  return {asGeom, range};
+  vk::AccelerationStructureGeometryKHR geom(vk::GeometryTypeKHR::eTriangles, trianglesData,
+                                            {}); // TODO: add opaque flag?
+  return geom;
 }
 
 } // namespace resource

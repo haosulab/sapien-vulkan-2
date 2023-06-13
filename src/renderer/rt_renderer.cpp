@@ -19,8 +19,7 @@ RTRenderer::RTRenderer(std::string const &shaderDir) : mShaderDir(shaderDir) {
 
   mMaterialBufferLayout = mShaderPack->getMaterialBufferLayout();
   mTextureIndexBufferLayout = mShaderPack->getTextureIndexBufferLayout();
-  mGeometryInstanceBufferLayout =
-      mShaderPack->getGeometryInstanceBufferLayout();
+  mGeometryInstanceBufferLayout = mShaderPack->getGeometryInstanceBufferLayout();
   mCameraBufferLayout = mShaderPack->getCameraBufferLayout();
   mObjectBufferLayout = mShaderPack->getObjectBufferLayout();
 
@@ -30,8 +29,8 @@ RTRenderer::RTRenderer(std::string const &shaderDir) : mShaderDir(shaderDir) {
   mCustomPropertiesInt["russianRoulette"] = 0;
   mCustomPropertiesInt["russianRouletteMinBounces"] = 2;
 
-  mSceneAccessFence = mContext->getDevice().createFenceUnique(
-      {vk::FenceCreateFlagBits::eSignaled});
+  mSceneAccessFence =
+      mContext->getDevice().createFenceUnique({vk::FenceCreateFlagBits::eSignaled});
 }
 
 void RTRenderer::resize(int width, int height) {
@@ -61,21 +60,18 @@ void RTRenderer::setScene(std::shared_ptr<scene::Scene> scene) {
 
 void RTRenderer::prepareObjects() {
   auto objects = mScene->getVisibleObjects();
-  mObjectBuffer =
-      std::make_unique<core::Buffer>(objects.size() * mObjectBufferLayout.size,
-                                     vk::BufferUsageFlagBits::eStorageBuffer |
-                                         vk::BufferUsageFlagBits::eTransferDst,
-                                     VMA_MEMORY_USAGE_CPU_TO_GPU);
+  mObjectBuffer = std::make_unique<core::Buffer>(objects.size() * mObjectBufferLayout.size,
+                                                 vk::BufferUsageFlagBits::eStorageBuffer |
+                                                     vk::BufferUsageFlagBits::eTransferDst,
+                                                 VMA_MEMORY_USAGE_CPU_TO_GPU);
 }
 
 void RTRenderer::updateObjects() {
   auto objects = mScene->getVisibleObjects();
 
   uint32_t segOffset = mObjectBufferLayout.elements.at("segmentation").offset;
-  uint32_t transparencyOffset =
-      mObjectBufferLayout.elements.at("transparency").offset;
-  uint32_t shadeFlatOffset =
-      mObjectBufferLayout.elements.at("shadeFlat").offset;
+  uint32_t transparencyOffset = mObjectBufferLayout.elements.at("transparency").offset;
+  uint32_t shadeFlatOffset = mObjectBufferLayout.elements.at("shadeFlat").offset;
 
   uint8_t *memory = static_cast<uint8_t *>(mObjectBuffer->map());
   uint32_t stride = mObjectBufferLayout.size;
@@ -87,10 +83,8 @@ void RTRenderer::updateObjects() {
     float transparency = obj->getTransparency();
 
     std::memcpy(memory + stride * count + segOffset, &seg, sizeof(glm::uvec4));
-    std::memcpy(memory + stride * count + shadeFlatOffset, &shadeFlat,
-                sizeof(int));
-    std::memcpy(memory + stride * count + transparencyOffset, &transparency,
-                sizeof(float));
+    std::memcpy(memory + stride * count + shadeFlatOffset, &shadeFlat, sizeof(int));
+    std::memcpy(memory + stride * count + transparencyOffset, &transparency, sizeof(float));
 
     ++count;
   }
@@ -116,16 +110,12 @@ void RTRenderer::prepareRender(scene::Camera &camera) {
     scene->buildRTResources(mMaterialBufferLayout, mTextureIndexBufferLayout,
                             mGeometryInstanceBufferLayout);
 
-    mShaderPackInstance =
-        std::make_shared<shader::RayTracingShaderPackInstance>(
-            shader::RayTracingShaderPackInstanceDesc{
-                .shaderDir = mShaderDir,
-                .maxMeshes =
-                    static_cast<uint32_t>(mScene->getRTVertexBuffers().size()),
-                .maxMaterials = static_cast<uint32_t>(
-                    mScene->getRTMaterialBuffers().size()),
-                .maxTextures =
-                    static_cast<uint32_t>(mScene->getRTTextures().size())});
+    mShaderPackInstance = std::make_shared<shader::RayTracingShaderPackInstance>(
+        shader::RayTracingShaderPackInstanceDesc{
+            .shaderDir = mShaderDir,
+            .maxMeshes = static_cast<uint32_t>(mScene->getRTVertexBuffers().size()),
+            .maxMaterials = static_cast<uint32_t>(mScene->getRTMaterialBuffers().size()),
+            .maxTextures = static_cast<uint32_t>(mScene->getRTTextures().size())});
     prepareOutput();
     prepareCamera();
     prepareScene();
@@ -170,29 +160,25 @@ void RTRenderer::updatePushConstant() {
   for (auto &[name, value] : mCustomPropertiesInt) {
     auto it = layout->elements.find(name);
     if (it != layout->elements.end() && it->second.dtype == DataType::eINT) {
-      std::memcpy(mPushConstantBuffer.data() + it->second.offset, &value,
-                  it->second.size);
+      std::memcpy(mPushConstantBuffer.data() + it->second.offset, &value, it->second.size);
     }
   }
   for (auto &[name, value] : mCustomPropertiesFloat) {
     auto it = layout->elements.find(name);
     if (it != layout->elements.end() && it->second.dtype == DataType::eFLOAT) {
-      std::memcpy(mPushConstantBuffer.data() + it->second.offset, &value,
-                  it->second.size);
+      std::memcpy(mPushConstantBuffer.data() + it->second.offset, &value, it->second.size);
     }
   }
   for (auto &[name, value] : mCustomPropertiesVec3) {
     auto it = layout->elements.find(name);
     if (it != layout->elements.end() && it->second.dtype == DataType::eFLOAT3) {
-      std::memcpy(mPushConstantBuffer.data() + it->second.offset, &value,
-                  it->second.size);
+      std::memcpy(mPushConstantBuffer.data() + it->second.offset, &value, it->second.size);
     }
   }
   for (auto &[name, value] : mCustomPropertiesVec4) {
     auto it = layout->elements.find(name);
     if (it != layout->elements.end() && it->second.dtype == DataType::eFLOAT4) {
-      std::memcpy(mPushConstantBuffer.data() + it->second.offset, &value,
-                  it->second.size);
+      std::memcpy(mPushConstantBuffer.data() + it->second.offset, &value, it->second.size);
     }
   }
 
@@ -219,8 +205,7 @@ void RTRenderer::updatePushConstant() {
     if (elem.dtype != DataType::eINT) {
       throw std::runtime_error("spotLightCount must be type int");
     }
-    uint32_t v =
-        mScene->getSpotLights().size() + mScene->getTexturedLights().size();
+    uint32_t v = mScene->getSpotLights().size() + mScene->getTexturedLights().size();
     std::memcpy(mPushConstantBuffer.data() + elem.offset, &v, elem.size);
   }
 
@@ -238,8 +223,7 @@ void RTRenderer::updatePushConstant() {
     if (elem.dtype != DataType::eINT) {
       throw std::runtime_error("frameCount must be type int");
     }
-    std::memcpy(mPushConstantBuffer.data() + elem.offset, &mFrameCount,
-                elem.size);
+    std::memcpy(mPushConstantBuffer.data() + elem.offset, &mFrameCount, elem.size);
   }
 
   if (layout->elements.contains("envmap")) {
@@ -257,8 +241,7 @@ void RTRenderer::updatePushConstant() {
       throw std::runtime_error("ambientLight must be type vec3");
     }
     glm::vec3 ambientLight = mScene->getAmbientLight();
-    std::memcpy(mPushConstantBuffer.data() + elem.offset, &ambientLight,
-                elem.size);
+    std::memcpy(mPushConstantBuffer.data() + elem.offset, &ambientLight, elem.size);
   }
 }
 
@@ -275,22 +258,28 @@ void RTRenderer::recordRender() {
 
   mRenderCommandBuffer->begin(vk::CommandBufferBeginInfo({}, {}));
 
+  {
+    // make sure AS building is done
+    vk::MemoryBarrier barrier(vk::AccessFlagBits::eAccelerationStructureWriteKHR,
+                              vk::AccessFlagBits::eAccelerationStructureReadKHR);
+    mRenderCommandBuffer->pipelineBarrier(
+        vk::PipelineStageFlagBits::eAccelerationStructureBuildKHR,
+        vk::PipelineStageFlagBits::eRayTracingShaderKHR, {}, barrier, {}, {});
+  }
+
   for (auto &image : mRTImages) {
     // make sure everything is done
     image->getImage().transitionLayout(
-        mRenderCommandBuffer.get(), vk::ImageLayout::eGeneral,
-        vk::ImageLayout::eGeneral,
+        mRenderCommandBuffer.get(), vk::ImageLayout::eGeneral, vk::ImageLayout::eGeneral,
         vk::AccessFlagBits::eMemoryRead | vk::AccessFlagBits::eMemoryWrite,
         vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite,
-        vk::PipelineStageFlagBits::eAllCommands,
-        vk::PipelineStageFlagBits::eRayTracingShaderKHR);
+        vk::PipelineStageFlagBits::eAllCommands, vk::PipelineStageFlagBits::eRayTracingShaderKHR);
   }
 
   mRenderCommandBuffer->pushConstants(
       mShaderPackInstance->getPipelineLayout(),
       vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR |
-          vk::ShaderStageFlagBits::eClosestHitKHR |
-          vk::ShaderStageFlagBits::eAnyHitKHR,
+          vk::ShaderStageFlagBits::eClosestHitKHR | vk::ShaderStageFlagBits::eAnyHitKHR,
       0, pushConstantLayout->size, mPushConstantBuffer.data());
   mRenderCommandBuffer->bindPipeline(vk::PipelineBindPoint::eRayTracingKHR,
                                      mShaderPackInstance->getPipeline());
@@ -302,22 +291,21 @@ void RTRenderer::recordRender() {
       descriptorSets.push_back(mOutputSet.get());
     } else if (resources.at(sid).type == shader::UniformBindingType::eRTScene) {
       descriptorSets.push_back(mSceneSet.get());
-    } else if (resources.at(sid).type ==
-               shader::UniformBindingType::eRTCamera) {
+    } else if (resources.at(sid).type == shader::UniformBindingType::eRTCamera) {
       descriptorSets.push_back(mCameraSet.get());
     } else {
       throw std::runtime_error("unrecognized descriptor set");
     }
   }
 
-  mRenderCommandBuffer->bindDescriptorSets(
-      vk::PipelineBindPoint::eRayTracingKHR,
-      mShaderPackInstance->getPipelineLayout(), 0, descriptorSets, {});
+  mRenderCommandBuffer->bindDescriptorSets(vk::PipelineBindPoint::eRayTracingKHR,
+                                           mShaderPackInstance->getPipelineLayout(), 0,
+                                           descriptorSets, {});
 
-  mRenderCommandBuffer->traceRaysKHR(
-      mShaderPackInstance->getRgenRegion(),
-      mShaderPackInstance->getMissRegion(), mShaderPackInstance->getHitRegion(),
-      mShaderPackInstance->getCallRegion(), mWidth, mHeight, 1);
+  mRenderCommandBuffer->traceRaysKHR(mShaderPackInstance->getRgenRegion(),
+                                     mShaderPackInstance->getMissRegion(),
+                                     mShaderPackInstance->getHitRegion(),
+                                     mShaderPackInstance->getCallRegion(), mWidth, mHeight, 1);
 
   // make sure ray tracing is done
 
@@ -325,28 +313,22 @@ void RTRenderer::recordRender() {
   if (mDenoiser) {
     mRenderImages.at(mDenoiseColorName)
         ->getImage()
-        .transitionLayout(mRenderCommandBuffer.get(), vk::ImageLayout::eGeneral,
-                          vk::ImageLayout::eGeneral,
-                          vk::AccessFlagBits::eShaderWrite,
-                          vk::AccessFlagBits::eTransferRead,
-                          vk::PipelineStageFlagBits::eRayTracingShaderKHR,
-                          vk::PipelineStageFlagBits::eTransfer);
+        .transitionLayout(
+            mRenderCommandBuffer.get(), vk::ImageLayout::eGeneral, vk::ImageLayout::eGeneral,
+            vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eTransferRead,
+            vk::PipelineStageFlagBits::eRayTracingShaderKHR, vk::PipelineStageFlagBits::eTransfer);
     mRenderImages.at(mDenoiseAlbedoName)
         ->getImage()
-        .transitionLayout(mRenderCommandBuffer.get(), vk::ImageLayout::eGeneral,
-                          vk::ImageLayout::eGeneral,
-                          vk::AccessFlagBits::eShaderWrite,
-                          vk::AccessFlagBits::eTransferRead,
-                          vk::PipelineStageFlagBits::eRayTracingShaderKHR,
-                          vk::PipelineStageFlagBits::eTransfer);
+        .transitionLayout(
+            mRenderCommandBuffer.get(), vk::ImageLayout::eGeneral, vk::ImageLayout::eGeneral,
+            vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eTransferRead,
+            vk::PipelineStageFlagBits::eRayTracingShaderKHR, vk::PipelineStageFlagBits::eTransfer);
     mRenderImages.at(mDenoiseNormalName)
         ->getImage()
-        .transitionLayout(mRenderCommandBuffer.get(), vk::ImageLayout::eGeneral,
-                          vk::ImageLayout::eGeneral,
-                          vk::AccessFlagBits::eShaderWrite,
-                          vk::AccessFlagBits::eTransferRead,
-                          vk::PipelineStageFlagBits::eRayTracingShaderKHR,
-                          vk::PipelineStageFlagBits::eTransfer);
+        .transitionLayout(
+            mRenderCommandBuffer.get(), vk::ImageLayout::eGeneral, vk::ImageLayout::eGeneral,
+            vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eTransferRead,
+            vk::PipelineStageFlagBits::eRayTracingShaderKHR, vk::PipelineStageFlagBits::eTransfer);
   }
 #endif
 
@@ -365,12 +347,10 @@ void RTRenderer::prepareOutput() {
   // create images
   std::vector<std::shared_ptr<resource::SVStorageImage>> images;
   for (auto &[bid, binding] : set.bindings) {
-    if (binding.type == vk::DescriptorType::eStorageImage &&
-        binding.name.starts_with("out")) {
+    if (binding.type == vk::DescriptorType::eStorageImage && binding.name.starts_with("out")) {
       std::string texName = binding.name.substr(3);
       auto image = mRenderImages[texName] =
-          std::make_shared<resource::SVStorageImage>(texName, mWidth, mHeight,
-                                                     binding.format);
+          std::make_shared<resource::SVStorageImage>(texName, mWidth, mHeight, binding.format);
       mRTImages.push_back(image);
       images.push_back(image);
       image->createDeviceResources();
@@ -379,15 +359,12 @@ void RTRenderer::prepareOutput() {
 
   auto pool = mContext->createCommandPool();
   auto commandBuffer = pool->allocateCommandBuffer();
-  commandBuffer->begin(vk::CommandBufferBeginInfo(
-      vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
+  commandBuffer->begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
   for (auto image : images) {
     image->getImage().transitionLayout(
-        commandBuffer.get(), vk::ImageLayout::eUndefined,
-        vk::ImageLayout::eGeneral, {},
+        commandBuffer.get(), vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral, {},
         vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite,
-        vk::PipelineStageFlagBits::eTopOfPipe,
-        vk::PipelineStageFlagBits::eRayTracingShaderKHR);
+        vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eRayTracingShaderKHR);
   }
   commandBuffer->end();
   mContext->getQueue().submitAndWait(commandBuffer.get());
@@ -395,24 +372,20 @@ void RTRenderer::prepareOutput() {
   mOutputSet.reset();
 
   // make descriptor set
-  mOutputPool = std::make_unique<core::DynamicDescriptorPool>(
-      std::vector<vk::DescriptorPoolSize>{
-          {vk::DescriptorType::eStorageImage,
-           static_cast<uint32_t>(images.size())}});
-  mOutputSet =
-      mOutputPool->allocateSet(mShaderPackInstance->getOutputSetLayout());
+  mOutputPool = std::make_unique<core::DynamicDescriptorPool>(std::vector<vk::DescriptorPoolSize>{
+      {vk::DescriptorType::eStorageImage, static_cast<uint32_t>(images.size())}});
+  mOutputSet = mOutputPool->allocateSet(mShaderPackInstance->getOutputSetLayout());
 
   // write descriptor sets
   std::vector<vk::WriteDescriptorSet> writeDescriptorSets;
   std::vector<vk::DescriptorImageInfo> imageInfos;
   for (auto img : images) {
-    imageInfos.push_back(vk::DescriptorImageInfo(
-        VK_NULL_HANDLE, img->getImageView(), vk::ImageLayout::eGeneral));
+    imageInfos.push_back(
+        vk::DescriptorImageInfo(VK_NULL_HANDLE, img->getImageView(), vk::ImageLayout::eGeneral));
   }
   for (uint32_t binding = 0; binding < imageInfos.size(); ++binding) {
     writeDescriptorSets.push_back(vk::WriteDescriptorSet(
-        mOutputSet.get(), binding, 0, vk::DescriptorType::eStorageImage,
-        imageInfos.at(binding)));
+        mOutputSet.get(), binding, 0, vk::DescriptorType::eStorageImage, imageInfos.at(binding)));
   }
   mContext->getDevice().updateDescriptorSets(writeDescriptorSets, {});
 }
@@ -443,31 +416,29 @@ void RTRenderer::prepareScene() {
 
   mSceneSet.reset();
 
-  mScenePool = std::make_unique<core::DynamicDescriptorPool>(
-      std::vector<vk::DescriptorPoolSize>{
-          {vk::DescriptorType::eAccelerationStructureKHR, asCount},
-          {vk::DescriptorType::eStorageBuffer, storageBufferCount},
-          {vk::DescriptorType::eCombinedImageSampler, textureCount}});
+  mScenePool = std::make_unique<core::DynamicDescriptorPool>(std::vector<vk::DescriptorPoolSize>{
+      {vk::DescriptorType::eAccelerationStructureKHR, asCount},
+      {vk::DescriptorType::eStorageBuffer, storageBufferCount},
+      {vk::DescriptorType::eCombinedImageSampler, textureCount}});
   mSceneSet = mScenePool->allocateSet(mShaderPackInstance->getSceneSetLayout());
 
   std::vector<vk::WriteDescriptorSet> writeDescriptorSets;
   auto as = mScene->getTLAS()->getVulkanAS();
   vk::WriteDescriptorSetAccelerationStructureKHR asWrite(as);
 
-  vk::DescriptorBufferInfo objectBufferInfo(mObjectBuffer->getVulkanBuffer(), 0,
-                                            VK_WHOLE_SIZE);
-  vk::DescriptorBufferInfo geometryInstanceBufferInfo(
-      mScene->getRTGeometryInstanceBuffer(), 0, VK_WHOLE_SIZE);
-  vk::DescriptorBufferInfo textureIndexBufferInfo(
-      mScene->getRTTextureIndexBuffer(), 0, VK_WHOLE_SIZE);
+  vk::DescriptorBufferInfo objectBufferInfo(mObjectBuffer->getVulkanBuffer(), 0, VK_WHOLE_SIZE);
+  vk::DescriptorBufferInfo geometryInstanceBufferInfo(mScene->getRTGeometryInstanceBuffer(), 0,
+                                                      VK_WHOLE_SIZE);
+  vk::DescriptorBufferInfo textureIndexBufferInfo(mScene->getRTTextureIndexBuffer(), 0,
+                                                  VK_WHOLE_SIZE);
   std::vector<vk::DescriptorBufferInfo> materialBufferInfos;
   for (auto buffer : mScene->getRTMaterialBuffers()) {
     materialBufferInfos.push_back({buffer, 0, VK_WHOLE_SIZE});
   }
   std::vector<vk::DescriptorImageInfo> textureInfos;
   for (auto [view, sampler] : mScene->getRTTextures()) {
-    textureInfos.push_back(vk::DescriptorImageInfo(
-        sampler, view, vk::ImageLayout::eShaderReadOnlyOptimal));
+    textureInfos.push_back(
+        vk::DescriptorImageInfo(sampler, view, vk::ImageLayout::eShaderReadOnlyOptimal));
   }
   std::vector<vk::DescriptorBufferInfo> vertexBufferInfos;
   for (auto buffer : mScene->getRTVertexBuffers()) {
@@ -478,14 +449,12 @@ void RTRenderer::prepareScene() {
     indexBufferInfos.push_back({buffer, 0, VK_WHOLE_SIZE});
   }
 
-  vk::DescriptorBufferInfo pointLightBufferInfo(mScene->getRTPointLightBuffer(),
-                                                0, VK_WHOLE_SIZE);
-  vk::DescriptorBufferInfo directionalLightBufferInfo(
-      mScene->getRTDirectionalLightBuffer(), 0, VK_WHOLE_SIZE);
-  vk::DescriptorBufferInfo spotLightBufferInfo(mScene->getRTSpotLightBuffer(),
-                                               0, VK_WHOLE_SIZE);
-  vk::DescriptorBufferInfo parallelogramLightBufferInfo(
-      mScene->getRTParallelogramLightBuffer(), 0, VK_WHOLE_SIZE);
+  vk::DescriptorBufferInfo pointLightBufferInfo(mScene->getRTPointLightBuffer(), 0, VK_WHOLE_SIZE);
+  vk::DescriptorBufferInfo directionalLightBufferInfo(mScene->getRTDirectionalLightBuffer(), 0,
+                                                      VK_WHOLE_SIZE);
+  vk::DescriptorBufferInfo spotLightBufferInfo(mScene->getRTSpotLightBuffer(), 0, VK_WHOLE_SIZE);
+  vk::DescriptorBufferInfo parallelogramLightBufferInfo(mScene->getRTParallelogramLightBuffer(), 0,
+                                                        VK_WHOLE_SIZE);
 
   auto cube = mEnvironmentMap;
   if (!cube) {
@@ -498,67 +467,65 @@ void RTRenderer::prepareScene() {
   for (auto &[bid, binding] : set.bindings) {
     if (binding.name == "tlas") {
       writeDescriptorSets.push_back(vk::WriteDescriptorSet(
-          mSceneSet.get(), bid, 0, 1,
-          vk::DescriptorType::eAccelerationStructureKHR, {}, {}, {}, &asWrite));
+          mSceneSet.get(), bid, 0, 1, vk::DescriptorType::eAccelerationStructureKHR, {}, {}, {},
+          &asWrite));
     } else if (binding.name == "Objects") {
       writeDescriptorSets.push_back(vk::WriteDescriptorSet(
-          mSceneSet.get(), bid, 0, vk::DescriptorType::eStorageBuffer, {},
-          objectBufferInfo, {}));
+          mSceneSet.get(), bid, 0, vk::DescriptorType::eStorageBuffer, {}, objectBufferInfo, {}));
     } else if (binding.name == "GeometryInstances") {
-      writeDescriptorSets.push_back(vk::WriteDescriptorSet(
-          mSceneSet.get(), bid, 0, vk::DescriptorType::eStorageBuffer, {},
-          geometryInstanceBufferInfo, {}));
+      writeDescriptorSets.push_back(vk::WriteDescriptorSet(mSceneSet.get(), bid, 0,
+                                                           vk::DescriptorType::eStorageBuffer, {},
+                                                           geometryInstanceBufferInfo, {}));
     } else if (binding.name == "TextureIndices") {
-      writeDescriptorSets.push_back(vk::WriteDescriptorSet(
-          mSceneSet.get(), bid, 0, vk::DescriptorType::eStorageBuffer, {},
-          textureIndexBufferInfo, {}));
+      writeDescriptorSets.push_back(vk::WriteDescriptorSet(mSceneSet.get(), bid, 0,
+                                                           vk::DescriptorType::eStorageBuffer, {},
+                                                           textureIndexBufferInfo, {}));
     } else if (binding.name == "Materials") {
       if (materialBufferInfos.size()) {
-        writeDescriptorSets.push_back(vk::WriteDescriptorSet(
-            mSceneSet.get(), bid, 0, vk::DescriptorType::eStorageBuffer, {},
-            materialBufferInfos, {}));
+        writeDescriptorSets.push_back(vk::WriteDescriptorSet(mSceneSet.get(), bid, 0,
+                                                             vk::DescriptorType::eStorageBuffer,
+                                                             {}, materialBufferInfos, {}));
       }
     } else if (binding.name == "textures") {
       if (textureInfos.size()) {
         writeDescriptorSets.push_back(vk::WriteDescriptorSet(
-            mSceneSet.get(), bid, 0, vk::DescriptorType::eCombinedImageSampler,
-            textureInfos, {}, {}));
+            mSceneSet.get(), bid, 0, vk::DescriptorType::eCombinedImageSampler, textureInfos, {},
+            {}));
       }
     } else if (binding.name == "Vertices") {
       if (vertexBufferInfos.size()) {
-        writeDescriptorSets.push_back(vk::WriteDescriptorSet(
-            mSceneSet.get(), bid, 0, vk::DescriptorType::eStorageBuffer, {},
-            vertexBufferInfos, {}));
+        writeDescriptorSets.push_back(vk::WriteDescriptorSet(mSceneSet.get(), bid, 0,
+                                                             vk::DescriptorType::eStorageBuffer,
+                                                             {}, vertexBufferInfos, {}));
       }
     } else if (binding.name == "Indices") {
       if (indexBufferInfos.size()) {
-        writeDescriptorSets.push_back(vk::WriteDescriptorSet(
-            mSceneSet.get(), bid, 0, vk::DescriptorType::eStorageBuffer, {},
-            indexBufferInfos, {}));
+        writeDescriptorSets.push_back(vk::WriteDescriptorSet(mSceneSet.get(), bid, 0,
+                                                             vk::DescriptorType::eStorageBuffer,
+                                                             {}, indexBufferInfos, {}));
       }
     } else if (binding.name == "PointLights") {
-      writeDescriptorSets.push_back(vk::WriteDescriptorSet(
-          mSceneSet.get(), bid, 0, vk::DescriptorType::eStorageBuffer, {},
-          pointLightBufferInfo, {}));
+      writeDescriptorSets.push_back(vk::WriteDescriptorSet(mSceneSet.get(), bid, 0,
+                                                           vk::DescriptorType::eStorageBuffer, {},
+                                                           pointLightBufferInfo, {}));
     } else if (binding.name == "DirectionalLights") {
-      writeDescriptorSets.push_back(vk::WriteDescriptorSet(
-          mSceneSet.get(), bid, 0, vk::DescriptorType::eStorageBuffer, {},
-          directionalLightBufferInfo, {}));
+      writeDescriptorSets.push_back(vk::WriteDescriptorSet(mSceneSet.get(), bid, 0,
+                                                           vk::DescriptorType::eStorageBuffer, {},
+                                                           directionalLightBufferInfo, {}));
     } else if (binding.name == "SpotLights") {
-      writeDescriptorSets.push_back(vk::WriteDescriptorSet(
-          mSceneSet.get(), bid, 0, vk::DescriptorType::eStorageBuffer, {},
-          spotLightBufferInfo, {}));
+      writeDescriptorSets.push_back(vk::WriteDescriptorSet(mSceneSet.get(), bid, 0,
+                                                           vk::DescriptorType::eStorageBuffer, {},
+                                                           spotLightBufferInfo, {}));
     } else if (binding.name == "ParallelogramLights") {
-      writeDescriptorSets.push_back(vk::WriteDescriptorSet(
-          mSceneSet.get(), bid, 0, vk::DescriptorType::eStorageBuffer, {},
-          parallelogramLightBufferInfo, {}));
+      writeDescriptorSets.push_back(vk::WriteDescriptorSet(mSceneSet.get(), bid, 0,
+                                                           vk::DescriptorType::eStorageBuffer, {},
+                                                           parallelogramLightBufferInfo, {}));
     } else if (binding.name == "samplerEnvironment") {
-      writeDescriptorSets.push_back(vk::WriteDescriptorSet(
-          mSceneSet.get(), bid, 0, vk::DescriptorType::eCombinedImageSampler,
-          cubeMapInfo, {}, {}));
+      writeDescriptorSets.push_back(
+          vk::WriteDescriptorSet(mSceneSet.get(), bid, 0,
+                                 vk::DescriptorType::eCombinedImageSampler, cubeMapInfo, {}, {}));
     } else {
-      throw std::runtime_error("unrecognized scene set binding " +
-                               binding.name);
+      throw std::runtime_error("unrecognized scene set binding " + binding.name);
     }
   }
   mContext->getDevice().updateDescriptorSets(writeDescriptorSets, {});
@@ -568,8 +535,8 @@ void RTRenderer::prepareCamera() {
   auto &set = mShaderPack->getCameraDescription();
   for (auto &[bid, binding] : set.bindings) {
     if (binding.name == "CameraBuffer") {
-      mCameraBuffer = mContext->getAllocator().allocateUniformBuffer(
-          set.buffers.at(binding.arrayIndex)->size);
+      mCameraBuffer =
+          mContext->getAllocator().allocateUniformBuffer(set.buffers.at(binding.arrayIndex)->size);
       if (bid != 0) {
         throw std::runtime_error("CameraBuffer must have binding 0");
       }
@@ -578,16 +545,12 @@ void RTRenderer::prepareCamera() {
 
   mCameraSet.reset(); // TODO: manage
   mCameraPool = std::make_unique<core::DynamicDescriptorPool>(
-      std::vector<vk::DescriptorPoolSize>{
-          {vk::DescriptorType::eUniformBuffer, 1}}); // TODO adapt
-  mCameraSet =
-      mCameraPool->allocateSet(mShaderPackInstance->getCameraSetLayout());
+      std::vector<vk::DescriptorPoolSize>{{vk::DescriptorType::eUniformBuffer, 1}}); // TODO adapt
+  mCameraSet = mCameraPool->allocateSet(mShaderPackInstance->getCameraSetLayout());
 
   // write
-  vk::DescriptorBufferInfo bufferInfo(mCameraBuffer->getVulkanBuffer(), 0,
-                                      VK_WHOLE_SIZE);
-  vk::WriteDescriptorSet write(mCameraSet.get(), 0, 0,
-                               vk::DescriptorType::eUniformBuffer, {},
+  vk::DescriptorBufferInfo bufferInfo(mCameraBuffer->getVulkanBuffer(), 0, VK_WHOLE_SIZE);
+  vk::WriteDescriptorSet write(mCameraSet.get(), 0, 0, vk::DescriptorType::eUniformBuffer, {},
                                bufferInfo);
   mContext->getDevice().updateDescriptorSets(write, {});
 }
@@ -608,8 +571,7 @@ void RTRenderer::preparePostprocessing() {
   // create postprocessing images
   auto pool = mContext->createCommandPool();
   auto commandBuffer = pool->allocateCommandBuffer();
-  commandBuffer->begin(vk::CommandBufferBeginInfo(
-      vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
+  commandBuffer->begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
   for (auto &parser : mShaderPack->getPostprocessingParsers()) {
     for (auto &[sid, set] : parser->getResources()) {
       for (auto &[bid, binding] : set.bindings) {
@@ -617,21 +579,16 @@ void RTRenderer::preparePostprocessing() {
           std::string texName = binding.name;
           if (mRenderImages.contains(texName)) {
             if (mRenderImages.at(texName)->getFormat() != binding.format) {
-              throw std::runtime_error(
-                  "image format mismatch in a postprocessing shader");
+              throw std::runtime_error("image format mismatch in a postprocessing shader");
             }
           } else {
-            auto image = mRenderImages[texName] =
-                std::make_shared<resource::SVStorageImage>(
-                    texName, mWidth, mHeight, binding.format);
+            auto image = mRenderImages[texName] = std::make_shared<resource::SVStorageImage>(
+                texName, mWidth, mHeight, binding.format);
             image->createDeviceResources();
             image->getImage().transitionLayout(
-                commandBuffer.get(), vk::ImageLayout::eUndefined,
-                vk::ImageLayout::eGeneral, {},
-                vk::AccessFlagBits::eShaderRead |
-                    vk::AccessFlagBits::eShaderWrite,
-                vk::PipelineStageFlagBits::eTopOfPipe,
-                vk::PipelineStageFlagBits::eComputeShader);
+                commandBuffer.get(), vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral, {},
+                vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite,
+                vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eComputeShader);
           }
           mPostprocessImages.push_back(mRenderImages.at(texName));
         }
@@ -646,14 +603,12 @@ void RTRenderer::preparePostprocessing() {
 
   // create descriptor sets, bind images to them
   mPostprocessingPool = std::make_unique<core::DynamicDescriptorPool>(
-      std::vector<vk::DescriptorPoolSize>{
-          {vk::DescriptorType::eStorageBuffer, 10}}); // TODO adapt
+      std::vector<vk::DescriptorPoolSize>{{vk::DescriptorType::eStorageBuffer, 10}}); // TODO adapt
 
   auto &parsers = mShaderPack->getPostprocessingParsers();
   for (uint32_t pid = 0; pid < parsers.size(); ++pid) {
     auto &layout = layouts.at(pid);
-    mPostprocessingSets.push_back(
-        mPostprocessingPool->allocateSet(layout.get()));
+    mPostprocessingSets.push_back(mPostprocessingPool->allocateSet(layout.get()));
     auto desc = parsers.at(pid)->getResources().begin()->second;
 
     std::vector<vk::WriteDescriptorSet> writeDescriptorSets;
@@ -661,23 +616,20 @@ void RTRenderer::preparePostprocessing() {
     for (uint32_t binding = 0; binding < desc.bindings.size(); ++binding) {
       auto texName = desc.bindings.at(binding).name;
       imageInfos.push_back(vk::DescriptorImageInfo(
-          VK_NULL_HANDLE, mRenderImages.at(texName)->getImageView(),
-          vk::ImageLayout::eGeneral));
+          VK_NULL_HANDLE, mRenderImages.at(texName)->getImageView(), vk::ImageLayout::eGeneral));
     }
     for (uint32_t binding = 0; binding < desc.bindings.size(); ++binding) {
-      writeDescriptorSets.push_back(vk::WriteDescriptorSet(
-          mPostprocessingSets.at(pid).get(), binding, 0,
-          vk::DescriptorType::eStorageImage, imageInfos.at(binding)));
+      writeDescriptorSets.push_back(
+          vk::WriteDescriptorSet(mPostprocessingSets.at(pid).get(), binding, 0,
+                                 vk::DescriptorType::eStorageImage, imageInfos.at(binding)));
     }
     mContext->getDevice().updateDescriptorSets(writeDescriptorSets, {});
   }
 }
 
-void RTRenderer::render(scene::Camera &camera,
-                        std::vector<vk::Semaphore> const &waitSemaphores,
+void RTRenderer::render(scene::Camera &camera, std::vector<vk::Semaphore> const &waitSemaphores,
                         std::vector<vk::PipelineStageFlags> const &waitStages,
-                        std::vector<vk::Semaphore> const &signalSemaphores,
-                        vk::Fence fence) {
+                        std::vector<vk::Semaphore> const &signalSemaphores, vk::Fence fence) {
   if (!mContext->isVulkanAvailable()) {
     return;
   }
@@ -688,8 +640,7 @@ void RTRenderer::render(scene::Camera &camera,
   prepareRender(camera);
 
   mContext->getDevice().resetFences(mSceneAccessFence.get());
-  mContext->getQueue().submit(mRenderCommandBuffer.get(), {}, {}, {},
-                              mSceneAccessFence.get());
+  mContext->getQueue().submit(mRenderCommandBuffer.get(), {}, {}, {}, mSceneAccessFence.get());
 
 #ifdef SVULKAN2_CUDA_INTEROP
   if (mDenoiser) {
@@ -698,15 +649,13 @@ void RTRenderer::render(scene::Camera &camera,
                        &mRenderImages.at(mDenoiseNormalName)->getImage());
   }
 #endif
-  mContext->getQueue().submit(mPostprocessCommandBuffer.get(), waitSemaphores,
-                              waitStages, signalSemaphores, fence);
+  mContext->getQueue().submit(mPostprocessCommandBuffer.get(), waitSemaphores, waitStages,
+                              signalSemaphores, fence);
 }
 
 void RTRenderer::render(
-    scene::Camera &camera,
-    vk::ArrayProxyNoTemporaries<vk::Semaphore const> const &waitSemaphores,
-    vk::ArrayProxyNoTemporaries<vk::PipelineStageFlags const> const
-        &waitStageMasks,
+    scene::Camera &camera, vk::ArrayProxyNoTemporaries<vk::Semaphore const> const &waitSemaphores,
+    vk::ArrayProxyNoTemporaries<vk::PipelineStageFlags const> const &waitStageMasks,
     vk::ArrayProxyNoTemporaries<uint64_t const> const &waitValues,
     vk::ArrayProxyNoTemporaries<vk::Semaphore const> const &signalSemaphores,
     vk::ArrayProxyNoTemporaries<uint64_t const> const &signalValues) {
@@ -727,17 +676,15 @@ void RTRenderer::render(
                        &mRenderImages.at(mDenoiseNormalName)->getImage());
   }
 #endif
-  mContext->getQueue().submit(mPostprocessCommandBuffer.get(), waitSemaphores,
-                              waitStageMasks, waitValues, signalSemaphores,
-                              signalValues, {});
+  mContext->getQueue().submit(mPostprocessCommandBuffer.get(), waitSemaphores, waitStageMasks,
+                              waitValues, signalSemaphores, signalValues, {});
 }
 
-void RTRenderer::display(std::string const &imageName, vk::Image backBuffer,
-                         vk::Format format, uint32_t width, uint32_t height,
+void RTRenderer::display(std::string const &imageName, vk::Image backBuffer, vk::Format format,
+                         uint32_t width, uint32_t height,
                          std::vector<vk::Semaphore> const &waitSemaphores,
                          std::vector<vk::PipelineStageFlags> const &waitStages,
-                         std::vector<vk::Semaphore> const &signalSemaphores,
-                         vk::Fence fence) {
+                         std::vector<vk::Semaphore> const &signalSemaphores, vk::Fence fence) {
   if (!mContext->isPresentAvailable()) {
     throw std::runtime_error("Display failed: present is not enabled.");
   }
@@ -746,73 +693,62 @@ void RTRenderer::display(std::string const &imageName, vk::Image backBuffer,
     mDisplayCommandPool = mContext->createCommandPool();
     mDisplayCommandBuffer = mDisplayCommandPool->allocateCommandBuffer();
   }
-  mDisplayCommandBuffer->begin(
-      {vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+  mDisplayCommandBuffer->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
 
   auto renderTarget = mRenderImages.at(imageName);
   auto targetFormat = renderTarget->getFormat();
   if (targetFormat != vk::Format::eR8G8B8A8Unorm &&
       targetFormat != vk::Format::eR32G32B32A32Sfloat) {
-    throw std::runtime_error(
-        "failed to display: only color textures are supported in display");
+    throw std::runtime_error("failed to display: only color textures are supported in display");
   };
 
   renderTarget->getImage().transitionLayout(
-      mDisplayCommandBuffer.get(), vk::ImageLayout::eGeneral,
-      vk::ImageLayout::eGeneral, vk::AccessFlagBits::eMemoryWrite,
-      vk::AccessFlagBits::eTransferRead,
-      vk::PipelineStageFlagBits::eComputeShader |
-          vk::PipelineStageFlagBits::eTransfer,
+      mDisplayCommandBuffer.get(), vk::ImageLayout::eGeneral, vk::ImageLayout::eGeneral,
+      vk::AccessFlagBits::eMemoryWrite, vk::AccessFlagBits::eTransferRead,
+      vk::PipelineStageFlagBits::eComputeShader | vk::PipelineStageFlagBits::eTransfer,
       vk::PipelineStageFlagBits::eTransfer);
 
   {
-    vk::ImageSubresourceRange imageSubresourceRange(
-        vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1);
-    vk::ImageMemoryBarrier barrier(
-        {}, vk::AccessFlagBits::eTransferWrite, vk::ImageLayout::eUndefined,
-        vk::ImageLayout::eTransferDstOptimal, VK_QUEUE_FAMILY_IGNORED,
-        VK_QUEUE_FAMILY_IGNORED, backBuffer, imageSubresourceRange);
-    mDisplayCommandBuffer->pipelineBarrier(
-        vk::PipelineStageFlagBits::eTopOfPipe,
-        vk::PipelineStageFlagBits::eTransfer, {}, nullptr, nullptr, barrier);
+    vk::ImageSubresourceRange imageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1);
+    vk::ImageMemoryBarrier barrier({}, vk::AccessFlagBits::eTransferWrite,
+                                   vk::ImageLayout::eUndefined,
+                                   vk::ImageLayout::eTransferDstOptimal, VK_QUEUE_FAMILY_IGNORED,
+                                   VK_QUEUE_FAMILY_IGNORED, backBuffer, imageSubresourceRange);
+    mDisplayCommandBuffer->pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe,
+                                           vk::PipelineStageFlagBits::eTransfer, {}, nullptr,
+                                           nullptr, barrier);
   }
-  vk::ImageSubresourceLayers imageSubresourceLayers(
-      vk::ImageAspectFlagBits::eColor, 0, 0, 1);
-  vk::ImageBlit imageBlit(
-      imageSubresourceLayers,
-      {{vk::Offset3D{0, 0, 0}, vk::Offset3D{mWidth, mHeight, 1}}},
-      imageSubresourceLayers,
-      {{vk::Offset3D{0, 0, 0},
-        vk::Offset3D{static_cast<int>(width), static_cast<int>(height), 1}}});
-  mDisplayCommandBuffer->blitImage(renderTarget->getImage().getVulkanImage(),
-                                   vk::ImageLayout::eGeneral, backBuffer,
-                                   vk::ImageLayout::eTransferDstOptimal,
-                                   imageBlit, vk::Filter::eNearest);
+  vk::ImageSubresourceLayers imageSubresourceLayers(vk::ImageAspectFlagBits::eColor, 0, 0, 1);
+  vk::ImageBlit imageBlit(imageSubresourceLayers,
+                          {{vk::Offset3D{0, 0, 0}, vk::Offset3D{mWidth, mHeight, 1}}},
+                          imageSubresourceLayers,
+                          {{vk::Offset3D{0, 0, 0},
+                            vk::Offset3D{static_cast<int>(width), static_cast<int>(height), 1}}});
+  mDisplayCommandBuffer->blitImage(
+      renderTarget->getImage().getVulkanImage(), vk::ImageLayout::eGeneral, backBuffer,
+      vk::ImageLayout::eTransferDstOptimal, imageBlit, vk::Filter::eNearest);
 
   // transfer swap chain back
   {
-    vk::ImageSubresourceRange imageSubresourceRange(
-        vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1);
+    vk::ImageSubresourceRange imageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1);
     vk::ImageMemoryBarrier barrier(
         vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eMemoryRead,
-        vk::ImageLayout::eTransferDstOptimal,
-        vk::ImageLayout::eColorAttachmentOptimal, VK_QUEUE_FAMILY_IGNORED,
-        VK_QUEUE_FAMILY_IGNORED, backBuffer, imageSubresourceRange);
-    mDisplayCommandBuffer->pipelineBarrier(
-        vk::PipelineStageFlagBits::eTransfer,
-        vk::PipelineStageFlagBits::eAllCommands, {}, nullptr, nullptr, barrier);
+        vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eColorAttachmentOptimal,
+        VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, backBuffer, imageSubresourceRange);
+    mDisplayCommandBuffer->pipelineBarrier(vk::PipelineStageFlagBits::eTransfer,
+                                           vk::PipelineStageFlagBits::eAllCommands, {}, nullptr,
+                                           nullptr, barrier);
   }
 
   mDisplayCommandBuffer->end();
-  mContext->getQueue().submit(mDisplayCommandBuffer.get(), waitSemaphores,
-                              waitStages, signalSemaphores, fence);
+  mContext->getQueue().submit(mDisplayCommandBuffer.get(), waitSemaphores, waitStages,
+                              signalSemaphores, fence);
 }
 
 std::vector<std::string> RTRenderer::getDisplayTargetNames() const {
   std::vector<std::string> names;
   for (auto &[bid, binding] : mShaderPack->getOutputDescription().bindings) {
-    if (binding.type == vk::DescriptorType::eStorageImage &&
-        binding.name.starts_with("out")) {
+    if (binding.type == vk::DescriptorType::eStorageImage && binding.name.starts_with("out")) {
       std::string texName = binding.name.substr(3);
       if (binding.format == vk::Format::eR32G32B32A32Sfloat) {
         names.push_back(texName);
@@ -825,8 +761,7 @@ std::vector<std::string> RTRenderer::getDisplayTargetNames() const {
 std::vector<std::string> RTRenderer::getRenderTargetNames() const {
   std::vector<std::string> names;
   for (auto &[bid, binding] : mShaderPack->getOutputDescription().bindings) {
-    if (binding.type == vk::DescriptorType::eStorageImage &&
-        binding.name.starts_with("out")) {
+    if (binding.type == vk::DescriptorType::eStorageImage && binding.name.starts_with("out")) {
       std::string texName = binding.name.substr(3);
       names.push_back(texName);
     }
@@ -834,8 +769,7 @@ std::vector<std::string> RTRenderer::getRenderTargetNames() const {
   return names;
 }
 
-void RTRenderer::enableDenoiser(std::string const &colorName,
-                                std::string const &albedoName,
+void RTRenderer::enableDenoiser(std::string const &colorName, std::string const &albedoName,
                                 std::string const &normalName) {
 #ifdef SVULKAN2_CUDA_INTEROP
   if (!mDenoiser) {
@@ -867,18 +801,16 @@ void RTRenderer::recordPostprocess() {
   for (auto image : mPostprocessImages) {
     // TODO: find a better access flag
     image->getImage().transitionLayout(
-        mPostprocessCommandBuffer.get(), vk::ImageLayout::eGeneral,
-        vk::ImageLayout::eGeneral, vk::AccessFlagBits::eMemoryWrite,
+        mPostprocessCommandBuffer.get(), vk::ImageLayout::eGeneral, vk::ImageLayout::eGeneral,
+        vk::AccessFlagBits::eMemoryWrite,
         vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite,
-        vk::PipelineStageFlagBits::eRayTracingShaderKHR |
-            vk::PipelineStageFlagBits::eTransfer,
+        vk::PipelineStageFlagBits::eRayTracingShaderKHR | vk::PipelineStageFlagBits::eTransfer,
         vk::PipelineStageFlagBits::eComputeShader);
   }
 
   // TODO insert memory barrier between render passes
   // currently it only works for a single pass
-  for (uint32_t i = 0;
-       i < mShaderPackInstance->getPostprocessingPipelines().size(); ++i) {
+  for (uint32_t i = 0; i < mShaderPackInstance->getPostprocessingPipelines().size(); ++i) {
     mPostprocessCommandBuffer->bindPipeline(
         vk::PipelineBindPoint::eCompute,
         mShaderPackInstance->getPostprocessingPipelines().at(i).get());

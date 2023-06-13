@@ -5,8 +5,7 @@
 namespace svulkan2 {
 namespace scene {
 
-Object::Object(std::shared_ptr<resource::SVModel> model,
-               std::string const &name)
+Object::Object(std::shared_ptr<resource::SVModel> model, std::string const &name)
     : Node(name), mModel(model) {}
 
 void Object::uploadToDevice(core::Buffer &objectBuffer, uint32_t offset,
@@ -19,13 +18,12 @@ void Object::uploadToDevice(core::Buffer &objectBuffer, uint32_t offset,
   EASY_BLOCK("copy matrix");
   std::memcpy(buffer.data() + objectLayout.elements.at("modelMatrix").offset,
               &mTransform.worldModelMatrix[0][0], 64);
-  std::memcpy(buffer.data() + objectLayout.elements.at("segmentation").offset,
-              &mSegmentation[0], 16);
+  std::memcpy(buffer.data() + objectLayout.elements.at("segmentation").offset, &mSegmentation[0],
+              16);
 
   auto it = objectLayout.elements.find("prevModelMatrix");
   if (it != objectLayout.elements.end()) {
-    std::memcpy(buffer.data() +
-                    objectLayout.elements.at("prevModelMatrix").offset,
+    std::memcpy(buffer.data() + objectLayout.elements.at("prevModelMatrix").offset,
                 &mTransform.prevWorldModelMatrix[0][0], 64);
   }
   EASY_END_BLOCK;
@@ -35,14 +33,13 @@ void Object::uploadToDevice(core::Buffer &objectBuffer, uint32_t offset,
     if (objectLayout.elements.find(name) != objectLayout.elements.end()) {
       auto &elem = objectLayout.elements.at(name);
       if (elem.dtype != value.dtype) {
-        throw std::runtime_error("Upload object failed: object attribute \"" +
-                                 name + "\" does not match declared type.");
+        throw std::runtime_error("Upload object failed: object attribute \"" + name +
+                                 "\" does not match declared type.");
         std::memcpy(buffer.data() + elem.offset, &value.floatValue, elem.size);
       }
     }
   }
-  if (objectLayout.elements.find("transparency") !=
-      objectLayout.elements.end()) {
+  if (objectLayout.elements.find("transparency") != objectLayout.elements.end()) {
     auto &elem = objectLayout.elements.at("transparency");
     if (elem.dtype != DataType::eFLOAT) {
       throw std::runtime_error("Upload object failed: object attribute "
@@ -86,8 +83,7 @@ void Object::setCustomDataFloat4(std::string const &name, glm::vec4 x) {
   mScene->updateRenderVersion();
 }
 void Object::setCustomDataFloat44(std::string const &name, glm::mat4 x) {
-  mCustomData[name] =
-      CustomData{.dtype = DataType::eFLOAT44, .float44Value = x};
+  mCustomData[name] = CustomData{.dtype = DataType::eFLOAT44, .float44Value = x};
   mScene->updateRenderVersion();
 }
 void Object::setCustomDataInt(std::string const &name, int x) {
@@ -120,9 +116,8 @@ Object::getCustomTexture(std::string const &name) const {
   return nullptr;
 }
 
-void Object::setCustomTextureArray(
-    std::string const &name,
-    std::vector<std::shared_ptr<resource::SVTexture>> textures) {
+void Object::setCustomTextureArray(std::string const &name,
+                                   std::vector<std::shared_ptr<resource::SVTexture>> textures) {
   mCustomTextureArray[name] = textures;
 }
 std::vector<std::shared_ptr<resource::SVTexture>>
@@ -152,8 +147,7 @@ void Object::setCastShadow(bool castShadow) {
   mScene->updateVersion();
 }
 
-LineObject::LineObject(std::shared_ptr<resource::SVLineSet> lineSet,
-                       std::string const &name)
+LineObject::LineObject(std::shared_ptr<resource::SVLineSet> lineSet, std::string const &name)
     : Node(name), mLineSet(lineSet) {}
 
 void LineObject::uploadToDevice(core::Buffer &objectBuffer, uint32_t offset,
@@ -161,16 +155,14 @@ void LineObject::uploadToDevice(core::Buffer &objectBuffer, uint32_t offset,
   std::vector<char> buffer(objectLayout.size);
   std::memcpy(buffer.data() + objectLayout.elements.at("modelMatrix").offset,
               &mTransform.worldModelMatrix[0][0], 64);
-  std::memcpy(buffer.data() + objectLayout.elements.at("segmentation").offset,
-              &mSegmentation[0], 16);
+  std::memcpy(buffer.data() + objectLayout.elements.at("segmentation").offset, &mSegmentation[0],
+              16);
   auto it = objectLayout.elements.find("prevModelMatrix");
   if (it != objectLayout.elements.end()) {
-    std::memcpy(buffer.data() +
-                    objectLayout.elements.at("prevModelMatrix").offset,
+    std::memcpy(buffer.data() + objectLayout.elements.at("prevModelMatrix").offset,
                 &mTransform.prevWorldModelMatrix[0][0], 64);
   }
-  if (objectLayout.elements.find("transparency") !=
-      objectLayout.elements.end()) {
+  if (objectLayout.elements.find("transparency") != objectLayout.elements.end()) {
     auto &elem = objectLayout.elements.at("transparency");
     if (elem.dtype != DataType::eFLOAT) {
       throw std::runtime_error("Upload object failed: object attribute "
@@ -183,34 +175,26 @@ void LineObject::uploadToDevice(core::Buffer &objectBuffer, uint32_t offset,
   objectBuffer.upload(buffer.data(), objectLayout.size, offset);
 }
 
-void LineObject::setSegmentation(glm::uvec4 const &segmentation) {
-  mSegmentation = segmentation;
-}
+void LineObject::setSegmentation(glm::uvec4 const &segmentation) { mSegmentation = segmentation; }
 
-void LineObject::setTransparency(float transparency) {
-  mTransparency = transparency;
-}
+void LineObject::setTransparency(float transparency) { mTransparency = transparency; }
 
-PointObject::PointObject(std::shared_ptr<resource::SVPointSet> pointSet,
-                         std::string const &name)
-    : Node(name), mPointSet(pointSet),
-      mVertexCount(pointSet->getVertexCount()) {}
+PointObject::PointObject(std::shared_ptr<resource::SVPointSet> pointSet, std::string const &name)
+    : Node(name), mPointSet(pointSet), mVertexCount(pointSet->getVertexCount()) {}
 
 void PointObject::uploadToDevice(core::Buffer &objectBuffer, uint32_t offset,
                                  StructDataLayout const &objectLayout) {
   std::vector<char> buffer(objectLayout.size);
   std::memcpy(buffer.data() + objectLayout.elements.at("modelMatrix").offset,
               &mTransform.worldModelMatrix[0][0], 64);
-  std::memcpy(buffer.data() + objectLayout.elements.at("segmentation").offset,
-              &mSegmentation[0], 16);
+  std::memcpy(buffer.data() + objectLayout.elements.at("segmentation").offset, &mSegmentation[0],
+              16);
   auto it = objectLayout.elements.find("prevModelMatrix");
   if (it != objectLayout.elements.end()) {
-    std::memcpy(buffer.data() +
-                    objectLayout.elements.at("prevModelMatrix").offset,
+    std::memcpy(buffer.data() + objectLayout.elements.at("prevModelMatrix").offset,
                 &mTransform.prevWorldModelMatrix[0][0], 64);
   }
-  if (objectLayout.elements.find("transparency") !=
-      objectLayout.elements.end()) {
+  if (objectLayout.elements.find("transparency") != objectLayout.elements.end()) {
     auto &elem = objectLayout.elements.at("transparency");
     if (elem.dtype != DataType::eFLOAT) {
       throw std::runtime_error("Upload object failed: object attribute "
@@ -221,13 +205,9 @@ void PointObject::uploadToDevice(core::Buffer &objectBuffer, uint32_t offset,
   objectBuffer.upload(buffer.data(), objectLayout.size, offset);
 }
 
-void PointObject::setSegmentation(glm::uvec4 const &segmentation) {
-  mSegmentation = segmentation;
-}
+void PointObject::setSegmentation(glm::uvec4 const &segmentation) { mSegmentation = segmentation; }
 
-void PointObject::setTransparency(float transparency) {
-  mTransparency = transparency;
-}
+void PointObject::setTransparency(float transparency) { mTransparency = transparency; }
 
 void PointObject::setVertexCount(uint32_t count) {
   mScene->updateVersion();
