@@ -6,116 +6,58 @@
 namespace svulkan2 {
 namespace ui {
 
-class IdGenerator {
+class Keyframe : public std::enable_shared_from_this<Keyframe> {
 public:
-  inline int next() { return id++; }
-  inline IdGenerator() : id(0) {}
-
-  // Serialization
-  inline int getState() const { return id; }
-  inline void setState(const int &state) { id = state; }
-
-private:
-  int id;
+  virtual int frame() = 0;
+  virtual ~Keyframe() = default;
 };
 
-class KeyFrame {
-private:
-  int id;
-
+class Duration : public std::enable_shared_from_this<Duration> {
 public:
-  int frame;
-
-  KeyFrame(int id, int frame) : id(id), frame(frame) {}
-  int getId() const { return id; };
+  virtual std::shared_ptr<Keyframe> keyframe0() = 0;
+  virtual std::shared_ptr<Keyframe> keyframe1() = 0;
+  virtual std::string name() = 0;
+  virtual ~Duration() = default;
 };
 
-class Duration {
-private:
-  int id;
+UI_CLASS(KeyframeEditor) {
+  UI_DECLARE_APPEND(KeyframeEditor);
+
+  // indicate UI wants to add a key frame
+  UI_ATTRIBUTE(KeyframeEditor,
+               std::function<void(std::shared_ptr<Keyframe>, std::shared_ptr<Keyframe>)>,
+               AddDurationCallback);
+
+  // indicate UI wants to add a duration
+  UI_ATTRIBUTE(KeyframeEditor, std::function<void(int)>, AddKeyframeCallback);
+  // indicate UI wants to move a keyframe
+  UI_ATTRIBUTE(KeyframeEditor, std::function<void(std::shared_ptr<Keyframe>, int)>,
+               MoveKeyframeCallback);
+
+  // called when double clicked on a keyframe
+  UI_ATTRIBUTE(KeyframeEditor, std::function<void(std::shared_ptr<Keyframe>)>,
+               DoubleClickKeyframeCallback);
+
+  // called when clicked on a duration bar
+  UI_ATTRIBUTE(KeyframeEditor, std::function<void(std::shared_ptr<Duration>)>,
+               DoubleClickDurationCallback)
+
+  UI_BINDING(KeyframeEditor, int, CurrentFrame);
+  UI_BINDING(KeyframeEditor, int, TotalFrames);
 
 public:
-  int kf1Id;
-  int kf2Id;
-  std::string name;
-  std::string definition;
+  virtual void addKeyframe(std::shared_ptr<Keyframe> frame) = 0;
+  virtual void removeKeyframe(std::shared_ptr<Keyframe> frame) = 0;
 
-  Duration(int id, int kf1Id, int kf2Id, std::string name, std::string definition)
-      : id(id), kf1Id(kf1Id), kf2Id(kf2Id), name(name), definition(definition) {}
-  int getId() const { return id; };
-};
+  virtual void addDuration(std::shared_ptr<Duration> duration) = 0;
+  virtual void removeDuration(std::shared_ptr<Duration> duration) = 0;
 
-UI_CLASS(KeyFrameEditor) {
-  UI_DECLARE_APPEND(KeyFrameEditor);
-  UI_ATTRIBUTE(KeyFrameEditor, std::function<void(std::shared_ptr<KeyFrameEditor>)>,
-               InsertKeyFrameCallback);
-  UI_ATTRIBUTE(KeyFrameEditor, std::function<void(std::shared_ptr<KeyFrameEditor>)>,
-               LoadKeyFrameCallback);
-  UI_ATTRIBUTE(KeyFrameEditor, std::function<void(std::shared_ptr<KeyFrameEditor>)>,
-               UpdateKeyFrameCallback);
-  UI_ATTRIBUTE(KeyFrameEditor, std::function<void(std::shared_ptr<KeyFrameEditor>)>,
-               DeleteKeyFrameCallback);
+  virtual void setState(std::vector<std::shared_ptr<Keyframe>>,
+                        std::vector<std::shared_ptr<Duration>>) = 0;
+  virtual std::vector<std::shared_ptr<Keyframe>> getKeyframes() = 0;
+  virtual std::vector<std::shared_ptr<Duration>> getDurations() = 0;
 
-public:
-  KeyFrameEditor(float contentScale_);
-  void build() override;
-  int getCurrentFrame() const { return currentFrame; };
-  int getKeyFrameToModify() const { return keyFrameToModify; };
-  IdGenerator *getKeyFrameIdGenerator() { return &keyFrameIdGenerator; };
-  IdGenerator *getDurationIdGenerator() { return &durationIdGenerator; };
-  std::vector<KeyFrame *> getKeyFramesInUsed() const;
-  std::vector<Duration *> getDurationsInUsed() const;
-
-  // Import helper
-  auto getKeyFrameIdGeneratorState() const { return keyFrameIdGenerator.getState(); };
-  auto getDurationIdGeneratorState() const { return durationIdGenerator.getState(); };
-  void setKeyFrameIdGeneratorState(int id) { keyFrameIdGenerator.setState(id); };
-  void setDurationIdGeneratorState(int id) { durationIdGenerator.setState(id); };
-  void clear(); // Clear key frames and durations
-  void addKeyFrame(int id, int frame);
-  void addDuration(int id, int kf1Id, int kf2Id, std::string name, std::string definition);
-  int getTotalFrame() { return totalFrame; };
-  void setTotalFrame(int totalFrame_) { totalFrame = totalFrame_; };
-
-private:
-  // Control panel
-  bool addingDuration{};
-  std::vector<std::shared_ptr<KeyFrame>> keyFramesForNewDuration;
-
-  // Timeline
-  int currentFrame;
-  int totalFrame;
-  int totalFrameRange[2]{32, 2048};
-  int stride;
-
-  // Key frame
-  IdGenerator keyFrameIdGenerator;
-  std::vector<std::shared_ptr<KeyFrame>> keyFrames;
-  std::vector<std::shared_ptr<KeyFrame>> keyFramesInUsed;
-  int keyFrameToModify;        // Id of key frame that need to be modified
-  bool keyFramesInUsedUpdated; // Use this to break the iteration through
-                               // keyFramesInUsed when update occurs
-
-  // Duration
-  IdGenerator durationIdGenerator;
-  std::vector<std::shared_ptr<Duration>> durations;
-  std::vector<std::shared_ptr<Duration>> durationsInUsed;
-  int selectedDuration; // Id of duration that is being selected
-  bool initDurationDetails;
-  char nameBuffer[256];
-  char definitionBuffer[65536];
-  std::string defaultDurationDefinition;
-
-  // Visual
-  float contentScale{1.f};
-
-  float pan[2]; // Deviation of {timeline, lister} in pixels
-  float initialPan[2];
-
-  float zoom[2]; // Distance between each {frame, duration} in pixels
-  float horizZoomRange[2];
-
-  float listerInitialWidth{};
+  static std::shared_ptr<KeyframeEditor> Create(float contentScale);
 };
 
 } // namespace ui

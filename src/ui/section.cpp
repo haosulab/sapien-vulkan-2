@@ -5,7 +5,7 @@ namespace svulkan2 {
 namespace ui {
 
 void Section::build() {
-  if (ImGui::CollapsingHeader(mLabel.c_str(),
+  if (ImGui::CollapsingHeader(getLabelId().c_str(),
                               mExpanded ? ImGuiTreeNodeFlags_DefaultOpen : 0)) {
     for (auto c : mChildren) {
       c->build();

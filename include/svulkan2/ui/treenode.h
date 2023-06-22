@@ -6,7 +6,7 @@ namespace ui {
 
 UI_CLASS(TreeNode) {
   UI_DECLARE_APPEND(TreeNode);
-  UI_ATTRIBUTE(TreeNode, std::string, Label);
+  UI_DECLARE_LABEL(TreeNode);
 
 public:
   void build() override;

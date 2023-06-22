@@ -4,10 +4,9 @@
 namespace svulkan2 {
 namespace ui {
 
-UI_CLASS(Section) {
-  UI_DECLARE_APPEND(Section);
-  UI_ATTRIBUTE(Section, bool, Expanded);
-  UI_DECLARE_LABEL(Section);
+UI_CLASS(Conditional) {
+  UI_DECLARE_APPEND(Conditional);
+  UI_BINDING_READONLY(Conditional, bool, Condition);
 
 public:
   void build() override;

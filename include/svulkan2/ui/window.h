@@ -7,7 +7,7 @@ namespace ui {
 
 UI_CLASS(Window) {
   UI_DECLARE_APPEND(Window);
-  UI_ATTRIBUTE(Window, std::string, Label);
+  UI_DECLARE_LABEL(Window);
   UI_ATTRIBUTE(Window, glm::vec2, Pos);
   UI_ATTRIBUTE(Window, glm::vec2, Size);
 

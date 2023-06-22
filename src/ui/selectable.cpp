@@ -5,7 +5,7 @@ namespace svulkan2 {
 namespace ui {
 
 void Selectable::build() {
-  if (ImGui::Selectable(mLabel.c_str(), mSelected) && mCallback) {
+  if (ImGui::Selectable(getLabelId().c_str(), mSelected) && mCallback) {
     mCallback(std::static_pointer_cast<Selectable>(shared_from_this()));
   }
 }

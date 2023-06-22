@@ -5,26 +5,35 @@ namespace svulkan2 {
 namespace ui {
 
 void SliderFloat::build() {
-  if (mWidth > 0) {
-    ImGui::PushItemWidth(mWidth);
+  if (mWidthRatio > 0) {
+    ImGui::SetNextItemWidth(mWidthRatio * ImGui::GetWindowContentRegionWidth());
   }
-  if (ImGui::SliderFloat(mLabel.c_str(), &mValue, mMin, mMax) && mCallback) {
-    mCallback(std::static_pointer_cast<SliderFloat>(shared_from_this()));
+  if (mValueGetter) {
+    mValue = mValueGetter();
   }
-  if (mWidth > 0) {
-    ImGui::PopItemWidth();
+  if (ImGui::SliderFloat(getLabelId().c_str(), &mValue, mMin, mMax)) {
+    if (mValueSetter) {
+      mValueSetter(mValue);
+    }
+    if (mCallback)
+      mCallback(std::static_pointer_cast<SliderFloat>(shared_from_this()));
   }
 }
 
 void SliderAngle::build() {
-  if (mWidth > 0) {
-    ImGui::PushItemWidth(mWidth);
+  if (mWidthRatio > 0) {
+    ImGui::SetNextItemWidth(mWidthRatio * ImGui::GetWindowContentRegionWidth());
   }
-  if (ImGui::SliderAngle(mLabel.c_str(), &mValue, mMin, mMax) && mCallback) {
-    mCallback(std::static_pointer_cast<SliderAngle>(shared_from_this()));
+  if (mValueGetter) {
+    mValue = mValueGetter();
   }
-  if (mWidth > 0) {
-    ImGui::PopItemWidth();
+  if (ImGui::SliderAngle(getLabelId().c_str(), &mValue, mMin, mMax)) {
+    if (mValueSetter) {
+      mValueSetter(mValue);
+    }
+    if (mCallback) {
+      mCallback(std::static_pointer_cast<SliderAngle>(shared_from_this()));
+    }
   }
 }
 

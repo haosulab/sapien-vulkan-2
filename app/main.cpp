@@ -14,6 +14,7 @@
 // clang-format off
 #include <imgui.h>
 #include <ImGuizmo.h>
+#include <ImGuiFileDialog.h>
 // clang-format on
 
 // #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -434,6 +435,8 @@ int main() {
 
     ImGui::NewFrame();
     ImGuizmo::BeginFrame();
+
+    ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".cpp,.h,.hpp", ".");
 
     // float scaling = ImGui::GetWindowDpiScale();
     // // log::info("Window DPI scale: {}", scaling);

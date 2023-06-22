@@ -20,8 +20,7 @@ static void checkVKResult(VkResult err) {
   }
 }
 
-static vk::UniqueRenderPass createImguiRenderPass(vk::Device device,
-                                                  vk::Format format) {
+static vk::UniqueRenderPass createImguiRenderPass(vk::Device device, vk::Format format) {
 
   vk::AttachmentDescription attachment{{},
                                        format,
@@ -32,34 +31,32 @@ static vk::UniqueRenderPass createImguiRenderPass(vk::Device device,
                                        vk::AttachmentStoreOp::eDontCare,
                                        vk::ImageLayout::eColorAttachmentOptimal,
                                        vk::ImageLayout::ePresentSrcKHR};
-  vk::AttachmentReference colorAttachment{
-      0, vk::ImageLayout::eColorAttachmentOptimal};
+  vk::AttachmentReference colorAttachment{0, vk::ImageLayout::eColorAttachmentOptimal};
 
-  vk::SubpassDescription subpass({}, vk::PipelineBindPoint::eGraphics, 0,
-                                 nullptr, 1, &colorAttachment);
-  vk::SubpassDependency dependency{
-      VK_SUBPASS_EXTERNAL,
-      0,
-      vk::PipelineStageFlagBits::eAllCommands,
-      vk::PipelineStageFlagBits::eColorAttachmentOutput,
-      vk::AccessFlagBits::eMemoryWrite,
-      vk::AccessFlagBits::eColorAttachmentWrite};
+  vk::SubpassDescription subpass({}, vk::PipelineBindPoint::eGraphics, 0, nullptr, 1,
+                                 &colorAttachment);
+  vk::SubpassDependency dependency{VK_SUBPASS_EXTERNAL,
+                                   0,
+                                   vk::PipelineStageFlagBits::eAllCommands,
+                                   vk::PipelineStageFlagBits::eColorAttachmentOutput,
+                                   vk::AccessFlagBits::eMemoryWrite,
+                                   vk::AccessFlagBits::eColorAttachmentWrite};
 
-  vk::RenderPassCreateInfo info({}, 1, &attachment, 1, &subpass, 1,
-                                &dependency);
+  vk::RenderPassCreateInfo info({}, 1, &attachment, 1, &subpass, 1, &dependency);
   return device.createRenderPassUnique(info);
 }
 
 static void windowCallback(GLFWwindow *window, int count, const char **paths) {
-  static_cast<GuiWindow *>(glfwGetWindowUserPointer(window))
-      ->dropCallback(count, paths);
+  static_cast<GuiWindow *>(glfwGetWindowUserPointer(window))->dropCallback(count, paths);
+}
+
+static void windowFocusCallback(GLFWwindow *window, int focused) {
+  static_cast<GuiWindow *>(glfwGetWindowUserPointer(window))->focusCallback(focused);
 }
 
 GuiWindow::GuiWindow(std::vector<vk::Format> const &requestFormats,
-                     vk::ColorSpaceKHR requestColorSpace, uint32_t width,
-                     uint32_t height,
-                     std::vector<vk::PresentModeKHR> const &requestModes,
-                     uint32_t minImageCount)
+                     vk::ColorSpaceKHR requestColorSpace, uint32_t width, uint32_t height,
+                     std::vector<vk::PresentModeKHR> const &requestModes, uint32_t minImageCount)
     : mMinImageCount(minImageCount) {
   mContext = core::Context::Get();
   createGlfwWindow(width, height);
@@ -80,12 +77,6 @@ void GuiWindow::newFrame() {
   }
   mFrameIndex = result.value;
 
-  if (ImGui::GetIO().WantCaptureMouse) {
-    mMouseWheelDelta = {0, 0};
-  } else {
-    mMouseWheelDelta = {ImGui::GetIO().MouseWheel, ImGui::GetIO().MouseWheelH};
-  }
-
   ImGui_ImplVulkan_NewFrame();
   ImGui_ImplGlfw_NewFrame();
 }
@@ -93,35 +84,30 @@ void GuiWindow::newFrame() {
 bool GuiWindow::presentFrameWithImgui(vk::Semaphore renderCompleteSemaphore,
                                       vk::Fence frameCompleteFence) {
   vk::ClearValue clearValue{};
-  mContext->getDevice().resetCommandPool(
-      mFrames[mFrameIndex].mImguiCommandPool.get(), {});
+  mContext->getDevice().resetCommandPool(mFrames[mFrameIndex].mImguiCommandPool.get(), {});
   mFrames[mFrameIndex].mImguiCommandBuffer->begin(
       {vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
   vk::RenderPassBeginInfo info(mImguiRenderPass.get(),
                                mFrames[mFrameIndex].mImguiFramebuffer.get(),
                                {{0, 0}, {mWidth, mHeight}}, 1, &clearValue);
-  mFrames[mFrameIndex].mImguiCommandBuffer->beginRenderPass(
-      info, vk::SubpassContents::eInline);
+  mFrames[mFrameIndex].mImguiCommandBuffer->beginRenderPass(info, vk::SubpassContents::eInline);
 
-  ImGui_ImplVulkan_RenderDrawData(
-      ImGui::GetDrawData(), mFrames[mFrameIndex].mImguiCommandBuffer.get());
+  ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(),
+                                  mFrames[mFrameIndex].mImguiCommandBuffer.get());
   mFrames[mFrameIndex].mImguiCommandBuffer->endRenderPass();
   mFrames[mFrameIndex].mImguiCommandBuffer->end();
 
-  vk::PipelineStageFlags waitStage =
-      vk::PipelineStageFlagBits::eColorAttachmentOutput;
+  vk::PipelineStageFlags waitStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
   mContext->getQueue().submit(
-      mFrames[mFrameIndex].mImguiCommandBuffer.get(), renderCompleteSemaphore,
-      waitStage,
-      mFrameSemaphores[mSemaphoreIndex].mImguiCompleteSemaphore.get(),
-      frameCompleteFence);
+      mFrames[mFrameIndex].mImguiCommandBuffer.get(), renderCompleteSemaphore, waitStage,
+      mFrameSemaphores[mSemaphoreIndex].mImguiCompleteSemaphore.get(), frameCompleteFence);
   return mContext->getQueue().present(
-             mFrameSemaphores[mSemaphoreIndex].mImguiCompleteSemaphore.get(),
-             mSwapchain.get(), mFrameIndex) == vk::Result::eSuccess;
+             mFrameSemaphores[mSemaphoreIndex].mImguiCompleteSemaphore.get(), mSwapchain.get(),
+             mFrameIndex) == vk::Result::eSuccess;
 }
 
-static void applyStyle() {
-  ImGuiStyle &style = ImGui::GetStyle();
+static void applyStyle(float scale) {
+  ImGuiStyle style{};
   ImVec4 *colors = style.Colors;
   colors[ImGuiCol_Text] = ImVec4(1.000f, 1.000f, 1.000f, 1.000f);
   colors[ImGuiCol_TextDisabled] = ImVec4(0.500f, 0.500f, 0.500f, 1.000f);
@@ -139,8 +125,7 @@ static void applyStyle() {
   colors[ImGuiCol_MenuBarBg] = ImVec4(0.195f, 0.195f, 0.195f, 1.000f);
   colors[ImGuiCol_ScrollbarBg] = ImVec4(0.160f, 0.160f, 0.160f, 1.000f);
   colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.277f, 0.277f, 0.277f, 1.000f);
-  colors[ImGuiCol_ScrollbarGrabHovered] =
-      ImVec4(0.300f, 0.300f, 0.300f, 1.000f);
+  colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.300f, 0.300f, 0.300f, 1.000f);
   colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(1.000f, 0.391f, 0.000f, 1.000f);
   colors[ImGuiCol_CheckMark] = ImVec4(1.000f, 1.000f, 1.000f, 1.000f);
   colors[ImGuiCol_SliderGrab] = ImVec4(0.391f, 0.391f, 0.391f, 1.000f);
@@ -167,13 +152,11 @@ static void applyStyle() {
   colors[ImGuiCol_PlotLines] = ImVec4(0.469f, 0.469f, 0.469f, 1.000f);
   colors[ImGuiCol_PlotLinesHovered] = ImVec4(1.000f, 0.391f, 0.000f, 1.000f);
   colors[ImGuiCol_PlotHistogram] = ImVec4(0.586f, 0.586f, 0.586f, 1.000f);
-  colors[ImGuiCol_PlotHistogramHovered] =
-      ImVec4(1.000f, 0.391f, 0.000f, 1.000f);
+  colors[ImGuiCol_PlotHistogramHovered] = ImVec4(1.000f, 0.391f, 0.000f, 1.000f);
   colors[ImGuiCol_TextSelectedBg] = ImVec4(1.000f, 1.000f, 1.000f, 0.156f);
   colors[ImGuiCol_DragDropTarget] = ImVec4(1.000f, 0.391f, 0.000f, 1.000f);
   colors[ImGuiCol_NavHighlight] = ImVec4(1.000f, 0.391f, 0.000f, 1.000f);
-  colors[ImGuiCol_NavWindowingHighlight] =
-      ImVec4(1.000f, 0.391f, 0.000f, 1.000f);
+  colors[ImGuiCol_NavWindowingHighlight] = ImVec4(1.000f, 0.391f, 0.000f, 1.000f);
   colors[ImGuiCol_NavWindowingDimBg] = ImVec4(0.000f, 0.000f, 0.000f, 0.586f);
   colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.000f, 0.000f, 0.000f, 0.586f);
 
@@ -187,6 +170,9 @@ static void applyStyle() {
   style.TabBorderSize = 1.0f;
   style.TabRounding = 0.0f;
   style.WindowRounding = 4.0f;
+
+  style.ScaleAllSizes(scale);
+  ImGui::GetStyle() = style;
 }
 
 void GuiWindow::initImgui() {
@@ -200,21 +186,19 @@ void GuiWindow::initImgui() {
       &instance);
 
   // create a pool for allocating descriptor sets
-  vk::DescriptorPoolSize pool_sizes[] = {
-      {vk::DescriptorType::eSampler, 1000},
-      {vk::DescriptorType::eCombinedImageSampler, 1000},
-      {vk::DescriptorType::eSampledImage, 1000},
-      {vk::DescriptorType::eStorageImage, 1000},
-      {vk::DescriptorType::eUniformTexelBuffer, 1000},
-      {vk::DescriptorType::eStorageTexelBuffer, 1000},
-      {vk::DescriptorType::eUniformBuffer, 1000},
-      {vk::DescriptorType::eStorageBuffer, 1000},
-      {vk::DescriptorType::eUniformBufferDynamic, 1000},
-      {vk::DescriptorType::eStorageBufferDynamic, 1000},
-      {vk::DescriptorType::eInputAttachment, 1000}};
-  auto info = vk::DescriptorPoolCreateInfo(
-      vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, 1000 * 11, 11,
-      pool_sizes);
+  vk::DescriptorPoolSize pool_sizes[] = {{vk::DescriptorType::eSampler, 1000},
+                                         {vk::DescriptorType::eCombinedImageSampler, 1000},
+                                         {vk::DescriptorType::eSampledImage, 1000},
+                                         {vk::DescriptorType::eStorageImage, 1000},
+                                         {vk::DescriptorType::eUniformTexelBuffer, 1000},
+                                         {vk::DescriptorType::eStorageTexelBuffer, 1000},
+                                         {vk::DescriptorType::eUniformBuffer, 1000},
+                                         {vk::DescriptorType::eStorageBuffer, 1000},
+                                         {vk::DescriptorType::eUniformBufferDynamic, 1000},
+                                         {vk::DescriptorType::eStorageBufferDynamic, 1000},
+                                         {vk::DescriptorType::eInputAttachment, 1000}};
+  auto info = vk::DescriptorPoolCreateInfo(vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
+                                           1000 * 11, 11, pool_sizes);
   mDescriptorPool = device.createDescriptorPoolUnique(info);
 
   mImguiRenderPass = createImguiRenderPass(device, mSurfaceFormat.format);
@@ -222,10 +206,8 @@ void GuiWindow::initImgui() {
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
 
-  applyStyle();
   auto &io = ImGui::GetIO();
 
-  // TODO: determine the current monitor and set scale
   {
     int monitorCount = 0;
     auto monitors = glfwGetMonitors(&monitorCount);
@@ -242,15 +224,9 @@ void GuiWindow::initImgui() {
     }
     logger::info("Largest monitor DPI scale: {}", mContentScale);
 
-    // HACK: do not scale content twice
-    static bool __called = false;
-    if (!__called) {
-      ImGui::GetStyle().ScaleAllSizes(mContentScale);
-      __called = true;
-    }
-
-    auto font = io.Fonts->AddFontFromMemoryCompressedBase85TTF(
-        roboto_compressed_data_base85, std::round(17.f * mContentScale));
+    applyStyle(mContentScale);
+    auto font = io.Fonts->AddFontFromMemoryCompressedBase85TTF(roboto_compressed_data_base85,
+                                                               std::round(14.f * mContentScale));
     if (font != nullptr) {
       io.FontDefault = font;
     }
@@ -276,8 +252,7 @@ void GuiWindow::initImgui() {
 
   auto pool = mContext->createCommandPool();
   auto commandBuffer = pool->allocateCommandBuffer();
-  commandBuffer->begin(vk::CommandBufferBeginInfo(
-      vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
+  commandBuffer->begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
   ImGui_ImplVulkan_CreateFontsTexture(commandBuffer.get());
   commandBuffer->end();
   mContext->getQueue().submitAndWait(commandBuffer.get());
@@ -289,6 +264,12 @@ void GuiWindow::imguiBeginFrame() {
   ImGui::NewFrame();
   ImGuizmo::BeginFrame();
 
+  if (ImGui::GetIO().WantCaptureMouse) {
+    mMouseWheelDelta = {0, 0};
+  } else {
+    mMouseWheelDelta = {ImGui::GetIO().MouseWheel, ImGui::GetIO().MouseWheelH};
+  }
+
   // setup docking window
   ImGuiWindowFlags flags = ImGuiWindowFlags_MenuBar;
   flags |= ImGuiWindowFlags_NoDocking;
@@ -298,8 +279,8 @@ void GuiWindow::imguiBeginFrame() {
   ImGui::SetNextWindowViewport(viewport->ID);
   ImGui::SetNextWindowBgAlpha(0.f);
   ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-  flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
-           ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+  flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
+           ImGuiWindowFlags_NoMove;
   flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
 
   ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
@@ -313,6 +294,8 @@ void GuiWindow::imguiBeginFrame() {
   ImGui::PopStyleVar();
 }
 
+void GuiWindow::imguiEndFrame() { ImGui::EndFrame(); }
+
 void GuiWindow::imguiRender() { ImGui::Render(); }
 float GuiWindow::imguiGetFramerate() { return ImGui::GetIO().Framerate; }
 
@@ -324,22 +307,22 @@ void GuiWindow::createGlfwWindow(uint32_t width, uint32_t height) {
 
   VkSurfaceKHR tmpSurface;
 
-  auto result = glfwCreateWindowSurface(mContext->getInstance(), mWindow,
-                                        nullptr, &tmpSurface);
+  auto result = glfwCreateWindowSurface(mContext->getInstance(), mWindow, nullptr, &tmpSurface);
   if (result != VK_SUCCESS) {
-    throw std::runtime_error(
-        "create window failed: glfwCreateWindowSurface failed");
+    throw std::runtime_error("create window failed: glfwCreateWindowSurface failed");
   }
   mSurface = vk::UniqueSurfaceKHR(tmpSurface, mContext->getInstance());
 
-  if (!mContext->getPhysicalDevice().getSurfaceSupportKHR(
-          mContext->getGraphicsQueueFamilyIndex(), mSurface.get())) {
+  if (!mContext->getPhysicalDevice().getSurfaceSupportKHR(mContext->getGraphicsQueueFamilyIndex(),
+                                                          mSurface.get())) {
     throw std::runtime_error("create window failed: graphics device does not "
                              "have present capability");
   }
 
   glfwSetWindowUserPointer(mWindow, this);
   glfwSetDropCallback(mWindow, windowCallback);
+
+  glfwSetWindowFocusCallback(mWindow, windowFocusCallback);
 }
 
 void GuiWindow::dropCallback(int count, const char **paths) {
@@ -352,19 +335,24 @@ void GuiWindow::dropCallback(int count, const char **paths) {
   }
 }
 
-void GuiWindow::setDropCallback(
-    std::function<void(std::vector<std::string>)> callback) {
+void GuiWindow::setDropCallback(std::function<void(std::vector<std::string>)> callback) {
   mDropCallback = callback;
 }
 void GuiWindow::unsetDropCallback() { mDropCallback = {}; }
 
-void GuiWindow::selectSurfaceFormat(
-    std::vector<vk::Format> const &requestFormats,
-    vk::ColorSpaceKHR requestColorSpace) {
+void GuiWindow::focusCallback(int focus) {
+  if (mFocusCallback) {
+    mFocusCallback(focus);
+  }
+}
+void GuiWindow::setFocusCallback(std::function<void(int)> callback) { mFocusCallback = callback; }
+void GuiWindow::unsetFocusCallback() { mFocusCallback = {}; }
+
+void GuiWindow::selectSurfaceFormat(std::vector<vk::Format> const &requestFormats,
+                                    vk::ColorSpaceKHR requestColorSpace) {
   assert(requestFormats.size() > 0);
 
-  auto avail_formats =
-      mContext->getPhysicalDevice().getSurfaceFormatsKHR(mSurface.get());
+  auto avail_formats = mContext->getPhysicalDevice().getSurfaceFormatsKHR(mSurface.get());
   if (avail_formats.size() == 0) {
     throw std::runtime_error("No surface format is available");
   }
@@ -400,14 +388,12 @@ void GuiWindow::selectSurfaceFormat(
   mSurfaceFormat = avail_formats[0];
 }
 
-void GuiWindow::selectPresentMode(
-    std::vector<vk::PresentModeKHR> const &requestModes) {
+void GuiWindow::selectPresentMode(std::vector<vk::PresentModeKHR> const &requestModes) {
   assert(requestModes.size() > 0);
 
   // Request a certain mode and confirm that it is available. If not use
   // VK_PRESENT_MODE_FIFO_KHR which is mandatory
-  auto avail_modes =
-      mContext->getPhysicalDevice().getSurfacePresentModesKHR(mSurface.get());
+  auto avail_modes = mContext->getPhysicalDevice().getSurfacePresentModesKHR(mSurface.get());
 
   for (uint32_t request_i = 0; request_i < requestModes.size(); request_i++) {
     for (uint32_t avail_i = 0; avail_i < avail_modes.size(); avail_i++) {
@@ -436,8 +422,7 @@ bool GuiWindow::recreateSwapchain(uint32_t w, uint32_t h) {
   }
 
   auto device = mContext->getDevice();
-  auto cap =
-      mContext->getPhysicalDevice().getSurfaceCapabilitiesKHR(mSurface.get());
+  auto cap = mContext->getPhysicalDevice().getSurfaceCapabilitiesKHR(mSurface.get());
   if (cap.minImageExtent.width > w || cap.maxImageExtent.width < w ||
       cap.minImageExtent.height > h || cap.maxImageExtent.height < h) {
     logger::info("swapchain create ignored: requested size ({}, {}); available "
@@ -447,15 +432,11 @@ bool GuiWindow::recreateSwapchain(uint32_t w, uint32_t h) {
     return false;
   }
 
-  vk::SwapchainCreateInfoKHR info({}, mSurface.get(), mMinImageCount,
-                                  mSurfaceFormat.format,
-                                  mSurfaceFormat.colorSpace, {w, h}, 1,
-                                  vk::ImageUsageFlagBits::eColorAttachment |
-                                      vk::ImageUsageFlagBits::eTransferDst,
-                                  vk::SharingMode::eExclusive, 0, nullptr,
-                                  vk::SurfaceTransformFlagBitsKHR::eIdentity,
-                                  vk::CompositeAlphaFlagBitsKHR::eOpaque,
-                                  mPresentMode, VK_TRUE, mSwapchain.get());
+  vk::SwapchainCreateInfoKHR info(
+      {}, mSurface.get(), mMinImageCount, mSurfaceFormat.format, mSurfaceFormat.colorSpace, {w, h},
+      1, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferDst,
+      vk::SharingMode::eExclusive, 0, nullptr, vk::SurfaceTransformFlagBitsKHR::eIdentity,
+      vk::CompositeAlphaFlagBitsKHR::eOpaque, mPresentMode, VK_TRUE, mSwapchain.get());
 
   if (info.minImageCount < cap.minImageCount) {
     info.minImageCount = cap.minImageCount;
@@ -479,17 +460,15 @@ bool GuiWindow::recreateSwapchain(uint32_t w, uint32_t h) {
   mFrames.resize(images.size());
   mFrameSemaphores.resize(images.size());
   for (uint32_t i = 0; i < images.size(); ++i) {
-    mFrameSemaphores[i].mImageAcquiredSemaphore =
-        device.createSemaphoreUnique({});
+    mFrameSemaphores[i].mImageAcquiredSemaphore = device.createSemaphoreUnique({});
     mFrames[i].mBackbuffer = images[i];
-    vk::ImageViewCreateInfo info{
-        {},
-        mFrames[i].mBackbuffer,
-        vk::ImageViewType::e2D,
-        mSurfaceFormat.format,
-        {vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG,
-         vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA},
-        {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}};
+    vk::ImageViewCreateInfo info{{},
+                                 mFrames[i].mBackbuffer,
+                                 vk::ImageViewType::e2D,
+                                 mSurfaceFormat.format,
+                                 {vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG,
+                                  vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA},
+                                 {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}};
     mFrames[i].mBackbufferView = device.createImageViewUnique(info);
   }
   return true;
@@ -502,23 +481,21 @@ void GuiWindow::recreateImguiResources() {
     mFrames[i].mImguiCommandPool.reset();
   }
   for (uint32_t i = 0; i < mFrames.size(); ++i) {
-    mFrames[i].mImguiCommandPool = device.createCommandPoolUnique(
-        {vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
-         mContext->getGraphicsQueueFamilyIndex()});
-    mFrames[i].mImguiCommandBuffer = std::move(
-        device
-            .allocateCommandBuffersUnique({mFrames[i].mImguiCommandPool.get(),
-                                           vk::CommandBufferLevel::ePrimary, 1})
-            .front());
+    mFrames[i].mImguiCommandPool =
+        device.createCommandPoolUnique({vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
+                                        mContext->getGraphicsQueueFamilyIndex()});
+    mFrames[i].mImguiCommandBuffer =
+        std::move(device
+                      .allocateCommandBuffersUnique({mFrames[i].mImguiCommandPool.get(),
+                                                     vk::CommandBufferLevel::ePrimary, 1})
+                      .front());
 
     vk::FramebufferCreateInfo info({}, mImguiRenderPass.get(), 1,
-                                   &mFrames[i].mBackbufferView.get(), mWidth,
-                                   mHeight, 1);
+                                   &mFrames[i].mBackbufferView.get(), mWidth, mHeight, 1);
     mFrames[i].mImguiFramebuffer = device.createFramebufferUnique(info);
   }
   for (uint32_t i = 0; i < mFrameSemaphores.size(); ++i) {
-    mFrameSemaphores[i].mImguiCompleteSemaphore =
-        device.createSemaphoreUnique({});
+    mFrameSemaphores[i].mImguiCompleteSemaphore = device.createSemaphoreUnique({});
   }
 }
 
@@ -546,60 +523,59 @@ GuiWindow::~GuiWindow() {
   glfwDestroyWindow(mWindow);
 }
 
-static int findKeyCode(std::string const &key) {
-  static std::unordered_map<std::string, int> keyMap = {
-      {"a", ImGui::GetKeyIndex(ImGuiKey_A)},
-      {"b", ImGui::GetKeyIndex(ImGuiKey_A) + 1},
-      {"c", ImGui::GetKeyIndex(ImGuiKey_A) + 2},
-      {"d", ImGui::GetKeyIndex(ImGuiKey_A) + 3},
-      {"e", ImGui::GetKeyIndex(ImGuiKey_A) + 4},
-      {"f", ImGui::GetKeyIndex(ImGuiKey_A) + 5},
-      {"g", ImGui::GetKeyIndex(ImGuiKey_A) + 6},
-      {"h", ImGui::GetKeyIndex(ImGuiKey_A) + 7},
-      {"i", ImGui::GetKeyIndex(ImGuiKey_A) + 8},
-      {"j", ImGui::GetKeyIndex(ImGuiKey_A) + 9},
-      {"k", ImGui::GetKeyIndex(ImGuiKey_A) + 10},
-      {"l", ImGui::GetKeyIndex(ImGuiKey_A) + 11},
-      {"m", ImGui::GetKeyIndex(ImGuiKey_A) + 12},
-      {"n", ImGui::GetKeyIndex(ImGuiKey_A) + 13},
-      {"o", ImGui::GetKeyIndex(ImGuiKey_A) + 14},
-      {"p", ImGui::GetKeyIndex(ImGuiKey_A) + 15},
-      {"q", ImGui::GetKeyIndex(ImGuiKey_A) + 16},
-      {"r", ImGui::GetKeyIndex(ImGuiKey_A) + 17},
-      {"s", ImGui::GetKeyIndex(ImGuiKey_A) + 18},
-      {"t", ImGui::GetKeyIndex(ImGuiKey_A) + 19},
-      {"u", ImGui::GetKeyIndex(ImGuiKey_A) + 20},
-      {"v", ImGui::GetKeyIndex(ImGuiKey_A) + 21},
-      {"w", ImGui::GetKeyIndex(ImGuiKey_A) + 22},
-      {"x", ImGui::GetKeyIndex(ImGuiKey_A) + 23},
-      {"y", ImGui::GetKeyIndex(ImGuiKey_A) + 24},
-      {"z", ImGui::GetKeyIndex(ImGuiKey_A) + 25},
-      {" ", ImGui::GetKeyIndex(ImGuiKey_Space)},
-      {"space", ImGui::GetKeyIndex(ImGuiKey_Space)},
-      {"esc", ImGui::GetKeyIndex(ImGuiKey_Escape)},
-      {"escape", ImGui::GetKeyIndex(ImGuiKey_Escape)},
-      {"tab", ImGui::GetKeyIndex(ImGuiKey_Tab)},
-      {"enter", ImGui::GetKeyIndex(ImGuiKey_Enter)},
-      {"insert", ImGui::GetKeyIndex(ImGuiKey_Insert)},
-      {"home", ImGui::GetKeyIndex(ImGuiKey_Home)},
-      {"delete", ImGui::GetKeyIndex(ImGuiKey_Delete)},
-      {"end", ImGui::GetKeyIndex(ImGuiKey_End)},
-      {"pageup", ImGui::GetKeyIndex(ImGuiKey_PageUp)},
-      {"pagedown", ImGui::GetKeyIndex(ImGuiKey_PageDown)},
-      {"up", ImGui::GetKeyIndex(ImGuiKey_UpArrow)},
-      {"down", ImGui::GetKeyIndex(ImGuiKey_DownArrow)},
-      {"left", ImGui::GetKeyIndex(ImGuiKey_LeftArrow)},
-      {"right", ImGui::GetKeyIndex(ImGuiKey_RightArrow)},
-      {"0", GLFW_KEY_0},
-      {"1", GLFW_KEY_1},
-      {"2", GLFW_KEY_2},
-      {"3", GLFW_KEY_3},
-      {"4", GLFW_KEY_4},
-      {"5", GLFW_KEY_5},
-      {"6", GLFW_KEY_6},
-      {"7", GLFW_KEY_7},
-      {"8", GLFW_KEY_8},
-      {"9", GLFW_KEY_9}};
+static ImGuiKey findKeyCode(std::string const &key) {
+  static std::unordered_map<std::string, ImGuiKey> keyMap = {{"a", ImGuiKey_A},
+                                                             {"b", ImGuiKey_B},
+                                                             {"c", ImGuiKey_C},
+                                                             {"d", ImGuiKey_D},
+                                                             {"e", ImGuiKey_E},
+                                                             {"f", ImGuiKey_F},
+                                                             {"g", ImGuiKey_G},
+                                                             {"h", ImGuiKey_H},
+                                                             {"i", ImGuiKey_I},
+                                                             {"j", ImGuiKey_J},
+                                                             {"k", ImGuiKey_K},
+                                                             {"l", ImGuiKey_L},
+                                                             {"m", ImGuiKey_M},
+                                                             {"n", ImGuiKey_N},
+                                                             {"o", ImGuiKey_O},
+                                                             {"p", ImGuiKey_P},
+                                                             {"q", ImGuiKey_Q},
+                                                             {"r", ImGuiKey_R},
+                                                             {"s", ImGuiKey_S},
+                                                             {"t", ImGuiKey_T},
+                                                             {"u", ImGuiKey_U},
+                                                             {"v", ImGuiKey_V},
+                                                             {"w", ImGuiKey_W},
+                                                             {"x", ImGuiKey_X},
+                                                             {"y", ImGuiKey_Y},
+                                                             {"z", ImGuiKey_Z},
+                                                             {" ", ImGuiKey_Space},
+                                                             {"space", ImGuiKey_Space},
+                                                             {"esc", ImGuiKey_Escape},
+                                                             {"escape", ImGuiKey_Escape},
+                                                             {"tab", ImGuiKey_Tab},
+                                                             {"enter", ImGuiKey_Enter},
+                                                             {"insert", ImGuiKey_Insert},
+                                                             {"home", ImGuiKey_Home},
+                                                             {"delete", ImGuiKey_Delete},
+                                                             {"end", ImGuiKey_End},
+                                                             {"pageup", ImGuiKey_PageUp},
+                                                             {"pagedown", ImGuiKey_PageDown},
+                                                             {"up", ImGuiKey_UpArrow},
+                                                             {"down", ImGuiKey_DownArrow},
+                                                             {"left", ImGuiKey_LeftArrow},
+                                                             {"right", ImGuiKey_RightArrow},
+                                                             {"0", ImGuiKey_0},
+                                                             {"1", ImGuiKey_1},
+                                                             {"2", ImGuiKey_2},
+                                                             {"3", ImGuiKey_3},
+                                                             {"4", ImGuiKey_4},
+                                                             {"5", ImGuiKey_5},
+                                                             {"6", ImGuiKey_6},
+                                                             {"7", ImGuiKey_7},
+                                                             {"8", ImGuiKey_8},
+                                                             {"9", ImGuiKey_9}};
 
   if (keyMap.find(key) == keyMap.end()) {
     throw std::runtime_error("unknown key " + key);
@@ -608,7 +584,7 @@ static int findKeyCode(std::string const &key) {
 }
 
 bool GuiWindow::isKeyDown(std::string const &key) {
-  int code = findKeyCode(key);
+  auto code = findKeyCode(key);
   if (ImGui::GetIO().WantTextInput || ImGui::GetIO().WantCaptureKeyboard) {
     return false;
   }
@@ -616,7 +592,7 @@ bool GuiWindow::isKeyDown(std::string const &key) {
 }
 
 bool GuiWindow::isKeyPressed(std::string const &key) {
-  int code = findKeyCode(key);
+  auto code = findKeyCode(key);
   if (ImGui::GetIO().WantTextInput || ImGui::GetIO().WantCaptureKeyboard) {
     return false;
   }
@@ -633,9 +609,7 @@ std::array<float, 2> GuiWindow::getMouseDelta() {
   return {v.x, v.y};
 }
 
-std::array<float, 2> GuiWindow::getMouseWheelDelta() {
-  return mMouseWheelDelta;
-}
+std::array<float, 2> GuiWindow::getMouseWheelDelta() { return mMouseWheelDelta; }
 
 std::array<float, 2> GuiWindow::getMousePosition() {
   auto v = ImGui::GetIO().MousePos;
@@ -666,9 +640,7 @@ void GuiWindow::setCursorEnabled(bool enabled) {
 
 bool GuiWindow::getCursorEnabled() const { return mCursorEnabled; }
 
-void GuiWindow::setWindowSize(int width, int height) {
-  glfwSetWindowSize(mWindow, width, height);
-}
+void GuiWindow::setWindowSize(int width, int height) { glfwSetWindowSize(mWindow, width, height); }
 std::array<int, 2> GuiWindow::getWindowSize() const {
   int width, height;
   glfwGetWindowSize(mWindow, &width, &height);
@@ -679,9 +651,7 @@ std::array<int, 2> GuiWindow::getWindowFramebufferSize() const {
   glfwGetFramebufferSize(mWindow, &width, &height);
   return {width, height};
 }
-bool GuiWindow::isCloseRequested() const {
-  return glfwWindowShouldClose(mWindow);
-}
+bool GuiWindow::isCloseRequested() const { return glfwWindowShouldClose(mWindow); }
 void GuiWindow::hide() { glfwHideWindow(mWindow); }
 void GuiWindow::show() { glfwShowWindow(mWindow); }
 

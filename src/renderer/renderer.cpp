@@ -936,6 +936,7 @@ void Renderer::recordRenderPasses(scene::Scene &scene) {
 
 void Renderer::prepareRender(scene::Camera &camera) {
   if (mLastVersion != mScene->getVersion()) {
+    logger::info("Scene updated");
     mRequiresRecord = true;
   }
 

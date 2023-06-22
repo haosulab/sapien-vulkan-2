@@ -755,6 +755,18 @@ std::vector<std::string> RTRenderer::getDisplayTargetNames() const {
       }
     }
   }
+  for (auto &p : mShaderPack->getPostprocessingParsers()) {
+    for (auto &[id, resource] : p->getResources()) {
+      for (auto &[id, binding] : resource.bindings) {
+        if (binding.type == vk::DescriptorType::eStorageImage &&
+            std::find(names.begin(), names.end(), binding.name) == names.end()) {
+          if (binding.format == vk::Format::eR32G32B32A32Sfloat) {
+            names.push_back(binding.name);
+          }
+        }
+      }
+    }
+  }
   return names;
 }
 
@@ -764,6 +776,18 @@ std::vector<std::string> RTRenderer::getRenderTargetNames() const {
     if (binding.type == vk::DescriptorType::eStorageImage && binding.name.starts_with("out")) {
       std::string texName = binding.name.substr(3);
       names.push_back(texName);
+    }
+  }
+  for (auto &p : mShaderPack->getPostprocessingParsers()) {
+    for (auto &[id, resource] : p->getResources()) {
+      for (auto &[id, binding] : resource.bindings) {
+        if (binding.type == vk::DescriptorType::eStorageImage &&
+            std::find(names.begin(), names.end(), binding.name) == names.end()) {
+          if (binding.format == vk::Format::eR32G32B32A32Sfloat) {
+            names.push_back(binding.name);
+          }
+        }
+      }
     }
   }
   return names;

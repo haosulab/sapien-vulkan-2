@@ -1,9 +1,9 @@
 #pragma once
+#include <functional>
 #include <iostream>
 #include <memory>
 #include <vector>
 #include <vulkan/vulkan.hpp>
-#include <functional>
 
 struct GLFWwindow;
 
@@ -60,14 +60,11 @@ class GuiWindow {
   std::array<float, 2> mMouseWheelDelta{0, 0};
 
   std::function<void(std::vector<std::string>)> mDropCallback{};
+  std::function<void(int)> mFocusCallback{};
 
 public:
-  [[nodiscard]] inline vk::SwapchainKHR getSwapchain() const {
-    return mSwapchain.get();
-  }
-  [[nodiscard]] inline vk::Format getBackBufferFormat() const {
-    return mSurfaceFormat.format;
-  }
+  [[nodiscard]] inline vk::SwapchainKHR getSwapchain() const { return mSwapchain.get(); }
+  [[nodiscard]] inline vk::Format getBackBufferFormat() const { return mSurfaceFormat.format; }
   [[nodiscard]] inline uint32_t getWidth() const { return mWidth; }
   [[nodiscard]] inline uint32_t getHeight() const { return mHeight; }
   [[nodiscard]] inline uint32_t getFrameIndex() const { return mFrameIndex; }
@@ -77,19 +74,23 @@ public:
   void setDropCallback(std::function<void(std::vector<std::string>)> callback);
   void unsetDropCallback();
 
+  void focusCallback(int focus);
+  void setFocusCallback(std::function<void(int)> callback);
+  void unsetFocusCallback();
+
 public:
   /** Acquire new frame, poll events, call ImGui NewFrame */
   void newFrame();
 
   /** Send current frame to the present queue. Waits for
    * renderCopmleteSemaphore, signals frameCompleteFence. */
-  bool presentFrameWithImgui(vk::Semaphore renderCompleteSemaphore,
-                             vk::Fence frameCompleteFence);
+  bool presentFrameWithImgui(vk::Semaphore renderCompleteSemaphore, vk::Fence frameCompleteFence);
 
   /** Create ImGui Context and init ImGui Vulkan implementation. */
   void initImgui();
 
   void imguiBeginFrame();
+  void imguiEndFrame();
   void imguiRender();
   float imguiGetFramerate();
 
@@ -97,14 +98,10 @@ public:
     return mFrameSemaphores[mSemaphoreIndex].mImageAcquiredSemaphore.get();
   }
 
-  inline vk::Image getBackbuffer() const {
-    return mFrames[mFrameIndex].mBackbuffer;
-  }
+  inline vk::Image getBackbuffer() const { return mFrames[mFrameIndex].mBackbuffer; }
 
-  GuiWindow(std::vector<vk::Format> const &requestFormats,
-            vk::ColorSpaceKHR requestColorSpace, uint32_t width,
-            uint32_t height,
-            std::vector<vk::PresentModeKHR> const &requestModes,
+  GuiWindow(std::vector<vk::Format> const &requestFormats, vk::ColorSpaceKHR requestColorSpace,
+            uint32_t width, uint32_t height, std::vector<vk::PresentModeKHR> const &requestModes,
             uint32_t minImageCount);
 
   GuiWindow(GuiWindow const &other) = delete;

@@ -5,7 +5,12 @@ namespace svulkan2 {
 namespace ui {
 
 void Button::build() {
-  if (ImGui::Button(mLabel.c_str()) && mCallback) {
+  ImVec2 size{0, 0};
+  if (mWidth > 0) {
+    size = {mWidth, 0};
+  }
+
+  if (ImGui::Button(getLabelId().c_str(), size) && mCallback) {
     mCallback(std::static_pointer_cast<Button>(shared_from_this()));
   }
 }

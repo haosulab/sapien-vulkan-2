@@ -7,15 +7,17 @@ namespace svulkan2 {
 namespace ui {
 
 UI_CLASS(Gizmo) {
-  UI_ATTRIBUTE(Gizmo, std::string, Label);
+  UI_DECLARE_LABEL(Gizmo);
   UI_ATTRIBUTE(Gizmo, glm::mat4, Matrix);
 
-  int mCurrentGizmoOperation{};
-  int mCurrentGizmoMode{};
+  UI_BINDING(Gizmo, glm::mat4, Matrix);
 
-  // ImGuizmo::OPERATION mCurrentGizmoOperation{ImGuizmo::TRANSLATE};
-  // ImGuizmo::MODE mCurrentGizmoMode{ImGuizmo::WORLD};
+  int mCurrentGizmoOperation{7};
+  int mCurrentGizmoMode{1};
+
   bool mUseSnap{};
+  glm::vec3 mSnapTranslation{0.1, 0.1, 0.1};
+  float mSnapRotation{5};
 
   glm::mat4 mView{1};
   glm::mat4 mProjection{1};
@@ -24,8 +26,7 @@ UI_CLASS(Gizmo) {
 
 public:
   void build() override;
-  inline void setCameraParameters(glm::mat4 const &view,
-                                  glm::mat4 const &projection) {
+  inline void setCameraParameters(glm::mat4 const &view, glm::mat4 const &projection) {
     mView = view;
     mProjection = projection;
   }

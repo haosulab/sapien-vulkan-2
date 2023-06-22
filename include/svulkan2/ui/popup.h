@@ -5,10 +5,11 @@
 namespace svulkan2 {
 namespace ui {
 
-UI_CLASS(Button) {
-  UI_DECLARE_LABEL(Button);
-  UI_ATTRIBUTE(Button, std::function<void(std::shared_ptr<Button>)>, Callback);
-  UI_ATTRIBUTE(Button, float, Width);
+UI_CLASS(Popup) {
+  UI_DECLARE_APPEND(Popup);
+  UI_DECLARE_LABEL(Popup);
+
+  UI_ATTRIBUTE(Popup, std::function<void()>, EscCallback);
 
 public:
   void build() override;

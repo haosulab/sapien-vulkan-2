@@ -5,7 +5,7 @@ namespace svulkan2 {
 namespace ui {
 
 void TreeNode::build() {
-  if (ImGui::TreeNode(mLabel.c_str())) {
+  if (ImGui::TreeNode(getLabelId().c_str())) {
     for (auto c : mChildren) {
       c->build();
     }
