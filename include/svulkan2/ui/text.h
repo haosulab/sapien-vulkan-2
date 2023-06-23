@@ -2,6 +2,7 @@
 #include "svulkan2/common/glm.h"
 #include "widget.h"
 #include <functional>
+#include <array>
 
 namespace svulkan2 {
 namespace ui {

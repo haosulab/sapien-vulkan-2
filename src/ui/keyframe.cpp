@@ -4,6 +4,7 @@
 #include <imgui_internal.h>
 #include <set>
 #include <string>
+#include <stdexcept>
 
 namespace svulkan2 {
 namespace ui {

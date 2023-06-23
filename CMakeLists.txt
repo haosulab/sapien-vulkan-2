@@ -84,7 +84,7 @@ endif()
 # this library exports the storage api
 target_compile_definitions(svulkan2 PRIVATE VULKAN_HPP_STORAGE_SHARED_EXPORT)
 # other libraries use the exported storage api
-target_compile_definitions(svulkan2 PRIVATE VULKAN_HPP_STORAGE_SHARED)
+target_compile_definitions(svulkan2 PUBLIC VULKAN_HPP_STORAGE_SHARED)
 
 add_executable(svulkan2_main app/main.cpp)
 target_link_libraries(svulkan2_main svulkan2 glfw imgui)
@@ -92,7 +92,14 @@ if (UNIX)
     target_link_libraries(svulkan2_main stdc++fs)
 endif()
 
-target_include_directories(svulkan2_main PRIVATE "3rd_party/OptiX7SDK/include")
+add_executable(svulkan2_deform app/deform.cpp)
+target_link_libraries(svulkan2_deform svulkan2 glfw imgui)
+if (UNIX)
+    target_link_libraries(svulkan2_deform stdc++fs)
+endif()
+
+
+
 
 add_executable(gencube app/gencube.cpp)
 target_link_libraries(gencube svulkan2)

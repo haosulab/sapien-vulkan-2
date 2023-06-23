@@ -2,6 +2,7 @@
 #include "widget.h"
 #include <functional>
 #include <vector>
+#include <array>
 
 namespace svulkan2 {
 namespace ui {
