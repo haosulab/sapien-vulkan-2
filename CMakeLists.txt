@@ -92,14 +92,11 @@ if (UNIX)
     target_link_libraries(svulkan2_main stdc++fs)
 endif()
 
-add_executable(svulkan2_deform app/deform.cpp)
-target_link_libraries(svulkan2_deform svulkan2 glfw imgui)
-if (UNIX)
-    target_link_libraries(svulkan2_deform stdc++fs)
-endif()
-
-
-
+# add_executable(svulkan2_deform app/deform.cpp)
+# target_link_libraries(svulkan2_deform svulkan2 glfw imgui)
+# if (UNIX)
+#     target_link_libraries(svulkan2_deform stdc++fs)
+# endif()
 
 add_executable(gencube app/gencube.cpp)
 target_link_libraries(gencube svulkan2)
