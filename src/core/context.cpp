@@ -30,8 +30,7 @@ static void glfwErrorCallback(int error_code, const char *description) {
 #ifdef VK_VALIDATION
 static bool checkValidationLayerSupport(
     PFN_vkEnumerateInstanceLayerProperties vkEnumerateInstanceLayerProperties) {
-  static const std::vector<const char *> validationLayers = {
-      "VK_LAYER_KHRONOS_validation"};
+  static const std::vector<const char *> validationLayers = {"VK_LAYER_KHRONOS_validation"};
   uint32_t layerCount;
   vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
   std::vector<VkLayerProperties> availableLayers(layerCount);
@@ -54,30 +53,29 @@ static bool checkValidationLayerSupport(
 #endif
 
 std::shared_ptr<Context> Context::Create(bool present, uint32_t maxNumMaterials,
-                                         uint32_t maxNumTextures,
-                                         uint32_t defaultMipLevels,
-                                         bool doNotLoadTexture,
-                                         std::string device) {
-  if (!gInstance.expired()) {
-    logger::warn(
-        "Only 1 renderer is allowed per process. All previously created "
-        "renderer resources are now invalid");
+                                         uint32_t maxNumTextures, uint32_t defaultMipLevels,
+                                         bool doNotLoadTexture, std::string device) {
+  if (auto context = gInstance.lock()) {
+    if (context->mDefaultMipLevels != defaultMipLevels &&
+        context->mDoNotLoadTexture != doNotLoadTexture) {
+      logger::warn("Creating multiple renderers with different parameters is not allowed!");
+    }
+    context->mDefaultMipLevels = defaultMipLevels;
+    context->mDoNotLoadTexture = doNotLoadTexture;
+    return context;
   }
-  auto context = std::shared_ptr<Context>(
-      new Context(present, maxNumMaterials, maxNumTextures, defaultMipLevels,
-                  doNotLoadTexture, device));
+  auto context = std::shared_ptr<Context>(new Context(present, maxNumMaterials, maxNumTextures,
+                                                      defaultMipLevels, doNotLoadTexture, device));
   gInstance = context;
   context->init();
   return context;
 }
 
-Context::Context(bool present, uint32_t maxNumMaterials,
-                 uint32_t maxNumTextures, uint32_t defaultMipLevels,
-                 bool doNotLoadTexture, std::string device)
-    : mApiVersion(VK_API_VERSION_1_2), mPresent(present),
-      mMaxNumMaterials(maxNumMaterials), mMaxNumTextures(maxNumTextures),
-      mDefaultMipLevels(defaultMipLevels), mDoNotLoadTexture(doNotLoadTexture),
-      mDeviceHint(device) {}
+Context::Context(bool present, uint32_t maxNumMaterials, uint32_t maxNumTextures,
+                 uint32_t defaultMipLevels, bool doNotLoadTexture, std::string device)
+    : mApiVersion(VK_API_VERSION_1_2), mPresent(present), mMaxNumMaterials(maxNumMaterials),
+      mMaxNumTextures(maxNumTextures), mDefaultMipLevels(defaultMipLevels),
+      mDoNotLoadTexture(doNotLoadTexture), mDeviceHint(device) {}
 
 void Context::init() {
 #ifdef SVULKAN2_PROFILE
@@ -107,11 +105,9 @@ Context::~Context() {
   logger::info("Vulkan finished");
 }
 
-std::shared_ptr<resource::SVResourceManager>
-Context::getResourceManager() const {
+std::shared_ptr<resource::SVResourceManager> Context::getResourceManager() const {
   if (mResourceManager.expired()) {
-    throw std::runtime_error(
-        "failed to get resource manager: destroyed or not created");
+    throw std::runtime_error("failed to get resource manager: destroyed or not created");
   }
   return mResourceManager.lock();
 }
@@ -145,9 +141,8 @@ void Context::createInstance() {
 
   // give up
   if (!mDynamicLoader) {
-    logger::error(
-        "Failed to load vulkan library! You may not use the renderer to "
-        "render, however, CPU resources will be still available.");
+    logger::error("Failed to load vulkan library! You may not use the renderer to "
+                  "render, however, CPU resources will be still available.");
     return;
   }
 
@@ -163,51 +158,42 @@ void Context::createInstance() {
 
 #ifdef VK_VALIDATION
   if (!checkValidationLayerSupport(
-          mDynamicLoader
-              ->getProcAddress<PFN_vkEnumerateInstanceLayerProperties>(
-                  "vkEnumerateInstanceLayerProperties"))) {
-    throw std::runtime_error(
-        "createInstance: validation layers are not available");
+          mDynamicLoader->getProcAddress<PFN_vkEnumerateInstanceLayerProperties>(
+              "vkEnumerateInstanceLayerProperties"))) {
+    throw std::runtime_error("createInstance: validation layers are not available");
   }
   std::vector<const char *> enabledLayers = {"VK_LAYER_KHRONOS_validation"};
 #else
   std::vector<const char *> enabledLayers = {};
 #endif
-  vk::ApplicationInfo appInfo("Vulkan Renderer", VK_MAKE_VERSION(0, 0, 1),
-                              "No Engine", VK_MAKE_VERSION(0, 0, 1),
-                              mApiVersion);
+  vk::ApplicationInfo appInfo("Vulkan Renderer", VK_MAKE_VERSION(0, 0, 1), "No Engine",
+                              VK_MAKE_VERSION(0, 0, 1), mApiVersion);
 
   std::vector<const char *> instanceExtensions;
 
 #ifdef SVULKAN2_CUDA_INTEROP
-  instanceExtensions.push_back(
-      VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME);
-  instanceExtensions.push_back(
-      VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME);
+  instanceExtensions.push_back(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME);
+  instanceExtensions.push_back(VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME);
 #endif
 
   if (mPresent) {
     if (!glfwVulkanSupported()) {
-      logger::error(
-          "createInstance: present requested but GLFW does not support "
-          "Vulkan. Continue without GLFW.");
+      logger::error("createInstance: present requested but GLFW does not support "
+                    "Vulkan. Continue without GLFW.");
       mPresent = false;
     } else {
       uint32_t glfwExtensionCount = 0;
-      const char **glfwExtensions =
-          glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+      const char **glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
       if (!glfwExtensions) {
         int glfwExtensionsErrCode = glfwGetError(NULL);
         if (glfwExtensionsErrCode == GLFW_NOT_INITIALIZED) {
           throw std::runtime_error("createInstance: GLFW has not initialized");
         } else if (glfwExtensionsErrCode == GLFW_API_UNAVAILABLE) {
-          throw std::runtime_error(
-              "createInstance: Vulkan is not available on the machine");
+          throw std::runtime_error("createInstance: Vulkan is not available on the machine");
         } else
-          throw std::runtime_error(
-              "createInstance: No Vulkan extensions found for window "
-              "surface creation (hint: set VK_ICD_FILENAMES to `locate "
-              "icd.json`).");
+          throw std::runtime_error("createInstance: No Vulkan extensions found for window "
+                                   "surface creation (hint: set VK_ICD_FILENAMES to `locate "
+                                   "icd.json`).");
       }
       for (uint32_t i = 0; i < glfwExtensionCount; ++i) {
         instanceExtensions.push_back(glfwExtensions[i]);
@@ -216,13 +202,11 @@ void Context::createInstance() {
   }
 
   PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr =
-      mDynamicLoader->getProcAddress<PFN_vkGetInstanceProcAddr>(
-          "vkGetInstanceProcAddr");
+      mDynamicLoader->getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr");
   VULKAN_HPP_DEFAULT_DISPATCHER.init(vkGetInstanceProcAddr);
 
-  vk::InstanceCreateInfo createInfo(
-      {}, &appInfo, enabledLayers.size(), enabledLayers.data(),
-      instanceExtensions.size(), instanceExtensions.data());
+  vk::InstanceCreateInfo createInfo({}, &appInfo, enabledLayers.size(), enabledLayers.data(),
+                                    instanceExtensions.size(), instanceExtensions.data());
   mVulkanAvailable = false;
   try {
     mInstance = vk::createInstanceUnique(createInfo);
@@ -234,27 +218,22 @@ void Context::createInstance() {
   } catch (vk::OutOfDeviceMemoryError const &err) {
     throw err;
   } catch (vk::InitializationFailedError const &err) {
-    logger::error(
-        "Vulkan initialization failed. You may not use the renderer to "
-        "render, however, CPU resources will be still available.");
+    logger::error("Vulkan initialization failed. You may not use the renderer to "
+                  "render, however, CPU resources will be still available.");
   } catch (vk::LayerNotPresentError const &err) {
-    logger::error(
-        "Some required Vulkan layer is not present. You may not use the "
-        "renderer to render, however, CPU resources will be still available.");
+    logger::error("Some required Vulkan layer is not present. You may not use the "
+                  "renderer to render, however, CPU resources will be still available.");
   } catch (vk::ExtensionNotPresentError const &err) {
-    logger::error(
-        "Some required Vulkan extension is not present. You may not use the "
-        "renderer to render, however, CPU resources will be still available.");
+    logger::error("Some required Vulkan extension is not present. You may not use the "
+                  "renderer to render, however, CPU resources will be still available.");
   } catch (vk::IncompatibleDriverError const &err) {
-    logger::error(
-        "Vulkan is incompatible with your driver. You may not use the renderer "
-        "to render, however, CPU resources will be still available.");
+    logger::error("Vulkan is incompatible with your driver. You may not use the renderer "
+                  "to render, however, CPU resources will be still available.");
   }
 }
 
-static inline uint32_t
-computeDevicePriority(Context::PhysicalDeviceInfo const &info,
-                      std::string const &hint, bool presentRequested) {
+static inline uint32_t computeDevicePriority(Context::PhysicalDeviceInfo const &info,
+                                             std::string const &hint, bool presentRequested) {
 
   // specific cuda device
   if (hint.starts_with("cuda:")) {
@@ -301,16 +280,14 @@ computeDevicePriority(Context::PhysicalDeviceInfo const &info,
   return score;
 }
 
-std::vector<Context::PhysicalDeviceInfo>
-Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
+std::vector<Context::PhysicalDeviceInfo> Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
   std::vector<Context::PhysicalDeviceInfo> devices;
 
   std::stringstream ss;
   ss << "Devices visible to Vulkan" << std::endl;
-  ss << std::setw(3) << "Id" << std::setw(40) << "name" << std::setw(10)
-     << "Present" << std::setw(10) << "Supported" << std::setw(10) << "PciBus"
-     << std::setw(10) << "CudaId" << std::setw(15) << "RayTracing"
-     << std::setw(10) << "Discrete" << std::endl;
+  ss << std::setw(3) << "Id" << std::setw(40) << "name" << std::setw(10) << "Present"
+     << std::setw(10) << "Supported" << std::setw(10) << "PciBus" << std::setw(10) << "CudaId"
+     << std::setw(15) << "RayTracing" << std::setw(10) << "Discrete" << std::endl;
 
   vk::PhysicalDeviceFeatures2 features{};
   vk::PhysicalDeviceDescriptorIndexingFeatures descriptorFeatures{};
@@ -357,8 +334,7 @@ Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
     // check features
     device.getFeatures2(&features);
     if (features.features.independentBlend && features.features.wideLines &&
-        features.features.geometryShader &&
-        descriptorFeatures.descriptorBindingPartiallyBound &&
+        features.features.geometryShader && descriptorFeatures.descriptorBindingPartiallyBound &&
         timelineSemaphoreFeatures.timelineSemaphore) {
       required_features = true;
     }
@@ -366,15 +342,13 @@ Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
     // check extensions
     auto extensions = device.enumerateDeviceExtensionProperties();
     for (auto &ext : extensions) {
-      if (std::strcmp(ext.extensionName,
-                      VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME) == 0) {
+      if (std::strcmp(ext.extensionName, VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME) == 0) {
         rayTracing = 1;
       }
     }
 
     auto properties = device.getProperties();
-    name =
-        std::string(properties.deviceName.begin(), properties.deviceName.end());
+    name = std::string(properties.deviceName.begin(), properties.deviceName.end());
     discrete = properties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu;
 
     vk::PhysicalDeviceProperties2KHR p2;
@@ -386,8 +360,7 @@ Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
 
     int computeMode{-1};
     auto SAPIEN_DISABLE_RAY_TRACING = std::getenv("SAPIEN_DISABLE_RAY_TRACING");
-    if (SAPIEN_DISABLE_RAY_TRACING &&
-        std::strcmp(SAPIEN_DISABLE_RAY_TRACING, "1") == 0) {
+    if (SAPIEN_DISABLE_RAY_TRACING && std::strcmp(SAPIEN_DISABLE_RAY_TRACING, "1") == 0) {
       rayTracing = 0;
     } else {
 #ifdef SVULKAN2_CUDA_INTEROP
@@ -396,41 +369,38 @@ Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
       if ((computeMode == cudaComputeModeExclusiveProcess ||
            computeMode == cudaComputeModeExclusive) &&
           rayTracing) {
-        logger::warn(
-            "CUDA device {} is in EXCLUSIVE or EXCLUSIVE_PROCESS mode. You "
-            "many not use this renderer with external CUDA programs unless "
-            "you switch off ray tracing by environment variable "
-            "SAPIEN_DISABLE_RAY_TRACING=1.",
-            cudaId);
+        logger::warn("CUDA device {} is in EXCLUSIVE or EXCLUSIVE_PROCESS mode. You "
+                     "many not use this renderer with external CUDA programs unless "
+                     "you switch off ray tracing by environment variable "
+                     "SAPIEN_DISABLE_RAY_TRACING=1.",
+                     cudaId);
       }
 #endif
     }
     bool supported = required_features && queueIdx != -1;
 
-    ss << std::setw(3) << ord++ << std::setw(40) << name.substr(0, 39).c_str()
-       << std::setw(10) << present << std::setw(10) << supported << std::hex
-       << std::setw(10) << busid << std::dec << std::setw(10)
-       << (cudaId < 0 ? "No Device" : std::to_string(cudaId)) << std::setw(15)
+    ss << std::setw(3) << ord++ << std::setw(40) << name.substr(0, 39).c_str() << std::setw(10)
+       << present << std::setw(10) << supported << std::hex << std::setw(10) << busid << std::dec
+       << std::setw(10) << (cudaId < 0 ? "No Device" : std::to_string(cudaId)) << std::setw(15)
        << rayTracing << std::setw(10) << discrete << std::endl;
 
-    devices.push_back(
-        Context::PhysicalDeviceInfo{.device = device,
-                                    .present = present,
-                                    .supported = required_features,
-                                    .cudaId = cudaId,
-                                    .pciBus = busid,
-                                    .queueIndex = queueIdx,
-                                    .rayTracing = rayTracing,
-                                    .cudaComputeMode = computeMode,
-                                    .discrete = discrete});
+    devices.push_back(Context::PhysicalDeviceInfo{.device = device,
+                                                  .present = present,
+                                                  .supported = required_features,
+                                                  .cudaId = cudaId,
+                                                  .pciBus = busid,
+                                                  .queueIndex = queueIdx,
+                                                  .rayTracing = rayTracing,
+                                                  .cudaComputeMode = computeMode,
+                                                  .discrete = discrete});
   }
   logger::info(ss.str());
 
 #ifdef SVULKAN2_CUDA_INTEROP
   ss = {};
   ss << "Devices visible to Cuda" << std::endl;
-  ss << std::setw(10) << "CudaId" << std::setw(10) << "PciBus" << std::setw(25)
-     << "PciBusString" << std::endl;
+  ss << std::setw(10) << "CudaId" << std::setw(10) << "PciBus" << std::setw(25) << "PciBusString"
+     << std::endl;
 
   int count{0};
   cudaGetDeviceCount(&count);
@@ -456,8 +426,8 @@ Context::summarizeDeviceInfo(VkSurfaceKHR tmpSurface) {
       pciBus = "No Device";
       break;
     default:
-      ss << std::setw(10) << i << std::hex << std::setw(10) << busId << std::dec
-         << std::setw(25) << pciBus.c_str() << std::endl;
+      ss << std::setw(10) << i << std::hex << std::setw(10) << busId << std::dec << std::setw(25)
+         << pciBus.c_str() << std::endl;
       break;
     }
   }
@@ -559,8 +529,7 @@ void Context::pickSuitableGpuAndQueueFamilyIndex() {
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
     window = glfwCreateWindow(1, 1, "vulkan", nullptr, nullptr);
-    auto result =
-        glfwCreateWindowSurface(mInstance.get(), window, nullptr, &tmpSurface);
+    auto result = glfwCreateWindowSurface(mInstance.get(), window, nullptr, &tmpSurface);
     if (result != VK_SUCCESS) {
       throw std::runtime_error("Window creation failed, you may not create "
                                "GLFW window for presenting rendered results.");
@@ -572,8 +541,8 @@ void Context::pickSuitableGpuAndQueueFamilyIndex() {
   auto devices = summarizeDeviceInfo(tmpSurface);
 
   if (mPresent) {
-    mDynamicLoader->getProcAddress<PFN_vkDestroySurfaceKHR>(
-        "vkDestroySurfaceKHR")(mInstance.get(), tmpSurface, nullptr);
+    mDynamicLoader->getProcAddress<PFN_vkDestroySurfaceKHR>("vkDestroySurfaceKHR")(
+        mInstance.get(), tmpSurface, nullptr);
     glfwDestroyWindow(window);
   }
 
@@ -616,8 +585,8 @@ void Context::createDevice() {
   }
 
   float queuePriority = 0.0f;
-  vk::DeviceQueueCreateInfo deviceQueueCreateInfo(
-      {}, getGraphicsQueueFamilyIndex(), 1, &queuePriority);
+  vk::DeviceQueueCreateInfo deviceQueueCreateInfo({}, getGraphicsQueueFamilyIndex(), 1,
+                                                  &queuePriority);
   std::vector<const char *> deviceExtensions{};
 
   vk::PhysicalDeviceFeatures2 features{};
@@ -671,8 +640,7 @@ void Context::createDevice() {
     deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
   }
 
-  vk::DeviceCreateInfo deviceInfo({}, deviceQueueCreateInfo, {},
-                                  deviceExtensions);
+  vk::DeviceCreateInfo deviceInfo({}, deviceQueueCreateInfo, {}, deviceExtensions);
   deviceInfo.setPNext(&features);
   mDevice = getPhysicalDevice().createDeviceUnique(deviceInfo);
   VULKAN_HPP_DEFAULT_DISPATCHER.init(mDevice.get());
@@ -687,13 +655,11 @@ void Context::createMemoryAllocator() {
 
   VmaVulkanFunctions vulkanFunctions{};
   vulkanFunctions.vkGetInstanceProcAddr =
-      (PFN_vkGetInstanceProcAddr)mInstance->getProcAddr(
-          "vkGetInstanceProcAddr");
+      (PFN_vkGetInstanceProcAddr)mInstance->getProcAddr("vkGetInstanceProcAddr");
   vulkanFunctions.vkGetDeviceProcAddr =
       (PFN_vkGetDeviceProcAddr)mInstance->getProcAddr("vkGetDeviceProcAddr");
   vulkanFunctions.vkGetPhysicalDeviceProperties =
-      (PFN_vkGetPhysicalDeviceProperties)mInstance->getProcAddr(
-          "vkGetPhysicalDeviceProperties");
+      (PFN_vkGetPhysicalDeviceProperties)mInstance->getProcAddr("vkGetPhysicalDeviceProperties");
   vulkanFunctions.vkGetPhysicalDeviceMemoryProperties =
       (PFN_vkGetPhysicalDeviceMemoryProperties)mInstance->getProcAddr(
           "vkGetPhysicalDeviceMemoryProperties");
@@ -702,44 +668,31 @@ void Context::createMemoryAllocator() {
           "vkGetPhysicalDeviceMemoryProperties2");
   vulkanFunctions.vkAllocateMemory =
       (PFN_vkAllocateMemory)mDevice->getProcAddr("vkAllocateMemory");
-  vulkanFunctions.vkFreeMemory =
-      (PFN_vkFreeMemory)mDevice->getProcAddr("vkFreeMemory");
-  vulkanFunctions.vkMapMemory =
-      (PFN_vkMapMemory)mDevice->getProcAddr("vkMapMemory");
-  vulkanFunctions.vkUnmapMemory =
-      (PFN_vkUnmapMemory)mDevice->getProcAddr("vkUnmapMemory");
+  vulkanFunctions.vkFreeMemory = (PFN_vkFreeMemory)mDevice->getProcAddr("vkFreeMemory");
+  vulkanFunctions.vkMapMemory = (PFN_vkMapMemory)mDevice->getProcAddr("vkMapMemory");
+  vulkanFunctions.vkUnmapMemory = (PFN_vkUnmapMemory)mDevice->getProcAddr("vkUnmapMemory");
   vulkanFunctions.vkFlushMappedMemoryRanges =
-      (PFN_vkFlushMappedMemoryRanges)mDevice->getProcAddr(
-          "vkFlushMappedMemoryRanges");
+      (PFN_vkFlushMappedMemoryRanges)mDevice->getProcAddr("vkFlushMappedMemoryRanges");
   vulkanFunctions.vkInvalidateMappedMemoryRanges =
-      (PFN_vkInvalidateMappedMemoryRanges)mDevice->getProcAddr(
-          "vkInvalidateMappedMemoryRanges");
+      (PFN_vkInvalidateMappedMemoryRanges)mDevice->getProcAddr("vkInvalidateMappedMemoryRanges");
   vulkanFunctions.vkBindBufferMemory =
       (PFN_vkBindBufferMemory)mDevice->getProcAddr("vkBindBufferMemory");
   vulkanFunctions.vkBindImageMemory =
       (PFN_vkBindImageMemory)mDevice->getProcAddr("vkBindImageMemory");
   vulkanFunctions.vkGetBufferMemoryRequirements =
-      (PFN_vkGetBufferMemoryRequirements)mDevice->getProcAddr(
-          "vkGetBufferMemoryRequirements");
+      (PFN_vkGetBufferMemoryRequirements)mDevice->getProcAddr("vkGetBufferMemoryRequirements");
   vulkanFunctions.vkGetImageMemoryRequirements =
-      (PFN_vkGetImageMemoryRequirements)mDevice->getProcAddr(
-          "vkGetImageMemoryRequirements");
-  vulkanFunctions.vkCreateBuffer =
-      (PFN_vkCreateBuffer)mDevice->getProcAddr("vkCreateBuffer");
-  vulkanFunctions.vkDestroyBuffer =
-      (PFN_vkDestroyBuffer)mDevice->getProcAddr("vkDestroyBuffer");
-  vulkanFunctions.vkCreateImage =
-      (PFN_vkCreateImage)mDevice->getProcAddr("vkCreateImage");
-  vulkanFunctions.vkDestroyImage =
-      (PFN_vkDestroyImage)mDevice->getProcAddr("vkDestroyImage");
-  vulkanFunctions.vkCmdCopyBuffer =
-      (PFN_vkCmdCopyBuffer)mDevice->getProcAddr("vkCmdCopyBuffer");
+      (PFN_vkGetImageMemoryRequirements)mDevice->getProcAddr("vkGetImageMemoryRequirements");
+  vulkanFunctions.vkCreateBuffer = (PFN_vkCreateBuffer)mDevice->getProcAddr("vkCreateBuffer");
+  vulkanFunctions.vkDestroyBuffer = (PFN_vkDestroyBuffer)mDevice->getProcAddr("vkDestroyBuffer");
+  vulkanFunctions.vkCreateImage = (PFN_vkCreateImage)mDevice->getProcAddr("vkCreateImage");
+  vulkanFunctions.vkDestroyImage = (PFN_vkDestroyImage)mDevice->getProcAddr("vkDestroyImage");
+  vulkanFunctions.vkCmdCopyBuffer = (PFN_vkCmdCopyBuffer)mDevice->getProcAddr("vkCmdCopyBuffer");
   vulkanFunctions.vkGetBufferMemoryRequirements2KHR =
       (PFN_vkGetBufferMemoryRequirements2KHR)mDevice->getProcAddr(
           "vkGetBufferMemoryRequirements2");
   vulkanFunctions.vkGetImageMemoryRequirements2KHR =
-      (PFN_vkGetImageMemoryRequirements2KHR)mDevice->getProcAddr(
-          "vkGetImageMemoryRequirements2");
+      (PFN_vkGetImageMemoryRequirements2KHR)mDevice->getProcAddr("vkGetImageMemoryRequirements2");
   vulkanFunctions.vkBindBufferMemory2KHR =
       (PFN_vkBindBufferMemory2KHR)mDevice->getProcAddr("vkBindBufferMemory2");
   vulkanFunctions.vkBindImageMemory2KHR =
@@ -764,30 +717,32 @@ void Context::createDescriptorPool() {
     return;
   }
 
-  vk::DescriptorPoolSize pool_sizes[] = {
-      {vk::DescriptorType::eCombinedImageSampler, mMaxNumTextures},
-      {vk::DescriptorType::eUniformBuffer, mMaxNumMaterials},
-      {vk::DescriptorType::eStorageImage, 10}, // for some compute
-  };
-  auto info = vk::DescriptorPoolCreateInfo(
-      vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
-      mMaxNumTextures + mMaxNumMaterials, 3, pool_sizes);
-  mDescriptorPool = getDevice().createDescriptorPoolUnique(info);
+  mDescriptorPool = std::make_unique<DynamicDescriptorPool>(std::vector{
+      vk::DescriptorPoolSize{vk::DescriptorType::eCombinedImageSampler, mMaxNumTextures},
+      vk::DescriptorPoolSize{vk::DescriptorType::eUniformBuffer, mMaxNumMaterials},
+      vk::DescriptorPoolSize{vk::DescriptorType::eStorageImage, 10}});
+
+  // vk::DescriptorPoolSize pool_sizes[] = {
+  //     {vk::DescriptorType::eCombinedImageSampler, mMaxNumTextures},
+  //     {vk::DescriptorType::eUniformBuffer, mMaxNumMaterials},
+  //     {vk::DescriptorType::eStorageImage, 10}, // for some compute
+  // };
+  // auto info = vk::DescriptorPoolCreateInfo(vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
+  //                                          mMaxNumTextures + mMaxNumMaterials, 3, pool_sizes);
+  // mDescriptorPool = getDevice().createDescriptorPoolUnique(info);
 
   {
     std::vector<vk::DescriptorSetLayoutBinding> bindings;
-    bindings.push_back(
-        vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eUniformBuffer, 1,
-                                       vk::ShaderStageFlagBits::eFragment));
+    bindings.push_back(vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eUniformBuffer, 1,
+                                                      vk::ShaderStageFlagBits::eFragment));
     for (uint32_t i = 0; i < 6; ++i) {
       // 6 textures
-      bindings.push_back(vk::DescriptorSetLayoutBinding(
-          i + 1, vk::DescriptorType::eCombinedImageSampler, 1,
-          vk::ShaderStageFlagBits::eFragment));
+      bindings.push_back(vk::DescriptorSetLayoutBinding(i + 1,
+                                                        vk::DescriptorType::eCombinedImageSampler,
+                                                        1, vk::ShaderStageFlagBits::eFragment));
     }
     mMetallicDescriptorSetLayout = mDevice->createDescriptorSetLayoutUnique(
-        vk::DescriptorSetLayoutCreateInfo({}, bindings.size(),
-                                          bindings.data()));
+        vk::DescriptorSetLayoutCreateInfo({}, bindings.size(), bindings.data()));
   }
 }
 
@@ -796,10 +751,8 @@ std::unique_ptr<CommandPool> Context::createCommandPool() const {
   return std::make_unique<CommandPool>();
 }
 
-vk::UniqueSemaphore
-Context::createTimelineSemaphore(uint64_t initialValue = 0) {
-  vk::SemaphoreTypeCreateInfo timelineCreateInfo(vk::SemaphoreType::eTimeline,
-                                                 initialValue);
+vk::UniqueSemaphore Context::createTimelineSemaphore(uint64_t initialValue = 0) {
+  vk::SemaphoreTypeCreateInfo timelineCreateInfo(vk::SemaphoreType::eTimeline, initialValue);
   vk::SemaphoreCreateInfo createInfo{};
   createInfo.setPNext(&timelineCreateInfo);
   return mDevice->createSemaphoreUnique(createInfo);
@@ -811,40 +764,33 @@ vk::Sampler Context::createSampler(vk::SamplerCreateInfo const &info) {
   if (it != mSamplerRegistry.end()) {
     return it->second.get();
   }
-  auto samplerUnique =
-      core::Context::Get()->getDevice().createSamplerUnique(info);
+  auto samplerUnique = core::Context::Get()->getDevice().createSamplerUnique(info);
   auto sampler = samplerUnique.get();
   mSamplerRegistry[info] = std::move(samplerUnique);
   return sampler;
 }
 
-std::unique_ptr<renderer::GuiWindow> Context::createWindow(uint32_t width,
-                                                           uint32_t height) {
+std::unique_ptr<renderer::GuiWindow> Context::createWindow(uint32_t width, uint32_t height) {
   if (!mVulkanAvailable) {
     throw std::runtime_error("Vulkan is not initialized");
   }
 
   if (!mPresent) {
-    throw std::runtime_error(
-        "Create window failed: context is not created with present support");
+    throw std::runtime_error("Create window failed: context is not created with present support");
   }
   if (width == 0 || height == 0) {
-    throw std::runtime_error(
-        "Create window failed: width and height must be positive.");
+    throw std::runtime_error("Create window failed: width and height must be positive.");
   }
   return std::make_unique<renderer::GuiWindow>(
-      std::vector<vk::Format>{
-          vk::Format::eB8G8R8A8Unorm, vk::Format::eR8G8B8A8Unorm,
-          vk::Format::eB8G8R8Unorm, vk::Format::eR8G8B8Unorm},
+      std::vector<vk::Format>{vk::Format::eB8G8R8A8Unorm, vk::Format::eR8G8B8A8Unorm,
+                              vk::Format::eB8G8R8Unorm, vk::Format::eR8G8B8Unorm},
       vk::ColorSpaceKHR::eSrgbNonlinear, width, height,
       std::vector<vk::PresentModeKHR>{vk::PresentModeKHR::eMailbox}, 2);
 };
 
-std::shared_ptr<resource::SVMesh>
-Context::createTriangleMesh(std::vector<glm::vec3> const &vertices,
-                            std::vector<uint32_t> const &indices,
-                            std::vector<glm::vec3> const &normals,
-                            std::vector<glm::vec2> const &uvs) {
+std::shared_ptr<resource::SVMesh> Context::createTriangleMesh(
+    std::vector<glm::vec3> const &vertices, std::vector<uint32_t> const &indices,
+    std::vector<glm::vec3> const &normals, std::vector<glm::vec2> const &uvs) {
   auto mesh = std::make_shared<resource::SVMesh>();
 
   std::vector<float> vertices_;

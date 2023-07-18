@@ -343,11 +343,7 @@ void SVMetallicMaterial::uploadToDevice() {
         sizeof(SVMetallicMaterial::Buffer), flags, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
     auto layout = mContext->getMetallicDescriptorSetLayout();
-    mDescriptorSet = std::move(
-        mContext->getDevice()
-            .allocateDescriptorSetsUnique(vk::DescriptorSetAllocateInfo(
-                mContext->getDescriptorPool(), 1, &layout))
-            .front());
+    mDescriptorSet = mContext->getDescriptorPool().allocateSet(layout);
   }
 
   if (mRequiresBufferUpload) {

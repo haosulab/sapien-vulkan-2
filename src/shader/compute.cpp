@@ -24,11 +24,7 @@ std::unique_ptr<core::Image> generateBRDFLUT(uint32_t size) {
   auto pipelineLayout = device.createPipelineLayoutUnique(
       vk::PipelineLayoutCreateInfo({}, descriptorSetLayout.get()));
 
-  auto descriptorSet = std::move(
-      device
-          .allocateDescriptorSetsUnique(vk::DescriptorSetAllocateInfo(
-              context->getDescriptorPool(), descriptorSetLayout.get()))
-          .front());
+  auto descriptorSet = context->getDescriptorPool().allocateSet(descriptorSetLayout.get());
 
   vk::ImageViewCreateInfo viewInfo(
       {}, image->getVulkanImage(), vk::ImageViewType::e2D, image->getFormat(),
@@ -112,11 +108,7 @@ void prefilterCubemap(core::Image &image) {
       vk::PipelineLayoutCreateInfo({}, layouts, pushConstantRange));
 
   // resources for the base sampler
-  auto descriptorSet = std::move(
-      device
-          .allocateDescriptorSetsUnique(vk::DescriptorSetAllocateInfo(
-              context->getDescriptorPool(), descriptorSetLayout0.get()))
-          .front());
+  auto descriptorSet = context->getDescriptorPool().allocateSet(descriptorSetLayout0.get());
 
   vk::ImageViewCreateInfo viewInfo(
       {}, image.getVulkanImage(), vk::ImageViewType::eCube, image.getFormat(),
@@ -165,11 +157,7 @@ void prefilterCubemap(core::Image &image) {
         vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, level, 1, 0,
                                   6));
     levelViews.push_back(device.createImageViewUnique(viewInfo));
-    levelSets.push_back(std::move(
-        device
-            .allocateDescriptorSetsUnique(vk::DescriptorSetAllocateInfo(
-                context->getDescriptorPool(), descriptorSetLayout1.get()))
-            .front()));
+    levelSets.push_back(context->getDescriptorPool().allocateSet(descriptorSetLayout0.get()));
 
     auto imageInfo = vk::DescriptorImageInfo({}, levelViews.back().get(),
                                              vk::ImageLayout::eGeneral);

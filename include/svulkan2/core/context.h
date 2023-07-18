@@ -20,19 +20,17 @@ namespace core {
 class Context : public std::enable_shared_from_this<Context> {
 public:
   static std::shared_ptr<Context> Get();
-  static std::shared_ptr<Context>
-  Create(bool present = true, uint32_t maxNumMaterials = 5000,
-         uint32_t maxNumTextures = 5000, uint32_t defaultMipLevels = 1,
-         bool doNotLoadTexture = false, std::string device = "");
+  static std::shared_ptr<Context> Create(bool present = true, uint32_t maxNumMaterials = 5000,
+                                         uint32_t maxNumTextures = 5000,
+                                         uint32_t defaultMipLevels = 1,
+                                         bool doNotLoadTexture = false, std::string device = "");
   std::shared_ptr<resource::SVResourceManager> createResourceManager();
 
   ~Context();
 
   inline bool isVulkanAvailable() const { return mVulkanAvailable; }
   inline bool isPresentAvailable() const { return mPresent; }
-  inline bool isRayTracingAvailable() const {
-    return mPhysicalDeviceInfo.rayTracing;
-  }
+  inline bool isRayTracingAvailable() const { return mPhysicalDeviceInfo.rayTracing; }
 
   inline Queue &getQueue() const { return *mQueue.get(); }
   inline class Allocator &getAllocator() { return *mAllocator; }
@@ -45,31 +43,28 @@ public:
   }
   inline vk::Instance getInstance() const { return mInstance.get(); }
   inline vk::Device getDevice() const { return mDevice.get(); }
-  inline vk::PhysicalDevice getPhysicalDevice() const {
-    return mPhysicalDeviceInfo.device;
-  }
+  inline vk::PhysicalDevice getPhysicalDevice() const { return mPhysicalDeviceInfo.device; }
   inline vk::PhysicalDeviceLimits const &getPhysicalDeviceLimits() const {
     return mPhysicalDeviceLimits;
   }
 
   inline std::mutex &getGlobalLock() { return mGlobalLock; }
-  inline vk::DescriptorPool getDescriptorPool() const {
-    return mDescriptorPool.get();
-  }
+
+  // inline vk::DescriptorPool getDescriptorPool() const { return mDescriptorPool.get(); }
+  inline DynamicDescriptorPool &getDescriptorPool() const { return *mDescriptorPool; }
+
   inline vk::DescriptorSetLayout getMetallicDescriptorSetLayout() const {
     return mMetallicDescriptorSetLayout.get();
   }
 
   std::shared_ptr<resource::SVResourceManager> getResourceManager() const;
 
-  std::unique_ptr<renderer::GuiWindow> createWindow(uint32_t width,
-                                                    uint32_t height);
+  std::unique_ptr<renderer::GuiWindow> createWindow(uint32_t width, uint32_t height);
 
-  std::shared_ptr<resource::SVMesh>
-  createTriangleMesh(std::vector<glm::vec3> const &vertices,
-                     std::vector<uint32_t> const &indices,
-                     std::vector<glm::vec3> const &normals = {},
-                     std::vector<glm::vec2> const &uvs = {});
+  std::shared_ptr<resource::SVMesh> createTriangleMesh(std::vector<glm::vec3> const &vertices,
+                                                       std::vector<uint32_t> const &indices,
+                                                       std::vector<glm::vec3> const &normals = {},
+                                                       std::vector<glm::vec2> const &uvs = {});
 
   struct PhysicalDeviceInfo {
     vk::PhysicalDevice device{};
@@ -99,16 +94,14 @@ private:
   vk::UniqueInstance mInstance;
 
   PhysicalDeviceInfo mPhysicalDeviceInfo;
-  // vk::PhysicalDevice mPhysicalDevice;
   vk::PhysicalDeviceLimits mPhysicalDeviceLimits;
-  // uint32_t mQueueFamilyIndex;
 
   vk::UniqueDevice mDevice;
   std::unique_ptr<class Allocator> mAllocator;
   std::unique_ptr<Queue> mQueue;
 
   std::mutex mGlobalLock{};
-  vk::UniqueDescriptorPool mDescriptorPool;
+  std::unique_ptr<DynamicDescriptorPool> mDescriptorPool;
 
   uint32_t mMaxNumMaterials;
   uint32_t mMaxNumTextures;
@@ -121,9 +114,8 @@ private:
 
   vk::UniqueDescriptorSetLayout mMetallicDescriptorSetLayout;
 
-  Context(bool present = true, uint32_t maxNumMaterials = 5000,
-          uint32_t maxNumTextures = 5000, uint32_t defaultMipLevels = 1,
-          bool doNotLoadTexture = false, std::string device = "");
+  Context(bool present = true, uint32_t maxNumMaterials = 5000, uint32_t maxNumTextures = 5000,
+          uint32_t defaultMipLevels = 1, bool doNotLoadTexture = false, std::string device = "");
 
   void init();
 
@@ -137,8 +129,7 @@ private:
   std::mutex mSamplerLock{};
   std::map<vk::SamplerCreateInfo, vk::UniqueSampler> mSamplerRegistry;
 
-  std::vector<PhysicalDeviceInfo>
-  summarizeDeviceInfo(VkSurfaceKHR tmpSurface = nullptr);
+  std::vector<PhysicalDeviceInfo> summarizeDeviceInfo(VkSurfaceKHR tmpSurface = nullptr);
 };
 
 } // namespace core
