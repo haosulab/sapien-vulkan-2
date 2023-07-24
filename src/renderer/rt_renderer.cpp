@@ -535,8 +535,7 @@ void RTRenderer::prepareCamera() {
   auto &set = mShaderPack->getCameraDescription();
   for (auto &[bid, binding] : set.bindings) {
     if (binding.name == "CameraBuffer") {
-      mCameraBuffer =
-          mContext->getAllocator().allocateUniformBuffer(set.buffers.at(binding.arrayIndex)->size);
+      mCameraBuffer = core::Buffer::CreateUniform(set.buffers.at(binding.arrayIndex)->size);
       if (bid != 0) {
         throw std::runtime_error("CameraBuffer must have binding 0");
       }

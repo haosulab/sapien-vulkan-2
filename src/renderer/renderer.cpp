@@ -1340,11 +1340,11 @@ void Renderer::display(std::string const &renderTargetName, vk::Image backBuffer
 
 void Renderer::prepareSceneBuffer() {
   if (mShaderPack->getShadowPass()) {
-    mShadowBuffer = mContext->getAllocator().allocateUniformBuffer(
+    mShadowBuffer = core::Buffer::CreateUniform(
         mShaderPack->getShaderInputLayouts()->shadowBufferLayout->size);
   }
-  mSceneBuffer = mContext->getAllocator().allocateUniformBuffer(
-      mShaderPack->getShaderInputLayouts()->sceneBufferLayout->size);
+  mSceneBuffer =
+      core::Buffer::CreateUniform(mShaderPack->getShaderInputLayouts()->sceneBufferLayout->size);
   auto layout = mShaderPackInstance->getSceneDescriptorSetLayout();
 
   mSceneSet = std::move(mContext->getDevice()
@@ -1467,7 +1467,7 @@ void Renderer::prepareObjectBuffers(uint32_t numObjects) {
     uint32_t newSize = numObjects;
 
     // reallocate buffer
-    mObjectBuffer = mContext->getAllocator().allocateUniformBuffer(bufferSize * newSize, false);
+    mObjectBuffer = core::Buffer::CreateUniform(bufferSize * newSize, false);
 
     mObjectSet.resize(newSize);
   }
@@ -1477,7 +1477,7 @@ void Renderer::prepareObjectBuffers(uint32_t numObjects) {
     uint32_t newSize = std::max(numObjects, 2 * static_cast<uint32_t>(mObjectSet.size()));
 
     // reallocate buffer
-    mObjectBuffer = mContext->getAllocator().allocateUniformBuffer(bufferSize * newSize, false);
+    mObjectBuffer = core::Buffer::CreateUniform(bufferSize * newSize, false);
 
     auto layout = mShaderPackInstance->getObjectDescriptorSetLayout();
     for (uint32_t i = mObjectSet.size(); i < newSize; ++i) {
@@ -1515,8 +1515,7 @@ void Renderer::prepareLightBuffers() {
   // too few shadow sets
   for (uint32_t i = mLightSets.size(); i < numShadows; ++i) {
     auto layout = mShaderPackInstance->getLightDescriptorSetLayout();
-    mLightBuffers.push_back(
-        mContext->getAllocator().allocateUniformBuffer(lightBufferLayout->size));
+    mLightBuffers.push_back(core::Buffer::CreateUniform(lightBufferLayout->size));
     auto shadowSet = std::move(mContext->getDevice()
                                    .allocateDescriptorSetsUnique(vk::DescriptorSetAllocateInfo(
                                        mDescriptorPool.get(), 1, &layout))
@@ -1585,8 +1584,8 @@ void Renderer::prepareInputTextureDescriptorSets() {
 }
 
 void Renderer::prepareCameaBuffer() {
-  mCameraBuffer = mContext->getAllocator().allocateUniformBuffer(
-      mShaderPack->getShaderInputLayouts()->cameraBufferLayout->size);
+  mCameraBuffer =
+      core::Buffer::CreateUniform(mShaderPack->getShaderInputLayouts()->cameraBufferLayout->size);
 
   auto layout = mShaderPackInstance->getCameraDescriptorSetLayout();
   mCameraSet = std::move(mContext->getDevice()

@@ -1,84 +1,70 @@
 #include "svulkan2/core/queue.h"
-#include "svulkan2/core/context.h"
+#include "svulkan2/core/device.h"
 #include <easy/profiler.h>
 
 namespace svulkan2 {
 namespace core {
-Queue::Queue() {
-  auto context = Context::Get();
-  mQueue =
-      context->getDevice().getQueue(context->getGraphicsQueueFamilyIndex(), 0);
+Queue::Queue(Device &device, uint32_t familyIndex) : mDevice(device) {
+  mQueue = mDevice.getInternal().getQueue(familyIndex, 0);
 }
 
-void Queue::submit(
-    vk::ArrayProxyNoTemporaries<vk::CommandBuffer const> const &commandBuffers,
-    vk::ArrayProxyNoTemporaries<vk::Semaphore const> const &waitSemaphores,
-    vk::ArrayProxyNoTemporaries<vk::PipelineStageFlags const> const
-        &waitStageMasks, // none of the commands in this submission can reach
-                         // the wait stage unless the semaphore is signaled
-    vk::ArrayProxyNoTemporaries<uint64_t const> const &waitValues,
-    vk::ArrayProxyNoTemporaries<vk::Semaphore const> const &signalSemaphores,
-    vk::ArrayProxyNoTemporaries<uint64_t const> const &signalValues,
-    vk::Fence fence) {
+void Queue::submit(vk::ArrayProxyNoTemporaries<vk::CommandBuffer const> const &commandBuffers,
+                   vk::ArrayProxyNoTemporaries<vk::Semaphore const> const &waitSemaphores,
+                   vk::ArrayProxyNoTemporaries<vk::PipelineStageFlags const> const
+                       &waitStageMasks, // none of the commands in this submission can reach
+                                        // the wait stage unless the semaphore is signaled
+                   vk::ArrayProxyNoTemporaries<uint64_t const> const &waitValues,
+                   vk::ArrayProxyNoTemporaries<vk::Semaphore const> const &signalSemaphores,
+                   vk::ArrayProxyNoTemporaries<uint64_t const> const &signalValues,
+                   vk::Fence fence) {
   vk::TimelineSemaphoreSubmitInfo timelineInfo(waitValues, signalValues);
-  vk::SubmitInfo info(waitSemaphores, waitStageMasks, commandBuffers,
-                      signalSemaphores);
+  vk::SubmitInfo info(waitSemaphores, waitStageMasks, commandBuffers, signalSemaphores);
   info.setPNext(&timelineInfo);
   std::lock_guard lock(mMutex);
   mQueue.submit(info, fence);
 }
 
-void Queue::submit(
-    vk::ArrayProxyNoTemporaries<vk::CommandBuffer const> const &commandBuffers,
-    vk::ArrayProxyNoTemporaries<vk::Semaphore const> const &waitSemaphores,
-    vk::ArrayProxyNoTemporaries<vk::PipelineStageFlags const> const
-        &waitStageMasks,
-    vk::ArrayProxyNoTemporaries<vk::Semaphore const> const &signalSemaphores,
-    vk::Fence fence) {
+void Queue::submit(vk::ArrayProxyNoTemporaries<vk::CommandBuffer const> const &commandBuffers,
+                   vk::ArrayProxyNoTemporaries<vk::Semaphore const> const &waitSemaphores,
+                   vk::ArrayProxyNoTemporaries<vk::PipelineStageFlags const> const &waitStageMasks,
+                   vk::ArrayProxyNoTemporaries<vk::Semaphore const> const &signalSemaphores,
+                   vk::Fence fence) {
 
-  std::vector<vk::CommandBuffer> commandBuffers_(commandBuffers.begin(),
-                                                 commandBuffers.end());
-  std::vector<vk::Semaphore> waitSemaphores_(waitSemaphores.begin(),
-                                             waitSemaphores.end());
-  std::vector<vk::Semaphore> signalSemaphores_(signalSemaphores.begin(),
-                                               signalSemaphores.end());
+  std::vector<vk::CommandBuffer> commandBuffers_(commandBuffers.begin(), commandBuffers.end());
+  std::vector<vk::Semaphore> waitSemaphores_(waitSemaphores.begin(), waitSemaphores.end());
+  std::vector<vk::Semaphore> signalSemaphores_(signalSemaphores.begin(), signalSemaphores.end());
   std::vector<vk::PipelineStageFlags> waitStageMasks_(waitStageMasks.begin(),
                                                       waitStageMasks.end());
   std::lock_guard lock(mMutex);
-  vk::SubmitInfo info(waitSemaphores_, waitStageMasks_, commandBuffers_,
-                      signalSemaphores_);
+  vk::SubmitInfo info(waitSemaphores_, waitStageMasks_, commandBuffers_, signalSemaphores_);
   mQueue.submit(info, fence);
 }
 
-void Queue::submit(
-    vk::ArrayProxyNoTemporaries<vk::CommandBuffer const> const &commandBuffers,
-    vk::Fence fence) {
+void Queue::submit(vk::ArrayProxyNoTemporaries<vk::CommandBuffer const> const &commandBuffers,
+                   vk::Fence fence) {
   return submit(commandBuffers, {}, {}, {}, fence);
 }
 
 vk::Result
-Queue::submitAndWait(vk::ArrayProxyNoTemporaries<vk::CommandBuffer const> const
-                         &commandBuffers) {
-  auto context = Context::Get();
-  auto fence = context->getDevice().createFenceUnique({});
+Queue::submitAndWait(vk::ArrayProxyNoTemporaries<vk::CommandBuffer const> const &commandBuffers) {
+  auto fence = mDevice.getInternal().createFenceUnique({});
   submit(commandBuffers, fence.get());
-  return context->getDevice().waitForFences(fence.get(), VK_TRUE, UINT64_MAX);
+  return mDevice.getInternal().waitForFences(fence.get(), VK_TRUE, UINT64_MAX);
 }
 
-vk::Result Queue::present(
-    vk::ArrayProxyNoTemporaries<vk::Semaphore const> const &waitSemaphores,
-    vk::ArrayProxyNoTemporaries<vk::SwapchainKHR const> const &swapchains,
-    vk::ArrayProxyNoTemporaries<uint32_t const> const &imageIndices) {
-  std::vector<vk::Semaphore> waitSemaphores_(waitSemaphores.begin(),
-                                             waitSemaphores.end());
-  std::vector<vk::SwapchainKHR> swapchains_(swapchains.begin(),
-                                            swapchains.end());
+vk::Result Queue::present(vk::ArrayProxyNoTemporaries<vk::Semaphore const> const &waitSemaphores,
+                          vk::ArrayProxyNoTemporaries<vk::SwapchainKHR const> const &swapchains,
+                          vk::ArrayProxyNoTemporaries<uint32_t const> const &imageIndices) {
+  std::vector<vk::Semaphore> waitSemaphores_(waitSemaphores.begin(), waitSemaphores.end());
+  std::vector<vk::SwapchainKHR> swapchains_(swapchains.begin(), swapchains.end());
   std::vector<uint32_t> imageIndices_(imageIndices.begin(), imageIndices.end());
 
   std::lock_guard lock(mMutex);
   vk::PresentInfoKHR info(waitSemaphores_, swapchains_, imageIndices_);
   return mQueue.presentKHR(info);
 }
+
+Queue::~Queue(){};
 
 } // namespace core
 } // namespace svulkan2

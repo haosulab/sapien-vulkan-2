@@ -17,6 +17,11 @@ void setLogLevel(std::string_view level);
 
 namespace core {
 
+class Instance;
+class PhysicalDevice;
+class Device;
+class Allocator;
+
 class Context : public std::enable_shared_from_this<Context> {
 public:
   static std::shared_ptr<Context> Get();
@@ -27,30 +32,28 @@ public:
   std::shared_ptr<resource::SVResourceManager> createResourceManager();
 
   ~Context();
+  inline bool isVulkanAvailable() const { return mInstance && mPhysicalDevice; }
 
-  inline bool isVulkanAvailable() const { return mVulkanAvailable; }
-  inline bool isPresentAvailable() const { return mPresent; }
-  inline bool isRayTracingAvailable() const { return mPhysicalDeviceInfo.rayTracing; }
+  bool isPresentAvailable() const;
+  bool isRayTracingAvailable() const;
 
-  inline Queue &getQueue() const { return *mQueue.get(); }
-  inline class Allocator &getAllocator() { return *mAllocator; }
+  Queue &getQueue() const;
+  Allocator &getAllocator();
 
   std::unique_ptr<CommandPool> createCommandPool() const;
 
-  inline uint32_t getGraphicsQueueFamilyIndex() const {
-    return mPhysicalDeviceInfo.queueIndex;
-    // return mQueueFamilyIndex;
-  }
-  inline vk::Instance getInstance() const { return mInstance.get(); }
-  inline vk::Device getDevice() const { return mDevice.get(); }
-  inline vk::PhysicalDevice getPhysicalDevice() const { return mPhysicalDeviceInfo.device; }
-  inline vk::PhysicalDeviceLimits const &getPhysicalDeviceLimits() const {
-    return mPhysicalDeviceLimits;
-  }
+  uint32_t getGraphicsQueueFamilyIndex() const;
+
+  inline std::shared_ptr<Device> getDevice2() const { return mDevice; };
+
+  vk::Instance getInstance() const;
+  vk::Device getDevice() const;
+
+  vk::PhysicalDevice getPhysicalDevice() const;
+  vk::PhysicalDeviceLimits const &getPhysicalDeviceLimits() const;
 
   inline std::mutex &getGlobalLock() { return mGlobalLock; }
 
-  // inline vk::DescriptorPool getDescriptorPool() const { return mDescriptorPool.get(); }
   inline DynamicDescriptorPool &getDescriptorPool() const { return *mDescriptorPool; }
 
   inline vk::DescriptorSetLayout getMetallicDescriptorSetLayout() const {
@@ -66,18 +69,6 @@ public:
                                                        std::vector<glm::vec3> const &normals = {},
                                                        std::vector<glm::vec2> const &uvs = {});
 
-  struct PhysicalDeviceInfo {
-    vk::PhysicalDevice device{};
-    bool present{};
-    bool supported{};
-    int cudaId{-1};
-    int pciBus{-1};
-    int queueIndex{-1};
-    bool rayTracing{};
-    int cudaComputeMode{-1};
-    bool discrete{};
-  };
-
   inline bool shouldNotLoadTexture() const { return mDoNotLoadTexture; }
 
   vk::UniqueSemaphore createTimelineSemaphore(uint64_t initialValue);
@@ -85,20 +76,9 @@ public:
   vk::Sampler createSampler(vk::SamplerCreateInfo const &info);
 
 private:
-  std::unique_ptr<vk::DynamicLoader> mDynamicLoader;
-
-  uint32_t mApiVersion;
-  bool mVulkanAvailable;
-  bool mPresent;
-
-  vk::UniqueInstance mInstance;
-
-  PhysicalDeviceInfo mPhysicalDeviceInfo;
-  vk::PhysicalDeviceLimits mPhysicalDeviceLimits;
-
-  vk::UniqueDevice mDevice;
-  std::unique_ptr<class Allocator> mAllocator;
-  std::unique_ptr<Queue> mQueue;
+  std::shared_ptr<Instance> mInstance;
+  std::shared_ptr<PhysicalDevice> mPhysicalDevice;
+  std::shared_ptr<Device> mDevice;
 
   std::mutex mGlobalLock{};
   std::unique_ptr<DynamicDescriptorPool> mDescriptorPool;
@@ -108,8 +88,6 @@ private:
   uint32_t mDefaultMipLevels;
   bool mDoNotLoadTexture;
 
-  std::string mDeviceHint;
-
   std::weak_ptr<resource::SVResourceManager> mResourceManager;
 
   vk::UniqueDescriptorSetLayout mMetallicDescriptorSetLayout;
@@ -117,19 +95,12 @@ private:
   Context(bool present = true, uint32_t maxNumMaterials = 5000, uint32_t maxNumTextures = 5000,
           uint32_t defaultMipLevels = 1, bool doNotLoadTexture = false, std::string device = "");
 
-  void init();
-
-  void createInstance();
-  void pickSuitableGpuAndQueueFamilyIndex();
-  void createDevice();
-  void createMemoryAllocator();
-
   void createDescriptorPool();
 
   std::mutex mSamplerLock{};
   std::map<vk::SamplerCreateInfo, vk::UniqueSampler> mSamplerRegistry;
 
-  std::vector<PhysicalDeviceInfo> summarizeDeviceInfo(VkSurfaceKHR tmpSurface = nullptr);
+  // std::vector<PhysicalDeviceInfo> summarizeDeviceInfo(VkSurfaceKHR tmpSurface = nullptr);
 };
 
 } // namespace core
