@@ -4,6 +4,12 @@
 #include "texture.h"
 
 namespace svulkan2 {
+
+namespace core {
+class Context;
+class Buffer;
+} // namespace core
+
 namespace resource {
 
 inline void setBit(int &number, int bit) { number |= 1 << bit; }
@@ -12,9 +18,7 @@ inline int getBit(int number, int bit) { return (number >> bit) & 1; }
 
 class SVMaterial {
 public:
-  inline vk::DescriptorSet getDescriptorSet() const {
-    return mDescriptorSet.get();
-  }
+  inline vk::DescriptorSet getDescriptorSet() const { return mDescriptorSet.get(); }
   virtual void uploadToDevice() = 0;
   virtual void removeFromDevice() = 0;
   virtual float getOpacity() const = 0;
@@ -66,11 +70,9 @@ class SVMetallicMaterial : public SVMaterial {
 #endif
 
 public:
-  SVMetallicMaterial(glm::vec4 emission = {0, 0, 0, 1},
-                     glm::vec4 baseColor = {0, 0, 0, 1}, float fresnel = 0,
-                     float roughness = 1, float metallic = 0,
-                     float transparency = 0, float ior = 1.f,
-                     float transmissionRoughness = 0.f);
+  SVMetallicMaterial(glm::vec4 emission = {0, 0, 0, 1}, glm::vec4 baseColor = {0, 0, 0, 1},
+                     float fresnel = 0, float roughness = 1, float metallic = 0,
+                     float transparency = 0, float ior = 1.f, float transmissionRoughness = 0.f);
 
   void setEmission(glm::vec4 emission);
   glm::vec4 getEmission() const;

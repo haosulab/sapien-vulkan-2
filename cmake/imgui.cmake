@@ -38,6 +38,7 @@ target_link_libraries(imgui PUBLIC glfw Vulkan::Headers)
 target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends ${imguizmo_SOURCE_DIR} ${ImGuiFileDialog_SOURCE_DIR})
 set_target_properties(imgui PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 target_compile_definitions(imgui PUBLIC IMGUI_DEFINE_MATH_OPERATORS)
+target_link_libraries(ImGuiFileDialog PRIVATE imgui)
 
 if(WIN32)
     target_link_libraries(imgui INTERFACE imm32)

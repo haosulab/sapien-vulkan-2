@@ -77,7 +77,7 @@ void Image::uploadLevel(void const *data, size_t size, uint32_t arrayLayer,
                              std::to_string(imageSize) + ", got " +
                              std::to_string(size));
   }
-  auto stagingBuffer = mContext->getAllocator().allocateStagingBuffer(size);
+  auto stagingBuffer = Buffer::CreateStaging(size);
   stagingBuffer->upload(data, size);
 
   vk::BufferImageCopy copyRegion(
@@ -104,7 +104,7 @@ void Image::upload(void const *data, size_t size, uint32_t arrayLayer,
                              std::to_string(imageSize) + ", got " +
                              std::to_string(size));
   }
-  auto stagingBuffer = mContext->getAllocator().allocateStagingBuffer(size);
+  auto stagingBuffer = Buffer::CreateStaging(size);
   stagingBuffer->upload(data, size);
 
   vk::BufferImageCopy copyRegion(
@@ -449,8 +449,7 @@ void Image::download(void *data, size_t size, vk::Offset3D offset,
   }
 
   EASY_BLOCK("Allocating staging buffer");
-  auto stagingBuffer =
-      mContext->getAllocator().allocateStagingBuffer(size, true);
+  auto stagingBuffer = Buffer::CreateStaging(size, true);
   EASY_END_BLOCK;
   vk::BufferImageCopy copyRegion(0, extent.width, extent.height,
                                  {aspect, mipLevel, arrayLayer, 1}, offset,

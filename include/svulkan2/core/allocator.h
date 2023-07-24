@@ -5,14 +5,11 @@
 namespace svulkan2 {
 namespace core {
 
-class Allocator {
-  VmaAllocator mMemoryAllocator;
-  VmaPool mExternalMemoryPool;
-  vk::ExportMemoryAllocateInfo mExternalAllocInfo;
+class Device;
 
+class Allocator {
 public:
-  Allocator(VmaAllocatorCreateInfo const &info);
-  ~Allocator();
+  Allocator(Device &device);
   Allocator(Allocator &other) = delete;
   Allocator(Allocator &&other) = delete;
   Allocator &operator=(Allocator &other) = delete;
@@ -21,11 +18,12 @@ public:
   VmaAllocator getVmaAllocator() const { return mMemoryAllocator; }
   VmaPool getExternalPool() const { return mExternalMemoryPool; };
 
-public:
-  std::unique_ptr<class Buffer> allocateStagingBuffer(vk::DeviceSize size,
-                                                      bool readback = false);
-  std::unique_ptr<class Buffer> allocateUniformBuffer(vk::DeviceSize size,
-                                                      bool deviceOnly = false);
+  ~Allocator();
+
+private:
+  VmaAllocator mMemoryAllocator;
+  VmaPool mExternalMemoryPool;
+  vk::ExportMemoryAllocateInfo mExternalAllocInfo;
 };
 
 } // namespace core

@@ -17,8 +17,34 @@ static uint64_t gBufferId = 1;
 static uint64_t gBufferCount = 0;
 #endif
 
-Buffer::Buffer(vk::DeviceSize size, vk::BufferUsageFlags usageFlags,
-               VmaMemoryUsage memoryUsage,
+std::unique_ptr<Buffer> Buffer::CreateStaging(vk::DeviceSize size, bool readback) {
+  if (readback) {
+    return std::make_unique<Buffer>(
+        size, vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eTransferDst,
+        VMA_MEMORY_USAGE_GPU_TO_CPU);
+  }
+  return std::make_unique<Buffer>(
+      size, vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eTransferDst,
+      VMA_MEMORY_USAGE_CPU_ONLY);
+}
+
+std::unique_ptr<Buffer> Buffer::CreateUniform(vk::DeviceSize size, bool deviceOnly) {
+  if (deviceOnly) {
+    return std::make_unique<Buffer>(size, vk::BufferUsageFlagBits::eUniformBuffer,
+                                    VMA_MEMORY_USAGE_GPU_ONLY);
+  } else {
+    return std::make_unique<Buffer>(size, vk::BufferUsageFlagBits::eUniformBuffer,
+                                    VMA_MEMORY_USAGE_CPU_TO_GPU);
+  }
+}
+
+std::unique_ptr<Buffer> Buffer::Create(vk::DeviceSize size, vk::BufferUsageFlags usageFlags,
+                                       VmaMemoryUsage memoryUsage,
+                                       VmaAllocationCreateFlags allocationFlags, bool external) {
+  return std::make_unique<Buffer>(size, usageFlags, memoryUsage, allocationFlags, external);
+}
+
+Buffer::Buffer(vk::DeviceSize size, vk::BufferUsageFlags usageFlags, VmaMemoryUsage memoryUsage,
                VmaAllocationCreateFlags allocationFlags, bool external)
     : mSize(size), mExternal(external) {
   mContext = Context::Get();
@@ -37,9 +63,9 @@ Buffer::Buffer(vk::DeviceSize size, vk::BufferUsageFlags usageFlags,
   }
 
   if (vmaCreateBuffer(mContext->getAllocator().getVmaAllocator(),
-                      reinterpret_cast<VkBufferCreateInfo *>(&bufferInfo),
-                      &memoryInfo, reinterpret_cast<VkBuffer *>(&mBuffer),
-                      &mAllocation, &mAllocationInfo) != VK_SUCCESS) {
+                      reinterpret_cast<VkBufferCreateInfo *>(&bufferInfo), &memoryInfo,
+                      reinterpret_cast<VkBuffer *>(&mBuffer), &mAllocation,
+                      &mAllocationInfo) != VK_SUCCESS) {
     throw std::runtime_error("cannot create buffer");
   }
 
@@ -62,8 +88,7 @@ Buffer::~Buffer() {
     checkCudaErrors(cudaFree(mCudaPtr));
   }
 #endif
-  vmaDestroyBuffer(mContext->getAllocator().getVmaAllocator(), mBuffer,
-                   mAllocation);
+  vmaDestroyBuffer(mContext->getAllocator().getVmaAllocator(), mBuffer, mAllocation);
 
 #ifdef TRACK_ALLOCATION
   mBufferId = gBufferId++;
@@ -73,8 +98,8 @@ Buffer::~Buffer() {
 
 void *Buffer::map() {
   if (!mMapped) {
-    auto result = vmaMapMemory(mContext->getAllocator().getVmaAllocator(),
-                               mAllocation, &mMappedData);
+    auto result =
+        vmaMapMemory(mContext->getAllocator().getVmaAllocator(), mAllocation, &mMappedData);
     if (result != VK_SUCCESS) {
       logger::critical("unable to map memory");
       abort();
@@ -92,8 +117,7 @@ void Buffer::unmap() {
 }
 
 void Buffer::flush() {
-  vmaFlushAllocation(mContext->getAllocator().getVmaAllocator(), mAllocation, 0,
-                     mSize);
+  vmaFlushAllocation(mContext->getAllocator().getVmaAllocator(), mAllocation, 0, mSize);
 }
 
 void Buffer::upload(void const *data, size_t size, size_t offset) {
@@ -102,33 +126,29 @@ void Buffer::upload(void const *data, size_t size, size_t offset) {
   }
 
   if (offset + size > mSize) {
-    throw std::runtime_error(
-        "failed to upload buffer: upload size exceeds buffer size");
+    throw std::runtime_error("failed to upload buffer: upload size exceeds buffer size");
   }
 
   if (mHostVisible) {
     if (mMapped) {
-      std::memcpy(reinterpret_cast<uint8_t *>(mMappedData) + offset, data,
-                  size);
+      std::memcpy(reinterpret_cast<uint8_t *>(mMappedData) + offset, data, size);
     } else {
       map();
-      std::memcpy(reinterpret_cast<uint8_t *>(mMappedData) + offset, data,
-                  size);
+      std::memcpy(reinterpret_cast<uint8_t *>(mMappedData) + offset, data, size);
       unmap();
     }
     if (!mHostCoherent) {
       flush();
     }
   } else {
-    auto stagingBuffer = mContext->getAllocator().allocateStagingBuffer(size);
+    auto stagingBuffer = Buffer::CreateStaging(size);
     stagingBuffer->upload(data, size);
 
     // TODO: find a better way
     auto pool = mContext->createCommandPool();
     auto cb = pool->allocateCommandBuffer();
     cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
-    cb->copyBuffer(stagingBuffer->mBuffer, mBuffer,
-                   vk::BufferCopy(0, offset, size));
+    cb->copyBuffer(stagingBuffer->mBuffer, mBuffer, vk::BufferCopy(0, offset, size));
     cb->end();
     mContext->getQueue().submitAndWait(cb.get());
   }
@@ -136,8 +156,7 @@ void Buffer::upload(void const *data, size_t size, size_t offset) {
 
 void Buffer::download(void *data, size_t size, size_t offset) {
   if (offset + size > mSize) {
-    throw std::runtime_error(
-        "failed to download buffer: download size exceeds buffer size");
+    throw std::runtime_error("failed to download buffer: download size exceeds buffer size");
   }
 
   if (mHostVisible) {
@@ -145,13 +164,12 @@ void Buffer::download(void *data, size_t size, size_t offset) {
     std::memcpy(data, reinterpret_cast<uint8_t *>(mMappedData) + offset, size);
     unmap();
   } else {
-    auto stagingBuffer = mContext->getAllocator().allocateStagingBuffer(size);
+    auto stagingBuffer = Buffer::CreateStaging(size);
 
     auto pool = mContext->createCommandPool();
     auto cb = pool->allocateCommandBuffer();
     cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
-    cb->copyBuffer(mBuffer, stagingBuffer->mBuffer,
-                   vk::BufferCopy(offset, 0, size));
+    cb->copyBuffer(mBuffer, stagingBuffer->mBuffer, vk::BufferCopy(offset, 0, size));
     cb->end();
     mContext->getQueue().submitAndWait(cb.get());
     stagingBuffer->download(data, size);
@@ -172,8 +190,7 @@ void *Buffer::getCudaPtr() {
   if (mCudaPtr) {
     return mCudaPtr;
   }
-  mCudaDeviceId =
-      getCudaDeviceIdFromPhysicalDevice(mContext->getPhysicalDevice());
+  mCudaDeviceId = getCudaDeviceIdFromPhysicalDevice(mContext->getPhysicalDevice());
   if (mCudaDeviceId < 0) {
     throw std::runtime_error(
         "Vulkan Device is not visible to CUDA. You probably need to unset the "
@@ -183,14 +200,12 @@ void *Buffer::getCudaPtr() {
   checkCudaErrors(cudaSetDevice(mCudaDeviceId));
   cudaExternalMemoryHandleDesc externalMemoryHandleDesc = {};
   externalMemoryHandleDesc.type = cudaExternalMemoryHandleTypeOpaqueFd;
-  externalMemoryHandleDesc.size =
-      mAllocationInfo.offset + mAllocationInfo.size; // TODO check
+  externalMemoryHandleDesc.size = mAllocationInfo.offset + mAllocationInfo.size; // TODO check
 
   vk::MemoryGetFdInfoKHR vkMemoryGetFdInfoKHR;
   vkMemoryGetFdInfoKHR.setPNext(nullptr);
   vkMemoryGetFdInfoKHR.setMemory(mAllocationInfo.deviceMemory);
-  vkMemoryGetFdInfoKHR.setHandleType(
-      vk::ExternalMemoryHandleTypeFlagBits::eOpaqueFd);
+  vkMemoryGetFdInfoKHR.setHandleType(vk::ExternalMemoryHandleTypeFlagBits::eOpaqueFd);
 
   // According to https://docs.nvidia.com/pdf/CUDA_Runtime_API.pdf
   // Performing any operations on the file descriptor after it is imported
@@ -198,16 +213,14 @@ void *Buffer::getCudaPtr() {
   auto cudaFd = mContext->getDevice().getMemoryFdKHR(vkMemoryGetFdInfoKHR);
   externalMemoryHandleDesc.handle.fd = cudaFd;
 
-  checkCudaErrors(
-      cudaImportExternalMemory(&mCudaMem, &externalMemoryHandleDesc));
+  checkCudaErrors(cudaImportExternalMemory(&mCudaMem, &externalMemoryHandleDesc));
 
   cudaExternalMemoryBufferDesc externalMemBufferDesc = {};
   externalMemBufferDesc.offset = mAllocationInfo.offset;
   externalMemBufferDesc.size = mAllocationInfo.size;
   externalMemBufferDesc.flags = 0;
 
-  checkCudaErrors(cudaExternalMemoryGetMappedBuffer(&mCudaPtr, mCudaMem,
-                                                    &externalMemBufferDesc));
+  checkCudaErrors(cudaExternalMemoryGetMappedBuffer(&mCudaPtr, mCudaMem, &externalMemBufferDesc));
   return mCudaPtr;
 }
 
