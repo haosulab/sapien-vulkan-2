@@ -1,5 +1,6 @@
 #include "svulkan2/core/device.h"
 #include "svulkan2/core/allocator.h"
+#include "svulkan2/core/descriptor_pool.h"
 #include "svulkan2/core/instance.h"
 #include "svulkan2/core/physical_device.h"
 #include "svulkan2/core/queue.h"
@@ -36,6 +37,10 @@ Device::Device(std::shared_ptr<PhysicalDevice> physicalDevice) : mPhysicalDevice
   vk::PhysicalDeviceShaderClockFeaturesKHR clockFeature;
   clockFeature.setShaderDeviceClock(true);
   clockFeature.setShaderSubgroupClock(true);
+
+#ifdef VK_VALIDATION
+  deviceExtensions.push_back(VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME);
+#endif
 
   if (mPhysicalDevice->getPickedDeviceInfo().rayTracing) {
     deviceExtensions.push_back(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
@@ -74,6 +79,11 @@ Device::Device(std::shared_ptr<PhysicalDevice> physicalDevice) : mPhysicalDevice
 
   auto instance = mPhysicalDevice->getInstance();
   mAllocator = std::make_unique<Allocator>(*this);
+}
+
+std::unique_ptr<DynamicDescriptorPool>
+Device::createDescriptorPool(vk::ArrayProxy<vk::DescriptorPoolSize> const &sizes) {
+  return std::make_unique<DynamicDescriptorPool>(shared_from_this(), sizes);
 }
 
 Device::~Device(){};

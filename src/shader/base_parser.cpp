@@ -509,6 +509,11 @@ parseSpecializationConstant(spirv_cross::Compiler &compiler) {
   auto constants = compiler.get_specialization_constants();
   for (auto &var : constants) {
     auto name = compiler.get_name(var.id);
+    if (name.empty()) {
+      continue;
+      // printf("empty constant name???\n");
+      // exit(1);
+    }
     auto &constant = compiler.get_constant(var.id);
     auto type = compiler.get_type(constant.constant_type);
     auto dataType = get_data_type(type);
@@ -521,12 +526,34 @@ parseSpecializationConstant(spirv_cross::Compiler &compiler) {
       layout->elements[name].intValue = constant.scalar_i32();
     } else if (dataType == DataType::eFLOAT) {
       layout->elements[name].floatValue = constant.scalar_f32();
+    } else if (dataType == DataType::eUINT) {
+      layout->elements[name].intValue = constant.scalar_i32();  // HACK
     } else {
       throw std::runtime_error(
           "only int and float are supported specialization constant types");
     }
   }
   return layout;
+}
+
+std::vector<uint32_t> getDescriptorSetIds(spirv_cross::Compiler &compiler) {
+  auto resources = compiler.get_shader_resources();
+  std::unordered_set<uint32_t> ids;
+  for (auto &r : resources.uniform_buffers) {
+    ids.insert(compiler.get_decoration(r.id, spv::Decoration::DecorationDescriptorSet));
+  }
+  for (auto &r : resources.sampled_images) {
+    ids.insert(compiler.get_decoration(r.id, spv::Decoration::DecorationDescriptorSet));
+  }
+  for (auto &r : resources.storage_buffers) {
+    ids.insert(compiler.get_decoration(r.id, spv::Decoration::DecorationDescriptorSet));
+  }
+  for (auto &r : resources.storage_images) {
+    ids.insert(compiler.get_decoration(r.id, spv::Decoration::DecorationDescriptorSet));
+  }
+  std::vector<uint32_t> result = {ids.begin(), ids.end()};
+  std::sort(result.begin(), result.end());
+  return result;
 }
 
 DescriptorSetDescription
@@ -578,6 +605,50 @@ getDescriptorSetDescription(spirv_cross::Compiler &compiler,
           .arrayIndex = static_cast<uint32_t>(result.samplers.size() - 1)};
     }
   }
+  for (auto &r: resources.storage_buffers) {
+    if (compiler.get_decoration(
+            r.id, spv::Decoration::DecorationDescriptorSet) == setNumber) {
+      uint32_t bindingNumber =
+          compiler.get_decoration(r.id, spv::Decoration::DecorationBinding);
+      int dim = compiler.get_type(r.type_id).array.size();
+      int arraySize = dim == 1 ? compiler.get_type(r.type_id).array[0] : 0;
+      result.buffers.push_back(parseBuffer(compiler, r));
+      result.bindings[bindingNumber] = {
+          .name = r.name,
+          .type = vk::DescriptorType::eStorageBuffer,
+          .dim = dim,
+          .arraySize = arraySize,
+          .arrayIndex = static_cast<uint32_t>(result.buffers.size() - 1)};
+    }
+  }
+  for (auto &r: resources.storage_images) {
+    if (compiler.get_decoration(
+            r.id, spv::Decoration::DecorationDescriptorSet) == setNumber) {
+      uint32_t bindingNumber =
+          compiler.get_decoration(r.id, spv::Decoration::DecorationBinding);
+      result.images.push_back(r.name);
+
+      int dim = compiler.get_type(r.type_id).array.size();
+      int imageDim = -1;
+      if (compiler.get_type(r.type_id).image.dim == spv::Dim1D) {
+        imageDim = 1;
+      } else if (compiler.get_type(r.type_id).image.dim == spv::Dim2D) {
+        imageDim = 2;
+      } else if (compiler.get_type(r.type_id).image.dim == spv::Dim3D) {
+        imageDim = 3;
+      } else if (compiler.get_type(r.type_id).image.dim == spv::DimCube) {
+        imageDim = 4;
+      }
+      int arraySize = dim == 1 ? compiler.get_type(r.type_id).array[0] : 0;
+      result.bindings[bindingNumber] = {
+          .name = r.name,
+          .type = vk::DescriptorType::eStorageImage,
+          .dim = dim,
+          .arraySize = arraySize,
+          .imageDim = imageDim,
+          .arrayIndex = static_cast<uint32_t>(result.images.size() - 1)};
+    }
+  }
 
   if (result.bindings.empty()) {
     result.type = UniformBindingType::eNone;
@@ -625,8 +696,10 @@ getDescriptorSetDescription(spirv_cross::Compiler &compiler,
       return result;
     }
   }
-  throw std::runtime_error(
-      "Parse descriptor set failed: cannot recognize this set.");
+
+  result.type = UniformBindingType::eUnknown;  // general compute shader binding
+  // throw std::runtime_error("Parse descriptor set failed: cannot recognize this set.");
+  return result;
 }
 
 std::future<void> BaseParser::loadGLSLFilesAsync(std::string const &vertFile,

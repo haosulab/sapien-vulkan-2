@@ -8,10 +8,10 @@
 #include <optional>
 
 namespace spirv_cross {
-  class Compiler;
-  struct SPIRType;
-  struct Resource;
-};
+class Compiler;
+struct SPIRType;
+struct Resource;
+}; // namespace spirv_cross
 
 namespace svulkan2 {
 namespace shader {
@@ -68,44 +68,37 @@ struct ShaderConfig {
   DescriptorSetDescription lightSetDescription;
 };
 
-DescriptorSetDescription
-getDescriptorSetDescription(spirv_cross::Compiler &compiler,
-                            uint32_t setNumber);
+std::vector<uint32_t> getDescriptorSetIds(spirv_cross::Compiler &compiler);
 
-inline std::string
-getOutTextureName(std::string variableName) { // remove "out" prefix
+DescriptorSetDescription getDescriptorSetDescription(spirv_cross::Compiler &compiler,
+                                                     uint32_t setNumber);
+
+inline std::string getOutTextureName(std::string variableName) { // remove "out" prefix
   if (variableName.substr(0, 3) != "out") {
     throw std::runtime_error("Output texture must start with \"out\"");
   }
   return variableName.substr(3, std::string::npos);
 }
 
-inline static std::string
-getInTextureName(std::string variableName) { // remove "sampler" prefix
+inline static std::string getInTextureName(std::string variableName) { // remove "sampler" prefix
   if (variableName.substr(0, 7) != "sampler") {
     throw std::runtime_error("Input texture must start with \"sampler\"");
   }
   return variableName.substr(7, std::string::npos);
 }
 
-std::shared_ptr<InputDataLayout>
-parseInputData(spirv_cross::Compiler &compiler);
-std::shared_ptr<InputDataLayout>
-parseVertexInput(spirv_cross::Compiler &compiler);
+std::shared_ptr<InputDataLayout> parseInputData(spirv_cross::Compiler &compiler);
+std::shared_ptr<InputDataLayout> parseVertexInput(spirv_cross::Compiler &compiler);
 
-std::shared_ptr<OutputDataLayout>
-parseOutputData(spirv_cross::Compiler &compiler);
-std::shared_ptr<OutputDataLayout>
-parseTextureOutput(spirv_cross::Compiler &compiler);
+std::shared_ptr<OutputDataLayout> parseOutputData(spirv_cross::Compiler &compiler);
+std::shared_ptr<OutputDataLayout> parseTextureOutput(spirv_cross::Compiler &compiler);
 
-bool hasUniformBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber,
-                      uint32_t setNumber);
+bool hasUniformBuffer(spirv_cross::Compiler &compiler, uint32_t bindingNumber, uint32_t setNumber);
 
 std::shared_ptr<StructDataLayout> parseBuffer(spirv_cross::Compiler &compiler,
-                                              uint32_t bindingNumber,
-                                              uint32_t setNumber);
-std::shared_ptr<StructDataLayout>
-parseBuffer(spirv_cross::Compiler &compiler, spirv_cross::SPIRType const &type);
+                                              uint32_t bindingNumber, uint32_t setNumber);
+std::shared_ptr<StructDataLayout> parseBuffer(spirv_cross::Compiler &compiler,
+                                              spirv_cross::SPIRType const &type);
 std::shared_ptr<StructDataLayout> parseBuffer(spirv_cross::Compiler &compiler,
                                               spirv_cross::Resource &resource);
 
@@ -126,15 +119,12 @@ public:
   void loadGLSLFiles(std::string const &vertFile, std::string const &fragFile,
                      std::string const &geomFile = "");
 
-  std::future<void> loadGLSLFilesAsync(std::string const &vertFile,
-                                       std::string const &fragFile,
+  std::future<void> loadGLSLFilesAsync(std::string const &vertFile, std::string const &fragFile,
                                        std::string const &geomFile = "");
 
   virtual std::shared_ptr<OutputDataLayout> getTextureOutputLayout() const = 0;
   virtual std::vector<std::string> getColorRenderTargetNames() const = 0;
-  virtual std::optional<std::string> getDepthRenderTargetName() const {
-    return {};
-  };
+  virtual std::optional<std::string> getDepthRenderTargetName() const { return {}; };
 
   virtual std::vector<UniformBindingType> getUniformBindingTypes() const;
 
@@ -147,27 +137,22 @@ public:
 
   // TODO: push constant
   virtual vk::UniquePipelineLayout
-  createPipelineLayout(vk::Device device,
-                       std::vector<vk::DescriptorSetLayout> layouts) const;
+  createPipelineLayout(vk::Device device, std::vector<vk::DescriptorSetLayout> layouts) const;
 
   virtual vk::UniqueRenderPass createRenderPass(
-      vk::Device device, std::vector<vk::Format> const &colorFormats,
-      vk::Format depthFormat,
-      std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
-          &colorTargetLayouts,
+      vk::Device device, std::vector<vk::Format> const &colorFormats, vk::Format depthFormat,
+      std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const &colorTargetLayouts,
       std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,
       vk::SampleCountFlagBits sampleCount) const = 0;
 
   virtual vk::UniquePipeline
-  createPipeline(vk::Device device, vk::PipelineLayout layout,
-                 vk::RenderPass renderPass, vk::CullModeFlags cullMode,
-                 vk::FrontFace frontFace, bool alphaBlend,
+  createPipeline(vk::Device device, vk::PipelineLayout layout, vk::RenderPass renderPass,
+                 vk::CullModeFlags cullMode, vk::FrontFace frontFace, bool alphaBlend,
                  vk::SampleCountFlagBits sampleCount,
                  std::map<std::string, SpecializationConstantValue> const
                      &specializationConstantInfo) const = 0;
 
-  virtual std::vector<DescriptorSetDescription>
-  getDescriptorSetDescriptions() const = 0;
+  virtual std::vector<DescriptorSetDescription> getDescriptorSetDescriptions() const = 0;
 
   // inline float getResolutionScale() const { return mResolutionScale; }
 

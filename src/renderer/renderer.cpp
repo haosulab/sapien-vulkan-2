@@ -1055,7 +1055,6 @@ void Renderer::prepareRender(scene::Camera &camera) {
   }
 
   if (mRequiresRecord) {
-    // std::scoped_lock lock(mContext->getGlobalLock());
     prepareObjects(*mScene);
   }
 
@@ -1152,7 +1151,6 @@ void Renderer::prepareRender(scene::Camera &camera) {
 
   {
     if (mRequiresRecord) {
-      // std::scoped_lock lock(mContext->getGlobalLock());
       {
         EASY_BLOCK("Record shadow draw calls");
         recordShadows(*mScene);

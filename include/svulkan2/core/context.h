@@ -31,6 +31,9 @@ public:
                                          bool doNotLoadTexture = false, std::string device = "");
   std::shared_ptr<resource::SVResourceManager> createResourceManager();
 
+  Context(bool present = true, uint32_t maxNumMaterials = 5000, uint32_t maxNumTextures = 5000,
+          uint32_t defaultMipLevels = 1, bool doNotLoadTexture = false, std::string device = "");
+
   ~Context();
   inline bool isVulkanAvailable() const { return mInstance && mPhysicalDevice; }
 
@@ -92,15 +95,10 @@ private:
 
   vk::UniqueDescriptorSetLayout mMetallicDescriptorSetLayout;
 
-  Context(bool present = true, uint32_t maxNumMaterials = 5000, uint32_t maxNumTextures = 5000,
-          uint32_t defaultMipLevels = 1, bool doNotLoadTexture = false, std::string device = "");
-
   void createDescriptorPool();
 
   std::mutex mSamplerLock{};
   std::map<vk::SamplerCreateInfo, vk::UniqueSampler> mSamplerRegistry;
-
-  // std::vector<PhysicalDeviceInfo> summarizeDeviceInfo(VkSurfaceKHR tmpSurface = nullptr);
 };
 
 } // namespace core

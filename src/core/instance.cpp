@@ -7,6 +7,15 @@
 namespace svulkan2 {
 namespace core {
 
+#ifdef VK_VALIDATION
+static VkBool32 myDebugCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType,
+                                uint64_t object, size_t location, int32_t messageCode,
+                                const char *pLayerPrefix, const char *pMessage, void *pUserData) {
+  printf("%s\n", pMessage);
+  return false;
+}
+#endif
+
 static void glfwErrorCallback(int error_code, const char *description) {
   logger::error("GLFW error: {}", description);
 }
@@ -93,7 +102,12 @@ Instance::Instance(bool enableGLFW, uint32_t appVersion, uint32_t engineVersion,
                     " is not available and skipped.");
     }
   }
+
+  vk::ValidationFeaturesEXT validationFeatures;
+  vk::ValidationFeatureEnableEXT enabledFeature = vk::ValidationFeatureEnableEXT::eDebugPrintf;
+  validationFeatures.setEnabledValidationFeatures(enabledFeature);
 #endif
+
 
   // ========== set up extensions ========== //
   std::vector<const char *> extensions;
@@ -132,8 +146,16 @@ Instance::Instance(bool enableGLFW, uint32_t appVersion, uint32_t engineVersion,
     }
   }
 
+#ifdef VK_VALIDATION
+  extensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
+#endif
   try {
-    mInstance = vk::createInstanceUnique(vk::InstanceCreateInfo({}, &appInfo, layers, extensions));
+    vk::InstanceCreateInfo createInfo({}, &appInfo, layers, extensions);
+#ifdef VK_VALIDATION
+    createInfo.setPNext(&validationFeatures);
+#endif
+    mInstance = vk::createInstanceUnique(createInfo);
+
     VULKAN_HPP_DEFAULT_DISPATCHER.init(mInstance.get());
   } catch (vk::OutOfHostMemoryError const &err) {
     logger::error("Failed to initialize renderer: out of host memory.");
@@ -157,6 +179,12 @@ Instance::Instance(bool enableGLFW, uint32_t appVersion, uint32_t engineVersion,
         "Your GPU driver does not support Vulkan. You may not use the renderer for rendering.");
     throw err;
   }
+
+#ifdef VK_VALIDATION
+  vk::DebugReportCallbackCreateInfoEXT ci(vk::DebugReportFlagBitsEXT::eInformation,
+                                          myDebugCallback);
+  mDebugHandle = mInstance->createDebugReportCallbackEXTUnique(ci);
+#endif
 }
 
 std::shared_ptr<PhysicalDevice> Instance::createPhysicalDevice(std::string const &hint) {

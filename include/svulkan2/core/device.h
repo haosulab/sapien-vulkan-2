@@ -8,6 +8,7 @@ class Instance;
 class PhysicalDevice;
 class Queue;
 class Allocator;
+class DynamicDescriptorPool;
 
 class Device : public std::enable_shared_from_this<Device> {
 public:
@@ -16,6 +17,9 @@ public:
   inline vk::Device getInternal() const { return mDevice.get(); }
   inline Queue &getQueue() const { return *mQueue; }
   inline Allocator &getAllocator() const { return *mAllocator; }
+
+  std::unique_ptr<DynamicDescriptorPool>
+  createDescriptorPool(vk::ArrayProxy<vk::DescriptorPoolSize> const &sizes);
 
   ~Device();
 

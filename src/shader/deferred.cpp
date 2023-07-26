@@ -133,7 +133,7 @@ vk::UniquePipeline DeferredPassParser::createPipeline(
   auto fsm = device.createShaderModuleUnique(
       {{}, mFragSPVCode.size() * sizeof(uint32_t), mFragSPVCode.data()});
 
-  // specialization Constants
+  //  1specialization Constants
   auto elems = mSpecializationConstantLayout->getElementsSorted();
   vk::SpecializationInfo fragSpecializationInfo;
   std::vector<vk::SpecializationMapEntry> entries;

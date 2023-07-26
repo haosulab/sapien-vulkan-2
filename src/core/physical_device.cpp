@@ -120,13 +120,8 @@ std::vector<PhysicalDevice::DeviceInfo> PhysicalDevice::summarizeDeviceInfo() co
   ss << "Devices visible to Vulkan" << std::endl;
   ss << std::setw(3) << "Id" << std::setw(40) << "name" << std::setw(10) << "Present"
      << std::setw(10) << "Supported" << std::setw(10) << "PciBus" << std::setw(10) << "CudaId"
-     << std::setw(15) << "RayTracing" << std::setw(10) << "Discrete" << std::endl;
-
-  vk::PhysicalDeviceFeatures2 features{};
-  vk::PhysicalDeviceDescriptorIndexingFeatures descriptorFeatures{};
-  vk::PhysicalDeviceTimelineSemaphoreFeatures timelineSemaphoreFeatures{};
-  features.setPNext(&descriptorFeatures);
-  descriptorFeatures.setPNext(&timelineSemaphoreFeatures);
+     << std::setw(15) << "RayTracing" << std::setw(10) << "Discrete" << std::setw(15)
+     << "SubgroupSize" << std::endl;
 
   int ord = 0;
   for (auto device : mInstance->getInternal().enumeratePhysicalDevices()) {
@@ -165,10 +160,15 @@ std::vector<PhysicalDevice::DeviceInfo> PhysicalDevice::summarizeDeviceInfo() co
     }
 
     // check features
-    device.getFeatures2(&features);
-    if (features.features.independentBlend && features.features.wideLines &&
-        features.features.geometryShader && descriptorFeatures.descriptorBindingPartiallyBound &&
-        timelineSemaphoreFeatures.timelineSemaphore) {
+    auto features = device.getFeatures2<vk::PhysicalDeviceFeatures2,
+                                        vk::PhysicalDeviceDescriptorIndexingFeatures,
+                                        vk::PhysicalDeviceTimelineSemaphoreFeatures>();
+    if (features.get<vk::PhysicalDeviceFeatures2>().features.independentBlend &&
+        features.get<vk::PhysicalDeviceFeatures2>().features.wideLines &&
+        features.get<vk::PhysicalDeviceFeatures2>().features.geometryShader &&
+        features.get<vk::PhysicalDeviceDescriptorIndexingFeatures>()
+            .descriptorBindingPartiallyBound &&
+        features.get<vk::PhysicalDeviceTimelineSemaphoreFeatures>().timelineSemaphore) {
       required_features = true;
     }
 
@@ -180,16 +180,15 @@ std::vector<PhysicalDevice::DeviceInfo> PhysicalDevice::summarizeDeviceInfo() co
       }
     }
 
-    auto properties = device.getProperties();
+    auto properties2 =
+        device.getProperties2<vk::PhysicalDeviceProperties2, vk::PhysicalDeviceSubgroupProperties,
+                              vk::PhysicalDevicePCIBusInfoPropertiesEXT>();
+    auto properties = properties2.get<vk::PhysicalDeviceProperties2>().properties;
+
     name = std::string(properties.deviceName.begin(), properties.deviceName.end());
     discrete = properties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu;
-
-    vk::PhysicalDeviceProperties2KHR p2;
-    vk::PhysicalDevicePCIBusInfoPropertiesEXT pciInfo;
-    pciInfo.pNext = p2.pNext;
-    p2.pNext = &pciInfo;
-    device.getProperties2(&p2);
-    busid = pciInfo.pciBus;
+    busid = properties2.get<vk::PhysicalDevicePCIBusInfoPropertiesEXT>().pciBus;
+    uint32_t subgroupSize = properties2.get<vk::PhysicalDeviceSubgroupProperties>().subgroupSize;
 
     int computeMode{-1};
     auto SAPIEN_DISABLE_RAY_TRACING = std::getenv("SAPIEN_DISABLE_RAY_TRACING");
@@ -215,7 +214,7 @@ std::vector<PhysicalDevice::DeviceInfo> PhysicalDevice::summarizeDeviceInfo() co
     ss << std::setw(3) << ord++ << std::setw(40) << name.substr(0, 39).c_str() << std::setw(10)
        << present << std::setw(10) << supported << std::hex << std::setw(10) << busid << std::dec
        << std::setw(10) << (cudaId < 0 ? "No Device" : std::to_string(cudaId)) << std::setw(15)
-       << rayTracing << std::setw(10) << discrete << std::endl;
+       << rayTracing << std::setw(10) << discrete << std::setw(15) << subgroupSize << std::endl;
 
     devices.push_back(PhysicalDevice::DeviceInfo{.device = device,
                                                  .present = present,
@@ -225,7 +224,8 @@ std::vector<PhysicalDevice::DeviceInfo> PhysicalDevice::summarizeDeviceInfo() co
                                                  .queueIndex = queueIdx,
                                                  .rayTracing = rayTracing,
                                                  .cudaComputeMode = computeMode,
-                                                 .discrete = discrete});
+                                                 .discrete = discrete,
+                                                 .subgroupSize = subgroupSize});
   }
   logger::info(ss.str());
 
@@ -277,6 +277,15 @@ std::vector<PhysicalDevice::DeviceInfo> PhysicalDevice::summarizeDeviceInfo() co
 
   return devices;
 }
+
+uint32_t PhysicalDevice::getMaxWorkGroupInvocations() const {
+  // HACK: make sure group_size < subgroup_size * subgroup_size
+  // So many subgroup-based algorithms would work without careful implementations
+  // This is true for most GPUs anyway
+  return std::min(mPickedDeviceLimits.maxComputeWorkGroupInvocations,
+                  mPickedDeviceInfo.subgroupSize * mPickedDeviceInfo.subgroupSize);
+}
+uint32_t PhysicalDevice::getSubgroupSize() const { return mPickedDeviceInfo.subgroupSize; }
 
 PhysicalDevice::~PhysicalDevice() {}
 

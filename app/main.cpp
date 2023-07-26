@@ -309,8 +309,8 @@ int main() {
   // customLight.setShadowProjectionMatrix(math::perspective(0.7f, 1.f,
   // 0.1f, 5.f));
 
-  auto flashlight = context->getResourceManager()->CreateTextureFromFile(
-      "../test/assets/image/flashlight.jpg", 1);
+  // auto flashlight = context->getResourceManager()->CreateTextureFromFile(
+  //     "../test/assets/image/flashlight.jpg", 1);
 
   // auto &l = scene->addTexturedLight();
   // l.setColor({1, 1, 1});
@@ -436,7 +436,8 @@ int main() {
     ImGui::NewFrame();
     ImGuizmo::BeginFrame();
 
-    ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".cpp,.h,.hpp", ".");
+    ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".cpp,.h,.hpp",
+                                            ".");
 
     // float scaling = ImGui::GetWindowDpiScale();
     // // log::info("Window DPI scale: {}", scaling);
@@ -520,9 +521,11 @@ int main() {
 
     if (gClosed) {
       window->close();
+      break;
     }
     if (window->isKeyDown("q")) {
       window->close();
+      break;
     }
 
     bool update = false;

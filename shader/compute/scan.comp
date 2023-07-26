@@ -1,0 +1,105 @@
+#version 450
+
+layout(local_size_x_id = 0) in;
+
+#extension GL_KHR_shader_subgroup_shuffle_relative: enable
+#extension GL_EXT_debug_printf: enable
+
+layout (constant_id = 3) const int subgroupSize = 32;
+// layout (constant_id = 0) const int subgroupSize = 32;
+//NOTE: subgroupSize must be the same as gl_subgroupSize
+
+layout(push_constant) uniform Constants {
+  int count;
+};
+
+layout(std430, set = 0, binding = 0) buffer InputBuffer0{
+  int blockCount;
+  int blockCount2;
+  float sum;
+};
+
+layout(std430, set = 0, binding = 1) buffer InputBuffer1{
+  float data[];
+};
+
+shared float temp[subgroupSize];
+shared int blockId;
+shared float prevSum;
+
+float local_scan() {
+  uint tid = gl_LocalInvocationID.x;
+  float tmp0, tmp1, tmp2;
+
+  uint gid = blockId * gl_WorkGroupSize.x + tid;
+
+  // scan subgroups
+  tmp0 = gid < count ? data[gid] : 0.0;
+  for (int d = 1; d < subgroupSize; d = 2 * d) {
+    tmp1 = subgroupShuffleUp(tmp0, d);
+    if (gl_SubgroupInvocationID >= d) {
+      tmp0 += tmp1;
+    }
+  }
+
+  // store sum of each subgroup into local variable temp
+  if (gl_SubgroupInvocationID == subgroupSize - 1) {
+    temp[tid / subgroupSize] = tmp0;
+  }
+
+  barrier();
+
+  // scan subgroup sums
+  // TODO: assume # subgroups per group < subgroup size
+  if (tid < subgroupSize) {
+    tmp1 = 0.0;
+    if (tid < gl_WorkGroupSize.x / subgroupSize) {
+      tmp1 = temp[tid];
+    }
+    for (int d = 1; d < subgroupSize; d = 2 * d) {
+      tmp2 = subgroupShuffleUp(tmp1, d);
+      if (gl_SubgroupInvocationID >= d) {
+        tmp1 += tmp2;
+      }
+    }
+    if (tid < gl_WorkGroupSize.x / subgroupSize) {
+      temp[tid] = tmp1;
+    }
+  }
+
+  barrier();
+  if (tid >= subgroupSize) {
+    tmp0 += temp[tid / subgroupSize - 1];
+  }
+
+  return tmp0;
+}
+
+void main() {
+  if (gl_GlobalInvocationID.x == 0) {
+    debugPrintfEXT("%d", gl_WorkGroupSize.x);
+  }
+
+  if (gl_LocalInvocationID.x == 0) {
+    blockId = atomicAdd(blockCount, 1);
+  }
+
+  barrier();
+  uint gid = blockId * gl_WorkGroupSize.x + gl_LocalInvocationID.x;
+
+  float local = local_scan();
+
+  if (gl_LocalInvocationID.x == gl_WorkGroupSize.x - 1) {
+    do {
+    } while (atomicAdd(blockCount2, 0) < blockId);
+    prevSum = sum;
+    sum = prevSum + local;
+    memoryBarrierBuffer();  // make sure sum is visible to the next block
+    atomicAdd(blockCount2, 1);
+  }
+
+  barrier();
+  if (gid < count) {
+    data[gid] = prevSum + local;
+  }
+}

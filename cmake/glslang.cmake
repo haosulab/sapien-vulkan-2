@@ -3,7 +3,7 @@ include(FetchContent)
 FetchContent_Declare(
     glslang
     GIT_REPOSITORY https://github.com/KhronosGroup/glslang.git
-    GIT_TAG 11.13.0
+    GIT_TAG 12.3.1
     GIT_SHALLOW TRUE
     GIT_PROGRESS TRUE
 )

@@ -14,10 +14,10 @@ class DynamicDescriptorPool {
 
 public:
   // using Context singleton
-  DynamicDescriptorPool(std::vector<vk::DescriptorPoolSize> const &sizes);
+  DynamicDescriptorPool(vk::ArrayProxy<vk::DescriptorPoolSize> const &sizes);
 
   DynamicDescriptorPool(std::shared_ptr<Device> device,
-                        std::vector<vk::DescriptorPoolSize> const &sizes);
+                        vk::ArrayProxy<vk::DescriptorPoolSize> const &sizes);
   DynamicDescriptorPool(DynamicDescriptorPool &other) = delete;
   DynamicDescriptorPool(DynamicDescriptorPool &&other) = default;
   DynamicDescriptorPool &operator=(DynamicDescriptorPool &other) = delete;

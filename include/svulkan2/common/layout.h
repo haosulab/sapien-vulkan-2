@@ -27,7 +27,7 @@ enum class DataType {
   eFLOAT3,
   eFLOAT4,
   eFLOAT44,
-  eUNKNOWN
+  eUNKNOWN,
 };
 
 inline std::string DataTypeToString(DataType type) {

@@ -34,6 +34,10 @@ private:
   std::unique_ptr<vk::DynamicLoader> mDynamicLoader;
   vk::UniqueInstance mInstance{};
   bool mGLFWSupported{};
+
+#ifdef VK_VALIDATION
+  vk::UniqueDebugReportCallbackEXT mDebugHandle;
+#endif
 };
 
 } // namespace core

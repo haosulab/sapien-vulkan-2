@@ -1,6 +1,6 @@
 #include "svulkan2/shader/glsl_compiler.h"
-#include "svulkan2/common/fs.h"
 #include "../common/logger.h"
+#include "svulkan2/common/fs.h"
 #include "svulkan2/common/vk.h"
 #include <SPIRV/GlslangToSpv.h>
 #include <glslang/Public/ShaderLang.h>
@@ -11,20 +11,17 @@
 namespace svulkan2 {
 
 static std::mutex mutex;
-static std::unordered_map<std::string, std::vector<std::uint32_t>>
-    shaderCodeCache;
+static std::unordered_map<std::string, std::vector<std::uint32_t>> shaderCodeCache;
 
 std::vector<std::uint32_t> const &
-GLSLCompiler::compileGlslFileCached(vk::ShaderStageFlagBits stage,
-                                    fs::path const &filepath) {
+GLSLCompiler::compileGlslFileCached(vk::ShaderStageFlagBits stage, fs::path const &filepath) {
   std::string path = fs::canonical(filepath).string();
   std::lock_guard<std::mutex> guard(mutex);
   if (shaderCodeCache.contains(path)) {
     return shaderCodeCache[path];
   }
   auto [code, debugInfo] = GLSLCompiler::loadGlslCodeWithDebugInfo(filepath);
-  return shaderCodeCache[path] =
-             GLSLCompiler::compileToSpirv(stage, code, debugInfo);
+  return shaderCodeCache[path] = GLSLCompiler::compileToSpirv(stage, code, debugInfo);
 }
 
 std::tuple<std::string, std::vector<std::tuple<std::string, int>>>
@@ -40,37 +37,29 @@ GLSLCompiler::loadGlslCodeWithDebugInfo(fs::path const &filepath) {
   for (std::string line; std::getline(iss, line); ++lineNum) {
     // left trim for erase
     std::string line2 = line;
-    line2.erase(line2.begin(),
-                std::find_if(line2.begin(), line2.end(), [](unsigned char ch) {
-                  return !std::isspace(ch);
-                }));
+    line2.erase(line2.begin(), std::find_if(line2.begin(), line2.end(),
+                                            [](unsigned char ch) { return !std::isspace(ch); }));
 
     if (line2.starts_with("#include") && std::isspace(line[8])) {
       line2 = line2.substr(8);
 
       // lr trim
       line2.erase(line2.begin(), std::find_if(line2.begin(), line2.end(),
-                                              [](unsigned char ch) {
-                                                return !std::isspace(ch);
-                                              }));
-      line2.erase(
-          std::find_if(line2.rbegin(), line2.rend(),
-                       [](unsigned char ch) { return !std::isspace(ch); })
-              .base(),
-          line2.end());
-      if (line2.size() >= 2 && line2[0] == '"' &&
-          line2[line2.size() - 1] == '"') {
+                                              [](unsigned char ch) { return !std::isspace(ch); }));
+      line2.erase(std::find_if(line2.rbegin(), line2.rend(),
+                               [](unsigned char ch) { return !std::isspace(ch); })
+                      .base(),
+                  line2.end());
+      if (line2.size() >= 2 && line2[0] == '"' && line2[line2.size() - 1] == '"') {
         std::string filename = line2.substr(1, line2.size() - 2);
         auto includePath = filepath.parent_path() / filename;
-        auto [includeCode, includeInfo] =
-            loadGlslCodeWithDebugInfo(includePath);
+        auto [includeCode, includeInfo] = loadGlslCodeWithDebugInfo(includePath);
 
         lineInfo.insert(lineInfo.end(), includeInfo.begin(), includeInfo.end());
         result += includeCode;
         // result += loadGlslCode(includePath) + "\n";
       } else {
-        throw std::runtime_error("invalid include: " + line + " in " +
-                                 filepath.string());
+        throw std::runtime_error("invalid include: " + line + " in " + filepath.string());
       }
     } else {
       lineInfo.push_back({filepath.string(), lineNum});
@@ -88,32 +77,26 @@ std::string GLSLCompiler::loadGlslCode(fs::path const &filepath) {
 
   for (std::string line; std::getline(iss, line);) {
     // left trim
-    line.erase(line.begin(),
-               std::find_if(line.begin(), line.end(), [](unsigned char ch) {
-                 return !std::isspace(ch);
-               }));
+    line.erase(line.begin(), std::find_if(line.begin(), line.end(),
+                                          [](unsigned char ch) { return !std::isspace(ch); }));
 
     if (line.starts_with("#include") && std::isspace(line[8])) {
       line = line.substr(8);
 
       // lr trim
-      line.erase(line.begin(),
-                 std::find_if(line.begin(), line.end(), [](unsigned char ch) {
-                   return !std::isspace(ch);
-                 }));
-      line.erase(
-          std::find_if(line.rbegin(), line.rend(),
-                       [](unsigned char ch) { return !std::isspace(ch); })
-              .base(),
-          line.end());
+      line.erase(line.begin(), std::find_if(line.begin(), line.end(),
+                                            [](unsigned char ch) { return !std::isspace(ch); }));
+      line.erase(std::find_if(line.rbegin(), line.rend(),
+                              [](unsigned char ch) { return !std::isspace(ch); })
+                     .base(),
+                 line.end());
       if (line.size() >= 2 && line[0] == '"' && line[line.size() - 1] == '"') {
         std::string filename = line.substr(1, line.size() - 2);
         auto includePath = filepath.parent_path() / filename;
         result += loadGlslCode(includePath) + "\n";
 
       } else {
-        throw std::runtime_error("invalid include: " + line + " in " +
-                                 filepath.string());
+        throw std::runtime_error("invalid include: " + line + " in " + filepath.string());
       }
     } else {
       result += line + "\n";
@@ -269,15 +252,15 @@ void GLSLCompiler::FinalizeProcess() {
   }
 }
 
-std::vector<std::uint32_t> GLSLCompiler::compileToSpirv(
-    vk::ShaderStageFlagBits shaderStage, std::string const &glslCode,
-    std::vector<std::tuple<std::string, int>> const &debugInfo) {
+std::vector<std::uint32_t>
+GLSLCompiler::compileToSpirv(vk::ShaderStageFlagBits shaderStage, std::string const &glslCode,
+                             std::vector<std::tuple<std::string, int>> const &debugInfo) {
 
   EShLanguage language = GetEShLanguage(shaderStage);
   glslang::TShader shader(language);
   const char *codes[1] = {glslCode.c_str()};
 
-  glslang::EShTargetLanguageVersion spvVersion = glslang::EShTargetSpv_1_1;
+  glslang::EShTargetLanguageVersion spvVersion = glslang::EShTargetSpv_1_3;
   if (shaderStage == vk::ShaderStageFlagBits::eRaygenKHR ||
       shaderStage == vk::ShaderStageFlagBits::eMissKHR ||
       shaderStage == vk::ShaderStageFlagBits::eClosestHitKHR ||
@@ -286,22 +269,21 @@ std::vector<std::uint32_t> GLSLCompiler::compileToSpirv(
   }
 
   shader.setStrings(codes, 1);
-  shader.setEnvInput(glslang::EShSourceGlsl, GetEShLanguage(shaderStage),
-                     glslang::EShClientVulkan, 110);
+  shader.setEnvInput(glslang::EShSourceGlsl, GetEShLanguage(shaderStage), glslang::EShClientVulkan,
+                     glslang::EshTargetClientVersion::EShTargetVulkan_1_3);
   shader.setEnvClient(glslang::EShClientVulkan,
-                      glslang::EShTargetClientVersion::EShTargetVulkan_1_1);
+                      glslang::EShTargetClientVersion::EShTargetVulkan_1_3);
   shader.setEnvTarget(glslang::EShTargetSpv, spvVersion);
 
   TBuiltInResource resource = GetDefaultTBuiltInResource();
-  EShMessages messages = static_cast<EShMessages>(
-      EShMsgDefault | EShMsgVulkanRules | EShMsgSpvRules);
-  bool result = shader.parse(&resource, 110, false, messages);
+  EShMessages messages =
+      static_cast<EShMessages>(EShMsgDefault | EShMsgVulkanRules | EShMsgSpvRules);
+  bool result = shader.parse(&resource, glslang::EshTargetClientVersion::EShTargetVulkan_1_3,
+                             false, messages);
 
   {
     std::string log = shader.getInfoLog();
     if (log.length()) {
-      // log::error(log);
-
       std::stringstream ss(log);
       std::string line;
       while (std::getline(ss, line, '\n')) {
@@ -313,18 +295,13 @@ std::vector<std::uint32_t> GLSLCompiler::compileToSpirv(
           std::string reason = sm[4];
           if (debugInfo.size() > l) {
             auto [file, lineNumber] = debugInfo[l];
-            logger::error("ERROR: {}:{}: '{}' :  {}", file, lineNumber, var,
-                       reason);
+            logger::error("ERROR: {}:{}: '{}' :  {}", file, lineNumber, var, reason);
           }
         } else if (line.length()) {
           logger::error(line);
         }
       }
     }
-    // log = shader.getInfoDebugLog();
-    // if (log.length()) {
-    //   log::getLogger()->warn(log);
-    // }
   }
 
   if (!result) {

@@ -5,12 +5,12 @@
 namespace svulkan2 {
 namespace core {
 
-DynamicDescriptorPool::DynamicDescriptorPool(std::vector<vk::DescriptorPoolSize> const &sizes)
+DynamicDescriptorPool::DynamicDescriptorPool(vk::ArrayProxy<vk::DescriptorPoolSize> const &sizes)
     : DynamicDescriptorPool(core::Context::Get()->getDevice2(), sizes) {}
 
 DynamicDescriptorPool::DynamicDescriptorPool(std::shared_ptr<Device> device,
-                                             std::vector<vk::DescriptorPoolSize> const &sizes)
-    : mDevice(device), mSizes(sizes) {
+                                             vk::ArrayProxy<vk::DescriptorPoolSize> const &sizes)
+    : mDevice(device), mSizes(sizes.begin(), sizes.end()) {
   expand();
 }
 
