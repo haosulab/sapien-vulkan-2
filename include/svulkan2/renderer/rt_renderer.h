@@ -12,6 +12,7 @@ namespace svulkan2 {
 namespace core {
 class Context;
 class CommandPool;
+class CommandBuffer;
 } // namespace core
 
 namespace shader {
@@ -29,28 +30,21 @@ public:
   void resize(int width, int height) override;
   void setScene(std::shared_ptr<scene::Scene> scene) override;
 
-  void render(scene::Camera &camera,
-              std::vector<vk::Semaphore> const &waitSemaphores,
+  void render(scene::Camera &camera, std::vector<vk::Semaphore> const &waitSemaphores,
               std::vector<vk::PipelineStageFlags> const &waitStages,
-              std::vector<vk::Semaphore> const &signalSemaphores,
-              vk::Fence fence) override;
-  void render(
-      scene::Camera &camera,
-      vk::ArrayProxyNoTemporaries<vk::Semaphore const> const &waitSemaphores,
-      vk::ArrayProxyNoTemporaries<vk::PipelineStageFlags const> const
-          &waitStageMasks,
-      vk::ArrayProxyNoTemporaries<uint64_t const> const &waitValues,
-      vk::ArrayProxyNoTemporaries<vk::Semaphore const> const &signalSemaphores,
-      vk::ArrayProxyNoTemporaries<uint64_t const> const &signalValues) override;
-  void display(std::string const &imageName, vk::Image backBuffer,
-               vk::Format format, uint32_t width, uint32_t height,
-               std::vector<vk::Semaphore> const &waitSemaphores,
+              std::vector<vk::Semaphore> const &signalSemaphores, vk::Fence fence) override;
+  void render(scene::Camera &camera,
+              vk::ArrayProxyNoTemporaries<vk::Semaphore const> const &waitSemaphores,
+              vk::ArrayProxyNoTemporaries<vk::PipelineStageFlags const> const &waitStageMasks,
+              vk::ArrayProxyNoTemporaries<uint64_t const> const &waitValues,
+              vk::ArrayProxyNoTemporaries<vk::Semaphore const> const &signalSemaphores,
+              vk::ArrayProxyNoTemporaries<uint64_t const> const &signalValues) override;
+  void display(std::string const &imageName, vk::Image backBuffer, vk::Format format,
+               uint32_t width, uint32_t height, std::vector<vk::Semaphore> const &waitSemaphores,
                std::vector<vk::PipelineStageFlags> const &waitStages,
-               std::vector<vk::Semaphore> const &signalSemaphores,
-               vk::Fence fence) override;
+               std::vector<vk::Semaphore> const &signalSemaphores, vk::Fence fence) override;
 
-  void enableDenoiser(std::string const &colorName,
-                      std::string const &albedoName,
+  void enableDenoiser(std::string const &colorName, std::string const &albedoName,
                       std::string const &normalName);
   bool denoiserEnabled() const {
 #ifdef SVULKAN2_CUDA_INTEROP
@@ -81,14 +75,12 @@ public:
     return mRenderImages.at(name)->getImage();
   };
 
-  inline void
-  setCustomTexture(std::string const &name,
-                   std::shared_ptr<resource::SVTexture> texture) override {
+  inline void setCustomTexture(std::string const &name,
+                               std::shared_ptr<resource::SVTexture> texture) override {
     mCustomTextures[name] = texture;
   };
-  inline void
-  setCustomCubemap(std::string const &name,
-                   std::shared_ptr<resource::SVCubemap> cubemap) override {
+  inline void setCustomCubemap(std::string const &name,
+                               std::shared_ptr<resource::SVCubemap> cubemap) override {
     mCustomCubemaps[name] = cubemap;
   };
 
@@ -140,8 +132,7 @@ private:
   uint64_t mSceneRenderVersion{0l}; // check for updating matrices
   int mFrameCount = 0;
 
-  std::unordered_map<std::string, std::shared_ptr<resource::SVStorageImage>>
-      mRenderImages;
+  std::unordered_map<std::string, std::shared_ptr<resource::SVStorageImage>> mRenderImages;
   // subset of render images used in RT
   std::vector<std::shared_ptr<resource::SVStorageImage>> mRTImages;
   // subset of render images used in postprocess
@@ -165,12 +156,16 @@ private:
   std::map<std::string, std::shared_ptr<resource::SVCubemap>> mCustomCubemaps;
   std::shared_ptr<resource::SVCubemap> mEnvironmentMap{};
 
-  std::unique_ptr<core::CommandPool> mRenderCommandPool;
-  vk::UniqueCommandBuffer mRenderCommandBuffer;
-  vk::UniqueCommandBuffer mPostprocessCommandBuffer;
+  std::shared_ptr<core::CommandPool> mRenderCommandPool;
+  std::unique_ptr<core::CommandBuffer> mRenderCommandBuffer;
+  std::unique_ptr<core::CommandBuffer> mPostprocessCommandBuffer;
 
-  std::unique_ptr<core::CommandPool> mDisplayCommandPool;
-  vk::UniqueCommandBuffer mDisplayCommandBuffer;
+  // vk::UniqueCommandBuffer mRenderCommandBuffer;
+  // vk::UniqueCommandBuffer mPostprocessCommandBuffer;
+
+  std::shared_ptr<core::CommandPool> mDisplayCommandPool;
+  std::unique_ptr<core::CommandBuffer> mDisplayCommandBuffer;
+  // vk::UniqueCommandBuffer mDisplayCommandBuffer;
 
   std::vector<uint8_t> mPushConstantBuffer;
 

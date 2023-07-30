@@ -1,5 +1,7 @@
 #include "svulkan2/core/as.h"
 #include "../common/logger.h"
+#include "svulkan2/core/command_buffer.h"
+#include "svulkan2/core/command_pool.h"
 #include "svulkan2/core/context.h"
 
 namespace svulkan2 {
@@ -81,17 +83,17 @@ void BLAS::build() {
   buildInfo.scratchData.setDeviceAddress(scratchAddress);
   buildInfo.setDstAccelerationStructure(blas.get());
 
-  commandBuffer->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
-  commandBuffer->buildAccelerationStructuresKHR(buildInfo, mBuildRanges.data());
-  commandBuffer->resetQueryPool(queryPool.get(), 0, 1);
+  commandBuffer->beginOneTime();
+  commandBuffer->buildAccelerationStructures(buildInfo, mBuildRanges.data());
+  commandBuffer->resetQueryPool(queryPool.get());
 
   if (mCompaction) {
-    commandBuffer->writeAccelerationStructuresPropertiesKHR(
+    commandBuffer->writeAccelerationStructuresProperties(
         blas.get(), vk::QueryType::eAccelerationStructureCompactedSizeKHR, queryPool.get(), 0);
   }
 
   commandBuffer->end();
-  context->getQueue().submitAndWait(commandBuffer.get());
+  commandBuffer->submitAndWait();
 
   if (mUpdate) {
     buildInfo.setMode(vk::BuildAccelerationStructureModeKHR::eUpdate);
@@ -127,7 +129,7 @@ void BLAS::build() {
       throw std::runtime_error("something is wrong in compact size query!");
     }
 
-    compactionCommandBuffer->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+    compactionCommandBuffer->beginOneTime();
 
     auto asBufferCompact =
         std::make_unique<core::Buffer>(compactSize,
@@ -139,12 +141,9 @@ void BLAS::build() {
             {}, asBufferCompact->getVulkanBuffer(), {}, compactSize,
             vk::AccelerationStructureTypeKHR::eBottomLevel, {}));
 
-    vk::CopyAccelerationStructureInfoKHR copyInfo(blas.get(), blasCompact.get(),
-                                                  vk::CopyAccelerationStructureModeKHR::eCompact);
-    compactionCommandBuffer->copyAccelerationStructureKHR(copyInfo);
+    compactionCommandBuffer->compactAccelerationStructure(blas.get(), blasCompact.get());
     compactionCommandBuffer->end();
-
-    context->getQueue().submitAndWait(compactionCommandBuffer.get());
+    compactionCommandBuffer->submitAndWait();
 
     mBuffer = std::move(asBufferCompact);
     mAS = std::move(blasCompact);
@@ -194,7 +193,7 @@ void TLAS::build() {
 
   auto commandPool = context->createCommandPool();
   auto commandBuffer = commandPool->allocateCommandBuffer();
-  commandBuffer->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+  commandBuffer->beginOneTime();
 
   vk::MemoryBarrier barrier(vk::AccessFlagBits::eTransferWrite,
                             vk::AccessFlagBits::eAccelerationStructureWriteKHR);
@@ -251,9 +250,9 @@ void TLAS::build() {
   buildInfo.scratchData.setDeviceAddress(buildScratchBuffer->getAddress());
 
   vk::AccelerationStructureBuildRangeInfoKHR buildRange(instanceCount, 0, 0, 0);
-  commandBuffer->buildAccelerationStructuresKHR(buildInfo, &buildRange);
+  commandBuffer->buildAccelerationStructures(buildInfo, &buildRange);
   commandBuffer->end();
-  context->getQueue().submitAndWait(commandBuffer.get());
+  commandBuffer->submitAndWait();
 }
 
 void TLAS::recordUpdate(vk::CommandBuffer commandBuffer,

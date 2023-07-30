@@ -11,24 +11,20 @@ layout(std430, push_constant) uniform Constants {
 };
 
 layout(std430, set = 0, binding = 0) buffer InputBuffer0 {
-  int blockCount;
-  int blockCount2;
-  float sum;
-};
-
-layout(std430, set = 0, binding = 1) buffer InputBuffer1 {
   float data[];
 };
 
+layout(std430, set = 0, binding = 1) buffer InputBuffer1 {
+  float sum[];
+};
+
 shared float temp[subgroupSize];
-shared int blockId;
-shared float prevSum;
 
 float local_scan() {
   uint tid = gl_LocalInvocationID.x;
   float tmp0, tmp1, tmp2;
 
-  uint gid = blockId * gl_WorkGroupSize.x + tid;
+  uint gid = gl_WorkGroupID.x * gl_WorkGroupSize.x + tid;
 
   // scan subgroups
   tmp0 = gid < count ? data[gid] : 0.0;
@@ -73,26 +69,12 @@ float local_scan() {
 }
 
 void main() {
-  if (gl_LocalInvocationID.x == 0) {
-    blockId = atomicAdd(blockCount, 1);
-  }
-
-  barrier();
-  uint gid = blockId * gl_WorkGroupSize.x + gl_LocalInvocationID.x;
-
+  uint gid = gl_WorkGroupID.x * gl_WorkGroupSize.x + gl_LocalInvocationID.x;
   float local = local_scan();
-
   if (gl_LocalInvocationID.x == gl_WorkGroupSize.x - 1) {
-    do {
-    } while (atomicAdd(blockCount2, 0) < blockId);
-    prevSum = sum;
-    sum = prevSum + local;
-    memoryBarrierBuffer();  // make sure sum is visible to the next block
-    atomicAdd(blockCount2, 1);
+    sum[gl_WorkGroupID.x] = local;
   }
-
-  barrier();
   if (gid < count) {
-    data[gid] = prevSum + local;
+    data[gid] = local;
   }
 }

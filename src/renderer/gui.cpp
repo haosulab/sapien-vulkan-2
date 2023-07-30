@@ -1,6 +1,7 @@
 #include "svulkan2/renderer/gui.h"
 #include "../common/logger.h"
 #include "svulkan2/common/fonts/roboto.hpp"
+#include "svulkan2/core/command_buffer.h"
 #include "svulkan2/core/context.h"
 #include <GLFW/glfw3.h>
 
@@ -252,10 +253,10 @@ void GuiWindow::initImgui() {
 
   auto pool = mContext->createCommandPool();
   auto commandBuffer = pool->allocateCommandBuffer();
-  commandBuffer->begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
-  ImGui_ImplVulkan_CreateFontsTexture(commandBuffer.get());
+  commandBuffer->beginOneTime();
+  ImGui_ImplVulkan_CreateFontsTexture(commandBuffer->getInternal());
   commandBuffer->end();
-  mContext->getQueue().submitAndWait(commandBuffer.get());
+  commandBuffer->submitAndWait();
   logger::info("Imgui initialized");
   updateSize(mWidth, mHeight);
 }

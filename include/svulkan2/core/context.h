@@ -43,7 +43,7 @@ public:
   Queue &getQueue() const;
   Allocator &getAllocator();
 
-  std::unique_ptr<CommandPool> createCommandPool() const;
+  std::shared_ptr<CommandPool> createCommandPool() const;
 
   uint32_t getGraphicsQueueFamilyIndex() const;
 

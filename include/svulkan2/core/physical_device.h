@@ -35,6 +35,7 @@ public:
   std::shared_ptr<Device> createDevice();
 
   // convenience functions
+  uint32_t getGraphicsQueueFamilyIndex() const;
   uint32_t getMaxWorkGroupInvocations() const;
   uint32_t getSubgroupSize() const;
 

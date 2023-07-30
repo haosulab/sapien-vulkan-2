@@ -4,6 +4,7 @@
 #include "node.h"
 #include "object.h"
 #include "svulkan2/core/as.h"
+#include "svulkan2/core/command_buffer.h"
 #include "svulkan2/core/command_pool.h"
 #include <memory>
 #include <vector>
@@ -248,8 +249,8 @@ private:
   std::vector<vk::Fence> mAccessFences;
 
   // used to update AS
-  std::unique_ptr<core::CommandPool> mASUpdateCommandPool;
-  vk::UniqueCommandBuffer mASUpdateCommandBuffer;
+  std::shared_ptr<core::CommandPool> mASUpdateCommandPool;
+  std::unique_ptr<core::CommandBuffer> mASUpdateCommandBuffer;
 };
 
 } // namespace scene

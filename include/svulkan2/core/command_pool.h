@@ -5,21 +5,30 @@
 
 namespace svulkan2 {
 namespace core {
-class Context;
+class Device;
+class CommandBuffer;
 
-class CommandPool {
+class CommandPool : public std::enable_shared_from_this<CommandPool> {
 public:
-  vk::UniqueCommandBuffer
-  allocateCommandBuffer(vk::CommandBufferLevel level = vk::CommandBufferLevel::ePrimary);
+  std::unique_ptr<CommandBuffer>
+  allocateCommandBuffer(); // TODO: support secondary command buffers
+
+  CommandPool(std::shared_ptr<Device>);
+
+  inline std::shared_ptr<Device> getDevice() const { return mDevice; }
+  inline vk::CommandPool getInternal() const { return mPool.get(); }
+
+  // construct from global context
   CommandPool();
 
   CommandPool(CommandPool const &) = delete;
   CommandPool &operator=(CommandPool const &) = delete;
   CommandPool(CommandPool const &&) = delete;
   CommandPool &operator=(CommandPool const &&) = delete;
+  ~CommandPool();
 
 private:
-  std::shared_ptr<Context> mContext;
+  std::shared_ptr<Device> mDevice;
   vk::UniqueCommandPool mPool;
 };
 

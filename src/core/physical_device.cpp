@@ -278,6 +278,10 @@ std::vector<PhysicalDevice::DeviceInfo> PhysicalDevice::summarizeDeviceInfo() co
   return devices;
 }
 
+uint32_t PhysicalDevice::getGraphicsQueueFamilyIndex() const {
+  return mPickedDeviceInfo.queueIndex;
+}
+
 uint32_t PhysicalDevice::getMaxWorkGroupInvocations() const {
   // HACK: make sure group_size < subgroup_size * subgroup_size
   // So many subgroup-based algorithms would work without careful implementations

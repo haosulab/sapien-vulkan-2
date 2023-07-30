@@ -699,11 +699,11 @@ void Scene::updateTLAS() {
     mASUpdateCommandBuffer = mASUpdateCommandPool->allocateCommandBuffer();
   }
   mASUpdateCommandBuffer->reset();
-  mASUpdateCommandBuffer->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+  mASUpdateCommandBuffer->beginOneTime();
 
   // update BLAS
   for (auto obj : getVisibleDeformableObjects()) {
-    obj->getModel()->recordUpdateBLAS(mASUpdateCommandBuffer.get());
+    obj->getModel()->recordUpdateBLAS(mASUpdateCommandBuffer->getInternal());
   }
 
   auto objects = getVisibleObjects();
@@ -716,9 +716,9 @@ void Scene::updateTLAS() {
     std::memcpy(&mat.matrix[0][0], &modelTranspose, sizeof(mat));
     transforms.push_back(mat);
   }
-  mTLAS->recordUpdate(mASUpdateCommandBuffer.get(), transforms);
+  mTLAS->recordUpdate(mASUpdateCommandBuffer->getInternal(), transforms);
   mASUpdateCommandBuffer->end();
-  core::Context::Get()->getQueue().submit(mASUpdateCommandBuffer.get(), {});
+  mASUpdateCommandBuffer->submit();
 }
 
 void Scene::createRTStorageBuffers(StructDataLayout const &materialBufferLayout,

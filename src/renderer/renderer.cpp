@@ -1,5 +1,6 @@
 #include "svulkan2/renderer/renderer.h"
 #include "../common/logger.h"
+#include "svulkan2/core/command_buffer.h"
 #include "svulkan2/core/command_pool.h"
 #include "svulkan2/shader/deferred.h"
 #include "svulkan2/shader/gbuffer.h"
@@ -142,7 +143,7 @@ void Renderer::prepareShadowRenderTargets() {
   auto pool = mContext->createCommandPool();
   auto commandBuffer = pool->allocateCommandBuffer();
 
-  commandBuffer->begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
+  commandBuffer->beginOneTime();
 
   vk::ComponentMapping componentMapping(vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG,
                                         vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA);
@@ -159,7 +160,7 @@ void Renderer::prepareShadowRenderTargets() {
       // HACK: transition to shader read to stop validation from complaining
       // dummy texture is not shader read
       pointShadowImage->transitionLayout(
-          commandBuffer.get(), vk::ImageLayout::eUndefined,
+          commandBuffer->getInternal(), vk::ImageLayout::eUndefined,
           vk::ImageLayout::eShaderReadOnlyOptimal, {}, vk::AccessFlagBits::eShaderRead,
           vk::PipelineStageFlagBits::eBottomOfPipe, vk::PipelineStageFlagBits::eFragmentShader);
 
@@ -199,7 +200,7 @@ void Renderer::prepareShadowRenderTargets() {
           VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, vk::SampleCountFlagBits::e1, 1, 1);
 
       directionalShadowImage->transitionLayout(
-          commandBuffer.get(), vk::ImageLayout::eUndefined,
+          commandBuffer->getInternal(), vk::ImageLayout::eUndefined,
           vk::ImageLayout::eShaderReadOnlyOptimal, {}, vk::AccessFlagBits::eShaderRead,
           vk::PipelineStageFlagBits::eBottomOfPipe, vk::PipelineStageFlagBits::eFragmentShader);
 
@@ -241,7 +242,7 @@ void Renderer::prepareShadowRenderTargets() {
           VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, vk::SampleCountFlagBits::e1, 1, 1);
 
       shadowImage->transitionLayout(
-          commandBuffer.get(), vk::ImageLayout::eUndefined,
+          commandBuffer->getInternal(), vk::ImageLayout::eUndefined,
           vk::ImageLayout::eShaderReadOnlyOptimal, {}, vk::AccessFlagBits::eShaderRead,
           vk::PipelineStageFlagBits::eBottomOfPipe, vk::PipelineStageFlagBits::eFragmentShader);
 
@@ -278,7 +279,7 @@ void Renderer::prepareShadowRenderTargets() {
           VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, vk::SampleCountFlagBits::e1, 1, 1);
 
       shadowImage->transitionLayout(
-          commandBuffer.get(), vk::ImageLayout::eUndefined,
+          commandBuffer->getInternal(), vk::ImageLayout::eUndefined,
           vk::ImageLayout::eShaderReadOnlyOptimal, {}, vk::AccessFlagBits::eShaderRead,
           vk::PipelineStageFlagBits::eBottomOfPipe, vk::PipelineStageFlagBits::eFragmentShader);
 
@@ -307,7 +308,8 @@ void Renderer::prepareShadowRenderTargets() {
   }
 
   commandBuffer->end();
-  mContext->getQueue().submitAndWait(commandBuffer.get());
+  commandBuffer->submitAndWait();
+  // mContext->getQueue().submitAndWait(commandBuffer.get());
 }
 
 void Renderer::preparePipelines() {
@@ -457,7 +459,7 @@ void Renderer::recordShadows(scene::Scene &scene) {
   mShadowCommandPool = mContext->createCommandPool();
   mShadowCommandBuffer = mShadowCommandPool->allocateCommandBuffer();
 
-  mShadowCommandBuffer->begin(vk::CommandBufferBeginInfo({}, {}));
+  mShadowCommandBuffer->begin();
   if (!mContext->isVulkanAvailable()) {
     return;
   }
@@ -476,23 +478,36 @@ void Renderer::recordShadows(scene::Scene &scene) {
          ++shadowIdx) {
       uint32_t size = mShadowSizes[shadowIdx];
 
-      vk::Viewport viewport{0.f, 0.f, static_cast<float>(size), static_cast<float>(size),
-                            0.f, 1.f};
+      // vk::Viewport viewport{0.f, 0.f, static_cast<float>(size), static_cast<float>(size),
+      //                       0.f, 1.f};
       vk::Rect2D scissor{vk::Offset2D{0u, 0u},
                          vk::Extent2D{static_cast<uint32_t>(size), static_cast<uint32_t>(size)}};
 
-      vk::RenderPassBeginInfo renderPassBeginInfo{
+      mShadowCommandBuffer->beginRenderPass(
           mShaderPackInstance->getShadowPassResources().renderPass.get(),
           mShadowFramebuffers[shadowIdx].get(),
           vk::Rect2D({0, 0}, {static_cast<uint32_t>(size), static_cast<uint32_t>(size)}),
-          static_cast<uint32_t>(clearValues.size()), clearValues.data()};
-      mShadowCommandBuffer->beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
+          clearValues);
+
+      // vk::RenderPassBeginInfo renderPassBeginInfo{
+      //     mShaderPackInstance->getShadowPassResources().renderPass.get(),
+      //     mShadowFramebuffers[shadowIdx].get(),
+      //     vk::Rect2D({0, 0}, {static_cast<uint32_t>(size), static_cast<uint32_t>(size)}),
+      //     static_cast<uint32_t>(clearValues.size()), clearValues.data()};
+      // mShadowCommandBuffer->beginRenderPass(renderPassBeginInfo,
+      // vk::SubpassContents::eInline);
+
       mShadowCommandBuffer->bindPipeline(
           vk::PipelineBindPoint::eGraphics,
           mShaderPackInstance->getShadowPassResources().pipeline.get());
+      // mShadowCommandBuffer->bindPipeline(
+      //   vk::PipelineBindPoint::eGraphics,
+      //   mShaderPackInstance->getShadowPassResources().pipeline.get());
 
-      mShadowCommandBuffer->setViewport(0, viewport);
-      mShadowCommandBuffer->setScissor(0, scissor);
+      mShadowCommandBuffer->setViewport(0.f, 0.f, size, size, 0.f, 1.f);
+      // mShadowCommandBuffer->setViewport(0, viewport);
+      mShadowCommandBuffer->setScissor(0, 0, size, size);
+      // mShadowCommandBuffer->setScissor(0, scissor);
 
       int objectBinding = -1;
       auto types = shadowPass->getUniformBindingTypes();
@@ -502,10 +517,14 @@ void Renderer::recordShadows(scene::Scene &scene) {
           objectBinding = bindingIdx;
           break;
         case shader::UniformBindingType::eLight:
-          mShadowCommandBuffer->bindDescriptorSets(
+          mShadowCommandBuffer->bindDescriptorSet(
               vk::PipelineBindPoint::eGraphics,
               mShaderPackInstance->getShadowPassResources().layout.get(), bindingIdx,
-              mLightSets[shadowIdx].get(), nullptr);
+              mLightSets[shadowIdx].get());
+          // mShadowCommandBuffer->bindDescriptorSets(
+          //     vk::PipelineBindPoint::eGraphics,
+          //     mShaderPackInstance->getShadowPassResources().layout.get(), bindingIdx,
+          //     mLightSets[shadowIdx].get(), nullptr);
           break;
         default:
           throw std::runtime_error("shadow pass may only use object and light buffer");
@@ -519,17 +538,23 @@ void Renderer::recordShadows(scene::Scene &scene) {
 
         for (auto &shape : objects[objIdx]->getModel()->getShapes()) {
           if (objectBinding >= 0) {
-            mShadowCommandBuffer->bindDescriptorSets(
+            mShadowCommandBuffer->bindDescriptorSet(
                 vk::PipelineBindPoint::eGraphics,
                 mShaderPackInstance->getShadowPassResources().layout.get(), objectBinding,
-                mObjectSet[objIdx].get(), nullptr);
+                mObjectSet[objIdx].get());
           }
-          mShadowCommandBuffer->bindVertexBuffers(0,
-                                                  shape->mesh->getVertexBuffer().getVulkanBuffer(),
-                                                  std::vector<vk::DeviceSize>(1, 0));
-          mShadowCommandBuffer->bindIndexBuffer(shape->mesh->getIndexBuffer().getVulkanBuffer(), 0,
-                                                vk::IndexType::eUint32);
-          mShadowCommandBuffer->drawIndexed(shape->mesh->getIndexCount(), 1, 0, 0, 0);
+          mShadowCommandBuffer->bindVertexBuffer(shape->mesh->getVertexBuffer().getVulkanBuffer());
+          // mShadowCommandBuffer->bindVertexBuffers(0,
+          //                                         shape->mesh->getVertexBuffer().getVulkanBuffer(),
+          //                                         std::vector<vk::DeviceSize>(1, 0));
+
+          mShadowCommandBuffer->bindIndexBuffer(shape->mesh->getIndexBuffer().getVulkanBuffer());
+          // mShadowCommandBuffer->bindIndexBuffer(shape->mesh->getIndexBuffer().getVulkanBuffer(),
+          // 0,
+          //                                       vk::IndexType::eUint32);
+
+          mShadowCommandBuffer->drawIndexed(shape->mesh->getIndexCount());
+          // mShadowCommandBuffer->drawIndexed(shape->mesh->getIndexCount(), 1, 0, 0, 0);
         }
       }
       mShadowCommandBuffer->endRenderPass();
@@ -548,23 +573,28 @@ void Renderer::recordShadows(scene::Scene &scene) {
          ++shadowIdx) {
       uint32_t size = mShadowSizes[shadowIdx];
 
-      vk::Viewport viewport{0.f, 0.f, static_cast<float>(size), static_cast<float>(size),
-                            0.f, 1.f};
-      vk::Rect2D scissor{vk::Offset2D{0u, 0u},
-                         vk::Extent2D{static_cast<uint32_t>(size), static_cast<uint32_t>(size)}};
+      // vk::Viewport viewport{0.f, 0.f, static_cast<float>(size), static_cast<float>(size),
+      //                       0.f, 1.f};
+      // vk::Rect2D scissor{vk::Offset2D{0u, 0u},
+      //                    vk::Extent2D{static_cast<uint32_t>(size),
+      //                    static_cast<uint32_t>(size)}};
 
-      vk::RenderPassBeginInfo renderPassBeginInfo{
+      // vk::RenderPassBeginInfo renderPassBeginInfo{
+      //     mShaderPackInstance->getPointShadowPassResources().renderPass.get(),
+      //     mShadowFramebuffers[shadowIdx].get(),
+      //     vk::Rect2D({0, 0}, {static_cast<uint32_t>(size), static_cast<uint32_t>(size)}),
+      //     static_cast<uint32_t>(clearValues.size()), clearValues.data()};
+      mShadowCommandBuffer->beginRenderPass(
           mShaderPackInstance->getPointShadowPassResources().renderPass.get(),
           mShadowFramebuffers[shadowIdx].get(),
           vk::Rect2D({0, 0}, {static_cast<uint32_t>(size), static_cast<uint32_t>(size)}),
-          static_cast<uint32_t>(clearValues.size()), clearValues.data()};
-      mShadowCommandBuffer->beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
+          clearValues);
       mShadowCommandBuffer->bindPipeline(
           vk::PipelineBindPoint::eGraphics,
           mShaderPackInstance->getPointShadowPassResources().pipeline.get());
 
-      mShadowCommandBuffer->setViewport(0, viewport);
-      mShadowCommandBuffer->setScissor(0, scissor);
+      mShadowCommandBuffer->setViewport(0.f, 0.f, size, size, 0.f, 1.f);
+      mShadowCommandBuffer->setScissor(0, 0, size, size);
 
       int objectBinding = -1;
       auto types = pointShadowPass->getUniformBindingTypes();
@@ -574,10 +604,10 @@ void Renderer::recordShadows(scene::Scene &scene) {
           objectBinding = bindingIdx;
           break;
         case shader::UniformBindingType::eLight:
-          mShadowCommandBuffer->bindDescriptorSets(
+          mShadowCommandBuffer->bindDescriptorSet(
               vk::PipelineBindPoint::eGraphics,
               mShaderPackInstance->getPointShadowPassResources().layout.get(), bindingIdx,
-              mLightSets[shadowIdx].get(), nullptr);
+              mLightSets[shadowIdx].get());
           break;
         default:
           throw std::runtime_error("point shadow pass may only use object and light buffer");
@@ -589,15 +619,14 @@ void Renderer::recordShadows(scene::Scene &scene) {
           continue;
         }
         if (objectBinding >= 0) {
-          mShadowCommandBuffer->bindDescriptorSets(
+          mShadowCommandBuffer->bindDescriptorSet(
               vk::PipelineBindPoint::eGraphics,
               mShaderPackInstance->getPointShadowPassResources().layout.get(), objectBinding,
-              mObjectSet[mPointObjectIndex + objIdx].get(), nullptr);
+              mObjectSet[mPointObjectIndex + objIdx].get());
         }
-        mShadowCommandBuffer->bindVertexBuffers(
-            0, objects[objIdx]->getPointSet()->getVertexBuffer().getVulkanBuffer(),
-            vk::DeviceSize(0));
-        mShadowCommandBuffer->draw(objects[objIdx]->getVertexCount(), 1, 0, 0);
+        mShadowCommandBuffer->bindVertexBuffer(
+            objects[objIdx]->getPointSet()->getVertexBuffer().getVulkanBuffer());
+        mShadowCommandBuffer->draw(objects[objIdx]->getVertexCount());
       }
       mShadowCommandBuffer->endRenderPass();
     }
@@ -750,7 +779,7 @@ void Renderer::recordRenderPasses(scene::Scene &scene) {
   mRenderCommandPool = mContext->createCommandPool();
   mRenderCommandBuffer = mRenderCommandPool->allocateCommandBuffer();
 
-  mRenderCommandBuffer->begin(vk::CommandBufferBeginInfo({}, {}));
+  mRenderCommandBuffer->begin();
 
   // classify shapes
   uint32_t numGbufferPasses = mShaderPack->getGbufferPasses().size();
@@ -818,10 +847,11 @@ void Renderer::recordRenderPasses(scene::Scene &scene) {
     uint32_t passWidth = static_cast<uint32_t>(mWidth * scale);
     uint32_t passHeight = static_cast<uint32_t>(mHeight * scale);
 
-    vk::Viewport viewport{0.f, 0.f, static_cast<float>(passWidth), static_cast<float>(passHeight),
-                          0.f, 1.f};
-    vk::Rect2D scissor{vk::Offset2D{0u, 0u}, vk::Extent2D{static_cast<uint32_t>(passWidth),
-                                                          static_cast<uint32_t>(passHeight)}};
+    // vk::Viewport viewport{0.f, 0.f, static_cast<float>(passWidth),
+    // static_cast<float>(passHeight),
+    //                       0.f, 1.f};
+    // vk::Rect2D scissor{vk::Offset2D{0u, 0u}, vk::Extent2D{static_cast<uint32_t>(passWidth),
+    //                                                       static_cast<uint32_t>(passHeight)}};
 
     uint32_t colorCount = pass->getTextureOutputLayout()->elements.size();
     std::vector<vk::ClearValue> clearValues(
@@ -829,17 +859,24 @@ void Renderer::recordRenderPasses(scene::Scene &scene) {
         vk::ClearColorValue(std::array<float, 4>{0.f, 0.f, 0.f, 0.f}));
 
     clearValues.push_back(vk::ClearDepthStencilValue(1.0f, 0));
-    vk::RenderPassBeginInfo renderPassBeginInfo{
+    // vk::RenderPassBeginInfo renderPassBeginInfo{
+    //   mShaderPackInstance->getNonShadowPassResources().at(pass_index).renderPass.get(),
+    //     mFramebuffers[pass_index].get(),
+    //     vk::Rect2D({0, 0}, {static_cast<uint32_t>(passWidth),
+    //     static_cast<uint32_t>(passHeight)}), static_cast<uint32_t>(clearValues.size()),
+    //     clearValues.data()};
+
+    mRenderCommandBuffer->beginRenderPass(
         mShaderPackInstance->getNonShadowPassResources().at(pass_index).renderPass.get(),
         mFramebuffers[pass_index].get(),
         vk::Rect2D({0, 0}, {static_cast<uint32_t>(passWidth), static_cast<uint32_t>(passHeight)}),
-        static_cast<uint32_t>(clearValues.size()), clearValues.data()};
-    mRenderCommandBuffer->beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
+        clearValues);
+
     mRenderCommandBuffer->bindPipeline(
         vk::PipelineBindPoint::eGraphics,
         mShaderPackInstance->getNonShadowPassResources().at(pass_index).pipeline.get());
-    mRenderCommandBuffer->setViewport(0, viewport);
-    mRenderCommandBuffer->setScissor(0, scissor);
+    mRenderCommandBuffer->setViewport(0.f, 0.f, passWidth, passHeight, 0.f, 1.f);
+    mRenderCommandBuffer->setScissor(0, 0, passWidth, passHeight);
 
     int objectBinding = -1;
     int materialBinding = -1;
@@ -850,16 +887,16 @@ void Renderer::recordRenderPasses(scene::Scene &scene) {
     for (uint32_t i = 0; i < types.size(); ++i) {
       switch (types[i]) {
       case shader::UniformBindingType::eCamera:
-        mRenderCommandBuffer->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, layout, i,
-                                                 mCameraSet.get(), nullptr);
+        mRenderCommandBuffer->bindDescriptorSet(vk::PipelineBindPoint::eGraphics, layout, i,
+                                                mCameraSet.get());
         break;
       case shader::UniformBindingType::eScene:
-        mRenderCommandBuffer->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, layout, i,
-                                                 mSceneSet.get(), nullptr);
+        mRenderCommandBuffer->bindDescriptorSet(vk::PipelineBindPoint::eGraphics, layout, i,
+                                                mSceneSet.get());
         break;
       case shader::UniformBindingType::eTextures:
-        mRenderCommandBuffer->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, layout, i,
-                                                 mInputTextureSets[pass_index].get(), nullptr);
+        mRenderCommandBuffer->bindDescriptorSet(vk::PipelineBindPoint::eGraphics, layout, i,
+                                                mInputTextureSets[pass_index].get());
         break;
       case shader::UniformBindingType::eObject:
         objectBinding = i;
@@ -877,36 +914,32 @@ void Renderer::recordRenderPasses(scene::Scene &scene) {
         auto shape = shapes[gbufferIndex][i];
         uint32_t objectIndex = shapeObjectIndex[gbufferIndex][i];
         if (objectBinding >= 0) {
-          mRenderCommandBuffer->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, layout,
-                                                   objectBinding, mObjectSet[objectIndex].get(),
-                                                   nullptr);
+          mRenderCommandBuffer->bindDescriptorSet(vk::PipelineBindPoint::eGraphics, layout,
+                                                  objectBinding, mObjectSet[objectIndex].get());
         }
         if (materialBinding >= 0) {
-          mRenderCommandBuffer->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, layout,
-                                                   materialBinding,
-                                                   shape->material->getDescriptorSet(), nullptr);
+          mRenderCommandBuffer->bindDescriptorSet(vk::PipelineBindPoint::eGraphics, layout,
+                                                  materialBinding,
+                                                  shape->material->getDescriptorSet());
         }
-        mRenderCommandBuffer->bindVertexBuffers(0,
-                                                shape->mesh->getVertexBuffer().getVulkanBuffer(),
-                                                std::vector<vk::DeviceSize>(1, 0));
-        mRenderCommandBuffer->bindIndexBuffer(shape->mesh->getIndexBuffer().getVulkanBuffer(), 0,
-                                              vk::IndexType::eUint32);
-        mRenderCommandBuffer->drawIndexed(shape->mesh->getIndexCount(), 1, 0, 0, 0);
+        mRenderCommandBuffer->bindVertexBuffer(shape->mesh->getVertexBuffer().getVulkanBuffer());
+        mRenderCommandBuffer->bindIndexBuffer(shape->mesh->getIndexBuffer().getVulkanBuffer());
+        mRenderCommandBuffer->drawIndexed(shape->mesh->getIndexCount());
       }
       gbufferIndex++;
     } else if (auto linePass = std::dynamic_pointer_cast<shader::LinePassParser>(pass)) {
       for (uint32_t index = 0; index < linesetObjects.size(); ++index) {
         auto &lineObj = linesetObjects[index];
         if (objectBinding >= 0) {
-          mRenderCommandBuffer->bindDescriptorSets(
-              vk::PipelineBindPoint::eGraphics, layout, objectBinding,
-              mObjectSet[mLineObjectIndex + index].get(), nullptr);
+          mRenderCommandBuffer->bindDescriptorSet(vk::PipelineBindPoint::eGraphics, layout,
+                                                  objectBinding,
+                                                  mObjectSet[mLineObjectIndex + index].get());
         }
         if (lineObj->getTransparency() < 1) {
           mLineSetCache.insert(lineObj->getLineSet());
-          mRenderCommandBuffer->bindVertexBuffers(
-              0, lineObj->getLineSet()->getVertexBuffer().getVulkanBuffer(), vk::DeviceSize(0));
-          mRenderCommandBuffer->draw(lineObj->getLineSet()->getVertexCount(), 1, 0, 0);
+          mRenderCommandBuffer->bindVertexBuffer(
+              lineObj->getLineSet()->getVertexBuffer().getVulkanBuffer());
+          mRenderCommandBuffer->draw(lineObj->getLineSet()->getVertexCount());
         }
       }
     } else if (auto pointPass = std::dynamic_pointer_cast<shader::PointPassParser>(pass)) {
@@ -914,20 +947,20 @@ void Renderer::recordRenderPasses(scene::Scene &scene) {
         uint32_t objectIndex = pointsets[pointIndex][i];
         auto &pointObj = pointsetObjects[objectIndex];
         if (objectBinding >= 0) {
-          mRenderCommandBuffer->bindDescriptorSets(
-              vk::PipelineBindPoint::eGraphics, layout, objectBinding,
-              mObjectSet[mPointObjectIndex + i].get(), nullptr);
+          mRenderCommandBuffer->bindDescriptorSet(vk::PipelineBindPoint::eGraphics, layout,
+                                                  objectBinding,
+                                                  mObjectSet[mPointObjectIndex + i].get());
         }
         if (pointObj->getTransparency() < 1) {
           mPointSetCache.insert(pointObj->getPointSet());
-          mRenderCommandBuffer->bindVertexBuffers(
-              0, pointObj->getPointSet()->getVertexBuffer().getVulkanBuffer(), vk::DeviceSize(0));
-          mRenderCommandBuffer->draw(pointObj->getVertexCount(), 1, 0, 0);
+          mRenderCommandBuffer->bindVertexBuffer(
+              pointObj->getPointSet()->getVertexBuffer().getVulkanBuffer());
+          mRenderCommandBuffer->draw(pointObj->getVertexCount());
         }
       }
       pointIndex++;
     } else {
-      mRenderCommandBuffer->draw(3, 1, 0, 0);
+      mRenderCommandBuffer->draw(3);
     }
     mRenderCommandBuffer->endRenderPass();
   }
@@ -1186,7 +1219,8 @@ void Renderer::render(scene::Camera &camera, std::vector<vk::Semaphore> const &w
   }
   EASY_BLOCK("Record & Submit");
   prepareRender(camera);
-  std::vector<vk::CommandBuffer> cbs = {mShadowCommandBuffer.get(), mRenderCommandBuffer.get()};
+  std::vector<vk::CommandBuffer> cbs = {mShadowCommandBuffer->getInternal(),
+                                        mRenderCommandBuffer->getInternal()};
   mContext->getQueue().submit(cbs, waitSemaphores, waitStages, signalSemaphores, fence);
 }
 
@@ -1204,7 +1238,8 @@ void Renderer::render(
   }
   EASY_BLOCK("Record & Submit");
   prepareRender(camera);
-  std::vector<vk::CommandBuffer> cbs = {mShadowCommandBuffer.get(), mRenderCommandBuffer.get()};
+  std::vector<vk::CommandBuffer> cbs = {mShadowCommandBuffer->getInternal(),
+                                        mRenderCommandBuffer->getInternal()};
   mContext->getQueue().submit(cbs, waitSemaphores, waitStageMasks, waitValues, signalSemaphores,
                               signalValues, {});
 }
@@ -1266,7 +1301,7 @@ void Renderer::display(std::string const &renderTargetName, vk::Image backBuffer
     mDisplayCommandPool = mContext->createCommandPool();
     mDisplayCommandBuffer = mDisplayCommandPool->allocateCommandBuffer();
   }
-  mDisplayCommandBuffer->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+  mDisplayCommandBuffer->beginOneTime();
 
   auto renderTarget = mRenderTargets.at(renderTargetName);
   auto targetFormat = renderTarget->getFormat();
@@ -1290,7 +1325,7 @@ void Renderer::display(std::string const &renderTargetName, vk::Image backBuffer
       throw std::runtime_error("invalid layout");
     }
     // transfer render target
-    renderTarget->getImage().transitionLayout(mDisplayCommandBuffer.get(), layout,
+    renderTarget->getImage().transitionLayout(mDisplayCommandBuffer->getInternal(), layout,
                                               vk::ImageLayout::eTransferSrcOptimal,
                                               sourceAccessMask, vk::AccessFlagBits::eTransferRead,
                                               sourceStage, vk::PipelineStageFlagBits::eTransfer);
@@ -1330,7 +1365,8 @@ void Renderer::display(std::string const &renderTargetName, vk::Image backBuffer
   }
 
   mDisplayCommandBuffer->end();
-  mContext->getQueue().submit(mDisplayCommandBuffer.get(), waitSemaphores, waitStages,
+  // TODO: implement proper submit function in command buffer class
+  mContext->getQueue().submit(mDisplayCommandBuffer->getInternal(), waitSemaphores, waitStages,
                               signalSemaphores, fence);
 
   renderTarget->getImage().setCurrentLayout(vk::ImageLayout::eTransferSrcOptimal);

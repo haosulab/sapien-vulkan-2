@@ -2,6 +2,7 @@
 
 #pragma once
 #include "svulkan2/core/buffer.h"
+#include "svulkan2/core/command_buffer.h"
 #include "svulkan2/core/command_pool.h"
 #include "svulkan2/core/image.h"
 #include <cstdio>
@@ -73,9 +74,9 @@ private:
   std::unique_ptr<core::Buffer> mNormalBuffer;
   CUdeviceptr mNormalPtr{};
 
-  std::unique_ptr<core::CommandPool> mCommandPool;
-  vk::UniqueCommandBuffer mCommandBufferIn;
-  vk::UniqueCommandBuffer mCommandBufferOut;
+  std::shared_ptr<core::CommandPool> mCommandPool;
+  std::unique_ptr<core::CommandBuffer> mCommandBufferIn;
+  std::unique_ptr<core::CommandBuffer> mCommandBufferOut;
 
   vk::UniqueSemaphore mSem{};
   cudaExternalSemaphore_t mCudaSem{};

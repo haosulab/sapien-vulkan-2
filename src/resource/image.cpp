@@ -2,6 +2,7 @@
 #include "../common/logger.h"
 #include "svulkan2/common/image.h"
 #include "svulkan2/common/launch_policy.h"
+#include "svulkan2/core/command_buffer.h"
 #include "svulkan2/core/context.h"
 #include <filesystem>
 
@@ -148,13 +149,13 @@ void SVImage::uploadToDevice(bool generateMipmaps) {
     if (mMipLoaded) {
       auto pool = context->createCommandPool();
       auto cb = pool->allocateCommandBuffer();
-      cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+      cb->beginOneTime();
       mImage->transitionLayout(
-          cb.get(), vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, {},
+          cb->getInternal(), vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, {},
           vk::AccessFlagBits::eTransferWrite, vk::PipelineStageFlagBits::eTopOfPipe,
           vk::PipelineStageFlagBits::eTransfer);
       cb->end();
-      context->getQueue().submitAndWait(cb.get());
+      cb->submitAndWait();
 
       for (uint32_t layer = 0; layer < mData.size(); ++layer) {
         uint32_t idx = 0;
@@ -166,15 +167,15 @@ void SVImage::uploadToDevice(bool generateMipmaps) {
       }
 
       cb = pool->allocateCommandBuffer();
-      cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
-      mImage->transitionLayout(cb.get(), vk::ImageLayout::eTransferDstOptimal,
+      cb->beginOneTime();
+      mImage->transitionLayout(cb->getInternal(), vk::ImageLayout::eTransferDstOptimal,
                                vk::ImageLayout::eShaderReadOnlyOptimal,
                                vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eShaderRead,
                                vk::PipelineStageFlagBits::eTransfer,
                                vk::PipelineStageFlagBits::eFragmentShader |
                                    vk::PipelineStageFlagBits::eRayTracingShaderKHR);
       cb->end();
-      context->getQueue().submitAndWait(cb.get());
+      cb->submitAndWait();
 
     } else {
       for (uint32_t layer = 0; layer < mData.size(); ++layer) {

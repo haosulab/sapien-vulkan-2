@@ -151,9 +151,9 @@ void Context::createDescriptorPool() {
   }
 }
 
-std::unique_ptr<CommandPool> Context::createCommandPool() const {
+std::shared_ptr<CommandPool> Context::createCommandPool() const {
   EASY_FUNCTION();
-  return std::make_unique<CommandPool>();
+  return std::make_shared<CommandPool>(mDevice);
 }
 
 vk::UniqueSemaphore Context::createTimelineSemaphore(uint64_t initialValue = 0) {

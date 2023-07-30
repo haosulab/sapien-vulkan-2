@@ -13,6 +13,7 @@ namespace svulkan2 {
 namespace core {
 class Context;
 class CommandPool;
+class CommandBuffer;
 } // namespace core
 namespace renderer {
 
@@ -181,13 +182,17 @@ private:
   std::unordered_set<std::shared_ptr<resource::SVLineSet>> mLineSetCache;
   std::unordered_set<std::shared_ptr<resource::SVPointSet>> mPointSetCache;
 
-  std::unique_ptr<core::CommandPool> mShadowCommandPool{};
-  std::unique_ptr<core::CommandPool> mRenderCommandPool{};
-  std::unique_ptr<core::CommandPool> mDisplayCommandPool{};
+  std::shared_ptr<core::CommandPool> mShadowCommandPool{};
+  std::shared_ptr<core::CommandPool> mRenderCommandPool{};
+  std::shared_ptr<core::CommandPool> mDisplayCommandPool{};
 
-  vk::UniqueCommandBuffer mShadowCommandBuffer{};
-  vk::UniqueCommandBuffer mRenderCommandBuffer{};
-  vk::UniqueCommandBuffer mDisplayCommandBuffer{};
+  std::unique_ptr<core::CommandBuffer> mShadowCommandBuffer{};
+  std::unique_ptr<core::CommandBuffer> mRenderCommandBuffer{};
+  std::unique_ptr<core::CommandBuffer> mDisplayCommandBuffer{};
+
+  // vk::UniqueCommandBuffer mShadowCommandBuffer{};
+  // vk::UniqueCommandBuffer mRenderCommandBuffer{};
+  // vk::UniqueCommandBuffer mDisplayCommandBuffer{};
 
   void prepareObjects(scene::Scene &scene);
   void recordShadows(scene::Scene &scene);

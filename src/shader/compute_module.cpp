@@ -1,6 +1,7 @@
 #include "svulkan2/shader/compute_module.h"
 #include "../common/logger.h"
 #include "reflect.h"
+#include "svulkan2/core/command_buffer.h"
 #include "svulkan2/core/context.h"
 #include "svulkan2/core/device.h"
 #include "svulkan2/core/physical_device.h"
@@ -80,7 +81,10 @@ static std::string summarizeConstant(SpecializationConstantLayout const &layout)
   return ss.str();
 }
 
-ComputeModule::ComputeModule(std::string const &filename) {
+ComputeModule::ComputeModule(std::string const &filename, int blockSizeX, int blockSizeY,
+                             int blockSizeZ)
+    : mBlockSize({blockSizeX, blockSizeY, blockSizeZ}) {
+  mContext = core::Context::Get();
   mCode = GLSLCompiler::compileGlslFileCached(vk::ShaderStageFlagBits::eCompute, filename);
   reflect();
   compile();
@@ -142,7 +146,7 @@ void ComputeModule::reflect() {
 }
 
 void ComputeModule::compile() {
-  auto device = core::Context::Get()->getDevice();
+  auto device = mContext->getDevice();
 
   std::vector<vk::DescriptorSetLayout> layouts;
 
@@ -164,6 +168,7 @@ void ComputeModule::compile() {
   if (mPushConstantLayout) {
     pushConstantRanges.push_back(
         vk::PushConstantRange(vk::ShaderStageFlagBits::eCompute, 0, mPushConstantLayout->size));
+    mConstantBuffer.resize(mPushConstantLayout->size);
   }
 
   mPipelineLayout = device.createPipelineLayoutUnique(
@@ -182,11 +187,14 @@ void ComputeModule::compile() {
         std::memcpy(specializationData.data() + i, &v, sizeof(int));
       } else if (elems[i].name == "local_size_x_id") {
         entries.emplace_back(elems[i].id, i * sizeof(int), sizeof(int));
-        uint32_t v =
-            core::Context::Get()->getDevice2()->getPhysicalDevice()->getMaxWorkGroupInvocations();
-        std::memcpy(specializationData.data() + i, &v, sizeof(int));
+        std::memcpy(specializationData.data() + i, &mBlockSize[0], sizeof(int));
+      } else if (elems[i].name == "local_size_y_id") {
+        entries.emplace_back(elems[i].id, i * sizeof(int), sizeof(int));
+        std::memcpy(specializationData.data() + i, &mBlockSize[1], sizeof(int));
+      } else if (elems[i].name == "local_size_z_id") {
+        entries.emplace_back(elems[i].id, i * sizeof(int), sizeof(int));
+        std::memcpy(specializationData.data() + i, &mBlockSize[2], sizeof(int));
       }
-      // TODO: handle local_size_y_id
     }
   }
   auto specializationInfo =
@@ -234,18 +242,17 @@ void ComputeModule::bindConstantData(void *data, size_t size) {
   if (mPushConstantLayout->size != size) {
     throw std::runtime_error("push constant size does not match");
   }
-  mConstantBuffer.resize(size);
   std::memcpy(mConstantBuffer.data(), data, size);
 }
 
-void ComputeModule::record(vk::CommandBuffer cb, int x, int y, int z) {
+void ComputeModule::record(core::CommandBuffer &cb, int x, int y, int z) {
   cb.bindPipeline(vk::PipelineBindPoint::eCompute, mPipeline.get());
   if (mPushConstantLayout) {
     cb.pushConstants(mPipelineLayout.get(), vk::ShaderStageFlagBits::eCompute, 0,
                      mConstantBuffer.size(), mConstantBuffer.data());
   }
-  cb.bindDescriptorSets(vk::PipelineBindPoint::eCompute, mPipelineLayout.get(), 0,
-                        mSets.at(0).get(), {});
+  cb.bindDescriptorSet(vk::PipelineBindPoint::eCompute, mPipelineLayout.get(), 0,
+                       mSets.at(0).get());
   cb.dispatch(x, y, z);
 }
 

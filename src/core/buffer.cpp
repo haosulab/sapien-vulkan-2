@@ -1,6 +1,8 @@
 #include "svulkan2/core/buffer.h"
 #include "../common/logger.h"
 #include "svulkan2/core/allocator.h"
+#include "svulkan2/core/command_buffer.h"
+#include "svulkan2/core/command_pool.h"
 #include "svulkan2/core/context.h"
 #include <easy/profiler.h>
 
@@ -48,6 +50,9 @@ Buffer::Buffer(vk::DeviceSize size, vk::BufferUsageFlags usageFlags, VmaMemoryUs
                VmaAllocationCreateFlags allocationFlags, bool external)
     : mSize(size), mExternal(external) {
   mContext = Context::Get();
+  if (!mContext) {
+    throw std::runtime_error("failed to create buffer: renderer is not created");
+  }
 
   vk::BufferCreateInfo bufferInfo({}, size, usageFlags);
   vk::ExternalMemoryBufferCreateInfo externalMemoryBufferInfo(
@@ -147,10 +152,10 @@ void Buffer::upload(void const *data, size_t size, size_t offset) {
     // TODO: find a better way
     auto pool = mContext->createCommandPool();
     auto cb = pool->allocateCommandBuffer();
-    cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+    cb->beginOneTime();
     cb->copyBuffer(stagingBuffer->mBuffer, mBuffer, vk::BufferCopy(0, offset, size));
     cb->end();
-    mContext->getQueue().submitAndWait(cb.get());
+    cb->submitAndWait();
   }
 }
 
@@ -168,10 +173,10 @@ void Buffer::download(void *data, size_t size, size_t offset) {
 
     auto pool = mContext->createCommandPool();
     auto cb = pool->allocateCommandBuffer();
-    cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+    cb->beginOneTime();
     cb->copyBuffer(mBuffer, stagingBuffer->mBuffer, vk::BufferCopy(offset, 0, size));
     cb->end();
-    mContext->getQueue().submitAndWait(cb.get());
+    cb->submitAndWait();
     stagingBuffer->download(data, size);
   }
 }

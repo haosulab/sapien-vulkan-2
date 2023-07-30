@@ -1,6 +1,8 @@
 #include "svulkan2/common/fs.h"
+#include "svulkan2/core/command_buffer.h"
 #include "svulkan2/core/context.h"
 #include "svulkan2/shader/compute_module.h"
+#include <chrono>
 #include <iostream>
 
 using namespace svulkan2;
@@ -17,46 +19,51 @@ int main(int argc, char *argv[]) {
   auto context = svulkan2::core::Context::Create(true, 5000, 5000, 4);
   auto manager = context->createResourceManager();
 
-  shader::ComputeModule m("../shader/compute/scan.comp");
+  int blockSize = 1024;
 
-  auto buffer0 = core::Buffer::Create(sizeof(Buffer0),
-                                      vk::BufferUsageFlagBits::eStorageBuffer |
-                                          vk::BufferUsageFlagBits::eTransferDst |
-                                          vk::BufferUsageFlagBits::eTransferSrc,
-                                      VMA_MEMORY_USAGE_GPU_ONLY);
-  Buffer0 b0;
-  buffer0->upload(b0);
+  shader::ComputeModule m("../shader/compute/local_scan.comp", blockSize);
+
+  int size = 10000000;
 
   std::vector<float> data;
-  for (uint32_t i = 0; i < 1024; ++i) {
+  for (uint32_t i = 0; i < size; ++i) {
     data.push_back(i);
   }
 
-  auto buffer1 = core::Buffer::Create(sizeof(float) * data.size(),
-                                      vk::BufferUsageFlagBits::eStorageBuffer |
-                                          vk::BufferUsageFlagBits::eTransferDst |
-                                          vk::BufferUsageFlagBits::eTransferSrc,
-                                      VMA_MEMORY_USAGE_GPU_ONLY);
-  buffer1->upload(data);
+  auto data_buffer = core::Buffer::Create(sizeof(float) * data.size(),
+                                          vk::BufferUsageFlagBits::eStorageBuffer |
+                                              vk::BufferUsageFlagBits::eTransferDst |
+                                              vk::BufferUsageFlagBits::eTransferSrc,
+                                          VMA_MEMORY_USAGE_GPU_ONLY);
+  data_buffer->upload(data);
 
-  m.bindBuffers({buffer0.get(), buffer1.get()});
-  int count = 1024;
+  auto sum_buffer = core::Buffer::Create(
+      sizeof(float) * ((data.size() + blockSize - 1) / blockSize),
+      vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferSrc,
+      VMA_MEMORY_USAGE_GPU_ONLY);
+
+  m.bindBuffers({data_buffer.get(), sum_buffer.get()});
+  int count = size;
   m.bindConstantData(&count, sizeof(int));
 
   auto pool = context->createCommandPool();
   auto cb = pool->allocateCommandBuffer();
 
-  cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
-  m.record(cb.get(), (count + 255) / 256);
+  cb->beginOneTime();
+  m.record(*cb, (count + blockSize) / blockSize, 1, 1);
   cb->end();
 
-  context->getQueue().submitAndWait(cb.get());
+  auto t0 = std::chrono::system_clock().now();
+  cb->submitAndWait();
+  auto t1 = std::chrono::system_clock().now();
+  auto us = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0);
+  printf("compute %ld us", us.count());
 
-  // auto result = buffer1->download<float>();
-  // for (auto x : result) {
-  //   std::cout << x << " ";
-  // }
-  // std::cout << std::endl;
+  auto result = sum_buffer->download<float>();
+  for (auto x : result) {
+    std::cout << x << " ";
+  }
+  std::cout << std::endl;
 
   return 0;
 }

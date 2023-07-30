@@ -1,6 +1,7 @@
 #include "svulkan2/resource/cubemap.h"
 #include "../common/logger.h"
 #include "svulkan2/common/launch_policy.h"
+#include "svulkan2/core/command_buffer.h"
 #include "svulkan2/core/context.h"
 #include "svulkan2/resource/manager.h"
 #include "svulkan2/shader/compute.h"
@@ -9,12 +10,11 @@
 namespace svulkan2 {
 namespace resource {
 
-std::shared_ptr<SVCubemap>
-SVCubemap::FromFile(std::string const &filename, uint32_t mipLevels,
-                    vk::Filter magFilter, vk::Filter minFilter, bool srgb) {
+std::shared_ptr<SVCubemap> SVCubemap::FromFile(std::string const &filename, uint32_t mipLevels,
+                                               vk::Filter magFilter, vk::Filter minFilter,
+                                               bool srgb) {
   auto texture = std::shared_ptr<SVCubemap>(new SVCubemap);
-  texture->mDescription = {.source =
-                               SVCubemapDescription::SourceType::eSINGLE_FILE,
+  texture->mDescription = {.source = SVCubemapDescription::SourceType::eSINGLE_FILE,
                            .filenames = {filename, "", "", "", "", ""},
                            .mipLevels = mipLevels,
                            .magFilter = magFilter,
@@ -23,10 +23,9 @@ SVCubemap::FromFile(std::string const &filename, uint32_t mipLevels,
   return texture;
 }
 
-std::shared_ptr<SVCubemap>
-SVCubemap::FromFile(std::array<std::string, 6> const &filenames,
-                    uint32_t mipLevels, vk::Filter magFilter,
-                    vk::Filter minFilter, bool srgb) {
+std::shared_ptr<SVCubemap> SVCubemap::FromFile(std::array<std::string, 6> const &filenames,
+                                               uint32_t mipLevels, vk::Filter magFilter,
+                                               vk::Filter minFilter, bool srgb) {
   auto texture = std::shared_ptr<SVCubemap>(new SVCubemap);
   texture->mDescription = {.source = SVCubemapDescription::SourceType::eFILES,
                            .filenames = filenames,
@@ -37,11 +36,10 @@ SVCubemap::FromFile(std::array<std::string, 6> const &filenames,
   return texture;
 }
 
-std::shared_ptr<SVCubemap>
-SVCubemap::FromData(uint32_t size, uint32_t channels,
-                    std::array<std::vector<uint8_t>, 6> const &data,
-                    uint32_t mipLevels, vk::Filter magFilter,
-                    vk::Filter minFilter, bool srgb) {
+std::shared_ptr<SVCubemap> SVCubemap::FromData(uint32_t size, uint32_t channels,
+                                               std::array<std::vector<uint8_t>, 6> const &data,
+                                               uint32_t mipLevels, vk::Filter magFilter,
+                                               vk::Filter minFilter, bool srgb) {
   auto texture = std::shared_ptr<SVCubemap>(new SVCubemap);
   texture->mDescription = {.source = SVCubemapDescription::SourceType::eCUSTOM,
                            .filenames = {},
@@ -63,10 +61,8 @@ void SVCubemap::uploadToDevice() {
     return;
   }
   if (!mImage->isOnDevice()) {
-    mImage->setUsage(vk::ImageUsageFlagBits::eSampled |
-                     vk::ImageUsageFlagBits::eTransferDst |
-                     vk::ImageUsageFlagBits::eTransferSrc |
-                     vk::ImageUsageFlagBits::eStorage);
+    mImage->setUsage(vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst |
+                     vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eStorage);
     mImage->uploadToDevice(false);
   }
 
@@ -77,21 +73,18 @@ void SVCubemap::uploadToDevice() {
 
   vk::ImageViewUsageCreateInfo usageInfo(vk::ImageUsageFlagBits::eSampled);
   vk::ImageViewCreateInfo viewInfo(
-      {}, mImage->getDeviceImage()->getVulkanImage(), vk::ImageViewType::eCube,
-      viewFormat, vk::ComponentSwizzle::eIdentity,
-      vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0,
-                                mDescription.mipLevels, 0, 6));
+      {}, mImage->getDeviceImage()->getVulkanImage(), vk::ImageViewType::eCube, viewFormat,
+      vk::ComponentSwizzle::eIdentity,
+      vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, mDescription.mipLevels, 0, 6));
   viewInfo.setPNext(&usageInfo);
 
   mImageView = mContext->getDevice().createImageViewUnique(viewInfo);
 
   mSampler = mContext->createSampler(vk::SamplerCreateInfo(
-      {}, mDescription.magFilter, mDescription.minFilter,
-      vk::SamplerMipmapMode::eLinear, vk::SamplerAddressMode::eRepeat,
-      vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat, 0.f,
-      false, 0.f, false, vk::CompareOp::eNever, 0.f,
-      static_cast<float>(mDescription.mipLevels),
-      vk::BorderColor::eFloatOpaqueBlack));
+      {}, mDescription.magFilter, mDescription.minFilter, vk::SamplerMipmapMode::eLinear,
+      vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat,
+      vk::SamplerAddressMode::eRepeat, 0.f, false, 0.f, false, vk::CompareOp::eNever, 0.f,
+      static_cast<float>(mDescription.mipLevels), vk::BorderColor::eFloatOpaqueBlack));
 
   if (mDescription.mipLevels > 1 && !mImage->mipmapIsLoaded()) {
     if (mImage->mipmapIsLoaded()) {
@@ -102,8 +95,7 @@ void SVCubemap::uploadToDevice() {
       logger::info("Prefiltering cube map completed");
     }
   }
-  mImage->getDeviceImage()->setCurrentLayout(
-      vk::ImageLayout::eShaderReadOnlyOptimal);
+  mImage->getDeviceImage()->setCurrentLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
   mOnDevice = true;
 }
 
@@ -126,8 +118,7 @@ std::future<void> SVCubemap::loadAsync() {
     logger::info("Loading: {}", mDescription.filenames[0]);
     break;
   default:
-    throw std::runtime_error(
-        "failed to load texture: the texture is not specified by a file");
+    throw std::runtime_error("failed to load texture: the texture is not specified by a file");
   }
 
   return std::async(LAUNCH_ASYNC, [this]() {
@@ -136,13 +127,11 @@ std::future<void> SVCubemap::loadAsync() {
       return;
     }
     if (mDescription.source == SVCubemapDescription::SourceType::eFILES) {
-      auto vfiles = std::vector<std::string>(mDescription.filenames.begin(),
-                                             mDescription.filenames.end());
+      auto vfiles =
+          std::vector<std::string>(mDescription.filenames.begin(), mDescription.filenames.end());
       mImage = SVImage::FromFile(vfiles, mDescription.mipLevels);
-    } else if (mDescription.source ==
-               SVCubemapDescription::SourceType::eSINGLE_FILE) {
-      mImage =
-          SVImage::FromFile(mDescription.filenames[0], mDescription.mipLevels);
+    } else if (mDescription.source == SVCubemapDescription::SourceType::eSINGLE_FILE) {
+      mImage = SVImage::FromFile(mDescription.filenames[0], mDescription.mipLevels);
     }
     mImage->setCreateFlags(vk::ImageCreateFlagBits::eCubeCompatible);
     mImage->loadAsync().get();
@@ -154,8 +143,7 @@ void SVCubemap::load() { loadAsync().get(); }
 
 void SVCubemap::exportKTX(std::string const &filename) {
   if (!mOnDevice) {
-    throw std::runtime_error(
-        "failed to export KTX, uploadToDevice should be called first.");
+    throw std::runtime_error("failed to export KTX, uploadToDevice should be called first.");
   }
 
   auto img = mImage->getDeviceImage();
@@ -183,10 +171,8 @@ void SVCubemap::exportKTX(std::string const &filename) {
     uint32_t height = extent.height;
     for (uint32_t level = 0; level < img->getMipLevels(); ++level) {
       uint32_t size = width * height * 4;
-      img->download(data.data(), size, {0, 0, 0}, {width, height, 1}, face,
-                    level);
-      ktxTexture_SetImageFromMemory(ktxTexture(texture), level, 0, face,
-                                    data.data(), size);
+      img->download(data.data(), size, {0, 0, 0}, {width, height, 1}, face, level);
+      ktxTexture_SetImageFromMemory(ktxTexture(texture), level, 0, face, data.data(), size);
       width /= 2;
       height /= 2;
       if (width == 0) {
@@ -203,15 +189,13 @@ void SVCubemap::exportKTX(std::string const &filename) {
   auto context = core::Context::Get();
   auto pool = context->createCommandPool();
   auto buffer = pool->allocateCommandBuffer();
-  buffer->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
-  img->transitionLayout(buffer.get(), vk::ImageLayout::eTransferSrcOptimal,
-                        vk::ImageLayout::eShaderReadOnlyOptimal,
-                        vk::AccessFlagBits::eTransferRead,
-                        vk::AccessFlagBits::eShaderRead,
-                        vk::PipelineStageFlagBits::eTransfer,
+  buffer->beginOneTime();
+  img->transitionLayout(buffer->getInternal(), vk::ImageLayout::eTransferSrcOptimal,
+                        vk::ImageLayout::eShaderReadOnlyOptimal, vk::AccessFlagBits::eTransferRead,
+                        vk::AccessFlagBits::eShaderRead, vk::PipelineStageFlagBits::eTransfer,
                         vk::PipelineStageFlagBits::eFragmentShader);
   buffer->end();
-  context->getQueue().submitAndWait(buffer.get());
+  buffer->submitAndWait();
 }
 
 } // namespace resource
