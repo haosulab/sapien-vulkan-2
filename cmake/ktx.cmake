@@ -8,6 +8,7 @@ FetchContent_Declare(
     GIT_PROGRESS TRUE
 )
 
+set(KTX_FEATURE_TESTS OFF CACHE INTERNAL "")
 set(KTX_FEATURE_STATIC_LIBRARY ON CACHE INTERNAL "build static")
 FetchContent_GetProperties(ktx)
 if(NOT ktx_POPULATED)
