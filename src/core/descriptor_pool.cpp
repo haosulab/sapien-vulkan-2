@@ -7,7 +7,7 @@ namespace core {
 DynamicDescriptorPool::DynamicDescriptorPool(
     std::vector<vk::DescriptorPoolSize> const &sizes)
     : mSizes(sizes) {
-  mContext = Context::Get();
+  // mContext = Context::Get();
   expand();
 }
 

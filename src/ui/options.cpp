@@ -6,6 +6,9 @@ namespace svulkan2 {
 namespace ui {
 
 std::string Options::get() {
+  if (mItems.empty()) {
+    return "";
+  }
   if (mIndex < 0 || static_cast<uint32_t>(mIndex) >= mItems.size()) {
     mIndex = 0;
   }

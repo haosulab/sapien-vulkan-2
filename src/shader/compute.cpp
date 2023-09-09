@@ -157,7 +157,7 @@ void prefilterCubemap(core::Image &image) {
         vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, level, 1, 0,
                                   6));
     levelViews.push_back(device.createImageViewUnique(viewInfo));
-    levelSets.push_back(context->getDescriptorPool().allocateSet(descriptorSetLayout0.get()));
+    levelSets.push_back(context->getDescriptorPool().allocateSet(descriptorSetLayout1.get()));
 
     auto imageInfo = vk::DescriptorImageInfo({}, levelViews.back().get(),
                                              vk::ImageLayout::eGeneral);

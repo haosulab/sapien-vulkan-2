@@ -613,6 +613,10 @@ void Renderer::prepareObjects(scene::Scene &scene) {
   auto pointObjects = mScene->getPointObjects();
 
   auto size = objects.size();
+  if (size == 0) {
+    throw std::runtime_error("failed to render: the scene is empty");
+  }
+
   if (mShaderPack->hasLinePass()) {
     mLineObjectIndex = size;
     size += lineObjects.size();

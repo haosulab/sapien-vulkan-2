@@ -6,7 +6,7 @@ namespace svulkan2 {
 namespace core {
 
 class DynamicDescriptorPool {
-  std::shared_ptr<class Context> mContext;
+  // std::shared_ptr<class Context> mContext;
   std::vector<vk::DescriptorPoolSize> mSizes;
   std::vector<vk::UniqueDescriptorPool> mPools;
 
