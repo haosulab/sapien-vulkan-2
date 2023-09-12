@@ -8,7 +8,11 @@ namespace svulkan2 {
 namespace core {
 
 static void glfwErrorCallback(int error_code, const char *description) {
-  logger::error("GLFW error: {}", description);
+  if (!std::getenv("SAPIEN_NO_DISPLAY")) {
+    logger::error("GLFW error: {}. You may suppress this message by setting environment variable "
+                  "SAPIEN_NO_DISPLAY=1",
+                  description);
+  }
 }
 
 std::shared_ptr<Instance> Instance::Create(bool enableGLFW, uint32_t appVersion,
@@ -31,7 +35,9 @@ Instance::Instance(bool enableGLFW, uint32_t appVersion, uint32_t engineVersion,
     if (glfwInit()) {
       logger::info("GLFW initialized.");
     } else {
-      logger::warn("Failed to initialize GLFW. Display is disabled.");
+      if (!std::getenv("SAPIEN_NO_DISPLAY")) {
+        logger::warn("Failed to initialize GLFW. Display is disabled.");
+      }
     }
   }
 

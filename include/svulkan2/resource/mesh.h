@@ -37,6 +37,8 @@ public:
   uint32_t getIndexCount();
   uint32_t getIndexCapacity();
 
+  inline bool isDynamic() const { return mDynamic; }
+
   void exportToFile(std::string const &filename) const;
 
   static std::shared_ptr<SVMesh> CreateUVSphere(int segments, int rings);

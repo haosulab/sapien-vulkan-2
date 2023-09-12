@@ -226,11 +226,15 @@ void Scene::clearNodes() {
   updateVersion();
   mNodes.resize(1);
   mObjects.clear();
+  mDeformableObjects.clear();
   mLineObjects.clear();
   mPointObjects.clear();
   mCameras.clear();
   mPointLights.clear();
   mDirectionalLights.clear();
+  mSpotLights.clear();
+  mTexturedLights.clear();
+  mParallelogramLights.clear();
 }
 
 void Scene::forceRemove() {

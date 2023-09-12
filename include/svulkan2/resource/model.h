@@ -55,8 +55,6 @@ private:
 
   std::unique_ptr<core::BLAS> mBLAS;
 
-  bool mExclusive{};
-
 #ifdef TRACK_ALLOCATION
   uint64_t mModelId{};
 #endif
