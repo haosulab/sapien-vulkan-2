@@ -7,76 +7,37 @@
 namespace svulkan2 {
 namespace resource {
 
-std::shared_ptr<SVTexture>
-SVTexture::FromFile(std::string const &filename, uint32_t mipLevels,
-                    vk::Filter magFilter, vk::Filter minFilter,
-                    vk::SamplerAddressMode addressModeU,
-                    vk::SamplerAddressMode addressModeV, bool srgb) {
+std::shared_ptr<SVTexture> SVTexture::FromFile(std::string const &filename, uint32_t mipLevels,
+                                               vk::Filter magFilter, vk::Filter minFilter,
+                                               vk::SamplerAddressMode addressModeU,
+                                               vk::SamplerAddressMode addressModeV, bool srgb) {
   auto texture = std::shared_ptr<SVTexture>(new SVTexture);
-  texture->mDescription =
-      SVTextureDescription{.source = SVTextureDescription::SourceType::eFILE,
-                           .filename = filename,
-                           .mipLevels = mipLevels,
-                           .magFilter = magFilter,
-                           .minFilter = minFilter,
-                           .addressModeU = addressModeU,
-                           .addressModeV = addressModeV,
-                           .srgb = srgb};
+  texture->mDescription = SVTextureDescription{.source = SVTextureDescription::SourceType::eFILE,
+                                               .filename = filename,
+                                               .mipLevels = mipLevels,
+                                               .magFilter = magFilter,
+                                               .minFilter = minFilter,
+                                               .addressModeU = addressModeU,
+                                               .addressModeV = addressModeV,
+                                               .srgb = srgb,
+                                               .dim = 2};
   return texture;
 }
 
-std::shared_ptr<SVTexture>
-SVTexture::FromData(uint32_t width, uint32_t height, uint32_t channels,
-                    std::vector<uint8_t> const &data, uint32_t mipLevels,
-                    vk::Filter magFilter, vk::Filter minFilter,
-                    vk::SamplerAddressMode addressModeU,
-                    vk::SamplerAddressMode addressModeV, bool srgb) {
-  auto texture = std::shared_ptr<SVTexture>(new SVTexture);
-  texture->mDescription =
-      SVTextureDescription{.source = SVTextureDescription::SourceType::eCUSTOM,
-                           .format = SVTextureDescription::Format::eUINT8,
-                           .filename = {},
-                           .mipLevels = mipLevels,
-                           .magFilter = magFilter,
-                           .minFilter = minFilter,
-                           .addressModeU = addressModeU,
-                           .addressModeV = addressModeV,
-                           .srgb = srgb};
-  texture->mImage = SVImage::FromData(width, height, channels, data, mipLevels);
-  texture->mLoaded = true;
-  return texture;
-}
+std::shared_ptr<SVTexture> SVTexture::FromRawData(uint32_t width, uint32_t height, uint32_t depth,
+                                                  vk::Format format, std::vector<char> const &data,
+                                                  int dim, uint32_t mipLevels,
+                                                  vk::Filter magFilter, vk::Filter minFilter,
+                                                  vk::SamplerAddressMode addressModeU,
+                                                  vk::SamplerAddressMode addressModeV,
+                                                  vk::SamplerAddressMode addressModeW, bool srgb) {
+  if (srgb && !getFormatSupportSrgb(format)) {
+    throw std::runtime_error("format does not support srgb");
+  }
 
-std::shared_ptr<SVTexture>
-SVTexture::FromData(uint32_t width, uint32_t height, uint32_t channels,
-                    std::vector<float> const &data, uint32_t mipLevels,
-                    vk::Filter magFilter, vk::Filter minFilter,
-                    vk::SamplerAddressMode addressModeU,
-                    vk::SamplerAddressMode addressModeV) {
   auto texture = std::shared_ptr<SVTexture>(new SVTexture);
   texture->mDescription = {.source = SVTextureDescription::SourceType::eCUSTOM,
-                           .format = SVTextureDescription::Format::eFLOAT,
-                           .filename = {},
-                           .mipLevels = mipLevels,
-                           .magFilter = magFilter,
-                           .minFilter = minFilter,
-                           .addressModeU = addressModeU,
-                           .addressModeV = addressModeV};
-  texture->mImage = SVImage::FromData(width, height, channels, data, mipLevels);
-  texture->mLoaded = true;
-  return texture;
-}
-
-std::shared_ptr<SVTexture>
-SVTexture::FromData(uint32_t width, uint32_t height, uint32_t depth,
-                    uint32_t channels, std::vector<float> const &data, int dim,
-                    uint32_t mipLevels, vk::Filter magFilter,
-                    vk::Filter minFilter, vk::SamplerAddressMode addressModeU,
-                    vk::SamplerAddressMode addressModeV,
-                    vk::SamplerAddressMode addressModeW) {
-  auto texture = std::shared_ptr<SVTexture>(new SVTexture);
-  texture->mDescription = {.source = SVTextureDescription::SourceType::eCUSTOM,
-                           .format = SVTextureDescription::Format::eFLOAT,
+                           .format = format,
                            .filename = {},
                            .mipLevels = mipLevels,
                            .magFilter = magFilter,
@@ -84,6 +45,7 @@ SVTexture::FromData(uint32_t width, uint32_t height, uint32_t depth,
                            .addressModeU = addressModeU,
                            .addressModeV = addressModeV,
                            .addressModeW = addressModeW,
+                           .srgb = srgb,
                            .dim = dim};
   if (dim <= 0 || dim > 3) {
     throw std::runtime_error("texture dimension must be 1, 2 or 3");
@@ -95,11 +57,86 @@ SVTexture::FromData(uint32_t width, uint32_t height, uint32_t depth,
     throw std::runtime_error("2D texture must have depth = 1");
   }
 
-  texture->mImage =
-      SVImage::FromData(width, height, depth, channels, data, mipLevels);
+  texture->mImage = SVImage::FromRawData(width, height, depth, format, {data}, mipLevels);
   texture->mLoaded = true;
   return texture;
 }
+
+// std::shared_ptr<SVTexture> SVTexture::FromData(uint32_t width, uint32_t height, uint32_t
+// channels,
+//                                                std::vector<uint8_t> const &data,
+//                                                uint32_t mipLevels, vk::Filter magFilter,
+//                                                vk::Filter minFilter,
+//                                                vk::SamplerAddressMode addressModeU,
+//                                                vk::SamplerAddressMode addressModeV, bool srgb) {
+//   auto texture = std::shared_ptr<SVTexture>(new SVTexture);
+//   texture->mDescription = SVTextureDescription{.source =
+//   SVTextureDescription::SourceType::eCUSTOM,
+//                                                .format = SVTextureDescription::Format::eUINT8,
+//                                                .filename = {},
+//                                                .mipLevels = mipLevels,
+//                                                .magFilter = magFilter,
+//                                                .minFilter = minFilter,
+//                                                .addressModeU = addressModeU,
+//                                                .addressModeV = addressModeV,
+//                                                .srgb = srgb};
+//   texture->mImage = SVImage::FromData(width, height, channels, data, mipLevels);
+//   texture->mLoaded = true;
+//   return texture;
+// }
+
+// std::shared_ptr<SVTexture> SVTexture::FromData(uint32_t width, uint32_t height, uint32_t
+// channels,
+//                                                std::vector<float> const &data, uint32_t
+//                                                mipLevels, vk::Filter magFilter, vk::Filter
+//                                                minFilter, vk::SamplerAddressMode addressModeU,
+//                                                vk::SamplerAddressMode addressModeV) {
+//   auto texture = std::shared_ptr<SVTexture>(new SVTexture);
+//   texture->mDescription = {.source = SVTextureDescription::SourceType::eCUSTOM,
+//                            .format = SVTextureDescription::Format::eFLOAT,
+//                            .filename = {},
+//                            .mipLevels = mipLevels,
+//                            .magFilter = magFilter,
+//                            .minFilter = minFilter,
+//                            .addressModeU = addressModeU,
+//                            .addressModeV = addressModeV};
+//   texture->mImage = SVImage::FromData(width, height, channels, data, mipLevels);
+//   texture->mLoaded = true;
+//   return texture;
+// }
+
+// std::shared_ptr<SVTexture> SVTexture::FromData(uint32_t width, uint32_t height, uint32_t depth,
+//                                                uint32_t channels, std::vector<float> const
+//                                                &data, int dim, uint32_t mipLevels, vk::Filter
+//                                                magFilter, vk::Filter minFilter,
+//                                                vk::SamplerAddressMode addressModeU,
+//                                                vk::SamplerAddressMode addressModeV,
+//                                                vk::SamplerAddressMode addressModeW) {
+//   auto texture = std::shared_ptr<SVTexture>(new SVTexture);
+//   texture->mDescription = {.source = SVTextureDescription::SourceType::eCUSTOM,
+//                            .format = SVTextureDescription::Format::eFLOAT,
+//                            .filename = {},
+//                            .mipLevels = mipLevels,
+//                            .magFilter = magFilter,
+//                            .minFilter = minFilter,
+//                            .addressModeU = addressModeU,
+//                            .addressModeV = addressModeV,
+//                            .addressModeW = addressModeW,
+//                            .dim = dim};
+//   if (dim <= 0 || dim > 3) {
+//     throw std::runtime_error("texture dimension must be 1, 2 or 3");
+//   }
+//   if (dim == 1 && (height != 1 || depth != 1)) {
+//     throw std::runtime_error("1D texture must have height = 1 and depth = 1");
+//   }
+//   if (dim == 2 && (depth != 1)) {
+//     throw std::runtime_error("2D texture must have depth = 1");
+//   }
+
+//   texture->mImage = SVImage::FromData(width, height, depth, channels, data, mipLevels);
+//   texture->mLoaded = true;
+//   return texture;
+// }
 
 std::shared_ptr<SVTexture> SVTexture::FromImage(std::shared_ptr<SVImage> image,
                                                 vk::UniqueImageView imageView,
@@ -143,20 +180,17 @@ void SVTexture::uploadToDevice() {
       viewType = vk::ImageViewType::e3D;
     }
 
-    mImageView =
-        mContext->getDevice().createImageViewUnique(vk::ImageViewCreateInfo(
-            {}, mImage->getDeviceImage()->getVulkanImage(), viewType, format,
-            vk::ComponentSwizzle::eIdentity,
-            vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0,
-                                      mDescription.mipLevels, 0, 1)));
+    mImageView = mContext->getDevice().createImageViewUnique(
+        vk::ImageViewCreateInfo({}, mImage->getDeviceImage()->getVulkanImage(), viewType, format,
+                                vk::ComponentSwizzle::eIdentity,
+                                vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0,
+                                                          mDescription.mipLevels, 0, 1)));
   }
   if (!mSampler) {
     mSampler = mContext->createSampler(vk::SamplerCreateInfo(
-        {}, mDescription.magFilter, mDescription.minFilter,
-        vk::SamplerMipmapMode::eLinear, mDescription.addressModeU,
-        mDescription.addressModeV, mDescription.addressModeW, 0.f, false, 0.f,
-        false, vk::CompareOp::eNever, 0.f,
-        static_cast<float>(mDescription.mipLevels),
+        {}, mDescription.magFilter, mDescription.minFilter, vk::SamplerMipmapMode::eLinear,
+        mDescription.addressModeU, mDescription.addressModeV, mDescription.addressModeW, 0.f,
+        false, 0.f, false, vk::CompareOp::eNever, 0.f, static_cast<float>(mDescription.mipLevels),
         vk::BorderColor::eFloatOpaqueBlack));
   }
   mOnDevice = true;
@@ -177,16 +211,14 @@ std::future<void> SVTexture::loadAsync() {
 
   logger::info("Loading: {}", mDescription.filename);
   if (mDescription.source != SVTextureDescription::SourceType::eFILE) {
-    throw std::runtime_error(
-        "failed to load texture: the texture is not specified by a file");
+    throw std::runtime_error("failed to load texture: the texture is not specified by a file");
   }
   return std::async(LAUNCH_ASYNC, [this, manager]() {
     std::scoped_lock lock(mLoadingMutex);
     if (mLoaded) {
       return;
     }
-    mImage = manager->CreateImageFromFile(mDescription.filename,
-                                          mDescription.mipLevels);
+    mImage = manager->CreateImageFromFile(mDescription.filename, mDescription.mipLevels);
     mImage->loadAsync().get();
     mLoaded = true;
     logger::info("Loaded: {}", mDescription.filename);

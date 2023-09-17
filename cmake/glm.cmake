@@ -8,3 +8,6 @@ FetchContent_Declare(
 )
 
 FetchContent_MakeAvailable(glm)
+
+get_target_property(_inc glm INTERFACE_INCLUDE_DIRECTORIES)
+target_include_directories(glm SYSTEM INTERFACE ${_inc})

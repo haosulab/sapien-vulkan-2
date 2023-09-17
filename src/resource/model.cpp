@@ -47,36 +47,54 @@ std::vector<std::shared_ptr<SVShape>> const &SVModel::getShapes() {
 }
 
 static std::vector<uint8_t> loadCompressedTexture(aiTexture const *texture, int &width,
-                                                  int &height) {
+                                                  int &height, int &channels) {
   return loadImageFromMemory(reinterpret_cast<unsigned char *>(texture->pcData), texture->mWidth,
-                             width, height);
+                             width, height, channels);
 }
 
 static std::shared_ptr<SVTexture> loadEmbededTexture(aiTexture const *texture, uint32_t mipLevels,
-                                                     uint32_t channels = 4, bool srgb = false) {
-  if (channels != 1 && channels != 4) {
-    throw std::runtime_error("Texture must contain 1 or 4 channels");
-  }
-  std::vector<uint8_t> data;
+                                                     int desiredChannels = 1, bool srgb = false) {
+  // TODO: check desired channels against channels
+
   if (texture->mHeight == 0) {
-    int width, height;
-    auto loaded = loadCompressedTexture(texture, width, height);
-    if (channels == 1) {
-      data.reserve(loaded.size() / 4);
-      for (uint32_t i = 0; i < loaded.size() / 4; ++i) {
-        data.push_back(loaded[4 * i]);
-      }
-    } else {
-      data = loaded;
+    int width, height, channels;
+    std::vector<uint8_t> data = loadCompressedTexture(texture, width, height, channels);
+
+    vk::Format format;
+    switch (channels) {
+    case 1:
+      format = vk::Format::eR8Unorm;
+      break;
+    case 2:
+      format = vk::Format::eR8G8Unorm;
+      break;
+    case 3:
+      format = vk::Format::eR8G8B8Unorm;
+      break;
+    case 4:
+      format = vk::Format::eR8G8B8A8Unorm;
+      break;
+    default:
+      throw std::runtime_error("invalid image channels");
     }
-    return SVTexture::FromData(width, height, channels, data, mipLevels, vk::Filter::eLinear,
-                               vk::Filter::eLinear, vk::SamplerAddressMode::eRepeat,
-                               vk::SamplerAddressMode::eRepeat, srgb);
+
+    return SVTexture::FromRawData(width, height, 1, format, toRawBytes(data), 2, mipLevels,
+                                  vk::Filter::eLinear, vk::Filter::eLinear,
+                                  vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat,
+                                  vk::SamplerAddressMode::eRepeat, srgb);
   }
-  data = std::vector<uint8_t>(reinterpret_cast<uint8_t *>(texture->pcData),
-                              reinterpret_cast<uint8_t *>(texture->pcData) +
-                                  texture->mWidth * texture->mHeight * 4);
-  return SVTexture::FromData(texture->mWidth, texture->mHeight, 4, data, mipLevels);
+
+  if (strcmp(texture->achFormatHint, "rgba8888") != 0) {
+    throw std::runtime_error("unsupported texture: only rgba8888 format is supported");
+  }
+  std::vector<char> rawData(reinterpret_cast<char *>(texture->pcData),
+                            reinterpret_cast<char *>(texture->pcData) +
+                                texture->mWidth * texture->mHeight * 4);
+
+  return SVTexture::FromRawData(texture->mWidth, texture->mHeight, 1, vk::Format::eR8G8B8A8Unorm,
+                                rawData, 2, mipLevels, vk::Filter::eLinear, vk::Filter::eLinear,
+                                vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat,
+                                vk::SamplerAddressMode::eRepeat, srgb);
 }
 
 static std::tuple<std::shared_ptr<SVTexture>, std::shared_ptr<SVTexture>>
@@ -86,17 +104,19 @@ loadEmbededRoughnessMetallicTexture(aiTexture const *texture, uint32_t mipLevels
   if (texture->mHeight != 0) {
     std::runtime_error("Invalid roughness metallic texture");
   }
-  int width, height;
-  auto loaded = loadCompressedTexture(texture, width, height);
-  roughness.reserve(loaded.size() / 4);
-  metallic.reserve(loaded.size() / 4);
-  for (uint32_t i = 0; i < loaded.size() / 4; ++i) {
-    roughness.push_back(loaded[4 * i + 1]);
-    metallic.push_back(loaded[4 * i + 2]);
+  int width, height, channels;
+  auto loaded = loadCompressedTexture(texture, width, height, channels);
+  // TODO: check loaded channels
+  roughness.reserve(loaded.size() / channels);
+  metallic.reserve(loaded.size() / channels);
+  for (uint32_t i = 0; i < loaded.size() / channels; ++i) {
+    roughness.push_back(loaded[channels * i + 1]);
+    metallic.push_back(loaded[channels * i + 2]);
   }
+
   return {
-      SVTexture::FromData(width, height, 1, roughness, mipLevels),
-      SVTexture::FromData(width, height, 1, metallic, mipLevels),
+      SVTexture::FromRawData(width, height, 1, vk::Format::eR8Unorm, toRawBytes(roughness), 2, mipLevels),
+      SVTexture::FromRawData(width, height, 1, vk::Format::eR8Unorm, toRawBytes(metallic), 2, mipLevels),
   };
 }
 

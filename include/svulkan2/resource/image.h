@@ -7,7 +7,7 @@ namespace resource {
 
 struct SVImageDescription {
   enum class SourceType { eFILE, eCUSTOM, eDEVICE } source{SourceType::eCUSTOM};
-  enum class Format { eUINT8, eFLOAT } format{Format::eUINT8};
+  vk::Format format{vk::Format::eUndefined};
   std::vector<std::string> filenames{};
   uint32_t mipLevels{1};
 
@@ -22,17 +22,21 @@ class SVImage {
   SVImageDescription mDescription{};
   std::unique_ptr<core::Image> mImage{};
 
-  uint32_t mWidth{};
-  uint32_t mHeight{};
+  vk::Format mFormat{vk::Format::eUndefined};
+  uint32_t mWidth{1};
+  uint32_t mHeight{1};
   uint32_t mDepth{1};
-  uint32_t mChannels{};
+  // uint32_t mChannels{};
   vk::ImageCreateFlags mCreateFlags{};
   vk::ImageUsageFlags mUsage{vk::ImageUsageFlagBits::eSampled |
                              vk::ImageUsageFlagBits::eTransferDst |
                              vk::ImageUsageFlagBits::eTransferSrc};
 
-  std::vector<std::vector<uint8_t>> mData;
-  std::vector<std::vector<float>> mFloatData;
+  // std::vector<std::vector<uint8_t>> mData;
+  // std::vector<std::vector<float>> mFloatData;
+
+  std::vector<std::vector<char>> mRawData;
+
   /** the image is on the host */
   bool mLoaded{};
   bool mOnDevice{};
@@ -44,40 +48,40 @@ class SVImage {
   std::mutex mUploadingMutex;
 
 public:
-  static std::shared_ptr<SVImage> FromData(uint32_t width, uint32_t height,
-                                           uint32_t channels,
-                                           std::vector<uint8_t> const &data,
+  static std::shared_ptr<SVImage> FromRawData(uint32_t width, uint32_t height, uint32_t depth,
+                                              vk::Format format,
+                                              std::vector<std::vector<char>> const &data,
+                                              uint32_t mipLevels = 1);
+
+  // static std::shared_ptr<SVImage> FromData(uint32_t width, uint32_t height, uint32_t channels,
+  //                                          std::vector<uint8_t> const &data,
+  //                                          uint32_t mipLevels = 1);
+  // static std::shared_ptr<SVImage> FromData(uint32_t width, uint32_t height, uint32_t channels,
+  //                                          std::vector<std::vector<uint8_t>> const &data,
+  //                                          uint32_t mipLevels = 1);
+
+  // static std::shared_ptr<SVImage> FromData(uint32_t width, uint32_t height, uint32_t depth,
+  //                                          uint32_t channels, std::vector<float> const &data,
+  //                                          uint32_t mipLevels);
+
+  // static std::shared_ptr<SVImage> FromData(uint32_t width, uint32_t height, uint32_t channels,
+  //                                          std::vector<float> const &data, uint32_t mipLevels =
+  //                                          1);
+
+  // static std::shared_ptr<SVImage> FromData(uint32_t width, uint32_t height, uint32_t depth,
+  //                                          uint32_t channels,
+  //                                          std::vector<std::vector<float>> const &data,
+  //                                          uint32_t mipLevels);
+  // static std::shared_ptr<SVImage> FromData(uint32_t width, uint32_t height, uint32_t channels,
+  //                                          std::vector<std::vector<float>> const &data,
+  //                                          uint32_t mipLevels = 1);
+
+  // static std::shared_ptr<SVImage> FromFile(std::string const &filename, uint32_t mipLevels = 1);
+
+  static std::shared_ptr<SVImage> FromFile(std::vector<std::string> const &filenames,
                                            uint32_t mipLevels = 1);
-  static std::shared_ptr<SVImage>
-  FromData(uint32_t width, uint32_t height, uint32_t channels,
-           std::vector<std::vector<uint8_t>> const &data,
-           uint32_t mipLevels = 1);
 
-  static std::shared_ptr<SVImage> FromData(uint32_t width, uint32_t height,
-                                           uint32_t depth, uint32_t channels,
-                                           std::vector<float> const &data,
-                                           uint32_t mipLevels);
-
-  static std::shared_ptr<SVImage> FromData(uint32_t width, uint32_t height,
-                                           uint32_t channels,
-                                           std::vector<float> const &data,
-                                           uint32_t mipLevels = 1);
-
-  static std::shared_ptr<SVImage>
-  FromData(uint32_t width, uint32_t height, uint32_t depth, uint32_t channels,
-           std::vector<std::vector<float>> const &data, uint32_t mipLevels);
-
-  static std::shared_ptr<SVImage>
-  FromData(uint32_t width, uint32_t height, uint32_t channels,
-           std::vector<std::vector<float>> const &data, uint32_t mipLevels = 1);
-
-  static std::shared_ptr<SVImage> FromFile(std::string const &filename,
-                                           uint32_t mipLevels = 1);
-  static std::shared_ptr<SVImage>
-  FromFile(std::vector<std::string> const &filenames, uint32_t mipLevels = 1);
-
-  static std::shared_ptr<SVImage>
-  FromDeviceImage(std::unique_ptr<core::Image> image);
+  static std::shared_ptr<SVImage> FromDeviceImage(std::unique_ptr<core::Image> image);
 
   void setUsage(vk::ImageUsageFlags usage);
   void setCreateFlags(vk::ImageCreateFlags flags);
@@ -92,22 +96,17 @@ public:
 
   inline core::Image *getDeviceImage() const { return mImage.get(); }
 
-  inline SVImageDescription const &getDescription() const {
-    return mDescription;
-  }
+  inline SVImageDescription const &getDescription() const { return mDescription; }
 
-  std::vector<std::vector<uint8_t>> const &getUint8Data() const {
-    return mData;
-  }
+  std::vector<std::vector<char>> const &getRawData() const { return mRawData; }
+  // std::vector<std::vector<uint8_t>> const &getUint8Data() const { return mData; }
+  // std::vector<std::vector<float>> const &getFloatData() const { return mFloatData; }
 
-  std::vector<std::vector<float>> const &getFloatData() const {
-    return mFloatData;
-  }
-
-  inline uint32_t getWidth() const { return mWidth; };
-  inline uint32_t getHeight() const { return mHeight; };
-  inline uint32_t getDepth() const { return mDepth; };
-  inline uint32_t getChannels() const { return mChannels; };
+  inline uint32_t getWidth() const { return mWidth; }
+  inline uint32_t getHeight() const { return mHeight; }
+  inline uint32_t getDepth() const { return mDepth; }
+  inline uint32_t getChannels() const { return getFormatChannels(mFormat); }
+  inline vk::Format getFormat() const { return mFormat; }
 
   /** Indicate that the image loads mipmap into the data and does not require
    * generation */

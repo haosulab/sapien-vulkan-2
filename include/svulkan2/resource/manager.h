@@ -34,20 +34,30 @@ public:
       vk::SamplerAddressMode addressModeU = vk::SamplerAddressMode::eRepeat,
       vk::SamplerAddressMode addressModeV = vk::SamplerAddressMode::eRepeat, bool srgb = false);
 
-  std::shared_ptr<SVTexture> CreateTextureFromData(
-      uint32_t width, uint32_t height, uint32_t channels, std::vector<uint8_t> const &data,
-      uint32_t mipLevels = 1, vk::Filter magFilter = vk::Filter::eLinear,
-      vk::Filter minFilter = vk::Filter::eLinear,
-      vk::SamplerAddressMode addressModeU = vk::SamplerAddressMode::eRepeat,
-      vk::SamplerAddressMode addressModeV = vk::SamplerAddressMode::eRepeat, bool srgb = false);
-
   std::shared_ptr<SVTexture>
-  CreateTextureFromData(uint32_t width, uint32_t height, uint32_t channels,
-                        std::vector<float> const &data, uint32_t mipLevels = 1,
-                        vk::Filter magFilter = vk::Filter::eLinear,
-                        vk::Filter minFilter = vk::Filter::eLinear,
-                        vk::SamplerAddressMode addressModeU = vk::SamplerAddressMode::eRepeat,
-                        vk::SamplerAddressMode addressModeV = vk::SamplerAddressMode::eRepeat);
+  CreateTextureFromRawData(uint32_t width, uint32_t height, uint32_t depth, vk::Format format,
+                           std::vector<char> const &data, int dim, uint32_t mipLevels = 1,
+                           vk::Filter magFilter = vk::Filter::eLinear,
+                           vk::Filter minFilter = vk::Filter::eLinear,
+                           vk::SamplerAddressMode addressModeU = vk::SamplerAddressMode::eRepeat,
+                           vk::SamplerAddressMode addressModeV = vk::SamplerAddressMode::eRepeat,
+                           vk::SamplerAddressMode addressModeW = vk::SamplerAddressMode::eRepeat,
+                           bool srgb = false);
+
+  // std::shared_ptr<SVTexture> CreateTextureFromData(
+  //     uint32_t width, uint32_t height, uint32_t channels, std::vector<uint8_t> const &data,
+  //     uint32_t mipLevels = 1, vk::Filter magFilter = vk::Filter::eLinear,
+  //     vk::Filter minFilter = vk::Filter::eLinear,
+  //     vk::SamplerAddressMode addressModeU = vk::SamplerAddressMode::eRepeat,
+  //     vk::SamplerAddressMode addressModeV = vk::SamplerAddressMode::eRepeat, bool srgb = false);
+
+  // std::shared_ptr<SVTexture>
+  // CreateTextureFromData(uint32_t width, uint32_t height, uint32_t channels,
+  //                       std::vector<float> const &data, uint32_t mipLevels = 1,
+  //                       vk::Filter magFilter = vk::Filter::eLinear,
+  //                       vk::Filter minFilter = vk::Filter::eLinear,
+  //                       vk::SamplerAddressMode addressModeU = vk::SamplerAddressMode::eRepeat,
+  //                       vk::SamplerAddressMode addressModeV = vk::SamplerAddressMode::eRepeat);
 
   std::shared_ptr<SVCubemap> CreateCubemapFromKTX(std::string const &filename,
                                                   uint32_t mipLevels = 1,

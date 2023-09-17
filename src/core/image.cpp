@@ -82,7 +82,7 @@ void Image::uploadLevel(void const *data, size_t size, uint32_t arrayLayer,
 
   vk::BufferImageCopy copyRegion(
       0, extent.width, extent.height,
-      vk::ImageSubresourceLayers(getImageAspectFlags(mFormat), mipLevel,
+      vk::ImageSubresourceLayers(getFormatAspectFlags(mFormat), mipLevel,
                                  arrayLayer, 1),
       vk::Offset3D(0, 0, 0), extent);
 
@@ -109,7 +109,7 @@ void Image::upload(void const *data, size_t size, uint32_t arrayLayer,
 
   vk::BufferImageCopy copyRegion(
       0, mExtent.width, mExtent.height,
-      vk::ImageSubresourceLayers(getImageAspectFlags(mFormat), 0, arrayLayer,
+      vk::ImageSubresourceLayers(getFormatAspectFlags(mFormat), 0, arrayLayer,
                                  1),
       vk::Offset3D(0, 0, 0), mExtent);
 
@@ -261,22 +261,22 @@ void Image::recordCopyToBuffer(vk::CommandBuffer cb, vk::Buffer buffer,
                      sourceStage, vk::PipelineStageFlagBits::eTransfer);
   }
 
-  vk::ImageAspectFlags aspect;
-  switch (mFormat) {
-  case vk::Format::eR8G8B8A8Unorm:
-  case vk::Format::eR32G32B32A32Uint:
-  case vk::Format::eR32G32B32A32Sfloat:
-    aspect = vk::ImageAspectFlagBits::eColor;
-    break;
-  case vk::Format::eD32Sfloat:
-    aspect = vk::ImageAspectFlagBits::eDepth;
-    break;
-  case vk::Format::eD24UnormS8Uint:
-    vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
-    break;
-  default:
-    throw std::runtime_error("failed to download image: unsupported format.");
-  }
+  vk::ImageAspectFlags aspect = getFormatAspectFlags(mFormat);
+  // switch (mFormat) {
+  // case vk::Format::eR8G8B8A8Unorm:
+  // case vk::Format::eR32G32B32A32Uint:
+  // case vk::Format::eR32G32B32A32Sfloat:
+  //   aspect = vk::ImageAspectFlagBits::eColor;
+  //   break;
+  // case vk::Format::eD32Sfloat:
+  //   aspect = vk::ImageAspectFlagBits::eDepth;
+  //   break;
+  // case vk::Format::eD24UnormS8Uint:
+  //   vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
+  //   break;
+  // default:
+  //   throw std::runtime_error("failed to download image: unsupported format.");
+  // }
 
   vk::BufferImageCopy copyRegion(bufferOffset, mExtent.width, mExtent.height,
                                  {aspect, 0, 0, 1}, offset, extent);
@@ -335,22 +335,7 @@ void Image::recordCopyFromBuffer(vk::CommandBuffer cb, vk::Buffer buffer,
                      sourceStage, vk::PipelineStageFlagBits::eTransfer);
   }
 
-  vk::ImageAspectFlags aspect;
-  switch (mFormat) {
-  case vk::Format::eR8G8B8A8Unorm:
-  case vk::Format::eR32G32B32A32Uint:
-  case vk::Format::eR32G32B32A32Sfloat:
-    aspect = vk::ImageAspectFlagBits::eColor;
-    break;
-  case vk::Format::eD32Sfloat:
-    aspect = vk::ImageAspectFlagBits::eDepth;
-    break;
-  case vk::Format::eD24UnormS8Uint:
-    vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
-    break;
-  default:
-    throw std::runtime_error("failed to download image: unsupported format.");
-  }
+  vk::ImageAspectFlags aspect = getFormatAspectFlags(mFormat);
 
   vk::BufferImageCopy copyRegion(bufferOffset, mExtent.width, mExtent.height,
                                  {aspect, 0, 0, 1}, offset, extent);
@@ -388,23 +373,7 @@ void Image::download(void *data, size_t size, vk::Offset3D offset,
   vk::AccessFlags sourceAccessFlag;
   vk::PipelineStageFlags sourceStage;
 
-  vk::ImageAspectFlags aspect;
-  switch (mFormat) {
-  case vk::Format::eR8G8B8A8Unorm:
-  case vk::Format::eR32G32B32A32Uint:
-  case vk::Format::eR32G32B32A32Sfloat:
-    aspect = vk::ImageAspectFlagBits::eColor;
-    break;
-  case vk::Format::eD32Sfloat:
-    aspect = vk::ImageAspectFlagBits::eDepth;
-    break;
-  case vk::Format::eD24UnormS8Uint:
-    aspect =
-        vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
-    break;
-  default:
-    throw std::runtime_error("failed to download image: unsupported format.");
-  }
+  vk::ImageAspectFlags aspect = getFormatAspectFlags(mFormat);
 
   EASY_BLOCK("Record command buffer");
   auto pool = mContext->createCommandPool();
@@ -487,7 +456,7 @@ void Image::transitionLayout(
     vk::ImageLayout newImageLayout, vk::AccessFlags sourceAccessMask,
     vk::AccessFlags destAccessMask, vk::PipelineStageFlags sourceStage,
     vk::PipelineStageFlags destStage, uint32_t arrayLayer) {
-  vk::ImageSubresourceRange imageSubresourceRange(getImageAspectFlags(mFormat),
+  vk::ImageSubresourceRange imageSubresourceRange(getFormatAspectFlags(mFormat),
                                                   0, mMipLevels, arrayLayer, 1);
   vk::ImageMemoryBarrier barrier(
       sourceAccessMask, destAccessMask, oldImageLayout, newImageLayout,
@@ -506,7 +475,7 @@ void Image::transitionLayout(vk::CommandBuffer commandBuffer,
                              vk::PipelineStageFlags sourceStage,
                              vk::PipelineStageFlags destStage) {
   vk::ImageSubresourceRange imageSubresourceRange(
-      getImageAspectFlags(mFormat), 0, mMipLevels, 0, mArrayLayers);
+      getFormatAspectFlags(mFormat), 0, mMipLevels, 0, mArrayLayers);
   vk::ImageMemoryBarrier barrier(
       sourceAccessMask, destAccessMask, oldImageLayout, newImageLayout,
       VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, mImage,

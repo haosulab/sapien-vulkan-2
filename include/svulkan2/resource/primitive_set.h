@@ -8,6 +8,24 @@ namespace svulkan2 {
 namespace resource {
 
 class SVPrimitiveSet {
+
+public:
+  SVPrimitiveSet(uint32_t capacity = 0);
+  void setVertexAttribute(std::string const &name, std::vector<float> const &attrib);
+  std::vector<float> const &getVertexAttribute(std::string const &name) const;
+  core::Buffer &getVertexBuffer();
+
+  uint32_t getVertexCapacity() const { return mVertexCapacity; }
+
+  size_t getVertexSize();
+  uint32_t getVertexCount() const { return mVertexCount; }
+
+  void uploadToDevice();
+  void removeFromDevice();
+
+private:
+  uint32_t mVertexCapacity;
+
   std::unordered_map<std::string, std::vector<float>> mAttributes;
 
   bool mOnDevice{false};
@@ -17,19 +35,6 @@ class SVPrimitiveSet {
   std::unique_ptr<core::Buffer> mVertexBuffer;
 
   std::mutex mUploadingMutex;
-
-public:
-  SVPrimitiveSet();
-  void setVertexAttribute(std::string const &name,
-                          std::vector<float> const &attrib);
-  std::vector<float> const &getVertexAttribute(std::string const &name) const;
-  core::Buffer &getVertexBuffer();
-
-  size_t getVertexSize();
-  inline uint32_t getVertexCount() const { return mVertexCount; }
-
-  void uploadToDevice();
-  void removeFromDevice();
 };
 
 typedef SVPrimitiveSet SVLineSet;

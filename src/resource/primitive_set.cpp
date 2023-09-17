@@ -4,7 +4,7 @@
 namespace svulkan2 {
 namespace resource {
 
-SVPrimitiveSet::SVPrimitiveSet() {}
+SVPrimitiveSet::SVPrimitiveSet(uint32_t capacity) : mVertexCapacity(capacity) {}
 
 void SVPrimitiveSet::setVertexAttribute(std::string const &name,
                                         std::vector<float> const &attrib) {
@@ -18,8 +18,7 @@ void SVPrimitiveSet::setVertexAttribute(std::string const &name,
   }
 }
 
-std::vector<float> const &
-SVPrimitiveSet::getVertexAttribute(std::string const &name) const {
+std::vector<float> const &SVPrimitiveSet::getVertexAttribute(std::string const &name) const {
   if (mAttributes.find(name) == mAttributes.end()) {
     throw std::runtime_error("attribute " + name + " does not exist on vertex");
   }
@@ -27,8 +26,7 @@ SVPrimitiveSet::getVertexAttribute(std::string const &name) const {
 }
 
 size_t SVPrimitiveSet::getVertexSize() {
-  auto layout =
-      core::Context::Get()->getResourceManager()->getLineVertexLayout();
+  auto layout = core::Context::Get()->getResourceManager()->getLineVertexLayout();
   return layout->getSize();
 }
 
@@ -49,28 +47,33 @@ void SVPrimitiveSet::uploadToDevice() {
 
   auto layout = context->getResourceManager()->getLineVertexLayout();
 
-  if (mAttributes.find("position") == mAttributes.end() ||
-      mAttributes["position"].size() == 0) {
-    throw std::runtime_error(
-        "primitive set upload failed: no vertex positions");
+  if (mAttributes.find("position") == mAttributes.end() || mAttributes["position"].size() == 0) {
+    throw std::runtime_error("primitive set upload failed: no vertex positions");
   }
 
   size_t vertexCount = mAttributes["position"].size() / 3;
   size_t vertexSize = layout->getSize();
-  size_t bufferSize = vertexSize * vertexCount;
+
+  if (mVertexCapacity == 0) {
+    mVertexCapacity = mVertexCount;
+  }
+
+  if (mVertexCapacity < mVertexCount) {
+    throw std::runtime_error("failed to upload primitive set: vertex count exceeds capacity");
+  }
+
+  size_t bufferSize = vertexSize * mVertexCapacity;
 
   std::vector<char> buffer(bufferSize, 0);
   auto elements = layout->getElementsSorted();
   uint32_t offset = 0;
   for (auto &elem : elements) {
     if (mAttributes.find(elem.name) != mAttributes.end()) {
-      if (mAttributes[elem.name].size() * sizeof(float) !=
-          vertexCount * elem.getSize()) {
-        throw std::runtime_error("vertex attribute " + elem.name +
-                                 " has incorrect size");
+      if (mAttributes[elem.name].size() * sizeof(float) != vertexCount * elem.getSize()) {
+        throw std::runtime_error("vertex attribute " + elem.name + " has incorrect size");
       }
-      strided_memcpy(buffer.data() + offset, mAttributes[elem.name].data(),
-                     elem.getSize(), vertexCount, vertexSize);
+      strided_memcpy(buffer.data() + offset, mAttributes[elem.name].data(), elem.getSize(),
+                     vertexCount, vertexSize);
     }
     offset += elem.getSize();
   }
@@ -78,11 +81,9 @@ void SVPrimitiveSet::uploadToDevice() {
   if (!mVertexBuffer) {
     mVertexBuffer = std::make_unique<core::Buffer>(
         bufferSize,
-        vk::BufferUsageFlagBits::eVertexBuffer |
-            vk::BufferUsageFlagBits::eTransferDst |
+        vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst |
             vk::BufferUsageFlagBits::eTransferSrc,
-        VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags{},
-        true);
+        VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags{}, true);
   }
   mVertexBuffer->upload(buffer.data(), bufferSize);
   mOnDevice = true;

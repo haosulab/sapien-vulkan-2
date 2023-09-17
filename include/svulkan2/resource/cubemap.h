@@ -7,11 +7,7 @@ namespace svulkan2 {
 namespace resource {
 
 struct SVCubemapDescription {
-  enum class SourceType {
-    eFILES,
-    eSINGLE_FILE,
-    eCUSTOM
-  } source{SourceType::eCUSTOM};
+  enum class SourceType { eFILES, eSINGLE_FILE, eCUSTOM } source{SourceType::eCUSTOM};
   std::array<std::string, 6> filenames{};
   uint32_t mipLevels{1};
   vk::Filter magFilter{vk::Filter::eLinear};
@@ -26,7 +22,7 @@ struct SVCubemapDescription {
 };
 
 class SVCubemap {
-  std::shared_ptr<core::Context> mContext;  // keep alive for sampler and image view
+  std::shared_ptr<core::Context> mContext; // keep alive for sampler and image view
   SVCubemapDescription mDescription;
   std::shared_ptr<SVImage> mImage;
 
@@ -40,19 +36,19 @@ class SVCubemap {
   std::mutex mLoadingMutex;
 
 public:
-  static std::shared_ptr<SVCubemap>
-  FromFile(std::string const &filename, uint32_t mipLevels,
-           vk::Filter magFilter = vk::Filter::eLinear,
-           vk::Filter minFilter = vk::Filter::eLinear, bool srgb = false);
+  static std::shared_ptr<SVCubemap> FromFile(std::string const &filename, uint32_t mipLevels,
+                                             vk::Filter magFilter = vk::Filter::eLinear,
+                                             vk::Filter minFilter = vk::Filter::eLinear,
+                                             bool srgb = false);
+
+  static std::shared_ptr<SVCubemap> FromFile(std::array<std::string, 6> const &filenames,
+                                             uint32_t mipLevels,
+                                             vk::Filter magFilter = vk::Filter::eLinear,
+                                             vk::Filter minFilter = vk::Filter::eLinear,
+                                             bool srgb = false);
 
   static std::shared_ptr<SVCubemap>
-  FromFile(std::array<std::string, 6> const &filenames, uint32_t mipLevels,
-           vk::Filter magFilter = vk::Filter::eLinear,
-           vk::Filter minFilter = vk::Filter::eLinear, bool srgb = false);
-
-  static std::shared_ptr<SVCubemap>
-  FromData(uint32_t size, uint32_t channels,
-           std::array<std::vector<uint8_t>, 6> const &data,
+  FromData(uint32_t size, vk::Format format, std::array<std::vector<char>, 6> const &data,
            uint32_t mipLevels = 1, vk::Filter magFilter = vk::Filter::eLinear,
            vk::Filter minFilter = vk::Filter::eLinear, bool srgb = false);
 
@@ -64,9 +60,7 @@ public:
   std::future<void> loadAsync();
   void load();
 
-  inline SVCubemapDescription const &getDescription() const {
-    return mDescription;
-  }
+  inline SVCubemapDescription const &getDescription() const { return mDescription; }
 
   inline std::shared_ptr<SVImage> getImage() const { return mImage; }
   inline vk::ImageView getImageView() const { return mImageView.get(); }

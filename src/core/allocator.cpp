@@ -4,6 +4,7 @@
 #include "svulkan2/core/physical_device.h"
 
 #pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wparentheses"
 #pragma GCC diagnostic ignored "-Wunused-variable"
 #define VMA_BUFFER_DEVICE_ADDRESS 1
 #define VMA_EXTERNAL_MEMORY 1

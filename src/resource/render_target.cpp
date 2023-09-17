@@ -22,9 +22,19 @@ void SVRenderTarget::createDeviceResources() {
   bool isDepth = false;
   vk::ImageUsageFlags usage;
   if (mFormat == vk::Format::eR8G8B8A8Unorm ||
+
       mFormat == vk::Format::eR32G32B32A32Sfloat ||
+      mFormat == vk::Format::eR16G16B16A16Sfloat ||
+
       mFormat == vk::Format::eR32G32B32A32Uint ||
-      mFormat == vk::Format::eR32Sfloat) {
+      mFormat == vk::Format::eR32G32B32A32Sint ||
+
+      mFormat == vk::Format::eR16G16B16A16Uint ||
+      mFormat == vk::Format::eR16G16B16A16Sint ||
+
+      mFormat == vk::Format::eR32Sfloat ||
+      mFormat == vk::Format::eR16Sfloat
+    ) {
     usage = vk::ImageUsageFlagBits::eSampled |
             vk::ImageUsageFlagBits::eColorAttachment |
             vk::ImageUsageFlagBits::eTransferSrc;
@@ -35,9 +45,7 @@ void SVRenderTarget::createDeviceResources() {
     isDepth = true;
   } else {
     throw std::runtime_error(
-        "failed to create image resources: unsupported image format. Currently "
-        "supported formats are R32Sfloat, R32G32B32A32Sfloat, R8G8B8A8Unorm, "
-        "R32G32B32A32Uint, D32Sfloat, D24UnormS8Uint");
+        "failed to create image resources: unsupported image format.");
   }
 
   mContext = core::Context::Get();
