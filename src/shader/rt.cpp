@@ -186,7 +186,7 @@ void RayTracingStageParser::reflectSPV() {
 
   for (auto &r : resources.push_constant_buffers) {
     auto const &type = compiler.get_type(r.type_id);
-    if (!type_is_struct(type)) {
+    if (type.basetype != spirv_cross::SPIRType::Struct) {
       throw std::runtime_error("push constant buffer must be a struct");
     }
     mPushConstantLayout = parseBuffer(compiler, type);

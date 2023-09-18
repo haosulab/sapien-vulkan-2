@@ -44,21 +44,6 @@ public:
                            vk::SamplerAddressMode addressModeW = vk::SamplerAddressMode::eRepeat,
                            bool srgb = false);
 
-  // std::shared_ptr<SVTexture> CreateTextureFromData(
-  //     uint32_t width, uint32_t height, uint32_t channels, std::vector<uint8_t> const &data,
-  //     uint32_t mipLevels = 1, vk::Filter magFilter = vk::Filter::eLinear,
-  //     vk::Filter minFilter = vk::Filter::eLinear,
-  //     vk::SamplerAddressMode addressModeU = vk::SamplerAddressMode::eRepeat,
-  //     vk::SamplerAddressMode addressModeV = vk::SamplerAddressMode::eRepeat, bool srgb = false);
-
-  // std::shared_ptr<SVTexture>
-  // CreateTextureFromData(uint32_t width, uint32_t height, uint32_t channels,
-  //                       std::vector<float> const &data, uint32_t mipLevels = 1,
-  //                       vk::Filter magFilter = vk::Filter::eLinear,
-  //                       vk::Filter minFilter = vk::Filter::eLinear,
-  //                       vk::SamplerAddressMode addressModeU = vk::SamplerAddressMode::eRepeat,
-  //                       vk::SamplerAddressMode addressModeV = vk::SamplerAddressMode::eRepeat);
-
   std::shared_ptr<SVCubemap> CreateCubemapFromKTX(std::string const &filename,
                                                   uint32_t mipLevels = 1,
                                                   vk::Filter magFilter = vk::Filter::eLinear,
@@ -97,7 +82,7 @@ public:
               std::vector<std::shared_ptr<resource::SVMaterial>> const &materials);
 
   /** release all cached resources */
-  void clearCachedResources();
+  void clearCachedResources(bool models = true, bool images = true, bool shaders = true);
 
   /** release gpu resources.
    * NOTE: This MUST be called when no rendering is running!

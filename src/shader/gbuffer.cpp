@@ -160,39 +160,66 @@ vk::UniquePipeline GbufferPassParser::createPipeline(
   auto fsm = device.createShaderModuleUnique(
       {{}, mFragSPVCode.size() * sizeof(uint32_t), mFragSPVCode.data()});
 
+  // specialization Constants
   auto elems = mSpecializationConstantLayout->getElementsSorted();
   vk::SpecializationInfo fragSpecializationInfo;
   std::vector<vk::SpecializationMapEntry> entries;
-  std::vector<int> specializationData;
+  std::vector<std::byte> specializationData(mSpecializationConstantLayout->size());
   if (elems.size()) {
-    specializationData.resize(elems.size());
+    uint32_t offset = 0;
     for (uint32_t i = 0; i < elems.size(); ++i) {
       if (specializationConstantInfo.find(elems[i].name) != specializationConstantInfo.end() &&
           elems[i].dtype != specializationConstantInfo.at(elems[i].name).dtype) {
         throw std::runtime_error("Type mismatch on specialization constant " + elems[i].name +
                                  ".");
       }
-      if (elems[i].dtype == DataType::eINT) {
-        entries.emplace_back(elems[i].id, i * sizeof(int), sizeof(int));
-        int v = specializationConstantInfo.find(elems[i].name) != specializationConstantInfo.end()
-                    ? specializationConstantInfo.at(elems[i].name).intValue
-                    : elems[i].intValue;
-        std::memcpy(specializationData.data() + i, &v, sizeof(int));
-      } else if (elems[i].dtype == DataType::eFLOAT) {
-        entries.emplace_back(elems[i].id, i * sizeof(float), sizeof(float));
-        float v =
-            specializationConstantInfo.find(elems[i].name) != specializationConstantInfo.end()
-                ? specializationConstantInfo.at(elems[i].name).floatValue
-                : elems[i].floatValue;
-        std::memcpy(specializationData.data() + i, &v, sizeof(float));
+      entries.emplace_back(elems[i].id, offset, elems[i].dtype.size());
+      if (specializationConstantInfo.contains(elems[i].name)) {
+        std::memcpy(specializationData.data() + offset,
+                    specializationConstantInfo.at(elems[i].name).buffer, elems[i].dtype.size());
       } else {
-        throw std::runtime_error("only int and float are allowed specialization constants");
+        std::memcpy(specializationData.data() + offset, elems[i].buffer, elems[i].dtype.size());
       }
+      offset += elems[i].dtype.size();
     }
-    fragSpecializationInfo =
-        vk::SpecializationInfo(entries.size(), entries.data(),
-                               specializationData.size() * sizeof(int), specializationData.data());
+    fragSpecializationInfo = vk::SpecializationInfo(
+        entries.size(), entries.data(), specializationData.size(), specializationData.data());
   }
+
+
+  // auto elems = mSpecializationConstantLayout->getElementsSorted();
+  // vk::SpecializationInfo fragSpecializationInfo;
+  // std::vector<vk::SpecializationMapEntry> entries;
+  // std::vector<int> specializationData;
+  // if (elems.size()) {
+  //   specializationData.resize(elems.size());
+  //   for (uint32_t i = 0; i < elems.size(); ++i) {
+  //     if (specializationConstantInfo.find(elems[i].name) != specializationConstantInfo.end() &&
+  //         elems[i].dtype != specializationConstantInfo.at(elems[i].name).dtype) {
+  //       throw std::runtime_error("Type mismatch on specialization constant " + elems[i].name +
+  //                                ".");
+  //     }
+  //     if (elems[i].dtype == DataType::eINT) {
+  //       entries.emplace_back(elems[i].id, i * sizeof(int), sizeof(int));
+  //       int v = specializationConstantInfo.find(elems[i].name) != specializationConstantInfo.end()
+  //                   ? specializationConstantInfo.at(elems[i].name).intValue
+  //                   : elems[i].intValue;
+  //       std::memcpy(specializationData.data() + i, &v, sizeof(int));
+  //     } else if (elems[i].dtype == DataType::eFLOAT) {
+  //       entries.emplace_back(elems[i].id, i * sizeof(float), sizeof(float));
+  //       float v =
+  //           specializationConstantInfo.find(elems[i].name) != specializationConstantInfo.end()
+  //               ? specializationConstantInfo.at(elems[i].name).floatValue
+  //               : elems[i].floatValue;
+  //       std::memcpy(specializationData.data() + i, &v, sizeof(float));
+  //     } else {
+  //       throw std::runtime_error("only int and float are allowed specialization constants");
+  //     }
+  //   }
+  //   fragSpecializationInfo =
+  //       vk::SpecializationInfo(entries.size(), entries.data(),
+  //                              specializationData.size() * sizeof(int), specializationData.data());
+  // }
 
   std::array<vk::PipelineShaderStageCreateInfo, 2> pipelineShaderStageCreateInfos{
       vk::PipelineShaderStageCreateInfo(vk::PipelineShaderStageCreateFlags(),

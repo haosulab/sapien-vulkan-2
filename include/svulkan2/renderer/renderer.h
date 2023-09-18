@@ -27,10 +27,8 @@ class Renderer : public RendererBase {
 
   std::shared_ptr<shader::ShaderPack> mShaderPack;
   std::shared_ptr<shader::ShaderPackInstance> mShaderPackInstance;
-  std::unordered_map<std::string, std::shared_ptr<resource::SVRenderTarget>>
-      mRenderTargets;
-  std::unordered_map<std::string, std::shared_ptr<resource::SVRenderTarget>>
-      mMultisampledTargets;
+  std::unordered_map<std::string, std::shared_ptr<resource::SVRenderTarget>> mRenderTargets;
+  std::unordered_map<std::string, std::shared_ptr<resource::SVRenderTarget>> mMultisampledTargets;
 
   // shadow targets ================================
   std::vector<uint32_t> mPointLightShadowSizes{};
@@ -38,24 +36,17 @@ class Renderer : public RendererBase {
   std::vector<uint32_t> mSpotLightShadowSizes{};
   std::vector<uint32_t> mTexturedLightShadowSizes{};
 
-  std::vector<std::shared_ptr<resource::SVRenderTarget>>
-      mDirectionalShadowReadTargets;
-  std::vector<std::shared_ptr<resource::SVRenderTarget>>
-      mDirectionalShadowWriteTargets;
+  std::vector<std::shared_ptr<resource::SVRenderTarget>> mDirectionalShadowReadTargets;
+  std::vector<std::shared_ptr<resource::SVRenderTarget>> mDirectionalShadowWriteTargets;
 
-  std::vector<std::shared_ptr<resource::SVRenderTarget>>
-      mPointShadowWriteTargets;
-  std::vector<std::shared_ptr<resource::SVRenderTarget>>
-      mPointShadowReadTargets;
+  std::vector<std::shared_ptr<resource::SVRenderTarget>> mPointShadowWriteTargets;
+  std::vector<std::shared_ptr<resource::SVRenderTarget>> mPointShadowReadTargets;
 
   std::vector<std::shared_ptr<resource::SVRenderTarget>> mSpotShadowReadTargets;
-  std::vector<std::shared_ptr<resource::SVRenderTarget>>
-      mSpotShadowWriteTargets;
+  std::vector<std::shared_ptr<resource::SVRenderTarget>> mSpotShadowWriteTargets;
 
-  std::vector<std::shared_ptr<resource::SVRenderTarget>>
-      mTexturedLightShadowReadTargets;
-  std::vector<std::shared_ptr<resource::SVRenderTarget>>
-      mTexturedLightShadowWriteTargets;
+  std::vector<std::shared_ptr<resource::SVRenderTarget>> mTexturedLightShadowReadTargets;
+  std::vector<std::shared_ptr<resource::SVRenderTarget>> mTexturedLightShadowWriteTargets;
 
   std::vector<vk::UniqueDescriptorSet> mLightSets;
   std::vector<std::unique_ptr<core::Buffer>> mLightBuffers;
@@ -69,8 +60,7 @@ class Renderer : public RendererBase {
   std::vector<vk::UniqueFramebuffer> mShadowFramebuffers;
   std::vector<uint32_t> mShadowSizes;
 
-  std::map<std::string, std::vector<std::shared_ptr<resource::SVTexture>>>
-      mCustomTextureArray;
+  std::map<std::string, std::vector<std::shared_ptr<resource::SVTexture>>> mCustomTextureArray;
   std::map<std::string, std::shared_ptr<resource::SVTexture>> mCustomTextures;
   std::map<std::string, std::shared_ptr<resource::SVCubemap>> mCustomCubemaps;
 
@@ -103,33 +93,43 @@ class Renderer : public RendererBase {
 public:
   Renderer(std::shared_ptr<RendererConfig> config);
 
-  void setSpecializationConstantInt(std::string const &name, int value);
-  void setSpecializationConstantFloat(std::string const &name, float value);
+  template <typename T> void setSpecializationConstant(std::string const &name, T value) {
+    if (!mContext->isVulkanAvailable()) {
+      return;
+    }
+
+    if (!mSpecializationConstants.contains(name)) {
+      mSpecializationConstantsChanged = true;
+      mSpecializationConstants[name] = value;
+      return;
+    }
+
+    SpecializationConstantValue newConstant;
+    newConstant = value;
+    if (mSpecializationConstants[name] != newConstant) {
+      mSpecializationConstantsChanged = true;
+      mSpecializationConstants[name] = value;
+    }
+  }
 
   void resize(int width, int height) override;
 
-  void render(
-      scene::Camera &camera,
-      vk::ArrayProxyNoTemporaries<vk::Semaphore const> const &waitSemaphores,
-      vk::ArrayProxyNoTemporaries<vk::PipelineStageFlags const> const
-          &waitStageMasks,
-      vk::ArrayProxyNoTemporaries<uint64_t const> const &waitValues,
-      vk::ArrayProxyNoTemporaries<vk::Semaphore const> const &signalSemaphores,
-      vk::ArrayProxyNoTemporaries<uint64_t const> const &signalValues) override;
+  void render(scene::Camera &camera,
+              vk::ArrayProxyNoTemporaries<vk::Semaphore const> const &waitSemaphores,
+              vk::ArrayProxyNoTemporaries<vk::PipelineStageFlags const> const &waitStageMasks,
+              vk::ArrayProxyNoTemporaries<uint64_t const> const &waitValues,
+              vk::ArrayProxyNoTemporaries<vk::Semaphore const> const &signalSemaphores,
+              vk::ArrayProxyNoTemporaries<uint64_t const> const &signalValues) override;
 
   /** render may be called on a thread. */
-  void render(scene::Camera &camera,
-              std::vector<vk::Semaphore> const &waitSemaphores,
+  void render(scene::Camera &camera, std::vector<vk::Semaphore> const &waitSemaphores,
               std::vector<vk::PipelineStageFlags> const &waitStages,
-              std::vector<vk::Semaphore> const &signalSemaphores,
-              vk::Fence fence) override;
+              std::vector<vk::Semaphore> const &signalSemaphores, vk::Fence fence) override;
 
-  void display(std::string const &renderTargetName, vk::Image backBuffer,
-               vk::Format format, uint32_t width, uint32_t height,
-               std::vector<vk::Semaphore> const &waitSemaphores,
+  void display(std::string const &renderTargetName, vk::Image backBuffer, vk::Format format,
+               uint32_t width, uint32_t height, std::vector<vk::Semaphore> const &waitSemaphores,
                std::vector<vk::PipelineStageFlags> const &waitStages,
-               std::vector<vk::Semaphore> const &signalSemaphores,
-               vk::Fence fence) override;
+               std::vector<vk::Semaphore> const &signalSemaphores, vk::Fence fence) override;
 
   void setScene(std::shared_ptr<scene::Scene> scene) override {
     mScene = scene;
@@ -140,16 +140,14 @@ public:
   std::vector<std::string> getDisplayTargetNames() const;
   std::vector<std::string> getRenderTargetNames() const override;
 
-  std::shared_ptr<resource::SVRenderTarget>
-  getRenderTarget(std::string const &name) const;
+  std::shared_ptr<resource::SVRenderTarget> getRenderTarget(std::string const &name) const;
 
   core::Image &getRenderImage(std::string const &name) override {
     return getRenderTarget(name)->getImage();
   };
 
-  void setCustomTextureArray(
-      std::string const &name,
-      std::vector<std::shared_ptr<resource::SVTexture>> texture) override;
+  void setCustomTextureArray(std::string const &name,
+                             std::vector<std::shared_ptr<resource::SVTexture>> texture) override;
   void setCustomTexture(std::string const &name,
                         std::shared_ptr<resource::SVTexture> texture) override;
   void setCustomCubemap(std::string const &name,
@@ -157,6 +155,8 @@ public:
 
   void setCustomProperty(std::string const &name, int p) override;
   void setCustomProperty(std::string const &name, float p) override;
+  void setCustomProperty(std::string const &name, glm::vec3 p) override;
+  void setCustomProperty(std::string const &name, glm::vec4 p) override;
 
   Renderer(Renderer const &other) = delete;
   Renderer &operator=(Renderer const &other) = delete;

@@ -517,13 +517,36 @@ parseSpecializationConstant(spirv_cross::Compiler &compiler) {
         .id = var.constant_id,
         .dtype = dataType,
     };
-    if (dataType == DataType::eINT) {
-      layout->elements[name].intValue = constant.scalar_i32();
-    } else if (dataType == DataType::eFLOAT) {
-      layout->elements[name].floatValue = constant.scalar_f32();
+
+    uint32_t cols = type.columns;
+    uint32_t rows = type.vecsize;
+    if (dataType.kind == TypeKind::eInt) {
+      std::vector<int> data;
+      for (uint32_t c = 0; c < cols; ++c) {
+        for (uint32_t r = 0; r < rows; ++r) {
+          data.push_back(constant.m.c[c].r[r].i32);
+        }
+      }
+      std::memcpy(layout->elements[name].buffer, data.data(), data.size() * sizeof(int));
+    } else if (dataType.kind == TypeKind::eUint) {
+      std::vector<uint32_t> data;
+      for (uint32_t c = 0; c < cols; ++c) {
+        for (uint32_t r = 0; r < rows; ++r) {
+          data.push_back(constant.m.c[c].r[r].u32);
+        }
+      }
+      std::memcpy(layout->elements[name].buffer, data.data(), data.size() * sizeof(uint32_t));
+    } else if (dataType.kind == TypeKind::eFloat) {
+      std::vector<float> data;
+      for (uint32_t c = 0; c < cols; ++c) {
+        for (uint32_t r = 0; r < rows; ++r) {
+          data.push_back(constant.m.c[c].r[r].f32);
+        }
+      }
+      std::memcpy(layout->elements[name].buffer, data.data(), data.size() * sizeof(float));
     } else {
       throw std::runtime_error(
-          "only int and float are supported specialization constant types");
+          "only int, uint, float, and their vector types are supported for specialization constant");
     }
   }
   return layout;

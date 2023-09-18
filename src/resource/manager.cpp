@@ -376,16 +376,21 @@ void SVResourceManager::setLineVertexLayout(std::shared_ptr<InputDataLayout> lay
   }
 }
 
-void SVResourceManager::clearCachedResources() {
+void SVResourceManager::clearCachedResources(bool models, bool images, bool shaders) {
   std::lock_guard<std::mutex> lock(mCreateLock);
-  mModelRegistry.clear();
-  mTextureRegistry.clear();
-  mCubemapRegistry.clear();
-  mImageRegistry.clear();
-  mRandomTextureRegistry.clear();
-
-  mShaderPackInstanceRegistry.clear();
-  mShaderPackRegistry.clear();
+  if (models) {
+    mModelRegistry.clear();
+  }
+  if (images) {
+    mTextureRegistry.clear();
+    mCubemapRegistry.clear();
+    mImageRegistry.clear();
+    mRandomTextureRegistry.clear();
+  }
+  if (shaders) {
+    mShaderPackInstanceRegistry.clear();
+    mShaderPackRegistry.clear();
+  }
 }
 
 void SVResourceManager::releaseGPUResourcesUnsafe() {

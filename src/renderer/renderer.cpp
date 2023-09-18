@@ -418,40 +418,6 @@ void Renderer::resize(int width, int height) {
   mRequiresRebuild = true;
 }
 
-void Renderer::setSpecializationConstantInt(std::string const &name, int value) {
-  if (!mContext->isVulkanAvailable()) {
-    return;
-  }
-  if (mSpecializationConstants.find(name) != mSpecializationConstants.end()) {
-    if (mSpecializationConstants[name].dtype != DataType::eINT) {
-      throw std::runtime_error("failed to set specialization constant: the "
-                               "same constant can only have a single type");
-    }
-  } else {
-    mSpecializationConstants[name].dtype = DataType::eINT;
-    mSpecializationConstantsChanged = true;
-  }
-  if (mSpecializationConstants[name].intValue != value) {
-    mSpecializationConstantsChanged = true;
-    mSpecializationConstants[name].intValue = value;
-  }
-}
-
-void Renderer::setSpecializationConstantFloat(std::string const &name, float value) {
-  if (!mContext->isVulkanAvailable()) {
-    return;
-  }
-  if (mSpecializationConstants.find(name) != mSpecializationConstants.end()) {
-    if (mSpecializationConstants[name].dtype != DataType::eFLOAT) {
-      throw std::runtime_error("failed to set specialization constant: the "
-                               "same constant can only have a single type");
-    }
-  }
-  mSpecializationConstants[name].dtype = DataType::eFLOAT;
-  mSpecializationConstantsChanged = true;
-  mSpecializationConstants[name].floatValue = value;
-}
-
 void Renderer::recordShadows(scene::Scene &scene) {
   mShadowCommandBuffer.reset();
   mShadowCommandPool = mContext->createCommandPool();
@@ -1017,15 +983,15 @@ void Renderer::prepareRender(scene::Camera &camera) {
       }
     }
 
-    setSpecializationConstantInt("NUM_POINT_LIGHTS", numPointLights);
-    setSpecializationConstantInt("NUM_DIRECTIONAL_LIGHTS", numDirectionalLights);
-    setSpecializationConstantInt("NUM_SPOT_LIGHTS", numSpotLights);
+    setSpecializationConstant<int>("NUM_POINT_LIGHTS", numPointLights);
+    setSpecializationConstant<int>("NUM_DIRECTIONAL_LIGHTS", numDirectionalLights);
+    setSpecializationConstant<int>("NUM_SPOT_LIGHTS", numSpotLights);
 
-    setSpecializationConstantInt("NUM_POINT_LIGHT_SHADOWS", mPointLightShadowSizes.size());
-    setSpecializationConstantInt("NUM_DIRECTIONAL_LIGHT_SHADOWS",
-                                 mDirectionalLightShadowSizes.size());
-    setSpecializationConstantInt("NUM_SPOT_LIGHT_SHADOWS", mSpotLightShadowSizes.size());
-    setSpecializationConstantInt("NUM_TEXTURED_LIGHT_SHADOWS", mTexturedLightShadowSizes.size());
+    setSpecializationConstant<int>("NUM_POINT_LIGHT_SHADOWS", mPointLightShadowSizes.size());
+    setSpecializationConstant<int>("NUM_DIRECTIONAL_LIGHT_SHADOWS",
+                                   mDirectionalLightShadowSizes.size());
+    setSpecializationConstant<int>("NUM_SPOT_LIGHT_SHADOWS", mSpotLightShadowSizes.size());
+    setSpecializationConstant<int>("NUM_TEXTURED_LIGHT_SHADOWS", mTexturedLightShadowSizes.size());
   }
 
   if (mRequiresRebuild || mSpecializationConstantsChanged) {
@@ -1616,11 +1582,19 @@ void Renderer::setCustomCubemap(std::string const &name,
 }
 
 void Renderer::setCustomProperty(std::string const &name, int p) {
-  setSpecializationConstantInt(name, p);
+  setSpecializationConstant(name, p);
 }
 
 void Renderer::setCustomProperty(std::string const &name, float p) {
-  setSpecializationConstantFloat(name, p);
+  setSpecializationConstant(name, p);
+}
+
+void Renderer::setCustomProperty(std::string const &name, glm::vec3 p) {
+  setSpecializationConstant(name, p);
+}
+
+void Renderer::setCustomProperty(std::string const &name, glm::vec4 p) {
+  setSpecializationConstant(name, p);
 }
 
 std::shared_ptr<resource::SVRenderTarget>

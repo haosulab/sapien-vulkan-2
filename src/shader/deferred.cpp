@@ -1,6 +1,6 @@
 #include "svulkan2/shader/deferred.h"
-#include "reflect.h"
 #include "../common/logger.h"
+#include "reflect.h"
 
 namespace svulkan2 {
 namespace shader {
@@ -39,18 +39,15 @@ void DeferredPassParser::validate() const {
   for (auto &desc : mDescriptorSetDescriptions) {
     if (desc.type == UniformBindingType::eScene) {
       // validate constants
-      ASSERT(mSpecializationConstantLayout->elements.contains(
-                 "NUM_DIRECTIONAL_LIGHTS"),
+      ASSERT(mSpecializationConstantLayout->elements.contains("NUM_DIRECTIONAL_LIGHTS"),
              "[frag]NUM_DIRECTIONAL_LIGHTS is a required specialization"
              "constant when using SceneBuffer");
-      ASSERT(
-          mSpecializationConstantLayout->elements.contains("NUM_POINT_LIGHTS"),
-          "[frag]NUM_POINT_LIGHTS is a required specialization "
-          "constant when using SceneBuffer");
-      ASSERT(
-          mSpecializationConstantLayout->elements.contains("NUM_SPOT_LIGHTS"),
-          "[frag]NUM_SPOT_LIGHTS is a required specialization "
-          "constant when using SceneBuffer");
+      ASSERT(mSpecializationConstantLayout->elements.contains("NUM_POINT_LIGHTS"),
+             "[frag]NUM_POINT_LIGHTS is a required specialization "
+             "constant when using SceneBuffer");
+      ASSERT(mSpecializationConstantLayout->elements.contains("NUM_SPOT_LIGHTS"),
+             "[frag]NUM_SPOT_LIGHTS is a required specialization "
+             "constant when using SceneBuffer");
     }
   }
 
@@ -62,10 +59,8 @@ void DeferredPassParser::validate() const {
 }
 
 vk::UniqueRenderPass DeferredPassParser::createRenderPass(
-    vk::Device device, std::vector<vk::Format> const &colorFormats,
-    vk::Format depthFormat,
-    std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
-        &colorTargetLayouts,
+    vk::Device device, std::vector<vk::Format> const &colorFormats, vk::Format depthFormat,
+    std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const &colorTargetLayouts,
     std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,
     vk::SampleCountFlagBits sampleCount) const {
   std::vector<vk::AttachmentDescription> attachmentDescriptions;
@@ -82,48 +77,45 @@ vk::UniqueRenderPass DeferredPassParser::createRenderPass(
         colorTargetLayouts[i].first, colorTargetLayouts[i].second));
   }
 
-  vk::SubpassDescription subpassDescription(
-      {}, vk::PipelineBindPoint::eGraphics, 0, nullptr, colorAttachments.size(),
-      colorAttachments.data(), nullptr, nullptr);
+  vk::SubpassDescription subpassDescription({}, vk::PipelineBindPoint::eGraphics, 0, nullptr,
+                                            colorAttachments.size(), colorAttachments.data(),
+                                            nullptr, nullptr);
 
   // ensure previous writes are done
   // TODO: compute a better dependency
   std::array<vk::SubpassDependency, 2> deps{
-      vk::SubpassDependency(
-          VK_SUBPASS_EXTERNAL, 0,
-          vk::PipelineStageFlagBits::eColorAttachmentOutput |
-              vk::PipelineStageFlagBits::eEarlyFragmentTests |
-              vk::PipelineStageFlagBits::eLateFragmentTests,
-          vk::PipelineStageFlagBits::eFragmentShader |
-              vk::PipelineStageFlagBits::eColorAttachmentOutput,
-          vk::AccessFlagBits::eColorAttachmentWrite |
-              vk::AccessFlagBits::eDepthStencilAttachmentWrite,
-          vk::AccessFlagBits::eShaderRead |
-              vk::AccessFlagBits::eColorAttachmentWrite),
-      vk::SubpassDependency(
-          0, VK_SUBPASS_EXTERNAL,
-          vk::PipelineStageFlagBits::eColorAttachmentOutput |
-              vk::PipelineStageFlagBits::eEarlyFragmentTests |
-              vk::PipelineStageFlagBits::eLateFragmentTests,
-          vk::PipelineStageFlagBits::eFragmentShader |
-              vk::PipelineStageFlagBits::eColorAttachmentOutput,
-          vk::AccessFlagBits::eColorAttachmentWrite |
-              vk::AccessFlagBits::eDepthStencilAttachmentWrite,
-          vk::AccessFlagBits::eShaderRead |
-              vk::AccessFlagBits::eColorAttachmentWrite),
+      vk::SubpassDependency(VK_SUBPASS_EXTERNAL, 0,
+                            vk::PipelineStageFlagBits::eColorAttachmentOutput |
+                                vk::PipelineStageFlagBits::eEarlyFragmentTests |
+                                vk::PipelineStageFlagBits::eLateFragmentTests,
+                            vk::PipelineStageFlagBits::eFragmentShader |
+                                vk::PipelineStageFlagBits::eColorAttachmentOutput,
+                            vk::AccessFlagBits::eColorAttachmentWrite |
+                                vk::AccessFlagBits::eDepthStencilAttachmentWrite,
+                            vk::AccessFlagBits::eShaderRead |
+                                vk::AccessFlagBits::eColorAttachmentWrite),
+      vk::SubpassDependency(0, VK_SUBPASS_EXTERNAL,
+                            vk::PipelineStageFlagBits::eColorAttachmentOutput |
+                                vk::PipelineStageFlagBits::eEarlyFragmentTests |
+                                vk::PipelineStageFlagBits::eLateFragmentTests,
+                            vk::PipelineStageFlagBits::eFragmentShader |
+                                vk::PipelineStageFlagBits::eColorAttachmentOutput,
+                            vk::AccessFlagBits::eColorAttachmentWrite |
+                                vk::AccessFlagBits::eDepthStencilAttachmentWrite,
+                            vk::AccessFlagBits::eShaderRead |
+                                vk::AccessFlagBits::eColorAttachmentWrite),
   };
 
-  return device.createRenderPassUnique(vk::RenderPassCreateInfo(
-      {}, attachmentDescriptions.size(), attachmentDescriptions.data(), 1,
-      &subpassDescription, 2, deps.data()));
+  return device.createRenderPassUnique(
+      vk::RenderPassCreateInfo({}, attachmentDescriptions.size(), attachmentDescriptions.data(), 1,
+                               &subpassDescription, 2, deps.data()));
 }
 
 vk::UniquePipeline DeferredPassParser::createPipeline(
     vk::Device device, vk::PipelineLayout layout, vk::RenderPass renderPass,
     vk::CullModeFlags cullMode, vk::FrontFace frontFace, bool alphaBlend,
     vk::SampleCountFlagBits sampleCount,
-    std::map<std::string, SpecializationConstantValue> const
-        &specializationConstantInfo) const {
+    std::map<std::string, SpecializationConstantValue> const &specializationConstantInfo) const {
 
   // shaders
   vk::UniquePipelineCache pipelineCache =
@@ -137,50 +129,35 @@ vk::UniquePipeline DeferredPassParser::createPipeline(
   auto elems = mSpecializationConstantLayout->getElementsSorted();
   vk::SpecializationInfo fragSpecializationInfo;
   std::vector<vk::SpecializationMapEntry> entries;
-  std::vector<int> specializationData;
+  std::vector<std::byte> specializationData(mSpecializationConstantLayout->size());
   if (elems.size()) {
-    specializationData.resize(elems.size());
+    uint32_t offset = 0;
     for (uint32_t i = 0; i < elems.size(); ++i) {
-      if (specializationConstantInfo.find(elems[i].name) !=
-              specializationConstantInfo.end() &&
-          elems[i].dtype !=
-              specializationConstantInfo.at(elems[i].name).dtype) {
-        throw std::runtime_error("Type mismatch on specialization constant " +
-                                 elems[i].name + ".");
+      if (specializationConstantInfo.find(elems[i].name) != specializationConstantInfo.end() &&
+          elems[i].dtype != specializationConstantInfo.at(elems[i].name).dtype) {
+        throw std::runtime_error("Type mismatch on specialization constant " + elems[i].name +
+                                 ".");
       }
-      if (elems[i].dtype == DataType::eINT) {
-        entries.emplace_back(elems[i].id, i * sizeof(int), sizeof(int));
-        int v = specializationConstantInfo.find(elems[i].name) !=
-                        specializationConstantInfo.end()
-                    ? specializationConstantInfo.at(elems[i].name).intValue
-                    : elems[i].intValue;
-        std::memcpy(specializationData.data() + i, &v, sizeof(int));
-      } else if (elems[i].dtype == DataType::eFLOAT) {
-        entries.emplace_back(elems[i].id, i * sizeof(float), sizeof(float));
-        float v = specializationConstantInfo.find(elems[i].name) !=
-                          specializationConstantInfo.end()
-                      ? specializationConstantInfo.at(elems[i].name).floatValue
-                      : elems[i].floatValue;
-        std::memcpy(specializationData.data() + i, &v, sizeof(float));
+      entries.emplace_back(elems[i].id, offset, elems[i].dtype.size());
+      if (specializationConstantInfo.contains(elems[i].name)) {
+        std::memcpy(specializationData.data() + offset,
+                    specializationConstantInfo.at(elems[i].name).buffer, elems[i].dtype.size());
       } else {
-        throw std::runtime_error(
-            "only int and float are allowed specialization constants");
+        std::memcpy(specializationData.data() + offset, elems[i].buffer, elems[i].dtype.size());
       }
+      offset += elems[i].dtype.size();
     }
     fragSpecializationInfo = vk::SpecializationInfo(
-        entries.size(), entries.data(), specializationData.size() * sizeof(int),
-        specializationData.data());
+        entries.size(), entries.data(), specializationData.size(), specializationData.data());
   }
 
-  std::array<vk::PipelineShaderStageCreateInfo, 2>
-      pipelineShaderStageCreateInfos{
-          vk::PipelineShaderStageCreateInfo(
-              vk::PipelineShaderStageCreateFlags(),
-              vk::ShaderStageFlagBits::eVertex, vsm.get(), "main", nullptr),
-          vk::PipelineShaderStageCreateInfo(
-              vk::PipelineShaderStageCreateFlags(),
-              vk::ShaderStageFlagBits::eFragment, fsm.get(), "main",
-              elems.size() ? &fragSpecializationInfo : nullptr)};
+  std::array<vk::PipelineShaderStageCreateInfo, 2> pipelineShaderStageCreateInfos{
+      vk::PipelineShaderStageCreateInfo(vk::PipelineShaderStageCreateFlags(),
+                                        vk::ShaderStageFlagBits::eVertex, vsm.get(), "main",
+                                        nullptr),
+      vk::PipelineShaderStageCreateInfo(vk::PipelineShaderStageCreateFlags(),
+                                        vk::ShaderStageFlagBits::eFragment, fsm.get(), "main",
+                                        elems.size() ? &fragSpecializationInfo : nullptr)};
 
   // vertex input
   // drawing a single hardcoded triangle
@@ -192,8 +169,7 @@ vk::UniquePipeline DeferredPassParser::createPipeline(
 
   // input assembly
   vk::PipelineInputAssemblyStateCreateInfo pipelineInputAssemblyStateCreateInfo(
-      vk::PipelineInputAssemblyStateCreateFlags(),
-      vk::PrimitiveTopology::eTriangleList);
+      vk::PipelineInputAssemblyStateCreateFlags(), vk::PrimitiveTopology::eTriangleList);
 
   // viewport
   vk::PipelineViewportStateCreateInfo pipelineViewportStateCreateInfo(
@@ -201,19 +177,17 @@ vk::UniquePipeline DeferredPassParser::createPipeline(
 
   // rasterization
   vk::PipelineRasterizationStateCreateInfo pipelineRasterizationStateCreateInfo(
-      vk::PipelineRasterizationStateCreateFlags(), false, false,
-      vk::PolygonMode::eFill, vk::CullModeFlagBits::eNone,
-      vk::FrontFace::eCounterClockwise, false, 0.0f, 0.0f, 0.0f, 1.0f);
+      vk::PipelineRasterizationStateCreateFlags(), false, false, vk::PolygonMode::eFill,
+      vk::CullModeFlagBits::eNone, vk::FrontFace::eCounterClockwise, false, 0.0f, 0.0f, 0.0f,
+      1.0f);
 
   // multisample
-  vk::PipelineMultisampleStateCreateInfo pipelineMultisampleStateCreateInfo{
-      {}, sampleCount};
+  vk::PipelineMultisampleStateCreateInfo pipelineMultisampleStateCreateInfo{{}, sampleCount};
 
   // stencil
   vk::StencilOpState stencilOpState{};
   vk::PipelineDepthStencilStateCreateInfo pipelineDepthStencilStateCreateInfo(
-      vk::PipelineDepthStencilStateCreateFlags(), true, true,
-      vk::CompareOp::eLessOrEqual,
+      vk::PipelineDepthStencilStateCreateFlags(), true, true, vk::CompareOp::eLessOrEqual,
       false, // depth test enabled , depth write enabled, depth compare op,
              // depth Bounds Test Enable
       false, stencilOpState,
@@ -224,38 +198,29 @@ vk::UniquePipeline DeferredPassParser::createPipeline(
   vk::ColorComponentFlags colorComponentFlags(
       vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
       vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA);
-  std::vector<vk::PipelineColorBlendAttachmentState>
-      pipelineColorBlendAttachmentStates;
+  std::vector<vk::PipelineColorBlendAttachmentState> pipelineColorBlendAttachmentStates;
   for (uint32_t i = 0; i < numColorAttachments; ++i) {
-    pipelineColorBlendAttachmentStates.push_back(
-        vk::PipelineColorBlendAttachmentState(
-            false, vk::BlendFactor::eZero, vk::BlendFactor::eZero,
-            vk::BlendOp::eAdd, vk::BlendFactor::eZero, vk::BlendFactor::eZero,
-            vk::BlendOp::eAdd, colorComponentFlags));
+    pipelineColorBlendAttachmentStates.push_back(vk::PipelineColorBlendAttachmentState(
+        false, vk::BlendFactor::eZero, vk::BlendFactor::eZero, vk::BlendOp::eAdd,
+        vk::BlendFactor::eZero, vk::BlendFactor::eZero, vk::BlendOp::eAdd, colorComponentFlags));
   }
   vk::PipelineColorBlendStateCreateInfo pipelineColorBlendStateCreateInfo(
-      vk::PipelineColorBlendStateCreateFlags(), false, vk::LogicOp::eNoOp,
-      numColorAttachments, pipelineColorBlendAttachmentStates.data(),
-      {{1.0f, 1.0f, 1.0f, 1.0f}});
+      vk::PipelineColorBlendStateCreateFlags(), false, vk::LogicOp::eNoOp, numColorAttachments,
+      pipelineColorBlendAttachmentStates.data(), {{1.0f, 1.0f, 1.0f, 1.0f}});
 
   // dynamic
-  vk::DynamicState dynamicStates[2] = {vk::DynamicState::eViewport,
-                                       vk::DynamicState::eScissor};
+  vk::DynamicState dynamicStates[2] = {vk::DynamicState::eViewport, vk::DynamicState::eScissor};
   vk::PipelineDynamicStateCreateInfo pipelineDynamicStateCreateInfo(
       vk::PipelineDynamicStateCreateFlags(), 2, dynamicStates);
 
   vk::GraphicsPipelineCreateInfo graphicsPipelineCreateInfo(
       vk::PipelineCreateFlags(), pipelineShaderStageCreateInfos.size(),
-      pipelineShaderStageCreateInfos.data(),
-      &pipelineVertexInputStateCreateInfo,
-      &pipelineInputAssemblyStateCreateInfo, nullptr,
-      &pipelineViewportStateCreateInfo, &pipelineRasterizationStateCreateInfo,
-      &pipelineMultisampleStateCreateInfo, &pipelineDepthStencilStateCreateInfo,
-      &pipelineColorBlendStateCreateInfo, &pipelineDynamicStateCreateInfo,
-      layout, renderPass);
-  return device
-      .createGraphicsPipelineUnique(pipelineCache.get(),
-                                    graphicsPipelineCreateInfo)
+      pipelineShaderStageCreateInfos.data(), &pipelineVertexInputStateCreateInfo,
+      &pipelineInputAssemblyStateCreateInfo, nullptr, &pipelineViewportStateCreateInfo,
+      &pipelineRasterizationStateCreateInfo, &pipelineMultisampleStateCreateInfo,
+      &pipelineDepthStencilStateCreateInfo, &pipelineColorBlendStateCreateInfo,
+      &pipelineDynamicStateCreateInfo, layout, renderPass);
+  return device.createGraphicsPipelineUnique(pipelineCache.get(), graphicsPipelineCreateInfo)
       .value;
 }
 
@@ -280,8 +245,7 @@ std::vector<std::string> DeferredPassParser::getInputTextureNames() const {
   return result;
 }
 
-std::vector<UniformBindingType>
-DeferredPassParser::getUniformBindingTypes() const {
+std::vector<UniformBindingType> DeferredPassParser::getUniformBindingTypes() const {
   std::vector<UniformBindingType> result;
   for (auto &desc : mDescriptorSetDescriptions) {
     result.push_back(desc.type);

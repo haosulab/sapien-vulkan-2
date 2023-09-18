@@ -232,19 +232,31 @@ static vk::Format getRenderTargetFormat(RendererConfig const &config,
   if (config.textureFormat.contains(texname)) {
     return config.textureFormat.at(texname);
   }
-  switch (element.dtype) {
-  case DataType::eFLOAT:
-    return config.colorFormat1;
-    break;
-  case DataType::eFLOAT4:
-    return config.colorFormat4;
-    break;
-  case DataType::eUINT4:
-    return (vk::Format::eR32G32B32A32Uint);
-    break;
-  default:
-    throw std::runtime_error("only float, float4 and uint4 are allowed in output attachments");
+
+  if (element.dtype.kind == TypeKind::eFloat) {
+    if (element.dtype.bytes == 1) {
+      return config.colorFormat1;
+    }
+    if (element.dtype.bytes == 4) {
+      return config.colorFormat4;
+    }
+  } else if (element.dtype.kind == TypeKind::eInt) {
+    if (element.dtype.bytes == 1) {
+      return vk::Format::eR32Sint;
+    }
+    if (element.dtype.bytes == 4) {
+      return vk::Format::eR32G32B32A32Sint;
+    }
+  } else if (element.dtype.kind == TypeKind::eUint) {
+    if (element.dtype.bytes == 1) {
+      return vk::Format::eR32Uint;
+    }
+    if (element.dtype.bytes == 4) {
+      return vk::Format::eR32G32B32A32Uint;
+    }
   }
+  throw std::runtime_error(
+      "invalid output attachment format (supported: float, float4, int, int4, uint, uint4)");
 }
 
 std::future<void> ShaderPackInstance::loadAsync() {

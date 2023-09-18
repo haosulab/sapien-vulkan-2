@@ -10,7 +10,6 @@ struct SVTextureDescription {
   enum class SourceType { eFILE, eCUSTOM } source{SourceType::eCUSTOM};
 
   vk::Format format{vk::Format::eUndefined};
-  // enum class Format { eUINT8, eFLOAT, eUNKNOWN } format{Format::eUINT8};
 
   std::string filename{};
   uint32_t mipLevels{1};

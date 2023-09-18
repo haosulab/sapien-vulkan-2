@@ -1,6 +1,6 @@
 #pragma once
 
-#include "vk_format.h"
+#include "format.h"
 #include <vulkan/vulkan.hpp>
 
 #pragma GCC diagnostic push
