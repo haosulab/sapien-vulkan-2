@@ -115,8 +115,10 @@ loadEmbededRoughnessMetallicTexture(aiTexture const *texture, uint32_t mipLevels
   }
 
   return {
-      SVTexture::FromRawData(width, height, 1, vk::Format::eR8Unorm, toRawBytes(roughness), 2, mipLevels),
-      SVTexture::FromRawData(width, height, 1, vk::Format::eR8Unorm, toRawBytes(metallic), 2, mipLevels),
+      SVTexture::FromRawData(width, height, 1, vk::Format::eR8Unorm, toRawBytes(roughness), 2,
+                             mipLevels),
+      SVTexture::FromRawData(width, height, 1, vk::Format::eR8Unorm, toRawBytes(metallic), 2,
+                             mipLevels),
   };
 }
 
@@ -511,7 +513,7 @@ std::future<void> SVModel::loadAsync() {
         logger::warn("A mesh in the file has no triangles: {}", path);
         continue;
       }
-      auto svmesh = std::make_shared<SVMesh>();
+      auto svmesh = std::make_shared<SVMeshRigid>();
       svmesh->setIndices(indices);
       svmesh->setVertexAttribute("position", positions);
       svmesh->setVertexAttribute("normal", normals);
@@ -539,8 +541,8 @@ void SVModel::buildBLAS(bool update) {
   std::vector<uint32_t> maxPrimitiveCount;
   for (auto shape : getShapes()) {
     geometries.push_back(shape->mesh->getASGeometry());
-    ranges.push_back({shape->mesh->getIndexCount() / 3, 0, 0, 0});
-    maxPrimitiveCount.push_back(shape->mesh->getIndexCapacity() / 3);
+    ranges.push_back({shape->mesh->getTriangleCount(), 0, 0, 0});
+    maxPrimitiveCount.push_back(shape->mesh->getTriangleCount());
   }
 
   mBLAS = std::make_unique<core::BLAS>(geometries, ranges, maxPrimitiveCount, !update, update);
@@ -550,7 +552,7 @@ void SVModel::buildBLAS(bool update) {
 void SVModel::recordUpdateBLAS(vk::CommandBuffer commandBuffer) {
   std::vector<vk::AccelerationStructureBuildRangeInfoKHR> ranges;
   for (auto shape : getShapes()) {
-    ranges.push_back({shape->mesh->getIndexCount() / 3, 0, 0, 0});
+    ranges.push_back({shape->mesh->getTriangleCount(), 0, 0, 0});
   }
   mBLAS->recordUpdate(commandBuffer, ranges);
 }

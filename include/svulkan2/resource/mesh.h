@@ -7,66 +7,98 @@
 
 namespace svulkan2 {
 namespace resource {
+class SVMeshRigid;
 
 class SVMesh {
 public:
-  SVMesh(bool dynamic = false, uint32_t vertexCapacity = 0, uint32_t indexCapacity = 0);
-
-  void setIndices(std::vector<uint32_t> const &indices);
-  std::vector<uint32_t> const &getIndices() const;
-
-  void setVertexAttribute(std::string const &name, std::vector<float> const &attrib,
-                          bool upload = false);
-  std::vector<float> const &getVertexAttribute(std::string const &name) const;
-  bool hasVertexAttribute(std::string const &name) const;
-
   uint32_t getVertexSize() const;
-  uint32_t getVertexCount();
-  uint32_t getVertexCapacity();
+  uint32_t getVertexCount() const { return mVertexCount; }
+  uint32_t getTriangleCount() const { return mTriangleCount; }
 
-  void uploadToDevice();
-  void removeFromDevice();
-
-  vk::AccelerationStructureGeometryKHR getASGeometry();
-
-  inline bool isOnDevice() const { return mOnDevice; }
-
+  bool isOnDevice() const { return mVertexBuffer != nullptr; }
   core::Buffer &getVertexBuffer();
   core::Buffer &getIndexBuffer();
 
-  uint32_t getIndexCount();
-  uint32_t getIndexCapacity();
+  virtual void setIndices(std::vector<uint32_t> const &indices) = 0;
+  virtual std::vector<uint32_t> const &getIndices() const = 0;
 
-  inline bool isDynamic() const { return mDynamic; }
+  virtual void setVertexAttribute(std::string const &name, std::vector<float> const &attrib) = 0;
+  virtual std::vector<float> const &getVertexAttribute(std::string const &name) const = 0;
+  virtual bool hasVertexAttribute(std::string const &name) const = 0;
 
-  void exportToFile(std::string const &filename) const;
+  virtual void uploadToDevice() = 0;
+  virtual void removeFromDevice() = 0;
 
-  static std::shared_ptr<SVMesh> CreateUVSphere(int segments, int rings);
-  static std::shared_ptr<SVMesh> CreateCapsule(float radius, float halfLength, int segments,
-                                               int halfRings);
-  static std::shared_ptr<SVMesh> CreateCone(int segments);
-  static std::shared_ptr<SVMesh> CreateCube();
-  static std::shared_ptr<SVMesh> CreateYZPlane();
-  static std::shared_ptr<SVMesh> CreateCylinder(int segments);
-  static std::shared_ptr<SVMesh> Create(std::vector<float> const &position,
-                                        std::vector<uint32_t> const &index);
+  vk::AccelerationStructureGeometryKHR getASGeometry();
 
-private:
-  bool mDynamic;
-  uint32_t mVertexCapacity{0}; // max vertex count
-  uint32_t mIndexCapacity{0};  // max index count (3 * triangles)
+  static std::shared_ptr<SVMeshRigid> CreateUVSphere(int segments, int rings);
+  static std::shared_ptr<SVMeshRigid> CreateCapsule(float radius, float halfLength, int segments,
+                                                    int halfRings);
+  static std::shared_ptr<SVMeshRigid> CreateCone(int segments);
+  static std::shared_ptr<SVMeshRigid> CreateCube();
+  static std::shared_ptr<SVMeshRigid> CreateYZPlane();
+  static std::shared_ptr<SVMeshRigid> CreateCylinder(int segments);
+  static std::shared_ptr<SVMeshRigid> Create(std::vector<float> const &position,
+                                             std::vector<uint32_t> const &index);
 
-  std::vector<uint32_t> mIndices;
-  uint32_t mIndexCount{};
-  std::unordered_map<std::string, std::vector<float>> mAttributes;
+protected:
+  size_t mTriangleCount{};
+  size_t mVertexCount{};
 
-  bool mDirty{true};
-  bool mOnDevice{false};
-  size_t mVertexCount{0}; // set only when upload
   std::unique_ptr<core::Buffer> mVertexBuffer;
   std::unique_ptr<core::Buffer> mIndexBuffer;
-
   std::mutex mUploadingMutex;
 };
+
+class SVMeshRigid : public SVMesh {
+public:
+  SVMeshRigid();
+
+  void setIndices(std::vector<uint32_t> const &indices) override;
+  std::vector<uint32_t> const &getIndices() const override;
+
+  void setVertexAttribute(std::string const &name, std::vector<float> const &attrib) override;
+  std::vector<float> const &getVertexAttribute(std::string const &name) const override;
+  bool hasVertexAttribute(std::string const &name) const override;
+
+  void uploadToDevice() override;
+  void removeFromDevice() override;
+
+  uint32_t getTriangleCount();
+  // void exportToFile(std::string const &filename) const;
+
+private:
+  std::vector<uint32_t> mIndices;
+  std::unordered_map<std::string, std::vector<float>> mAttributes;
+};
+
+class SVMeshDeformable : public SVMesh {
+public:
+  SVMeshDeformable(uint32_t maxVertexCount = 0, uint32_t maxTriangleCount = 0);
+
+  uint32_t getMaxVertexCount() { return mMaxVertexCount; }
+  uint32_t getMaxTriangleCount() { return mMaxTriangleCount; }
+
+  void setVertexCount(uint32_t vertexCount);
+  void setTriangleCount(uint32_t triangleCount);
+
+  void setIndices(std::vector<uint32_t> const &indices) override;
+  std::vector<uint32_t> const &getIndices() const override;
+
+  void setVertexAttribute(std::string const &name, std::vector<float> const &attrib) override;
+  std::vector<float> const &getVertexAttribute(std::string const &name) const override;
+  bool hasVertexAttribute(std::string const &name) const override;
+
+  void uploadToDevice() override;
+  void removeFromDevice() override;
+
+private:
+  uint32_t mMaxVertexCount{};
+  uint32_t mMaxTriangleCount{};
+
+  std::vector<uint32_t> mIndices;
+  std::unordered_map<std::string, std::vector<float>> mAttributes;
+};
+
 } // namespace resource
 } // namespace svulkan2

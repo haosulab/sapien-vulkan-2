@@ -708,7 +708,7 @@ std::unique_ptr<renderer::GuiWindow> Context::createWindow(uint32_t width, uint3
 std::shared_ptr<resource::SVMesh> Context::createTriangleMesh(
     std::vector<glm::vec3> const &vertices, std::vector<uint32_t> const &indices,
     std::vector<glm::vec3> const &normals, std::vector<glm::vec2> const &uvs) {
-  auto mesh = std::make_shared<resource::SVMesh>();
+  auto mesh = std::make_shared<resource::SVMeshRigid>();
 
   std::vector<float> vertices_;
   for (auto &v : vertices) {

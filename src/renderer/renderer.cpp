@@ -495,7 +495,7 @@ void Renderer::recordShadows(scene::Scene &scene) {
                                                   std::vector<vk::DeviceSize>(1, 0));
           mShadowCommandBuffer->bindIndexBuffer(shape->mesh->getIndexBuffer().getVulkanBuffer(), 0,
                                                 vk::IndexType::eUint32);
-          mShadowCommandBuffer->drawIndexed(shape->mesh->getIndexCount(), 1, 0, 0, 0);
+          mShadowCommandBuffer->drawIndexed(shape->mesh->getTriangleCount() * 3, 1, 0, 0, 0);
         }
       }
       mShadowCommandBuffer->endRenderPass();
@@ -861,7 +861,7 @@ void Renderer::recordRenderPasses(scene::Scene &scene) {
                                                 std::vector<vk::DeviceSize>(1, 0));
         mRenderCommandBuffer->bindIndexBuffer(shape->mesh->getIndexBuffer().getVulkanBuffer(), 0,
                                               vk::IndexType::eUint32);
-        mRenderCommandBuffer->drawIndexed(shape->mesh->getIndexCount(), 1, 0, 0, 0);
+        mRenderCommandBuffer->drawIndexed(shape->mesh->getTriangleCount() * 3, 1, 0, 0, 0);
       }
       gbufferIndex++;
     } else if (auto linePass = std::dynamic_pointer_cast<shader::LinePassParser>(pass)) {
