@@ -31,14 +31,14 @@ public:
 
   vk::AccelerationStructureGeometryKHR getASGeometry();
 
-  static std::shared_ptr<SVMeshRigid> CreateUVSphere(int segments, int rings);
-  static std::shared_ptr<SVMeshRigid> CreateCapsule(float radius, float halfLength, int segments,
+  static std::shared_ptr<SVMesh> CreateUVSphere(int segments, int rings);
+  static std::shared_ptr<SVMesh> CreateCapsule(float radius, float halfLength, int segments,
                                                     int halfRings);
-  static std::shared_ptr<SVMeshRigid> CreateCone(int segments);
-  static std::shared_ptr<SVMeshRigid> CreateCube();
-  static std::shared_ptr<SVMeshRigid> CreateYZPlane();
-  static std::shared_ptr<SVMeshRigid> CreateCylinder(int segments);
-  static std::shared_ptr<SVMeshRigid> Create(std::vector<float> const &position,
+  static std::shared_ptr<SVMesh> CreateCone(int segments);
+  static std::shared_ptr<SVMesh> CreateCube();
+  static std::shared_ptr<SVMesh> CreateYZPlane();
+  static std::shared_ptr<SVMesh> CreateCylinder(int segments);
+  static std::shared_ptr<SVMesh> Create(std::vector<float> const &position,
                                              std::vector<uint32_t> const &index);
 
 protected:

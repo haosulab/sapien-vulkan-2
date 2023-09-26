@@ -47,7 +47,8 @@ std::shared_ptr<SVCubemap> SVCubemap::FromData(uint32_t size, vk::Format format,
                            .minFilter = minFilter,
                            .srgb = srgb};
   std::vector<std::vector<char>> vdata(data.begin(), data.end());
-  texture->mImage = SVImage::FromRawData(size, size, 1, format, vdata, mipLevels);
+  texture->mImage =
+      SVImage::FromRawData(vk::ImageType::e2D, size, size, 1, format, vdata, mipLevels);
   texture->mImage->setCreateFlags(vk::ImageCreateFlagBits::eCubeCompatible);
   texture->mLoaded = true;
   return texture;

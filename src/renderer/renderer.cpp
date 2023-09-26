@@ -151,7 +151,7 @@ void Renderer::prepareShadowRenderTargets() {
   {
     for (uint32_t size : mPointLightShadowSizes) {
       auto pointShadowImage = std::make_shared<core::Image>(
-          vk::Extent3D{size, size, 1}, format,
+          vk::ImageType::e2D, vk::Extent3D{size, size, 1}, format,
           vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled,
           VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, vk::SampleCountFlagBits::e1, 1, 6,
           vk::ImageTiling::eOptimal, vk::ImageCreateFlagBits::eCubeCompatible);
@@ -194,7 +194,7 @@ void Renderer::prepareShadowRenderTargets() {
   {
     for (uint32_t size : mDirectionalLightShadowSizes) {
       auto directionalShadowImage = std::make_shared<core::Image>(
-          vk::Extent3D{size, size, 1}, format,
+          vk::ImageType::e2D, vk::Extent3D{size, size, 1}, format,
           vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled,
           VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, vk::SampleCountFlagBits::e1, 1, 1);
 
@@ -236,7 +236,7 @@ void Renderer::prepareShadowRenderTargets() {
   {
     for (uint32_t size : mSpotLightShadowSizes) {
       auto shadowImage = std::make_shared<core::Image>(
-          vk::Extent3D{size, size, 1}, format,
+          vk::ImageType::e2D, vk::Extent3D{size, size, 1}, format,
           vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled,
           VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, vk::SampleCountFlagBits::e1, 1, 1);
 
@@ -273,7 +273,7 @@ void Renderer::prepareShadowRenderTargets() {
   {
     for (uint32_t size : mTexturedLightShadowSizes) {
       auto shadowImage = std::make_shared<core::Image>(
-          vk::Extent3D{size, size, 1}, format,
+          vk::ImageType::e2D, vk::Extent3D{size, size, 1}, format,
           vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled,
           VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, vk::SampleCountFlagBits::e1, 1, 1);
 

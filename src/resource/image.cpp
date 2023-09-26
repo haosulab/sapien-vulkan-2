@@ -9,8 +9,8 @@ namespace fs = std::filesystem;
 namespace svulkan2 {
 namespace resource {
 
-std::shared_ptr<SVImage> SVImage::FromRawData(uint32_t width, uint32_t height, uint32_t depth,
-                                              vk::Format format,
+std::shared_ptr<SVImage> SVImage::FromRawData(vk::ImageType type, uint32_t width, uint32_t height,
+                                              uint32_t depth, vk::Format format,
                                               std::vector<std::vector<char>> const &data,
                                               uint32_t mipLevels) {
   size_t imageSize = width * height * depth;
@@ -26,6 +26,7 @@ std::shared_ptr<SVImage> SVImage::FromRawData(uint32_t width, uint32_t height, u
                          .filenames = {},
                          .mipLevels = mipLevels};
 
+  image->mType = type;
   image->mFormat = format;
   image->mWidth = width;
   image->mHeight = height;
@@ -34,93 +35,6 @@ std::shared_ptr<SVImage> SVImage::FromRawData(uint32_t width, uint32_t height, u
   image->mLoaded = true;
   return image;
 }
-
-// std::shared_ptr<SVImage> SVImage::FromData(uint32_t width, uint32_t height, uint32_t channels,
-//                                            std::vector<std::vector<uint8_t>> const &data,
-//                                            uint32_t mipLevels) {
-//   if (channels != 1 && channels != 4) {
-//     throw std::runtime_error("failed to create image: image must have 1 or 4 channels");
-//   }
-//   for (auto &d : data) {
-//     if (width * height * channels != d.size()) {
-//       throw std::runtime_error("failed to create image: image dimension does "
-//                                "not match image data size");
-//     }
-//   }
-//   auto image = std::shared_ptr<SVImage>(new SVImage);
-//   image->mDescription = {.source = SVImageDescription::SourceType::eCUSTOM,
-//                          .format = SVImageDescription::Format::eUINT8,
-//                          .filenames = {},
-//                          .mipLevels = mipLevels};
-//   image->mWidth = width;
-//   image->mHeight = height;
-//   image->mChannels = channels;
-//   image->mData = data;
-//   image->mLoaded = true;
-//   return image;
-// }
-
-// std::shared_ptr<SVImage> SVImage::FromData(uint32_t width, uint32_t height, uint32_t depth,
-//                                            uint32_t channels,
-//                                            std::vector<std::vector<float>> const &data,
-//                                            uint32_t mipLevels) {
-//   if (channels != 1 && channels != 4) {
-//     throw std::runtime_error("failed to create image: image must have 1 or 4 channels");
-//   }
-//   for (auto &d : data) {
-//     if (width * height * depth * channels != d.size()) {
-//       throw std::runtime_error("failed to create image: image dimension does "
-//                                "not match image data size");
-//     }
-//   }
-//   auto image = std::shared_ptr<SVImage>(new SVImage);
-//   image->mDescription = {.source = SVImageDescription::SourceType::eCUSTOM,
-//                          .format = SVImageDescription::Format::eFLOAT,
-//                          .filenames = {},
-//                          .mipLevels = mipLevels};
-//   image->mWidth = width;
-//   image->mHeight = height;
-//   image->mDepth = depth;
-//   image->mChannels = channels;
-//   image->mFloatData = data;
-//   image->mLoaded = true;
-//   return image;
-// }
-
-// std::shared_ptr<SVImage> SVImage::FromData(uint32_t width, uint32_t height, uint32_t channels,
-//                                            std::vector<std::vector<float>> const &data,
-//                                            uint32_t mipLevels) {
-//   return FromData(width, height, 1, channels, data, mipLevels);
-// }
-
-// std::shared_ptr<SVImage> SVImage::FromData(uint32_t width, uint32_t height, uint32_t channels,
-//                                            std::vector<uint8_t> const &data, uint32_t mipLevels)
-//                                            {
-//   return SVImage::FromData(width, height, channels, std::vector<std::vector<uint8_t>>{data},
-//                            mipLevels);
-// }
-
-// std::shared_ptr<SVImage> SVImage::FromData(uint32_t width, uint32_t height, uint32_t channels,
-//                                            std::vector<float> const &data, uint32_t mipLevels) {
-//   return SVImage::FromData(width, height, channels, std::vector<std::vector<float>>{data},
-//                            mipLevels);
-// }
-
-// std::shared_ptr<SVImage> SVImage::FromData(uint32_t width, uint32_t height, uint32_t depth,
-//                                            uint32_t channels, std::vector<float> const &data,
-//                                            uint32_t mipLevels) {
-//   return SVImage::FromData(width, height, depth, channels,
-//   std::vector<std::vector<float>>{data},
-//                            mipLevels);
-// }
-
-// std::shared_ptr<SVImage> SVImage::FromFile(std::string const &filename, uint32_t mipLevels) {
-//   auto image = std::shared_ptr<SVImage>(new SVImage);
-//   image->mDescription = SVImageDescription{.source = SVImageDescription::SourceType::eFILE,
-//                                            .filenames = {filename},
-//                                            .mipLevels = mipLevels};
-//   return image;
-// }
 
 std::shared_ptr<SVImage> SVImage::FromFile(std::vector<std::string> const &filenames,
                                            uint32_t mipLevels) {
@@ -134,6 +48,7 @@ std::shared_ptr<SVImage> SVImage::FromFile(std::vector<std::string> const &filen
 std::shared_ptr<SVImage> SVImage::FromDeviceImage(std::unique_ptr<core::Image> image) {
   auto result = std::shared_ptr<SVImage>(new SVImage);
   result->mDescription = SVImageDescription{.source = SVImageDescription::SourceType::eDEVICE};
+  result->mType = image->getType();
   result->mFormat = image->getFormat();
   result->mWidth = image->getExtent().width;
   result->mHeight = image->getExtent().height;
@@ -172,8 +87,8 @@ void SVImage::uploadToDevice(bool generateMipmaps) {
     throw std::runtime_error("failed to upload to device: image format is not determined");
   }
 
-  mImage = std::make_unique<core::Image>(vk::Extent3D{mWidth, mHeight, mDepth}, mFormat, mUsage,
-                                         VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY,
+  mImage = std::make_unique<core::Image>(mType, vk::Extent3D{mWidth, mHeight, mDepth}, mFormat,
+                                         mUsage, VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY,
                                          vk::SampleCountFlagBits::e1, mDescription.mipLevels,
                                          mRawData.size(), vk::ImageTiling::eOptimal,
                                          mCreateFlags | vk::ImageCreateFlagBits::eMutableFormat);

@@ -18,6 +18,7 @@ namespace core {
 class Image {
 private:
   std::shared_ptr<class Context> mContext;
+  vk::ImageType mType;
   vk::Extent3D mExtent;
   vk::Format mFormat;
   vk::ImageUsageFlags mUsageFlags;
@@ -41,11 +42,10 @@ private:
   void generateMipmaps(vk::CommandBuffer cb, uint32_t arrayLayer = 0);
 
 public:
-  Image(vk::Extent3D extent, vk::Format format, vk::ImageUsageFlags usageFlags,
+  Image(vk::ImageType type, vk::Extent3D extent, vk::Format format, vk::ImageUsageFlags usageFlags,
         VmaMemoryUsage memoryUsage,
-        vk::SampleCountFlagBits sampleCount = vk::SampleCountFlagBits::e1,
-        uint32_t mipLevels = 1, uint32_t arrayLayers = 1,
-        vk::ImageTiling tiling = vk::ImageTiling::eOptimal,
+        vk::SampleCountFlagBits sampleCount = vk::SampleCountFlagBits::e1, uint32_t mipLevels = 1,
+        uint32_t arrayLayers = 1, vk::ImageTiling tiling = vk::ImageTiling::eOptimal,
         vk::ImageCreateFlags flags = {});
 
   Image(const Image &) = delete;
@@ -57,33 +57,27 @@ public:
 
   vk::Image getVulkanImage() const { return mImage; }
 
-  void uploadLevel(void const *data, size_t size, uint32_t arrayLayer,
-                   uint32_t mipLevel);
+  void uploadLevel(void const *data, size_t size, uint32_t arrayLayer, uint32_t mipLevel);
 
-  void upload(void const *data, size_t size, uint32_t arrayLayer = 0,
-              bool mipmaps = true);
+  void upload(void const *data, size_t size, uint32_t arrayLayer = 0, bool mipmaps = true);
   template <typename DataType>
-  void upload(std::vector<DataType> const &data, uint32_t arrayLayer = 0,
-              bool mipmaps = true) {
+  void upload(std::vector<DataType> const &data, uint32_t arrayLayer = 0, bool mipmaps = true) {
     upload(data.data(), data.size() * sizeof(DataType), arrayLayer, mipmaps);
   }
 
-  void copyToBuffer(vk::Buffer buffer, size_t size, vk::Offset3D offset,
-                    vk::Extent3D extent, uint32_t arrayLayer = 0);
-  void recordCopyToBuffer(vk::CommandBuffer cb, vk::Buffer buffer,
-                          size_t bufferOffset, size_t size, vk::Offset3D offset,
-                          vk::Extent3D extent, uint32_t arrayLayer = 0);
-  void recordCopyFromBuffer(vk::CommandBuffer cb, vk::Buffer buffer,
-                            size_t bufferOffset, size_t size,
-                            vk::Offset3D offset, vk::Extent3D extent,
+  void copyToBuffer(vk::Buffer buffer, size_t size, vk::Offset3D offset, vk::Extent3D extent,
+                    uint32_t arrayLayer = 0);
+  void recordCopyToBuffer(vk::CommandBuffer cb, vk::Buffer buffer, size_t bufferOffset,
+                          size_t size, vk::Offset3D offset, vk::Extent3D extent,
+                          uint32_t arrayLayer = 0);
+  void recordCopyFromBuffer(vk::CommandBuffer cb, vk::Buffer buffer, size_t bufferOffset,
+                            size_t size, vk::Offset3D offset, vk::Extent3D extent,
                             uint32_t arrayLayer = 0);
 
-  void download(void *data, size_t size, vk::Offset3D offset,
-                vk::Extent3D extent, uint32_t arrayLayer = 0,
-                uint32_t mipLevel = 0);
+  void download(void *data, size_t size, vk::Offset3D offset, vk::Extent3D extent,
+                uint32_t arrayLayer = 0, uint32_t mipLevel = 0);
   void download(void *data, size_t size, uint32_t arrayLayer = 0);
-  void downloadPixel(void *data, size_t pixelSize, vk::Offset3D offset,
-                     uint32_t arrayLayer = 0);
+  void downloadPixel(void *data, size_t pixelSize, vk::Offset3D offset, uint32_t arrayLayer = 0);
 
   template <typename DataType>
   std::vector<DataType> download(vk::Offset3D offset, vk::Extent3D extent,
@@ -93,19 +87,16 @@ public:
     }
     static_assert(sizeof(DataType) == 1 ||
                   sizeof(DataType) == 4); // only support char, int or float
-    size_t size =
-        getFormatSize(mFormat) * extent.width * extent.height * extent.depth;
+    size_t size = getFormatSize(mFormat) * extent.width * extent.height * extent.depth;
     std::vector<DataType> data(size / sizeof(DataType));
     download(data.data(), size, offset, extent, arrayLayer);
     return data;
   }
-  template <typename DataType>
-  std::vector<DataType> download(uint32_t arrayLayer = 0) {
+  template <typename DataType> std::vector<DataType> download(uint32_t arrayLayer = 0) {
     return download<DataType>({0, 0, 0}, mExtent, arrayLayer);
   }
   template <typename DataType>
-  std::vector<DataType> downloadPixel(vk::Offset3D offset,
-                                      uint32_t arrayLayer = 0) {
+  std::vector<DataType> downloadPixel(vk::Offset3D offset, uint32_t arrayLayer = 0) {
     if (!isFormatCompatible<DataType>(mFormat)) {
       throw std::runtime_error("Download pixel failed: incompatible format");
     }
@@ -116,22 +107,17 @@ public:
   void setCurrentLayout(vk::ImageLayout layout) { mCurrentLayout = layout; };
   vk::ImageLayout getCurrentLayout() const { return mCurrentLayout; };
 
-  void transitionLayout(vk::CommandBuffer commandBuffer,
-                        vk::ImageLayout oldImageLayout,
-                        vk::ImageLayout newImageLayout,
-                        vk::AccessFlags sourceAccessMask,
-                        vk::AccessFlags destAccessMask,
-                        vk::PipelineStageFlags sourceStage,
+  void transitionLayout(vk::CommandBuffer commandBuffer, vk::ImageLayout oldImageLayout,
+                        vk::ImageLayout newImageLayout, vk::AccessFlags sourceAccessMask,
+                        vk::AccessFlags destAccessMask, vk::PipelineStageFlags sourceStage,
                         vk::PipelineStageFlags destStage, uint32_t arrayLayer);
 
-  void transitionLayout(vk::CommandBuffer commandBuffer,
-                        vk::ImageLayout oldImageLayout,
-                        vk::ImageLayout newImageLayout,
-                        vk::AccessFlags sourceAccessMask,
-                        vk::AccessFlags destAccessMask,
-                        vk::PipelineStageFlags sourceStage,
+  void transitionLayout(vk::CommandBuffer commandBuffer, vk::ImageLayout oldImageLayout,
+                        vk::ImageLayout newImageLayout, vk::AccessFlags sourceAccessMask,
+                        vk::AccessFlags destAccessMask, vk::PipelineStageFlags sourceStage,
                         vk::PipelineStageFlags destStage);
 
+  inline vk::ImageType getType() const { return mType; }
   inline vk::Extent3D getExtent() const { return mExtent; }
   inline vk::Format const &getFormat() const { return mFormat; }
   inline uint32_t getMipLevels() const { return mMipLevels; }

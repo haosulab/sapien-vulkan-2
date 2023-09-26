@@ -22,6 +22,7 @@ class SVImage {
   SVImageDescription mDescription{};
   std::unique_ptr<core::Image> mImage{};
 
+  vk::ImageType mType{vk::ImageType::e2D};
   vk::Format mFormat{vk::Format::eUndefined};
   uint32_t mWidth{1};
   uint32_t mHeight{1};
@@ -48,35 +49,10 @@ class SVImage {
   std::mutex mUploadingMutex;
 
 public:
-  static std::shared_ptr<SVImage> FromRawData(uint32_t width, uint32_t height, uint32_t depth,
-                                              vk::Format format,
+  static std::shared_ptr<SVImage> FromRawData(vk::ImageType type, uint32_t width, uint32_t height,
+                                              uint32_t depth, vk::Format format,
                                               std::vector<std::vector<char>> const &data,
                                               uint32_t mipLevels = 1);
-
-  // static std::shared_ptr<SVImage> FromData(uint32_t width, uint32_t height, uint32_t channels,
-  //                                          std::vector<uint8_t> const &data,
-  //                                          uint32_t mipLevels = 1);
-  // static std::shared_ptr<SVImage> FromData(uint32_t width, uint32_t height, uint32_t channels,
-  //                                          std::vector<std::vector<uint8_t>> const &data,
-  //                                          uint32_t mipLevels = 1);
-
-  // static std::shared_ptr<SVImage> FromData(uint32_t width, uint32_t height, uint32_t depth,
-  //                                          uint32_t channels, std::vector<float> const &data,
-  //                                          uint32_t mipLevels);
-
-  // static std::shared_ptr<SVImage> FromData(uint32_t width, uint32_t height, uint32_t channels,
-  //                                          std::vector<float> const &data, uint32_t mipLevels =
-  //                                          1);
-
-  // static std::shared_ptr<SVImage> FromData(uint32_t width, uint32_t height, uint32_t depth,
-  //                                          uint32_t channels,
-  //                                          std::vector<std::vector<float>> const &data,
-  //                                          uint32_t mipLevels);
-  // static std::shared_ptr<SVImage> FromData(uint32_t width, uint32_t height, uint32_t channels,
-  //                                          std::vector<std::vector<float>> const &data,
-  //                                          uint32_t mipLevels = 1);
-
-  // static std::shared_ptr<SVImage> FromFile(std::string const &filename, uint32_t mipLevels = 1);
 
   static std::shared_ptr<SVImage> FromFile(std::vector<std::string> const &filenames,
                                            uint32_t mipLevels = 1);

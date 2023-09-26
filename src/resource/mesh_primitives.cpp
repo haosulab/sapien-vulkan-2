@@ -57,7 +57,7 @@ static std::shared_ptr<SVMeshRigid> makeMesh(std::vector<glm::vec3> const &verti
   return mesh;
 }
 
-std::shared_ptr<SVMeshRigid> SVMesh::CreateUVSphere(int segments, int rings) {
+std::shared_ptr<SVMesh> SVMesh::CreateUVSphere(int segments, int rings) {
   std::vector<glm::vec3> vertices;
   std::vector<glm::vec2> uvs;
   std::vector<glm::ivec3> indices;
@@ -108,8 +108,8 @@ std::shared_ptr<SVMeshRigid> SVMesh::CreateUVSphere(int segments, int rings) {
   return makeMesh(vertices, indices, vertices, uvs);
 }
 
-std::shared_ptr<SVMeshRigid> SVMesh::CreateCapsule(float radius, float halfLength, int segments,
-                                                   int halfRings) {
+std::shared_ptr<SVMesh> SVMesh::CreateCapsule(float radius, float halfLength, int segments,
+                                              int halfRings) {
   std::vector<glm::vec3> vertices;
   std::vector<glm::vec3> normals;
   std::vector<glm::vec2> uvs;
@@ -181,7 +181,7 @@ std::shared_ptr<SVMeshRigid> SVMesh::CreateCapsule(float radius, float halfLengt
   return makeMesh(vertices, indices, normals, uvs);
 }
 
-std::shared_ptr<SVMeshRigid> SVMesh::CreateCone(int segments) {
+std::shared_ptr<SVMesh> SVMesh::CreateCone(int segments) {
   std::vector<glm::vec3> vertices;
   std::vector<glm::vec3> normals;
   std::vector<glm::vec2> uvs;
@@ -220,7 +220,7 @@ std::shared_ptr<SVMeshRigid> SVMesh::CreateCone(int segments) {
   return makeMesh(vertices, indices, normals, uvs);
 }
 
-std::shared_ptr<SVMeshRigid> SVMesh::CreateCube() {
+std::shared_ptr<SVMesh> SVMesh::CreateCube() {
   std::vector<glm::vec3> vertices;
   std::vector<glm::vec3> normals;
   std::vector<glm::vec2> uvs;
@@ -320,7 +320,7 @@ std::shared_ptr<SVMeshRigid> SVMesh::CreateCube() {
   return makeMesh(vertices, indices, normals, uvs);
 }
 
-std::shared_ptr<SVMeshRigid> SVMesh::CreateYZPlane() {
+std::shared_ptr<SVMesh> SVMesh::CreateYZPlane() {
   std::vector<glm::vec3> vertices;
   std::vector<glm::vec3> normals;
   std::vector<glm::vec2> uvs;
@@ -344,7 +344,7 @@ std::shared_ptr<SVMeshRigid> SVMesh::CreateYZPlane() {
   return makeMesh(vertices, indices, normals, uvs);
 }
 
-std::shared_ptr<SVMeshRigid> SVMesh::CreateCylinder(int segments) {
+std::shared_ptr<SVMesh> SVMesh::CreateCylinder(int segments) {
   std::vector<glm::vec3> vertices;
   std::vector<glm::vec3> normals;
   std::vector<glm::vec2> uvs;
@@ -401,8 +401,8 @@ std::shared_ptr<SVMeshRigid> SVMesh::CreateCylinder(int segments) {
   return makeMesh(vertices, indices, normals, uvs);
 }
 
-std::shared_ptr<SVMeshRigid> SVMesh::Create(std::vector<float> const &position,
-                                            std::vector<uint32_t> const &index) {
+std::shared_ptr<SVMesh> SVMesh::Create(std::vector<float> const &position,
+                                       std::vector<uint32_t> const &index) {
   auto mesh = std::make_shared<SVMeshRigid>();
   mesh->setIndices(index);
   mesh->setVertexAttribute("position", position);

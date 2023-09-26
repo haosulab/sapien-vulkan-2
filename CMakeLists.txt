@@ -106,5 +106,7 @@ if (${SVULKAN2_BUILD_TEST})
     add_executable(unittest "test/shader/rt.cpp")
     target_include_directories(unittest PRIVATE "3rd_party/googletest/googletest/include")
     target_link_libraries(unittest svulkan2 gtest_main)
-endif()
 
+    add_executable(svulkan2_test app/test.cpp)
+    target_link_libraries(svulkan2_test svulkan2 glfw imgui)
+endif()
