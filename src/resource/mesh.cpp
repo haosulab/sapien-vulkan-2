@@ -213,8 +213,8 @@ void SVMeshDeformable::uploadToDevice() {
     throw std::runtime_error("failed to upload mesh: vertex or index capacity is 0");
   }
 
-  size_t bufferSize = vertexSize * mVertexCount;
-  size_t indexBufferSize = sizeof(uint32_t) * mTriangleCount * 3;
+  size_t bufferSize = vertexSize * mMaxVertexCount;
+  size_t indexBufferSize = sizeof(uint32_t) * mMaxTriangleCount * 3;
 
   // std::vector<char> buffer(bufferSize, 0);
   // auto elements = layout->getElementsSorted();
