@@ -69,10 +69,6 @@ protected:
 
   bool mExternal{};
 
-#ifdef TRACK_ALLOCATION
-  uint64_t mBufferId{};
-#endif
-
 #ifdef SVULKAN2_CUDA_INTEROP
 
 private:

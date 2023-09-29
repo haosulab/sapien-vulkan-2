@@ -792,22 +792,44 @@ std::vector<std::string> RTRenderer::getRenderTargetNames() const {
   return names;
 }
 
-void RTRenderer::enableDenoiser(std::string const &colorName, std::string const &albedoName,
-                                std::string const &normalName) {
+void RTRenderer::enableDenoiser(DenoiserType type, std::string const &colorName,
+                                std::string const &albedoName, std::string const &normalName) {
 #ifdef SVULKAN2_CUDA_INTEROP
-  if (!mDenoiser) {
-    mRequiresRebuild = true;
-    mDenoiser = std::make_unique<DenoiserOptix>();
-    if (!mDenoiser->init(OPTIX_PIXEL_FORMAT_FLOAT4, true, true, true)) {
-      logger::error("Failed to initialize OptiX denoiser");
-      mDenoiser.reset();
-      return;
-    }
-    mDenoiseColorName = colorName;
-    mDenoiseAlbedoName = albedoName;
-    mDenoiseNormalName = normalName;
+  if (getDenoiserType() == type) {
+    return;
   }
+  mRequiresRebuild = true;
+
+  if (type == DenoiserType::eNONE) {
+    disableDenoiser();
+    return;
+  }
+
+  if (type == DenoiserType::eOPTIX) {
+    mDenoiser = std::make_unique<DenoiserOptix>();
+  } else {
+    mDenoiser = std::make_unique<DenoiserOidn>();
+  }
+  if (!mDenoiser->init(true, true, true)) {
+    logger::error("Failed to initialize denoiser");
+    mDenoiser.reset();
+    return;
+  }
+
+  mDenoiseColorName = colorName;
+  mDenoiseAlbedoName = albedoName;
+  mDenoiseNormalName = normalName;
 #endif
+}
+
+RTRenderer::DenoiserType RTRenderer::getDenoiserType() const {
+  if (!mDenoiser) {
+    return DenoiserType::eNONE;
+  }
+  if (dynamic_cast<DenoiserOptix *>(mDenoiser.get())) {
+    return DenoiserType::eOPTIX;
+  }
+  return DenoiserType::eOIDN;
 }
 
 void RTRenderer::disableDenoiser() {

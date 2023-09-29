@@ -54,10 +54,6 @@ private:
   std::mutex mLoadingMutex;
 
   std::unique_ptr<core::BLAS> mBLAS;
-
-#ifdef TRACK_ALLOCATION
-  uint64_t mModelId{};
-#endif
 };
 
 } // namespace resource

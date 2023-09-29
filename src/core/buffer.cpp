@@ -11,12 +11,6 @@
 namespace svulkan2 {
 namespace core {
 
-// TODO: make atomic!!!!!!
-#ifdef TRACK_ALLOCATION
-static uint64_t gBufferId = 1;
-static uint64_t gBufferCount = 0;
-#endif
-
 std::unique_ptr<Buffer> Buffer::CreateStaging(vk::DeviceSize size, bool readback) {
   if (readback) {
     return std::make_unique<Buffer>(
@@ -75,10 +69,6 @@ Buffer::Buffer(vk::DeviceSize size, vk::BufferUsageFlags usageFlags, VmaMemoryUs
   mHostVisible = (memFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0;
   mHostCoherent = (memFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0;
 
-#ifdef TRACK_ALLOCATION
-  mBufferId = gBufferId++;
-  logger::info("Create Buffer {}; Total {}", mBufferId, ++gBufferCount);
-#endif
 }
 
 Buffer::~Buffer() {
@@ -89,11 +79,6 @@ Buffer::~Buffer() {
   }
 #endif
   vmaDestroyBuffer(mContext->getAllocator().getVmaAllocator(), mBuffer, mAllocation);
-
-#ifdef TRACK_ALLOCATION
-  mBufferId = gBufferId++;
-  logger::info("Destroy Buffer {}, Total {}", mBufferId, --gBufferCount);
-#endif
 }
 
 void *Buffer::map() {

@@ -33,10 +33,6 @@ private:
   VmaAllocation mAllocation;
   VmaAllocationInfo mAllocationInfo;
 
-#ifdef TRACK_ALLOCATION
-  uint64_t mImageId{};
-#endif
-
   vk::ImageLayout mCurrentLayout{vk::ImageLayout::eUndefined};
 
   void generateMipmaps(vk::CommandBuffer cb, uint32_t arrayLayer = 0);

@@ -128,7 +128,7 @@ int main() {
   renderer.setCustomProperty("maxDepth", 6);
   renderer.setCustomProperty("russianRoulette", 1);
   renderer.setCustomProperty("russianRouletteMinBounces", 3);
-  renderer.enableDenoiser("HdrColor", "Albedo", "Normal");
+  renderer.enableDenoiser(renderer::RTRenderer::DenoiserType::eOIDN, "HdrColor", "Albedo", "Normal");
 
   auto scene = std::make_shared<svulkan2::scene::Scene>();
 

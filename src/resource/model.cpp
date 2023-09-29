@@ -15,11 +15,6 @@ namespace fs = std::filesystem;
 namespace svulkan2 {
 namespace resource {
 
-#ifdef TRACK_ALLOCATION
-static uint64_t gModelId = 1;
-static uint64_t gModelCount = 0;
-#endif
-
 std::shared_ptr<SVModel> SVModel::FromPrototype(std::shared_ptr<SVModel> prototype) {
   auto model = std::shared_ptr<SVModel>(new SVModel);
   model->mPrototype = prototype;
@@ -559,19 +554,9 @@ void SVModel::recordUpdateBLAS(vk::CommandBuffer commandBuffer) {
 
 core::BLAS *SVModel::getBLAS() { return mBLAS.get(); }
 
-SVModel::SVModel() {
-#ifdef TRACK_ALLOCATION
-  mModelId = gModelId++;
-  log::info("Create Model {}, Total {}", mModelId, ++gModelCount);
-#endif
-}
+SVModel::SVModel() {}
 
-SVModel::~SVModel() {
-#ifdef TRACK_ALLOCATION
-  mModelId = gModelId++;
-  log::info("Destroy Model {}, Total {}", mModelId, --gModelCount);
-#endif
-}
+SVModel::~SVModel() {}
 
 } // namespace resource
 } // namespace svulkan2

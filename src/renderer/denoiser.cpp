@@ -1,7 +1,7 @@
 #ifdef SVULKAN2_CUDA_INTEROP
 #include "denoiser.h"
-#include "optix_function_table_definition.h"
 #include "../common/logger.h"
+#include "optix_function_table_definition.h"
 #include "svulkan2/core/context.h"
 #include <cuda_runtime.h>
 #include <filesystem>
@@ -12,16 +12,14 @@
 namespace svulkan2 {
 namespace renderer {
 
-static inline bool checkOptix(OptixResult error,
-                              std::string const &message = "") {
+static inline bool checkOptix(OptixResult error, std::string const &message = "") {
   if (error != OPTIX_SUCCESS) {
     logger::error("{} OptiX Error: {}", message, optixGetErrorName(error));
   }
   return true;
 }
 
-static inline bool checkCudaRuntime(cudaError_t error,
-                                    std::string const &message = "") {
+static inline bool checkCudaRuntime(cudaError_t error, std::string const &message = "") {
   if (error != cudaSuccess) {
     logger::error("{} CUDA Error: {}", message, cudaGetErrorName(error));
     return false;
@@ -36,8 +34,7 @@ DenoiserOptix::Context::Context() {
   if (optixInit() != OPTIX_SUCCESS) {
     throw std::runtime_error("failed to init optix");
   }
-  if (optixDeviceContextCreate(nullptr, nullptr, &optixDevice) !=
-      OPTIX_SUCCESS) {
+  if (optixDeviceContextCreate(nullptr, nullptr, &optixDevice) != OPTIX_SUCCESS) {
     throw std::runtime_error("failed to create optix device");
   }
 }
@@ -54,11 +51,11 @@ bool DenoiserOptix::useAlbedo() { return mOptions.guideAlbedo; }
 
 bool DenoiserOptix::useNormal() { return mOptions.guideNormal; }
 
-bool DenoiserOptix::init(OptixPixelFormat pixelFormat, bool albedo, bool normal,
-                         bool hdr) {
-  std::string const error =
-      "Failed to initialize denoiser. Please make sure the renderer runs "
-      "on NVIDIA GPU with driver version >= 522.25.";
+bool DenoiserOptix::init(bool albedo, bool normal, bool hdr) {
+  OptixPixelFormat pixelFormat = OptixPixelFormat::OPTIX_PIXEL_FORMAT_FLOAT4;
+
+  std::string const error = "Failed to initialize denoiser. Please make sure the renderer runs "
+                            "on NVIDIA GPU with driver version >= 522.25.";
 
   if (!(mContext = gContext.lock())) {
     try {
@@ -80,10 +77,9 @@ bool DenoiserOptix::init(OptixPixelFormat pixelFormat, bool albedo, bool normal,
 
   mOptions.guideAlbedo = albedo;
   mOptions.guideNormal = normal;
-  success = checkOptix(optixDenoiserCreate(mContext->optixDevice,
-                                           hdr ? OPTIX_DENOISER_MODEL_KIND_HDR
-                                               : OPTIX_DENOISER_MODEL_KIND_LDR,
-                                           &mOptions, &mDenoiser));
+  success = checkOptix(optixDenoiserCreate(
+      mContext->optixDevice, hdr ? OPTIX_DENOISER_MODEL_KIND_HDR : OPTIX_DENOISER_MODEL_KIND_LDR,
+      &mOptions, &mDenoiser));
 
   if (!success) {
     logger::error("{}", error);
@@ -123,29 +119,25 @@ void DenoiserOptix::allocate(uint32_t width, uint32_t height) {
 
   free();
 
-  checkOptix(
-      optixDenoiserComputeMemoryResources(mDenoiser, width, height, &mSizes));
+  checkOptix(optixDenoiserComputeMemoryResources(mDenoiser, width, height, &mSizes));
 
   checkCudaRuntime(cudaMalloc((void **)&mStatePtr, mSizes.stateSizeInBytes));
-  checkCudaRuntime(cudaMalloc((void **)&mScratchPtr,
-                              mSizes.withoutOverlapScratchSizeInBytes));
+  checkCudaRuntime(cudaMalloc((void **)&mScratchPtr, mSizes.withoutOverlapScratchSizeInBytes));
 
-  checkOptix(optixDenoiserSetup(mDenoiser, mCudaStream, width, height,
-                                mStatePtr, mSizes.stateSizeInBytes, mScratchPtr,
+  checkOptix(optixDenoiserSetup(mDenoiser, mCudaStream, width, height, mStatePtr,
+                                mSizes.stateSizeInBytes, mScratchPtr,
                                 mSizes.withoutOverlapScratchSizeInBytes));
 
   mInputBuffer = std::make_unique<core::Buffer>(
       width * height * mPixelSize,
-      vk::BufferUsageFlagBits::eTransferDst |
-          vk::BufferUsageFlagBits::eTransferSrc,
+      vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc,
       VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags{}, true);
   auto ptr = mInputBuffer->getCudaPtr();
   std::memcpy(&mInputPtr, &ptr, sizeof(ptr));
 
   mOutputBuffer = std::make_unique<core::Buffer>(
       width * height * mPixelSize,
-      vk::BufferUsageFlagBits::eTransferDst |
-          vk::BufferUsageFlagBits::eTransferSrc,
+      vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc,
       VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags{}, true);
   ptr = mOutputBuffer->getCudaPtr();
   std::memcpy(&mOutputPtr, &ptr, sizeof(ptr));
@@ -153,8 +145,7 @@ void DenoiserOptix::allocate(uint32_t width, uint32_t height) {
   if (useAlbedo()) {
     mAlbedoBuffer = std::make_unique<core::Buffer>(
         width * height * mPixelSize,
-        vk::BufferUsageFlagBits::eTransferDst |
-            vk::BufferUsageFlagBits::eTransferSrc,
+        vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc,
         VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags{}, true);
     ptr = mAlbedoBuffer->getCudaPtr();
     std::memcpy(&mAlbedoPtr, &ptr, sizeof(ptr));
@@ -163,8 +154,7 @@ void DenoiserOptix::allocate(uint32_t width, uint32_t height) {
   if (useNormal()) {
     mNormalBuffer = std::make_unique<core::Buffer>(
         width * height * mPixelSize,
-        vk::BufferUsageFlagBits::eTransferDst |
-            vk::BufferUsageFlagBits::eTransferSrc,
+        vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc,
         VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags{}, true);
     ptr = mNormalBuffer->getCudaPtr();
     std::memcpy(&mNormalPtr, &ptr, sizeof(ptr));
@@ -173,8 +163,7 @@ void DenoiserOptix::allocate(uint32_t width, uint32_t height) {
   vk::Device device = core::Context::Get()->getDevice();
 
   // create timeline semaphore with value 0
-  vk::SemaphoreTypeCreateInfo timelineCreateInfo(vk::SemaphoreType::eTimeline,
-                                                 0);
+  vk::SemaphoreTypeCreateInfo timelineCreateInfo(vk::SemaphoreType::eTimeline, 0);
   vk::SemaphoreCreateInfo createInfo{};
   vk::ExportSemaphoreCreateInfo exportCreateInfo(
       vk::ExternalSemaphoreHandleTypeFlagBits::eOpaqueFd);
@@ -183,8 +172,8 @@ void DenoiserOptix::allocate(uint32_t width, uint32_t height) {
   mSem = device.createSemaphoreUnique(createInfo);
 
   // export vulkan semaphore as cuda semaphore
-  int fd = device.getSemaphoreFdKHR(
-      {mSem.get(), vk::ExternalSemaphoreHandleTypeFlagBits::eOpaqueFd});
+  int fd =
+      device.getSemaphoreFdKHR({mSem.get(), vk::ExternalSemaphoreHandleTypeFlagBits::eOpaqueFd});
   cudaExternalSemaphoreHandleDesc desc = {};
   desc.flags = 0;
   desc.handle.fd = fd;
@@ -214,30 +203,32 @@ void DenoiserOptix::free() {
   mNormalPtr = {};
 }
 
-void DenoiserOptix::denoise(core::Image &color, core::Image *albedo,
-                            core::Image *normal) {
+void DenoiserOptix::denoise(core::Image &color, core::Image *albedo, core::Image *normal) {
+  if (color.getFormat() != vk::Format::eR32G32B32A32Sfloat ||
+      (albedo && albedo->getFormat() != vk::Format::eR32G32B32A32Sfloat) ||
+      (normal && normal->getFormat() != vk::Format::eR32G32B32A32Sfloat)) {
+    throw std::runtime_error("denoiser only supports R32G32B32A32Sfloat format");
+  }
+
   mCommandBufferIn->reset();
   mCommandBufferIn->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
 
-  color.recordCopyToBuffer(
-      mCommandBufferIn.get(), mInputBuffer->getVulkanBuffer(), 0,
-      mInputBuffer->getSize(), {0, 0, 0}, color.getExtent());
+  color.recordCopyToBuffer(mCommandBufferIn.get(), mInputBuffer->getVulkanBuffer(), 0,
+                           mInputBuffer->getSize(), {0, 0, 0}, color.getExtent());
 
   if (useAlbedo() && albedo) {
-    albedo->recordCopyToBuffer(
-        mCommandBufferIn.get(), mAlbedoBuffer->getVulkanBuffer(), 0,
-        mAlbedoBuffer->getSize(), {0, 0, 0}, color.getExtent());
+    albedo->recordCopyToBuffer(mCommandBufferIn.get(), mAlbedoBuffer->getVulkanBuffer(), 0,
+                               mAlbedoBuffer->getSize(), {0, 0, 0}, color.getExtent());
   }
   if (useNormal() && normal) {
-    normal->recordCopyToBuffer(
-        mCommandBufferIn.get(), mNormalBuffer->getVulkanBuffer(), 0,
-        mNormalBuffer->getSize(), {0, 0, 0}, color.getExtent());
+    normal->recordCopyToBuffer(mCommandBufferIn.get(), mNormalBuffer->getVulkanBuffer(), 0,
+                               mNormalBuffer->getSize(), {0, 0, 0}, color.getExtent());
   }
 
   mCommandBufferIn->end();
 
-  core::Context::Get()->getQueue().submit(mCommandBufferIn.get(), {}, {}, {},
-                                          mSem.get(), ++mSemValue, {});
+  core::Context::Get()->getQueue().submit(mCommandBufferIn.get(), {}, {}, {}, mSem.get(),
+                                          ++mSemValue, {});
 
   cudaExternalSemaphoreWaitParams waitParams{};
   waitParams.params.fence.value = mSemValue;
@@ -252,10 +243,10 @@ void DenoiserOptix::denoise(core::Image &color, core::Image *albedo,
   mParams.hdrIntensity = 0;
   mParams.hdrAverageColor = 0;
 
-  mLayer.input = OptixImage2D{mInputPtr,          width,      height,
-                              mPixelSize * width, mPixelSize, mPixelFormat};
-  mLayer.output = OptixImage2D{mOutputPtr,         width,      height,
-                               mPixelSize * width, mPixelSize, mPixelFormat};
+  mLayer.input =
+      OptixImage2D{mInputPtr, width, height, mPixelSize * width, mPixelSize, mPixelFormat};
+  mLayer.output =
+      OptixImage2D{mOutputPtr, width, height, mPixelSize * width, mPixelSize, mPixelFormat};
   mLayer.previousOutput = {0};
 
   mGuideLayer.flow = {};
@@ -265,18 +256,15 @@ void DenoiserOptix::denoise(core::Image &color, core::Image *albedo,
   mGuideLayer.normal = {};
   if (useAlbedo() && albedo) {
     mGuideLayer.albedo =
-        OptixImage2D{mAlbedoPtr,         width,      height,
-                     mPixelSize * width, mPixelSize, mPixelFormat};
+        OptixImage2D{mAlbedoPtr, width, height, mPixelSize * width, mPixelSize, mPixelFormat};
   }
   if (useNormal() && normal) {
     mGuideLayer.normal =
-        OptixImage2D{mNormalPtr,         width,      height,
-                     mPixelSize * width, mPixelSize, mPixelFormat};
+        OptixImage2D{mNormalPtr, width, height, mPixelSize * width, mPixelSize, mPixelFormat};
   }
   checkOptix(optixDenoiserInvoke(mDenoiser, mCudaStream, &mParams, mStatePtr,
-                                 mSizes.stateSizeInBytes, &mGuideLayer, &mLayer,
-                                 1, 0, 0, mScratchPtr,
-                                 mSizes.withoutOverlapScratchSizeInBytes),
+                                 mSizes.stateSizeInBytes, &mGuideLayer, &mLayer, 1, 0, 0,
+                                 mScratchPtr, mSizes.withoutOverlapScratchSizeInBytes),
              "Failed to denoise");
 
   cudaExternalSemaphoreSignalParams sigParams{};
@@ -287,15 +275,14 @@ void DenoiserOptix::denoise(core::Image &color, core::Image *albedo,
   mCommandBufferOut->reset();
   mCommandBufferOut->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
 
-  color.recordCopyFromBuffer(
-      mCommandBufferOut.get(), mOutputBuffer->getVulkanBuffer(), 0,
-      mOutputBuffer->getSize(), {0, 0, 0}, color.getExtent());
+  color.recordCopyFromBuffer(mCommandBufferOut.get(), mOutputBuffer->getVulkanBuffer(), 0,
+                             mOutputBuffer->getSize(), {0, 0, 0}, color.getExtent());
 
   mCommandBufferOut->end();
 
   vk::PipelineStageFlags waitStage = vk::PipelineStageFlagBits::eTransfer;
-  core::Context::Get()->getQueue().submit(mCommandBufferOut.get(), mSem.get(),
-                                          waitStage, mSemValue, {}, {}, {});
+  core::Context::Get()->getQueue().submit(mCommandBufferOut.get(), mSem.get(), waitStage,
+                                          mSemValue, {}, {}, {});
 }
 
 DenoiserOptix::~DenoiserOptix() {

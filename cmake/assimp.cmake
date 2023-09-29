@@ -31,7 +31,7 @@ add_library(minizip STATIC
 )
 target_link_libraries(minizip PRIVATE zlibstatic)
 target_include_directories(minizip PUBLIC "$<BUILD_INTERFACE:${zlib_SOURCE_DIR}/contrib/minizip>")
-install(TARGETS minizip EXPORT assimpTargets)
+# install(TARGETS minizip EXPORT assimpTargets)
 
 set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(ASSIMP_INSTALL OFF CACHE BOOL "" FORCE)

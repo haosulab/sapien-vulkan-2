@@ -4,6 +4,7 @@
 #include "svulkan2/core/buffer.h"
 #include "svulkan2/core/command_pool.h"
 #include "svulkan2/core/image.h"
+#include <OpenImageDenoise/oidn.hpp>
 #include <cstdio>
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -15,17 +16,26 @@ static_assert(OPTIX_VERSION == 70600);
 namespace svulkan2 {
 namespace renderer {
 
-class DenoiserOptix {
+class Denoiser {
 public:
-  bool init(OptixPixelFormat pixelFormat, bool albedo, bool normal, bool hdr);
-  void allocate(uint32_t width, uint32_t height);
-  void free();
-  void denoise(core::Image &color, core::Image *albedo, core::Image *normal);
+  virtual bool init(bool albedo, bool normal, bool hdr) = 0;
+  virtual void allocate(uint32_t width, uint32_t height) = 0;
+  virtual void free() = 0;
+  virtual void denoise(core::Image &color, core::Image *albedo, core::Image *normal) = 0;
 
-  core::Buffer &getDenoisedBuffer();
+  virtual uint32_t getWidth() const = 0;
+  virtual uint32_t getHeight() const = 0;
+};
 
-  inline uint32_t getWidth() const { return mWidth; }
-  inline uint32_t getHeight() const { return mHeight; }
+class DenoiserOptix : public Denoiser {
+public:
+  bool init(bool albedo, bool normal, bool hdr) override;
+  void allocate(uint32_t width, uint32_t height) override;
+  void free() override;
+  void denoise(core::Image &color, core::Image *albedo, core::Image *normal) override;
+
+  uint32_t getWidth() const override { return mWidth; }
+  uint32_t getHeight() const override { return mHeight; }
 
   ~DenoiserOptix();
 
@@ -81,6 +91,60 @@ private:
   cudaExternalSemaphore_t mCudaSem{};
   uint64_t mSemValue{0};
 };
+
+class DenoiserOidn : public Denoiser {
+public:
+  bool init(bool albedo, bool normal, bool hdr) override;
+  void allocate(uint32_t width, uint32_t height) override;
+  void free() override;
+  void denoise(core::Image &color, core::Image *albedo, core::Image *normal) override;
+
+  uint32_t getWidth() const override { return mWidth; }
+  uint32_t getHeight() const override { return mHeight; }
+  bool useAlbedo() const { return mAlbedo; }
+  bool useNormal() const { return mAlbedo; }
+
+  ~DenoiserOidn();
+
+private:
+  void ensureLibrary();
+  void *mLibrary;
+
+  bool mAlbedo{};
+  bool mNormal{};
+  bool mHdr{};
+
+  uint32_t mPixelSize{};
+
+  uint32_t mWidth;
+  uint32_t mHeight;
+
+  std::unique_ptr<core::Buffer> mInputBuffer;
+  oidn::BufferRef mInputBufferOidn;
+
+  // std::unique_ptr<core::Buffer> mOutputBuffer;
+  // oidn::BufferRef mOutputBufferOidn;
+
+  std::unique_ptr<core::Buffer> mAlbedoBuffer;
+  oidn::BufferRef mAlbedoBufferOidn;
+
+  std::unique_ptr<core::Buffer> mNormalBuffer;
+  oidn::BufferRef mNormalBufferOidn;
+
+  oidn::FilterRef mFilter;
+
+  oidn::DeviceRef mDevice;
+  cudaStream_t mCudaStream{};
+
+  std::unique_ptr<core::CommandPool> mCommandPool;
+  vk::UniqueCommandBuffer mCommandBufferIn;
+  vk::UniqueCommandBuffer mCommandBufferOut;
+
+  vk::UniqueSemaphore mSem{};
+  cudaExternalSemaphore_t mCudaSem{};
+  uint64_t mSemValue{0};
+};
+
 } // namespace renderer
 }; // namespace svulkan2
 

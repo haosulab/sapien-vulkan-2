@@ -22,36 +22,32 @@ class RayTracingShaderPackInstance;
 namespace renderer {
 
 class RTRenderer : public RendererBase {
-
 public:
+  enum class DenoiserType { eNONE, eOPTIX, eOIDN };
+
   RTRenderer(std::string const &shaderDir);
 
   void resize(int width, int height) override;
   void setScene(std::shared_ptr<scene::Scene> scene) override;
 
-  void render(scene::Camera &camera,
-              std::vector<vk::Semaphore> const &waitSemaphores,
+  void render(scene::Camera &camera, std::vector<vk::Semaphore> const &waitSemaphores,
               std::vector<vk::PipelineStageFlags> const &waitStages,
-              std::vector<vk::Semaphore> const &signalSemaphores,
-              vk::Fence fence) override;
-  void render(
-      scene::Camera &camera,
-      vk::ArrayProxyNoTemporaries<vk::Semaphore const> const &waitSemaphores,
-      vk::ArrayProxyNoTemporaries<vk::PipelineStageFlags const> const
-          &waitStageMasks,
-      vk::ArrayProxyNoTemporaries<uint64_t const> const &waitValues,
-      vk::ArrayProxyNoTemporaries<vk::Semaphore const> const &signalSemaphores,
-      vk::ArrayProxyNoTemporaries<uint64_t const> const &signalValues) override;
-  void display(std::string const &imageName, vk::Image backBuffer,
-               vk::Format format, uint32_t width, uint32_t height,
-               std::vector<vk::Semaphore> const &waitSemaphores,
+              std::vector<vk::Semaphore> const &signalSemaphores, vk::Fence fence) override;
+  void render(scene::Camera &camera,
+              vk::ArrayProxyNoTemporaries<vk::Semaphore const> const &waitSemaphores,
+              vk::ArrayProxyNoTemporaries<vk::PipelineStageFlags const> const &waitStageMasks,
+              vk::ArrayProxyNoTemporaries<uint64_t const> const &waitValues,
+              vk::ArrayProxyNoTemporaries<vk::Semaphore const> const &signalSemaphores,
+              vk::ArrayProxyNoTemporaries<uint64_t const> const &signalValues) override;
+  void display(std::string const &imageName, vk::Image backBuffer, vk::Format format,
+               uint32_t width, uint32_t height, std::vector<vk::Semaphore> const &waitSemaphores,
                std::vector<vk::PipelineStageFlags> const &waitStages,
-               std::vector<vk::Semaphore> const &signalSemaphores,
-               vk::Fence fence) override;
+               std::vector<vk::Semaphore> const &signalSemaphores, vk::Fence fence) override;
 
-  void enableDenoiser(std::string const &colorName,
-                      std::string const &albedoName,
-                      std::string const &normalName);
+  void enableDenoiser(DenoiserType type, std::string const &colorName,
+                      std::string const &albedoName, std::string const &normalName);
+  DenoiserType getDenoiserType() const;
+
   bool denoiserEnabled() const {
 #ifdef SVULKAN2_CUDA_INTEROP
     return mDenoiser != nullptr;
@@ -81,14 +77,12 @@ public:
     return mRenderImages.at(name)->getImage();
   };
 
-  inline void
-  setCustomTexture(std::string const &name,
-                   std::shared_ptr<resource::SVTexture> texture) override {
+  inline void setCustomTexture(std::string const &name,
+                               std::shared_ptr<resource::SVTexture> texture) override {
     mCustomTextures[name] = texture;
   };
-  inline void
-  setCustomCubemap(std::string const &name,
-                   std::shared_ptr<resource::SVCubemap> cubemap) override {
+  inline void setCustomCubemap(std::string const &name,
+                               std::shared_ptr<resource::SVCubemap> cubemap) override {
     mCustomCubemaps[name] = cubemap;
   };
 
@@ -140,8 +134,7 @@ private:
   uint64_t mSceneRenderVersion{0l}; // check for updating matrices
   int mFrameCount = 0;
 
-  std::unordered_map<std::string, std::shared_ptr<resource::SVStorageImage>>
-      mRenderImages;
+  std::unordered_map<std::string, std::shared_ptr<resource::SVStorageImage>> mRenderImages;
   // subset of render images used in RT
   std::vector<std::shared_ptr<resource::SVStorageImage>> mRTImages;
   // subset of render images used in postprocess
@@ -179,7 +172,7 @@ private:
   vk::UniqueFence mSceneAccessFence;
 
 #ifdef SVULKAN2_CUDA_INTEROP
-  std::unique_ptr<class DenoiserOptix> mDenoiser;
+  std::unique_ptr<class Denoiser> mDenoiser;
   std::string mDenoiseColorName;
   std::string mDenoiseAlbedoName;
   std::string mDenoiseNormalName;

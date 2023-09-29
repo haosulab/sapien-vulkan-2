@@ -10,4 +10,8 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(glm)
 
 get_target_property(_inc glm INTERFACE_INCLUDE_DIRECTORIES)
-target_include_directories(glm SYSTEM INTERFACE ${_inc})
+set_target_properties(glm PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "")
+target_include_directories(glm SYSTEM INTERFACE
+    $<BUILD_INTERFACE:${_inc}>
+    $<INSTALL_INTERFACE:include>
+)
