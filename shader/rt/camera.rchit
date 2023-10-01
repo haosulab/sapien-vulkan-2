@@ -357,12 +357,7 @@ vec3 traceParallelogramLights(vec3 pos, vec3 normal, vec3 diffuseColor, vec3 spe
     float dotlnld = dot(lnormal, L); // light normal dot light direction
 
     if (dotlnld > 0.0) {
-      dotlnld = -dotlnld;
-      lnormal = -lnormal;
-    }
-
-    if (dotlnld < 0.0) {
-      emission = emission * (-dotlnld) * area / d2;
+      emission = emission * dotlnld * area / d2;
 
       uint flags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT;
       shadowRay.shadowed = true;
@@ -571,13 +566,15 @@ void main() {
 
   vec3 texNormal = vec3(0.0, 0.0, 1.0);  // TODO use
   if (ti.normal >= 0) {
-    texNormal = normalize(texture(textures[nonuniformEXT(ti.normal)], uv).xyz);
+    texNormal = normalize(texture(textures[nonuniformEXT(ti.normal)], uv).xyz * 2.0 - 1.0);
   }
 
   vec3 emission = mat.emission.rgb;
+  float strength = mat.emission.a;
   if (ti.emission >= 0) {
     emission = texture(textures[nonuniformEXT(ti.emission)], uv).rgb;
   }
+  emission *= strength;
 
   float transmission = mat.transmission;
   if (ti.transmission >= 0) {

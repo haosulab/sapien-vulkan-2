@@ -188,8 +188,10 @@ std::future<void> SVModel::loadAsync() {
     for (uint32_t mat_idx = 0; mat_idx < scene->mNumMaterials; ++mat_idx) {
       auto *m = scene->mMaterials[mat_idx];
       aiColor3D emission{0, 0, 0};
+      float emissionStrength = 1.f;
+
       aiColor3D diffuse{0, 0, 0};
-      float glossiness = 0.5f;
+      float specular = 0.5f;
 
       float alpha = 1.f;
       float metallic = 0.f;
@@ -214,6 +216,7 @@ std::future<void> SVModel::loadAsync() {
 
       m->Get(AI_MATKEY_COLOR_EMISSIVE, emission);
       m->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse);
+      m->Get(AI_MATKEY_EMISSIVE_INTENSITY, emissionStrength);
 
       {
         aiColor4D baseColor = {0, 0, 0, 1};
@@ -229,6 +232,8 @@ std::future<void> SVModel::loadAsync() {
       if (m->Get(AI_MATKEY_METALLIC_FACTOR, metallic) != AI_SUCCESS) {
         metallic = 0.f;
       }
+
+      // pbrSpecularGlossiness
       if (m->Get(AI_MATKEY_ROUGHNESS_FACTOR, roughness) != AI_SUCCESS) {
         aiColor4D specularColor;
         ai_real shininess;
@@ -243,18 +248,30 @@ std::future<void> SVModel::loadAsync() {
         }
       }
 
+      // KHR_materials_specular
+      {
+        float specularFactor = 0.f;
+        aiColor4D specularColor;
+        if (m->Get(AI_MATKEY_SPECULAR_FACTOR, specularFactor) == AI_SUCCESS &&
+            m->Get(AI_MATKEY_COLOR_SPECULAR, specularFactor) == AI_SUCCESS) {
+          specular = (specularColor[0] * 0.2125f + specularColor[1] * 0.7154f +
+                      specularColor[2] * 0.0721f);
+          specular *= 0.5f;
+        }
+      }
+
+      // if (m->Get(AI_MATKEY_GLOSSINESS_FACTOR, specular) != AI_SUCCESS) {
+      //   float shininess;
+      //   if (m->Get(AI_MATKEY_SHININESS, shininess)) {
+      //     specular = shininess / 1000;
+      //   }
+      // }
+
       if (m->Get(AI_MATKEY_TRANSMISSION_FACTOR, transmission) != AI_SUCCESS) {
         transmission = 0.f;
       }
       if (m->Get(AI_MATKEY_REFRACTI, ior) != AI_SUCCESS) {
         ior = 1.01f;
-      }
-
-      if (m->Get(AI_MATKEY_GLOSSINESS_FACTOR, glossiness) != AI_SUCCESS) {
-        float shininess;
-        if (m->Get(AI_MATKEY_SHININESS, shininess)) {
-          glossiness = shininess / 1000;
-        }
       }
 
       std::shared_ptr<SVTexture> baseColorTexture{};
@@ -423,10 +440,10 @@ std::future<void> SVModel::loadAsync() {
         }
       }
 
-      auto material =
-          std::make_shared<SVMetallicMaterial>(glm::vec4{emission.r, emission.g, emission.b, 1},
-                                               glm::vec4{diffuse.r, diffuse.g, diffuse.b, alpha},
-                                               glossiness, roughness, metallic, transmission, ior);
+      auto material = std::make_shared<SVMetallicMaterial>(
+          glm::vec4{emission.r, emission.g, emission.b, emissionStrength},
+          glm::vec4{diffuse.r, diffuse.g, diffuse.b, alpha}, specular, roughness, metallic,
+          transmission, ior);
       material->setTextures(baseColorTexture, roughnessTexture, normalTexture, metallicTexture,
                             emissionTexture, transmissionTexture);
       materials.push_back(material);

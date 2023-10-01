@@ -2,7 +2,28 @@
 
 layout(set = 0, binding = 0, rgba32f) uniform readonly image2D HdrColor;
 layout(set = 0, binding = 1, rgba32f) uniform writeonly image2D Color;
-// layout(set = 0, binding = 2, rgba32f) uniform readonly image2D Albedo;
+
+vec3 GammaFilm(vec3 x) {
+  return clamp(pow(x, vec3(1/2.2)), 0.0, 1.0);
+}
+
+vec3 sRGBFilm(vec3 x) {
+  bvec3 cutoff = lessThan(x, vec3(0.0031308));
+  vec3 higher = vec3(1.055) * pow(x, vec3(1.0/2.4)) - vec3(0.055);
+  vec3 lower = x * vec3(12.92);
+  return clamp(mix(higher, lower, cutoff), 0.0, 1.0);
+}
+
+vec3 ACESFilm(vec3 x)
+{
+  float a = 2.51f;
+  float b = 0.03f;
+  float c = 2.43f;
+  float d = 0.59f;
+  float e = 0.14f;
+  return clamp((x*(a*x+b))/(x*(c*x+d)+e), 0.0, 1.0);
+}
+
 
 void main() {
   uint x = gl_GlobalInvocationID.x;
@@ -14,5 +35,5 @@ void main() {
     color = vec4(1000.0, 0, 1000.0, 1);
   }
 
-  imageStore(Color, ivec2(gl_GlobalInvocationID.xy), clamp(vec4(pow(color.rgb, vec3(1/2.2)), color.a), 0.0, 1.0));
+  imageStore(Color, ivec2(gl_GlobalInvocationID.xy), vec4(GammaFilm(color.rgb), color.a));
 }

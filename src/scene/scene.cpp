@@ -924,8 +924,8 @@ void Scene::createRTStorageBuffers(StructDataLayout const &materialBufferLayout,
     mRTParallelogramLightBufferHost.push_back(RTParallelogramLight{
         .color = l->getColor(),
         .position = l->getOrigin(),
-        .edge0 = l->getEdge0(),
-        .edge1 = l->getEdge1(),
+        .edge0 = l->getEdgeX(),
+        .edge1 = l->getEdgeY(),
     });
   }
   mRTParallelogramLightBuffer = std::make_unique<core::Buffer>(
@@ -990,9 +990,9 @@ void Scene::updateRTStorageBuffers() {
   for (auto &l : mParallelogramLights) {
     auto &b = mRTParallelogramLightBufferHost.at(i);
     b.color = l->getColor();
-    b.position = l->getPosition();
-    b.edge0 = glm::rotate(l->getRotation(), l->getEdge0());
-    b.edge1 = glm::rotate(l->getRotation(), l->getEdge1());
+    b.position = l->getOrigin();
+    b.edge0 = l->getEdgeX();
+    b.edge1 = l->getEdgeY();
     ++i;
   }
   mRTParallelogramLightBuffer->upload(mRTParallelogramLightBufferHost);

@@ -137,7 +137,7 @@ public:
     mRequiresRecord = true;
   }
 
-  std::vector<std::string> getDisplayTargetNames() const;
+  std::vector<std::string> getDisplayTargetNames() const override;
   std::vector<std::string> getRenderTargetNames() const override;
 
   std::shared_ptr<resource::SVRenderTarget> getRenderTarget(std::string const &name) const;
@@ -152,6 +152,11 @@ public:
                         std::shared_ptr<resource::SVTexture> texture) override;
   void setCustomCubemap(std::string const &name,
                         std::shared_ptr<resource::SVCubemap> cubemap) override;
+
+  int getCustomPropertyInt(std::string const &name) const override;
+  float getCustomPropertyFloat(std::string const &name) const override;
+  glm::vec3 getCustomPropertyVec3(std::string const &name) const override;
+  glm::vec4 getCustomPropertyVec4(std::string const &name) const override;
 
   void setCustomProperty(std::string const &name, int p) override;
   void setCustomProperty(std::string const &name, float p) override;

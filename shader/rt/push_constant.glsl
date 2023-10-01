@@ -4,6 +4,9 @@ layout(push_constant) uniform Constants {
   int spp;
   int maxDepth;
 
+  float aperture;
+  float focusPlane;
+
   int russianRoulette;
   int russianRouletteMinBounces;
 

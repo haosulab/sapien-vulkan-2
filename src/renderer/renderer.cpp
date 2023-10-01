@@ -1581,6 +1581,53 @@ void Renderer::setCustomCubemap(std::string const &name,
   mCustomCubemaps[name] = cubemap;
 }
 
+int Renderer::getCustomPropertyInt(std::string const &name) const {
+  if (mSpecializationConstants.contains(name)) {
+    auto c = mSpecializationConstants.at(name);
+    if (c.dtype == DataType::eINT) {
+      int v;
+      std::memcpy(&v, c.buffer, sizeof(int));
+      return v;
+    }
+  }
+  throw std::runtime_error("invalid property " + name);
+}
+
+float Renderer::getCustomPropertyFloat(std::string const &name) const {
+  if (mSpecializationConstants.contains(name)) {
+    auto c = mSpecializationConstants.at(name);
+    if (c.dtype == DataType::eFLOAT) {
+      float v;
+      std::memcpy(&v, c.buffer, sizeof(float));
+      return v;
+    }
+  }
+  throw std::runtime_error("invalid property " + name);
+}
+
+glm::vec3 Renderer::getCustomPropertyVec3(std::string const &name) const {
+  if (mSpecializationConstants.contains(name)) {
+    auto c = mSpecializationConstants.at(name);
+    if (c.dtype == DataType::eFLOAT3) {
+      glm::vec3 v;
+      std::memcpy(&v[0], c.buffer, sizeof(float) * 3);
+      return v;
+    }
+  }
+  throw std::runtime_error("invalid property " + name);
+}
+glm::vec4 Renderer::getCustomPropertyVec4(std::string const &name) const {
+  if (mSpecializationConstants.contains(name)) {
+    auto c = mSpecializationConstants.at(name);
+    if (c.dtype == DataType::eFLOAT3) {
+      glm::vec4 v;
+      std::memcpy(&v[0], c.buffer, sizeof(float) * 4);
+      return v;
+    }
+  }
+  throw std::runtime_error("invalid property " + name);
+}
+
 void Renderer::setCustomProperty(std::string const &name, int p) {
   setSpecializationConstant(name, p);
 }

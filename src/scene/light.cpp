@@ -138,11 +138,11 @@ glm::vec3 ParallelogramLight::getOrigin() const {
   return glm::rotate(getRotation(), {-mHalfSize.x, -mHalfSize.y, 0.f}) + getPosition();
 }
 
-glm::vec3 ParallelogramLight::getEdge0() const {
+glm::vec3 ParallelogramLight::getEdgeX() const {
   return glm::rotate(getRotation(), {mHalfSize.x * 2.f, 0.f, 0.f});
 }
 
-glm::vec3 ParallelogramLight::getEdge1() const {
+glm::vec3 ParallelogramLight::getEdgeY() const {
   return glm::rotate(getRotation(), {glm::cos(mAngle) * mHalfSize.y * 2.f,
                                      glm::sin(mAngle) * mHalfSize.y * 2.f, 0.f});
 }

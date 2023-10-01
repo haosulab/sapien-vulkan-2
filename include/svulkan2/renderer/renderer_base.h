@@ -47,10 +47,16 @@ public:
   setCustomCubemap(std::string const &name,
                    std::shared_ptr<resource::SVCubemap> cubemap) = 0;
 
+  virtual int getCustomPropertyInt(std::string const &name) const = 0;
+  virtual float getCustomPropertyFloat(std::string const &name) const = 0;
+  virtual glm::vec3 getCustomPropertyVec3(std::string const &name) const = 0;
+  virtual glm::vec4 getCustomPropertyVec4(std::string const &name) const = 0;
+
   virtual void setCustomProperty(std::string const &name, int p) {}
   virtual void setCustomProperty(std::string const &name, float p) {}
   virtual void setCustomProperty(std::string const &name, glm::vec3 p) {}
   virtual void setCustomProperty(std::string const &name, glm::vec4 p) {}
+
 
   virtual std::vector<std::string> getDisplayTargetNames() const = 0;
   virtual std::vector<std::string> getRenderTargetNames() const = 0;

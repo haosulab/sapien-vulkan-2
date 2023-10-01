@@ -105,28 +105,19 @@ public:
   inline glm::vec3 getColor() const { return mColor; }
 
   void setShape(glm::vec2 halfSize, float theta = glm::pi<float>() / 2.f);
+  glm::vec2 getHalfSize() const { return mHalfSize; }
+  float getAngle() const { return mAngle; }
 
   // get parallelogram parameters in world space
   glm::vec3 getOrigin() const;
-  glm::vec3 getEdge0() const;
-  glm::vec3 getEdge1() const;
-
-  // inline void setShape(glm::vec3 const &edge0, glm::vec3 const &edge1) {
-  //   mEdge0 = edge0;
-  //   mEdge1 = edge1;
-  // }
-  // inline glm::vec3 getEdge0() const { return mEdge0; }
-  // inline glm::vec3 getEdge1() const { return mEdge1; }
+  glm::vec3 getEdgeX() const;
+  glm::vec3 getEdgeY() const;
 
 private:
   glm::vec3 mColor{0, 0, 0};
 
   glm::vec2 mHalfSize = {1.f, 1.f};
   float mAngle = glm::pi<float>() / 2.f;
-
-  // glm::vec3 mEdge0{0,0,0};
-  // glm::vec3 mEdge0{0, 1, 0};
-  // glm::vec3 mEdge1{0, 0, 1};
 };
 
 } // namespace scene

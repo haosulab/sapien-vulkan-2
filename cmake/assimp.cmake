@@ -9,10 +9,10 @@ FetchContent_Declare(
 FetchContent_Declare(
     assimp
     GIT_REPOSITORY https://github.com/assimp/assimp.git
-    GIT_TAG        v5.2.5
+    GIT_TAG        v5.3.1
     GIT_SHALLOW TRUE
     GIT_PROGRESS TRUE
-    PATCH_COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_LIST_DIR}/assimp.patch.CMakeLists.txt <SOURCE_DIR>/CMakeLists.txt  # patch for MSVC
+    # PATCH_COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_LIST_DIR}/assimp.patch.CMakeLists.txt <SOURCE_DIR>/CMakeLists.txt  # patch for MSVC
 )
 
 FetchContent_GetProperties(zlib)
@@ -31,7 +31,7 @@ add_library(minizip STATIC
 )
 target_link_libraries(minizip PRIVATE zlibstatic)
 target_include_directories(minizip PUBLIC "$<BUILD_INTERFACE:${zlib_SOURCE_DIR}/contrib/minizip>")
-# install(TARGETS minizip EXPORT assimpTargets)
+install(TARGETS minizip EXPORT assimpTargets)
 
 set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(ASSIMP_INSTALL OFF CACHE BOOL "" FORCE)

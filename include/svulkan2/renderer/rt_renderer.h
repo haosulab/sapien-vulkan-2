@@ -57,16 +57,32 @@ public:
   }
   void disableDenoiser();
 
-  inline void setCustomProperty(std::string const &name, int p) override {
+  int getCustomPropertyInt(std::string const &name) const override {
+    return mCustomPropertiesInt.at(name);
+  }
+
+  float getCustomPropertyFloat(std::string const &name) const override {
+    return mCustomPropertiesFloat.at(name);
+  }
+
+  glm::vec3 getCustomPropertyVec3(std::string const &name) const override {
+    return mCustomPropertiesVec3.at(name);
+  }
+
+  glm::vec4 getCustomPropertyVec4(std::string const &name) const override {
+    return mCustomPropertiesVec4.at(name);
+  }
+
+  void setCustomProperty(std::string const &name, int p) override {
     mCustomPropertiesInt[name] = p;
   }
-  inline void setCustomProperty(std::string const &name, float p) override {
+  void setCustomProperty(std::string const &name, float p) override {
     mCustomPropertiesFloat[name] = p;
   }
-  inline void setCustomProperty(std::string const &name, glm::vec3 p) override {
+  void setCustomProperty(std::string const &name, glm::vec3 p) override {
     mCustomPropertiesVec3[name] = p;
   }
-  inline void setCustomProperty(std::string const &name, glm::vec4 p) override {
+  void setCustomProperty(std::string const &name, glm::vec4 p) override {
     mCustomPropertiesVec4[name] = p;
   }
 
