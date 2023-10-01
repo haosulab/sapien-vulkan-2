@@ -43,8 +43,7 @@ void PointLight::setShadowParameters(float near, float far, uint32_t size) {
 }
 
 glm::mat4 PointLight::getShadowProjectionMatrix() const {
-  auto mat =
-      math::perspective(glm::pi<float>() / 2.f, 1.f, mShadowNear, mShadowFar);
+  auto mat = math::perspective(glm::pi<float>() / 2.f, 1.f, mShadowNear, mShadowFar);
   return mat;
 }
 
@@ -72,8 +71,7 @@ void DirectionalLight::setDirection(glm::vec3 const &dir) {
   mTransform.rotation = glm::quat(glm::mat3(x, y, z));
 }
 
-void DirectionalLight::setShadowParameters(float near, float far, float scaling,
-                                           uint32_t size) {
+void DirectionalLight::setShadowParameters(float near, float far, float scaling, uint32_t size) {
   mShadowNear = near;
   mShadowFar = far;
   mShadowScaling = scaling;
@@ -81,8 +79,8 @@ void DirectionalLight::setShadowParameters(float near, float far, float scaling,
 }
 
 glm::mat4 DirectionalLight::getShadowProjectionMatrix() const {
-  return math::ortho(-mShadowScaling, mShadowScaling, -mShadowScaling,
-                     mShadowScaling, mShadowNear, mShadowFar);
+  return math::ortho(-mShadowScaling, mShadowScaling, -mShadowScaling, mShadowScaling, mShadowNear,
+                     mShadowFar);
 }
 
 SpotLight::SpotLight(std::string const &name) : Node(name){};
@@ -130,6 +128,24 @@ void TexturedLight::setTexture(std::shared_ptr<resource::SVTexture> texture) {
 }
 
 ParallelogramLight::ParallelogramLight(std::string const &name) : Node(name) {}
+
+void ParallelogramLight::setShape(glm::vec2 halfSize, float theta) {
+  mHalfSize = halfSize;
+  mAngle = theta;
+}
+
+glm::vec3 ParallelogramLight::getOrigin() const {
+  return glm::rotate(getRotation(), {-mHalfSize.x, -mHalfSize.y, 0.f}) + getPosition();
+}
+
+glm::vec3 ParallelogramLight::getEdge0() const {
+  return glm::rotate(getRotation(), {mHalfSize.x * 2.f, 0.f, 0.f});
+}
+
+glm::vec3 ParallelogramLight::getEdge1() const {
+  return glm::rotate(getRotation(), {glm::cos(mAngle) * mHalfSize.y * 2.f,
+                                     glm::sin(mAngle) * mHalfSize.y * 2.f, 0.f});
+}
 
 } // namespace scene
 } // namespace svulkan2
