@@ -40,7 +40,7 @@ public:
 };
 
 UI_CLASS(InputTextMultiline) {
-  UI_DECLARE_LABEL(InputText);
+  UI_DECLARE_LABEL(InputTextMultiline);
   UI_ATTRIBUTE(InputTextMultiline, bool, ReadOnly);
   UI_ATTRIBUTE(InputTextMultiline, std::function<void(std::shared_ptr<InputTextMultiline>)>,
                Callback);
@@ -64,7 +64,7 @@ public:
 };
 
 UI_CLASS(InputFloat) {
-  UI_DECLARE_LABEL(InputText);
+  UI_DECLARE_LABEL(InputFloat);
   UI_ATTRIBUTE(InputFloat, float, WidthRatio);
   UI_ATTRIBUTE(InputFloat, float, Value);
   UI_ATTRIBUTE(InputFloat, bool, ReadOnly);
@@ -85,7 +85,7 @@ using ArrayIVec3 = std::array<int, 3>;
 using ArrayIVec4 = std::array<int, 4>;
 
 UI_CLASS(InputFloat2) {
-  UI_DECLARE_LABEL(InputText);
+  UI_DECLARE_LABEL(InputFloat2);
   UI_ATTRIBUTE(InputFloat2, float, WidthRatio);
   UI_ATTRIBUTE(InputFloat2, ArrayVec2, Value);
   UI_ATTRIBUTE(InputFloat2, bool, ReadOnly);
@@ -99,7 +99,7 @@ public:
 };
 
 UI_CLASS(InputFloat3) {
-  UI_DECLARE_LABEL(InputText);
+  UI_DECLARE_LABEL(InputFloat3);
   UI_ATTRIBUTE(InputFloat3, float, WidthRatio);
   UI_ATTRIBUTE(InputFloat3, ArrayVec3, Value);
   UI_ATTRIBUTE(InputFloat3, bool, ReadOnly);
@@ -113,7 +113,7 @@ public:
 };
 
 UI_CLASS(InputFloat4) {
-  UI_DECLARE_LABEL(InputText);
+  UI_DECLARE_LABEL(InputFloat4);
   UI_ATTRIBUTE(InputFloat4, float, WidthRatio);
   UI_ATTRIBUTE(InputFloat4, ArrayVec4, Value);
   UI_ATTRIBUTE(InputFloat4, bool, ReadOnly);
@@ -127,7 +127,7 @@ public:
 };
 
 UI_CLASS(InputInt) {
-  UI_DECLARE_LABEL(InputText);
+  UI_DECLARE_LABEL(InputInt);
   UI_ATTRIBUTE(InputInt, float, WidthRatio);
   UI_ATTRIBUTE(InputInt, int, Value);
   UI_ATTRIBUTE(InputInt, bool, ReadOnly);
@@ -141,7 +141,7 @@ public:
 };
 
 UI_CLASS(InputInt2) {
-  UI_DECLARE_LABEL(InputText);
+  UI_DECLARE_LABEL(InputInt2);
   UI_ATTRIBUTE(InputInt2, float, WidthRatio);
   UI_ATTRIBUTE(InputInt2, ArrayIVec2, Value);
   UI_ATTRIBUTE(InputInt2, bool, ReadOnly);
@@ -155,7 +155,7 @@ public:
 };
 
 UI_CLASS(InputInt3) {
-  UI_DECLARE_LABEL(InputText);
+  UI_DECLARE_LABEL(InputInt3);
   UI_ATTRIBUTE(InputInt3, float, WidthRatio);
   UI_ATTRIBUTE(InputInt3, ArrayIVec3, Value);
   UI_ATTRIBUTE(InputInt3, bool, ReadOnly);
@@ -169,7 +169,7 @@ public:
 };
 
 UI_CLASS(InputInt4) {
-  UI_DECLARE_LABEL(InputText);
+  UI_DECLARE_LABEL(InputInt4);
   UI_ATTRIBUTE(InputInt4, float, WidthRatio);
   UI_ATTRIBUTE(InputInt4, ArrayIVec4, Value);
   UI_ATTRIBUTE(InputInt4, bool, ReadOnly);
