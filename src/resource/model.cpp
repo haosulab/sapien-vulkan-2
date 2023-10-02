@@ -537,6 +537,7 @@ std::future<void> SVModel::loadAsync() {
       auto shape = std::make_shared<SVShape>();
       shape->mesh = svmesh;
       shape->material = materials[mesh->mMaterialIndex];
+      shape->name = mesh->mName.C_Str();
       mShapes.push_back(shape);
     }
     for (auto &f : futures) {

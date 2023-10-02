@@ -28,6 +28,9 @@ RTRenderer::RTRenderer(std::string const &shaderDir) : mShaderDir(shaderDir) {
   mCustomPropertiesInt["maxDepth"] = 3;
   mCustomPropertiesInt["russianRoulette"] = 0;
   mCustomPropertiesInt["russianRouletteMinBounces"] = 2;
+  mCustomPropertiesFloat["exposure"] = 1.f;
+  mCustomPropertiesFloat["aperture"] = 0.f;
+  mCustomPropertiesFloat["focusPlane"] = 1.f;
 
   mSceneAccessFence =
       mContext->getDevice().createFenceUnique({vk::FenceCreateFlagBits::eSignaled});
@@ -279,11 +282,11 @@ void RTRenderer::recordRender() {
   mRenderCommandBuffer->pushConstants(
       mShaderPackInstance->getPipelineLayout(),
       vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR |
-          vk::ShaderStageFlagBits::eClosestHitKHR | vk::ShaderStageFlagBits::eAnyHitKHR,
+          vk::ShaderStageFlagBits::eClosestHitKHR | vk::ShaderStageFlagBits::eAnyHitKHR |
+          vk::ShaderStageFlagBits::eCompute,
       0, pushConstantLayout->size, mPushConstantBuffer.data());
   mRenderCommandBuffer->bindPipeline(vk::PipelineBindPoint::eRayTracingKHR,
                                      mShaderPackInstance->getPipeline());
-
   std::vector<vk::DescriptorSet> descriptorSets;
   auto const &resources = mShaderPack->getResources();
   for (uint32_t sid = 0; sid < resources.size(); ++sid) {
@@ -853,9 +856,17 @@ void RTRenderer::recordPostprocess() {
         vk::PipelineStageFlagBits::eComputeShader);
   }
 
+  auto pushConstantLayout = mShaderPack->getPushConstantLayout();
+
   // TODO insert memory barrier between render passes
   // currently it only works for a single pass
   for (uint32_t i = 0; i < mShaderPackInstance->getPostprocessingPipelines().size(); ++i) {
+    mPostprocessCommandBuffer->pushConstants(
+        mShaderPackInstance->getPostprocessingPipelineLayouts().at(i).get(),
+        vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR |
+            vk::ShaderStageFlagBits::eClosestHitKHR | vk::ShaderStageFlagBits::eAnyHitKHR |
+            vk::ShaderStageFlagBits::eCompute,
+        0, pushConstantLayout->size, mPushConstantBuffer.data());
     mPostprocessCommandBuffer->bindPipeline(
         vk::PipelineBindPoint::eCompute,
         mShaderPackInstance->getPostprocessingPipelines().at(i).get());

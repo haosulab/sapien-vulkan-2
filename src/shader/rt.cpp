@@ -831,12 +831,11 @@ void RayTracingShaderPackInstance::initPipeline() {
 
   std::vector<vk::PushConstantRange> pushConstantRanges;
   if (mShaderPack->getPushConstantLayout()) {
-    pushConstantRanges.push_back(
-        vk::PushConstantRange(vk::ShaderStageFlagBits::eRaygenKHR |
-                                  vk::ShaderStageFlagBits::eMissKHR |
-                                  vk::ShaderStageFlagBits::eClosestHitKHR |
-                                  vk::ShaderStageFlagBits::eAnyHitKHR,
-                              0, mShaderPack->getPushConstantLayout()->size));
+    pushConstantRanges.push_back(vk::PushConstantRange(
+        vk::ShaderStageFlagBits::eRaygenKHR | vk::ShaderStageFlagBits::eMissKHR |
+            vk::ShaderStageFlagBits::eClosestHitKHR | vk::ShaderStageFlagBits::eAnyHitKHR |
+            vk::ShaderStageFlagBits::eCompute,
+        0, mShaderPack->getPushConstantLayout()->size));
   }
 
   std::vector<vk::DescriptorSetLayout> descriptorSetLayouts;
@@ -917,7 +916,8 @@ void RayTracingShaderPackInstance::initPipeline() {
     auto descriptorSetLayout = device.createDescriptorSetLayoutUnique(
         vk::DescriptorSetLayoutCreateInfo({}, bindings));
     auto pipelineLayout = device.createPipelineLayoutUnique(
-        vk::PipelineLayoutCreateInfo({}, descriptorSetLayout.get()));
+        vk::PipelineLayoutCreateInfo({}, descriptorSetLayout.get(),
+                                     pushConstantRanges));
 
     auto shaderModule = device.createShaderModuleUnique(
         vk::ShaderModuleCreateInfo({}, parser->getCode()));

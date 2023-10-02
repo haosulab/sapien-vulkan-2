@@ -10,6 +10,7 @@ namespace resource {
 struct SVShape {
   std::shared_ptr<SVMesh> mesh;
   std::shared_ptr<SVMaterial> material;
+  std::string name;
 
   static std::shared_ptr<SVShape> Create(std::shared_ptr<SVMesh> mesh,
                                          std::shared_ptr<SVMaterial> material);
