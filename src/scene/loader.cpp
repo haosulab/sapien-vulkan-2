@@ -22,6 +22,10 @@ std::shared_ptr<Scene> LoadScene(std::string const &path) {
   importer.SetPropertyBool(AI_CONFIG_IMPORT_COLLADA_IGNORE_UP_DIRECTION, true);
   const aiScene *s = importer.ReadFile(path, flags);
 
+  if (!s) {
+    throw std::runtime_error("failed to parse scene " + path);
+  }
+
   for (uint32_t i = 0; i < s->mNumLights; ++i) {
     switch (s->mLights[i]->mType) {
     case aiLightSource_POINT: {
