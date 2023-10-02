@@ -299,9 +299,6 @@ std::vector<Object *> Scene::getObjects() {
   for (auto &obj : mObjects) {
     result.push_back(obj.get());
   }
-  for (auto &obj : mObjects) {
-    result.push_back(obj.get());
-  }
   return result;
 }
 
