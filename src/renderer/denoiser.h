@@ -25,6 +25,8 @@ public:
 
   virtual uint32_t getWidth() const = 0;
   virtual uint32_t getHeight() const = 0;
+
+  virtual ~Denoiser(){};
 };
 
 class DenoiserOptix : public Denoiser {
@@ -107,9 +109,6 @@ public:
   ~DenoiserOidn();
 
 private:
-  void ensureLibrary();
-  void *mLibrary;
-
   bool mAlbedo{};
   bool mNormal{};
   bool mHdr{};
@@ -119,22 +118,18 @@ private:
   uint32_t mWidth;
   uint32_t mHeight;
 
+  cudaStream_t mCudaStream{};
+  oidn::DeviceRef mDevice;
+  oidn::FilterRef mFilter;
+
   std::unique_ptr<core::Buffer> mInputBuffer;
   oidn::BufferRef mInputBufferOidn;
-
-  // std::unique_ptr<core::Buffer> mOutputBuffer;
-  // oidn::BufferRef mOutputBufferOidn;
 
   std::unique_ptr<core::Buffer> mAlbedoBuffer;
   oidn::BufferRef mAlbedoBufferOidn;
 
   std::unique_ptr<core::Buffer> mNormalBuffer;
   oidn::BufferRef mNormalBufferOidn;
-
-  oidn::FilterRef mFilter;
-
-  oidn::DeviceRef mDevice;
-  cudaStream_t mCudaStream{};
 
   std::unique_ptr<core::CommandPool> mCommandPool;
   vk::UniqueCommandBuffer mCommandBufferIn;

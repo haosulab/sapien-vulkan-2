@@ -16,27 +16,7 @@ static inline bool checkCudaRuntime(cudaError_t error, std::string const &messag
   return true;
 }
 
-void DenoiserOidn::ensureLibrary() {
-  // attempt to locate libOpenImageDenoiser_device_cuda early
-  // so oidn can find this dynamic library later
-  std::string library =
-      "libOpenImageDenoise_device_cuda.so." + std::to_string(OIDN_VERSION_MAJOR) + "." +
-      std::to_string(OIDN_VERSION_MINOR) + "." + std::to_string(OIDN_VERSION_PATCH);
-  mLibrary = dlopen(library.c_str(), RTLD_NOW | RTLD_GLOBAL);
-  if (!mLibrary) {
-    if (char *path = std::getenv("SAPIEN_PACKAGE_PATH")) {
-      library = std::string(path) + "/oidn_library/" + library;
-      mLibrary = dlopen(library.c_str(), RTLD_NOW | RTLD_GLOBAL);
-    }
-  }
-}
-
 bool DenoiserOidn::init(bool albedo, bool normal, bool hdr) {
-  // ensureLibrary();
-  // if (!mLibrary) {
-  //   return false;
-  // }
-
   int device;
   if (!checkCudaRuntime(cudaGetDevice(&device))) {
     return false;
@@ -127,8 +107,6 @@ void DenoiserOidn::free() {
   mNormalBuffer = {};
   mAlbedoBufferOidn = {};
   mAlbedoBuffer = {};
-  // mOutputBufferOidn = {};
-  // mOutputBuffer = {};
   mInputBufferOidn = {};
   mInputBuffer = {};
 }
@@ -194,12 +172,10 @@ void DenoiserOidn::denoise(core::Image &color, core::Image *albedo, core::Image 
 
 DenoiserOidn::~DenoiserOidn() {
   free();
+
+  mDevice = {};
   if (mCudaStream) {
     checkCudaRuntime(cudaStreamDestroy(mCudaStream));
-  }
-
-  if (mLibrary) {
-    dlclose(mLibrary);
   }
 }
 } // namespace renderer
