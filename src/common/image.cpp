@@ -11,15 +11,20 @@
 #pragma GCC diagnostic pop
 
 namespace svulkan2 {
-std::vector<uint8_t> loadImage(std::string const &filename, int &width, int &height,
-                               int &channels) {
+std::vector<uint8_t> loadImage(std::string const &filename, int &width, int &height, int &channels,
+                               int desiredChannels = 0) {
+  if (desiredChannels != 0 && desiredChannels != 1 && desiredChannels != 4) {
+    throw std::runtime_error("image can only be loaded with 1 or 4 channels");
+  }
+
   unsigned char *data = stbi_load(filename.c_str(), &width, &height, &channels, STBI_rgb_alpha);
   if (!data) {
     throw std::runtime_error("failed to load image: " + filename);
   }
 
   std::vector<uint8_t> dataVector;
-  if (channels == 1) {
+
+  if ((channels == 1 && desiredChannels != 4) || desiredChannels == 1) {
     dataVector.reserve(width * height);
     for (uint32_t i = 0; i < width * height; ++i) {
       dataVector.push_back(data[4 * i]);

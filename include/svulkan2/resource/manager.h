@@ -26,23 +26,24 @@ public:
 
   std::shared_ptr<shader::RayTracingShaderPack> CreateRTShaderPack(std::string const &dirname);
 
-  std::shared_ptr<SVImage> CreateImageFromFile(std::string const &filename, uint32_t mipLevels);
-
-  std::shared_ptr<SVTexture> CreateTextureFromFile(
-      std::string const &filename, uint32_t mipLevels, vk::Filter magFilter = vk::Filter::eLinear,
-      vk::Filter minFilter = vk::Filter::eLinear,
-      vk::SamplerAddressMode addressModeU = vk::SamplerAddressMode::eRepeat,
-      vk::SamplerAddressMode addressModeV = vk::SamplerAddressMode::eRepeat, bool srgb = false);
+  std::shared_ptr<SVImage> CreateImageFromFile(std::string const &filename, uint32_t mipLevels,
+                                               uint32_t desiredChannels);
 
   std::shared_ptr<SVTexture>
-  CreateTextureFromRawData(uint32_t width, uint32_t height, uint32_t depth, vk::Format format,
-                           std::vector<char> const &data, int dim, uint32_t mipLevels = 1,
-                           vk::Filter magFilter = vk::Filter::eLinear,
-                           vk::Filter minFilter = vk::Filter::eLinear,
-                           vk::SamplerAddressMode addressModeU = vk::SamplerAddressMode::eRepeat,
-                           vk::SamplerAddressMode addressModeV = vk::SamplerAddressMode::eRepeat,
-                           vk::SamplerAddressMode addressModeW = vk::SamplerAddressMode::eRepeat,
-                           bool srgb = false);
+  CreateTextureFromFile(std::string const &filename, uint32_t mipLevels,
+                        vk::Filter magFilter = vk::Filter::eLinear,
+                        vk::Filter minFilter = vk::Filter::eLinear,
+                        vk::SamplerAddressMode addressModeU = vk::SamplerAddressMode::eRepeat,
+                        vk::SamplerAddressMode addressModeV = vk::SamplerAddressMode::eRepeat,
+                        bool srgb = false, uint32_t desiredChannels = 0);
+
+  std::shared_ptr<SVTexture> CreateTextureFromRawData(
+      uint32_t width, uint32_t height, uint32_t depth, vk::Format format,
+      std::vector<char> const &data, int dim, uint32_t mipLevels = 1,
+      vk::Filter magFilter = vk::Filter::eLinear, vk::Filter minFilter = vk::Filter::eLinear,
+      vk::SamplerAddressMode addressModeU = vk::SamplerAddressMode::eRepeat,
+      vk::SamplerAddressMode addressModeV = vk::SamplerAddressMode::eRepeat,
+      vk::SamplerAddressMode addressModeW = vk::SamplerAddressMode::eRepeat, bool srgb = false);
 
   std::shared_ptr<SVCubemap> CreateCubemapFromKTX(std::string const &filename,
                                                   uint32_t mipLevels = 1,

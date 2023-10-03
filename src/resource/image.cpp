@@ -37,10 +37,11 @@ std::shared_ptr<SVImage> SVImage::FromRawData(vk::ImageType type, uint32_t width
 }
 
 std::shared_ptr<SVImage> SVImage::FromFile(std::vector<std::string> const &filenames,
-                                           uint32_t mipLevels) {
+                                           uint32_t mipLevels, uint32_t desiredChannels) {
   auto image = std::shared_ptr<SVImage>(new SVImage);
   image->mDescription = SVImageDescription{.source = SVImageDescription::SourceType::eFILE,
                                            .filenames = filenames,
+                                           .desiredChannels = desiredChannels,
                                            .mipLevels = mipLevels};
   return image;
 }
@@ -204,9 +205,10 @@ std::future<void> SVImage::loadAsync() {
     } else {
       for (uint32_t i = 0; i < mDescription.filenames.size(); ++i) {
         int width, height, channels;
-        // TODO: load image
-        std::vector<uint8_t> rawData =
-            loadImage(mDescription.filenames[i], width, height, channels);
+
+        std::vector<uint8_t> rawData = loadImage(mDescription.filenames[i], width, height,
+                                                 channels, mDescription.desiredChannels);
+
         switch (channels) {
         case 1:
           mFormat = vk::Format::eR8Unorm;

@@ -18,14 +18,6 @@ SVResourceManager::SVResourceManager() {
   mDefaultTexture2D = SVTexture::FromRawData(1, 1, 1, vk::Format::eR8G8B8A8Unorm, rawData, 2);
   mDefaultTexture3D = SVTexture::FromRawData(1, 1, 1, vk::Format::eR8G8B8A8Unorm, rawData, 3);
 
-  // // TODO: use uint8
-  // mDefaultTexture1D = SVTexture::FromData(1, 1, 1, 4, std::vector<float>{1.0, 1.0, 1.0, 1.0},
-  // 1);
-
-  // // TODO: support 3D with 1,1,1
-  // mDefaultTexture3D = SVTexture::FromData(
-  //     1, 1, 2, 4, std::vector<float>{1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0}, 3);
-
   mDefaultCubemap = SVCubemap::FromData(1, vk::Format::eR8G8B8A8Unorm,
                                         {
                                             std::vector<char>{0, 0, 0, 0},
@@ -103,11 +95,13 @@ SVResourceManager::CreateRTShaderPack(std::string const &dirname) {
 }
 
 std::shared_ptr<SVImage> SVResourceManager::CreateImageFromFile(std::string const &filename,
-                                                                uint32_t mipLevels) {
+                                                                uint32_t mipLevels,
+                                                                uint32_t desiredChannels) {
   std::lock_guard<std::mutex> lock(mCreateLock);
   std::string path = fs::canonical(filename).string();
   SVImageDescription desc = {.source = SVImageDescription::SourceType::eFILE,
                              .filenames = {path},
+                             .desiredChannels = desiredChannels,
                              .mipLevels = mipLevels};
 
   auto it = mImageRegistry.find(path);
@@ -118,19 +112,21 @@ std::shared_ptr<SVImage> SVResourceManager::CreateImageFromFile(std::string cons
       }
     }
   }
-  auto img = SVImage::FromFile({path}, mipLevels);
+  auto img = SVImage::FromFile({path}, mipLevels, desiredChannels);
   mImageRegistry[path].push_back(img);
   return img;
 }
 
 std::shared_ptr<SVTexture> SVResourceManager::CreateTextureFromFile(
     std::string const &filename, uint32_t mipLevels, vk::Filter magFilter, vk::Filter minFilter,
-    vk::SamplerAddressMode addressModeU, vk::SamplerAddressMode addressModeV, bool srgb) {
+    vk::SamplerAddressMode addressModeU, vk::SamplerAddressMode addressModeV, bool srgb,
+    uint32_t desiredChannels) {
   std::lock_guard<std::mutex> lock(mCreateLock);
   std::string path = fs::canonical(filename).string();
 
   SVTextureDescription desc = {.source = SVTextureDescription::SourceType::eFILE,
                                .filename = path,
+                               .desiredChannels = desiredChannels,
                                .mipLevels = mipLevels,
                                .magFilter = magFilter,
                                .minFilter = minFilter,
@@ -146,8 +142,8 @@ std::shared_ptr<SVTexture> SVResourceManager::CreateTextureFromFile(
       }
     }
   }
-  auto tex =
-      SVTexture::FromFile(path, mipLevels, magFilter, minFilter, addressModeU, addressModeV, srgb);
+  auto tex = SVTexture::FromFile(path, mipLevels, magFilter, minFilter, addressModeU, addressModeV,
+                                 srgb, desiredChannels);
   mTextureRegistry[path].push_back(tex);
   return tex;
 }
@@ -161,24 +157,6 @@ std::shared_ptr<SVTexture> SVResourceManager::CreateTextureFromRawData(
                                     minFilter, addressModeU, addressModeV, addressModeW, srgb);
   return tex;
 }
-
-// std::shared_ptr<SVTexture> SVResourceManager::CreateTextureFromData(
-//     uint32_t width, uint32_t height, uint32_t channels, std::vector<uint8_t> const &data,
-//     uint32_t mipLevels, vk::Filter magFilter, vk::Filter minFilter,
-//     vk::SamplerAddressMode addressModeU, vk::SamplerAddressMode addressModeV, bool srgb) {
-//   auto tex = SVTexture::FromData(width, height, channels, data, mipLevels, magFilter, minFilter,
-//                                  addressModeU, addressModeV, srgb);
-//   return tex;
-// }
-
-// std::shared_ptr<SVTexture> SVResourceManager::CreateTextureFromData(
-//     uint32_t width, uint32_t height, uint32_t channels, std::vector<float> const &data,
-//     uint32_t mipLevels, vk::Filter magFilter, vk::Filter minFilter,
-//     vk::SamplerAddressMode addressModeU, vk::SamplerAddressMode addressModeV) {
-//   auto tex = SVTexture::FromData(width, height, channels, data, mipLevels, magFilter, minFilter,
-//                                  addressModeU, addressModeV);
-//   return tex;
-// }
 
 std::shared_ptr<SVCubemap>
 SVResourceManager::CreateCubemapFromKTX(std::string const &filename, uint32_t mipLevels,

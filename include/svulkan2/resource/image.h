@@ -9,6 +9,7 @@ struct SVImageDescription {
   enum class SourceType { eFILE, eCUSTOM, eDEVICE } source{SourceType::eCUSTOM};
   vk::Format format{vk::Format::eUndefined};
   std::vector<std::string> filenames{};
+  uint32_t desiredChannels{0};
   uint32_t mipLevels{1};
 
   inline bool operator==(SVImageDescription const &other) const {
@@ -55,7 +56,7 @@ public:
                                               uint32_t mipLevels = 1);
 
   static std::shared_ptr<SVImage> FromFile(std::vector<std::string> const &filenames,
-                                           uint32_t mipLevels = 1);
+                                           uint32_t mipLevels, uint32_t desiredChannels);
 
   static std::shared_ptr<SVImage> FromDeviceImage(std::unique_ptr<core::Image> image);
 

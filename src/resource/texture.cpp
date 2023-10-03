@@ -10,10 +10,12 @@ namespace resource {
 std::shared_ptr<SVTexture> SVTexture::FromFile(std::string const &filename, uint32_t mipLevels,
                                                vk::Filter magFilter, vk::Filter minFilter,
                                                vk::SamplerAddressMode addressModeU,
-                                               vk::SamplerAddressMode addressModeV, bool srgb) {
+                                               vk::SamplerAddressMode addressModeV, bool srgb,
+                                               uint32_t desiredChannels) {
   auto texture = std::shared_ptr<SVTexture>(new SVTexture);
   texture->mDescription = SVTextureDescription{.source = SVTextureDescription::SourceType::eFILE,
                                                .filename = filename,
+                                               .desiredChannels = desiredChannels,
                                                .mipLevels = mipLevels,
                                                .magFilter = magFilter,
                                                .minFilter = minFilter,
@@ -145,7 +147,8 @@ std::future<void> SVTexture::loadAsync() {
     if (mLoaded) {
       return;
     }
-    mImage = manager->CreateImageFromFile(mDescription.filename, mDescription.mipLevels);
+    mImage = manager->CreateImageFromFile(mDescription.filename, mDescription.mipLevels,
+                                          mDescription.desiredChannels);
     mImage->loadAsync().get();
     mLoaded = true;
     logger::info("Loaded: {}", mDescription.filename);

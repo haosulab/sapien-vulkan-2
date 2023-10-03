@@ -12,6 +12,7 @@ struct SVTextureDescription {
   vk::Format format{vk::Format::eUndefined};
 
   std::string filename{};
+  uint32_t desiredChannels{0}; // affect loaded file, 0 for auto
   uint32_t mipLevels{1};
   vk::Filter magFilter{vk::Filter::eNearest};
   vk::Filter minFilter{vk::Filter::eNearest};
@@ -37,7 +38,7 @@ public:
            vk::Filter magFilter = vk::Filter::eLinear, vk::Filter minFilter = vk::Filter::eLinear,
            vk::SamplerAddressMode addressModeU = vk::SamplerAddressMode::eRepeat,
            vk::SamplerAddressMode addressModeV = vk::SamplerAddressMode::eRepeat,
-           bool srgb = false);
+           bool srgb = false, uint32_t desiredChannels = 0);
 
   static std::shared_ptr<SVTexture> FromRawData(
       uint32_t width, uint32_t height, uint32_t depth, vk::Format format,
@@ -46,30 +47,6 @@ public:
       vk::SamplerAddressMode addressModeU = vk::SamplerAddressMode::eRepeat,
       vk::SamplerAddressMode addressModeV = vk::SamplerAddressMode::eRepeat,
       vk::SamplerAddressMode addressModeW = vk::SamplerAddressMode::eRepeat, bool srgb = false);
-
-  // static std::shared_ptr<SVTexture>
-  // FromData(uint32_t width, uint32_t height, uint32_t channels, std::vector<uint8_t> const &data,
-  //          uint32_t mipLevels = 1, vk::Filter magFilter = vk::Filter::eLinear,
-  //          vk::Filter minFilter = vk::Filter::eLinear,
-  //          vk::SamplerAddressMode addressModeU = vk::SamplerAddressMode::eRepeat,
-  //          vk::SamplerAddressMode addressModeV = vk::SamplerAddressMode::eRepeat,
-  //          bool srgb = false);
-
-  // static std::shared_ptr<SVTexture>
-  // FromData(uint32_t width, uint32_t height, uint32_t channels, std::vector<float> const &data,
-  //          uint32_t mipLevels = 1, vk::Filter magFilter = vk::Filter::eLinear,
-  //          vk::Filter minFilter = vk::Filter::eLinear,
-  //          vk::SamplerAddressMode addressModeU = vk::SamplerAddressMode::eRepeat,
-  //          vk::SamplerAddressMode addressModeV = vk::SamplerAddressMode::eRepeat);
-
-  // static std::shared_ptr<SVTexture>
-  // FromData(uint32_t width, uint32_t height, uint32_t depth, uint32_t channels,
-  //          std::vector<float> const &data, int dim, uint32_t mipLevels = 1,
-  //          vk::Filter magFilter = vk::Filter::eLinear, vk::Filter minFilter =
-  //          vk::Filter::eLinear, vk::SamplerAddressMode addressModeU =
-  //          vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode addressModeV =
-  //          vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode addressModeW =
-  //          vk::SamplerAddressMode::eRepeat);
 
   static std::shared_ptr<SVTexture> FromImage(std::shared_ptr<SVImage> image,
                                               vk::UniqueImageView imageView, vk::Sampler sampler);

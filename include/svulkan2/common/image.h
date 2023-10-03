@@ -3,8 +3,14 @@
 #include <vulkan/vulkan.hpp>
 
 namespace svulkan2 {
-std::vector<uint8_t> loadImage(std::string const &filename, int &width, int &height,
-                               int &channels);
+
+/**
+ * load image from file.
+ * valid values for desiredChannels are {0, 1, 4}
+ * When desiredChannels == 0, channels is detected from the file
+ * */
+std::vector<uint8_t> loadImage(std::string const &filename, int &width, int &height, int &channels,
+                               int desiredChannels);
 
 std::vector<uint8_t> loadImageFromMemory(unsigned char *buffer, int len, int &width, int &height,
                                          int &channels);

@@ -301,7 +301,7 @@ std::future<void> SVModel::loadAsync() {
             std::string fullPath = (parentDir / p).string();
             baseColorTexture = manager->CreateTextureFromFile(
                 fullPath, MIP_LEVEL, vk::Filter::eLinear, vk::Filter::eLinear,
-                vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat, true);
+                vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat, true, 4);
             futures.push_back(baseColorTexture->loadAsync());
           }
         }
@@ -369,7 +369,7 @@ std::future<void> SVModel::loadAsync() {
             std::string fullPath = (parentDir / p).string();
             emissionTexture = manager->CreateTextureFromFile(
                 fullPath, MIP_LEVEL, vk::Filter::eLinear, vk::Filter::eLinear,
-                vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat, true);
+                vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat, true, 4);
             futures.push_back(emissionTexture->loadAsync());
           }
         }

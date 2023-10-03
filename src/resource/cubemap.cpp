@@ -144,9 +144,9 @@ std::future<void> SVCubemap::loadAsync() {
     if (mDescription.source == SVCubemapDescription::SourceType::eFILES) {
       auto vfiles =
           std::vector<std::string>(mDescription.filenames.begin(), mDescription.filenames.end());
-      mImage = SVImage::FromFile(vfiles, mDescription.mipLevels);
+      mImage = SVImage::FromFile(vfiles, mDescription.mipLevels, 4);
     } else if (mDescription.source == SVCubemapDescription::SourceType::eSINGLE_FILE) {
-      mImage = SVImage::FromFile({mDescription.filenames[0]}, mDescription.mipLevels);
+      mImage = SVImage::FromFile({mDescription.filenames[0]}, mDescription.mipLevels, 4);
     }
     mImage->setCreateFlags(vk::ImageCreateFlagBits::eCubeCompatible);
     mImage->loadAsync().get();
