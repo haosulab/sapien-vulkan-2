@@ -1,6 +1,6 @@
 #ifdef SVULKAN2_CUDA_INTEROP
-#include "denoiser.h"
 #include "../common/logger.h"
+#include "denoiser.h"
 #include "optix_function_table_definition.h"
 #include "svulkan2/core/context.h"
 #include <cuda_runtime.h>

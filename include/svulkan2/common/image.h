@@ -13,7 +13,7 @@ std::vector<uint8_t> loadImage(std::string const &filename, int &width, int &hei
                                int desiredChannels);
 
 std::vector<uint8_t> loadImageFromMemory(unsigned char *buffer, int len, int &width, int &height,
-                                         int &channels);
+                                         int &channels, int desiredChannels);
 
 std::vector<uint8_t> loadKTXImage(std::string const &filename, int &width, int &height,
                                   int &levels, int &faces, int &layers, vk::Format &format);

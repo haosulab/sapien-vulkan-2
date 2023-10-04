@@ -42,18 +42,20 @@ std::vector<std::shared_ptr<SVShape>> const &SVModel::getShapes() {
 }
 
 static std::vector<uint8_t> loadCompressedTexture(aiTexture const *texture, int &width,
-                                                  int &height, int &channels) {
+                                                  int &height, int &channels,
+                                                  int desiredChannels = 0) {
   return loadImageFromMemory(reinterpret_cast<unsigned char *>(texture->pcData), texture->mWidth,
-                             width, height, channels);
+                             width, height, channels, desiredChannels);
 }
 
 static std::shared_ptr<SVTexture> loadEmbededTexture(aiTexture const *texture, uint32_t mipLevels,
-                                                     int desiredChannels = 1, bool srgb = false) {
+                                                     int desiredChannels = 0, bool srgb = false) {
   // TODO: check desired channels against channels
 
   if (texture->mHeight == 0) {
     int width, height, channels;
-    std::vector<uint8_t> data = loadCompressedTexture(texture, width, height, channels);
+    std::vector<uint8_t> data =
+        loadCompressedTexture(texture, width, height, channels, desiredChannels);
 
     vk::Format format;
     switch (channels) {

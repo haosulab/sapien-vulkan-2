@@ -39,7 +39,7 @@ std::vector<uint8_t> loadImage(std::string const &filename, int &width, int &hei
 }
 
 std::vector<uint8_t> loadImageFromMemory(unsigned char *buffer, int len, int &width, int &height,
-                                         int &channels) {
+                                         int &channels, int desiredChannels) {
   unsigned char *data =
       stbi_load_from_memory(buffer, len, &width, &height, &channels, STBI_rgb_alpha);
   if (!data) {
@@ -47,7 +47,7 @@ std::vector<uint8_t> loadImageFromMemory(unsigned char *buffer, int len, int &wi
   }
 
   std::vector<uint8_t> dataVector;
-  if (channels == 1) {
+  if ((channels == 1 && desiredChannels != 4) || desiredChannels == 1) {
     dataVector.reserve(width * height);
     for (uint32_t i = 0; i < width * height; ++i) {
       dataVector.push_back(data[4 * i]);
