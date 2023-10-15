@@ -328,7 +328,8 @@ void verifyCameraBuffer(std::shared_ptr<StructDataLayout> layout) {
 }
 
 void verifyMaterialBuffer(std::shared_ptr<StructDataLayout> layout) {
-  ASSERT(layout->size == 64, "Material should be exactly 64 bytes in size");
+  // ASSERT(layout->size == 64, "Material should be exactly 64 bytes in size");
+  ASSERT(layout->size == 160, "Material should be exactly 160 bytes in size");
 
   // required variables
   ASSERT(layout->elements.contains("emission"),

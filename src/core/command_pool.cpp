@@ -1,20 +1,20 @@
 #include "svulkan2/core/command_pool.h"
 #include "svulkan2/core/context.h"
+#include "svulkan2/core/device.h"
 
 namespace svulkan2 {
 namespace core {
 CommandPool::CommandPool() {
-  mContext = Context::Get();
-  mPool = mContext->getDevice().createCommandPoolUnique(
+  auto context = Context::Get();
+  mDevice = context->getDevice2();
+  mPool = mDevice->getInternal().createCommandPoolUnique(
       {vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
-       mContext->getGraphicsQueueFamilyIndex()});
+       context->getGraphicsQueueFamilyIndex()});
 }
 
-vk::UniqueCommandBuffer
-CommandPool::allocateCommandBuffer(vk::CommandBufferLevel level) {
-  return std::move(mContext->getDevice()
-                       .allocateCommandBuffersUnique({mPool.get(), level, 1})
-                       .front());
+vk::UniqueCommandBuffer CommandPool::allocateCommandBuffer(vk::CommandBufferLevel level) {
+  return std::move(
+      mDevice->getInternal().allocateCommandBuffersUnique({mPool.get(), level, 1}).front());
 }
 
 } // namespace core

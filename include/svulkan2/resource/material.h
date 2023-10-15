@@ -55,6 +55,9 @@ class SVMetallicMaterial : public SVMaterial {
     float transmissionRoughness{};
     int textureMask{};
     int padding1;
+    glm::vec4 textureTransform[6] = {
+        {0, 0, 1, 1}, {0, 0, 1, 1}, {0, 0, 1, 1}, {0, 0, 1, 1}, {0, 0, 1, 1}, {0, 0, 1, 1},
+    };
   } mBuffer{};
   std::shared_ptr<SVTexture> mBaseColorTexture;
   std::shared_ptr<SVTexture> mRoughnessTexture;
@@ -101,6 +104,21 @@ public:
   void setEmissionTexture(std::shared_ptr<SVTexture> texture);
   void setTransmissionTexture(std::shared_ptr<SVTexture> texture);
 
+  void setDiffuseTextureTransform(glm::vec4 const &transform);
+  void setRoughnessTextureTransform(glm::vec4 const &transform);
+  void setNormalTextureTransform(glm::vec4 const &transform);
+  void setMetallicTextureTransform(glm::vec4 const &transform);
+  void setEmissionTextureTransform(glm::vec4 const &transform);
+  void setTransmissionTextureTransform(glm::vec4 const &transform);
+
+  glm::vec4 getDiffuseTextureTransform() const;
+  glm::vec4 getRoughnessTextureTransform() const;
+  glm::vec4 getNormalTextureTransform() const;
+  glm::vec4 getMetallicTextureTransform() const;
+  glm::vec4 getEmissionTextureTransform() const;
+  glm::vec4 getTransmissionTextureTransform() const;
+
+  // TODO: getters
   std::shared_ptr<SVTexture> getDiffuseTexture() const;
   std::shared_ptr<SVTexture> getRoughnessTexture() const;
   std::shared_ptr<SVTexture> getNormalTexture() const;
@@ -120,6 +138,11 @@ public:
   inline float getOpacity() const override { return mBuffer.baseColor.a; }
 
   core::Buffer &getDeviceBuffer() const;
+
+  SVMetallicMaterial(SVMetallicMaterial const &) = delete;
+  SVMetallicMaterial &operator=(SVMetallicMaterial const &) = delete;
+  SVMetallicMaterial(SVMetallicMaterial const &&) = delete;
+  SVMetallicMaterial &operator=(SVMetallicMaterial const &&) = delete;
 
   virtual ~SVMetallicMaterial();
 };

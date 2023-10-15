@@ -8,8 +8,8 @@ FetchContent_Declare(
 )
 FetchContent_Declare(
     assimp
-    GIT_REPOSITORY https://github.com/assimp/assimp.git
-    GIT_TAG        v5.3.1
+    GIT_REPOSITORY https://github.com/fbxiang/assimp.git
+    GIT_TAG        master
     GIT_SHALLOW TRUE
     GIT_PROGRESS TRUE
     # PATCH_COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_LIST_DIR}/assimp.patch.CMakeLists.txt <SOURCE_DIR>/CMakeLists.txt  # patch for MSVC

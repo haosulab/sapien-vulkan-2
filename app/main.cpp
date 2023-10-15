@@ -105,7 +105,7 @@ static void setupScene(svulkan2::scene::Scene &scene) {
   auto &light = scene.addParallelogramLight();
   light.setColor({10, 10, 10});
   light.setTransform(scene::Transform{.position = {0, 0.3f, 0.0}, .rotation = {1, 0, 0, 0}});
-  light.setShape({0, 0, 0.1}, {0.1, 0, 0});
+  // light.setShape({0, 0, 0.1}, {0.1, 0, 0});
   // auto &light = scene.addPointLight();
   // light.setColor({1.0, 1.0, 1.0});
   // light.setPosition({0, 0, 0.4});
@@ -117,24 +117,31 @@ int main() {
   auto context = svulkan2::core::Context::Create(true, 5000, 5000, 4);
   auto manager = context->createResourceManager();
 
-  // auto config = std::make_shared<RendererConfig>();
-  // config->shaderDir = "../shader/ibl";
-  // config->culling = vk::CullModeFlagBits::eNone;
-  // config->msaa = vk::SampleCountFlagBits::e1;
-  // config->colorFormat4 = vk::Format::eR32G32B32A32Sfloat;
-  // renderer::Renderer renderer(config);
+  auto config = std::make_shared<RendererConfig>();
+  config->shaderDir = "../shader/ibl";
+  config->culling = vk::CullModeFlagBits::eNone;
+  config->msaa = vk::SampleCountFlagBits::e1;
+  config->colorFormat4 = vk::Format::eR32G32B32A32Sfloat;
+  renderer::Renderer renderer(config);
 
-  renderer::RTRenderer renderer("../shader/rt");
-  renderer.setCustomProperty("maxDepth", 6);
-  renderer.setCustomProperty("russianRoulette", 1);
-  renderer.setCustomProperty("russianRouletteMinBounces", 3);
-  renderer.enableDenoiser(renderer::RTRenderer::DenoiserType::eOIDN, "HdrColor", "Albedo", "Normal");
+  // renderer::RTRenderer renderer("../shader/rt");
+  // renderer.setCustomProperty("maxDepth", 6);
+  // renderer.setCustomProperty("russianRoulette", 1);
+  // renderer.setCustomProperty("russianRouletteMinBounces", 3);
+  // renderer.enableDenoiser(renderer::RTRenderer::DenoiserType::eOIDN, "HdrColor", "Albedo",
+  //                         "Normal");
 
   auto scene = std::make_shared<svulkan2::scene::Scene>();
 
   // createSphereArray(*scene);
 
-  setupScene(*scene);
+  // setupScene(*scene);
+
+  auto model = manager->CreateModelFromFile("/home/fx/Downloads/BoxTextured/BoxTextured_basisu.glb");
+  model->loadAsync().get();
+  // auto model =
+  //     manager->CreateModelFromFile("/home/fx/Downloads/Alarm_Clock_1.glb");
+  auto &obj = scene->addObject(model);
 
   // {
   //   auto model =
@@ -309,8 +316,8 @@ int main() {
   // customLight.setShadowProjectionMatrix(math::perspective(0.7f, 1.f,
   // 0.1f, 5.f));
 
-  auto flashlight = context->getResourceManager()->CreateTextureFromFile(
-      "../test/assets/image/flashlight.jpg", 1);
+  // auto flashlight = context->getResourceManager()->CreateTextureFromFile(
+  //     "../test/assets/image/flashlight.jpg", 1);
 
   // auto &l = scene->addTexturedLight();
   // l.setColor({1, 1, 1});
@@ -436,7 +443,8 @@ int main() {
     ImGui::NewFrame();
     ImGuizmo::BeginFrame();
 
-    ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".cpp,.h,.hpp", ".");
+    ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".cpp,.h,.hpp",
+                                            ".");
 
     // float scaling = ImGui::GetWindowDpiScale();
     // // log::info("Window DPI scale: {}", scaling);

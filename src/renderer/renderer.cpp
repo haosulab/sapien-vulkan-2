@@ -1581,7 +1581,7 @@ void Renderer::setCustomCubemap(std::string const &name,
   mCustomCubemaps[name] = cubemap;
 }
 
-int Renderer::getCustomPropertyInt(std::string const &name) const {
+int Renderer::getCustomPropertyInt(std::string const &name) const{
   if (mSpecializationConstants.contains(name)) {
     auto c = mSpecializationConstants.at(name);
     if (c.dtype == DataType::eINT) {
@@ -1593,7 +1593,7 @@ int Renderer::getCustomPropertyInt(std::string const &name) const {
   throw std::runtime_error("invalid property " + name);
 }
 
-float Renderer::getCustomPropertyFloat(std::string const &name) const {
+float Renderer::getCustomPropertyFloat(std::string const &name) const{
   if (mSpecializationConstants.contains(name)) {
     auto c = mSpecializationConstants.at(name);
     if (c.dtype == DataType::eFLOAT) {
@@ -1605,7 +1605,7 @@ float Renderer::getCustomPropertyFloat(std::string const &name) const {
   throw std::runtime_error("invalid property " + name);
 }
 
-glm::vec3 Renderer::getCustomPropertyVec3(std::string const &name) const {
+glm::vec3 Renderer::getCustomPropertyVec3(std::string const &name) const{
   if (mSpecializationConstants.contains(name)) {
     auto c = mSpecializationConstants.at(name);
     if (c.dtype == DataType::eFLOAT3) {
@@ -1616,7 +1616,7 @@ glm::vec3 Renderer::getCustomPropertyVec3(std::string const &name) const {
   }
   throw std::runtime_error("invalid property " + name);
 }
-glm::vec4 Renderer::getCustomPropertyVec4(std::string const &name) const {
+glm::vec4 Renderer::getCustomPropertyVec4(std::string const &name) const{
   if (mSpecializationConstants.contains(name)) {
     auto c = mSpecializationConstants.at(name);
     if (c.dtype == DataType::eFLOAT3) {

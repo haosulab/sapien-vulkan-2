@@ -1,20 +1,24 @@
 #pragma once
 #include "svulkan2/common/vk.h"
-#include <mutex>
 #include <memory>
+#include <mutex>
 
 namespace svulkan2 {
 namespace core {
 class Context;
+class Device;
 
 class CommandPool {
-  std::shared_ptr<Context> mContext;
-  vk::UniqueCommandPool mPool;
-
 public:
-  vk::UniqueCommandBuffer allocateCommandBuffer(
-      vk::CommandBufferLevel level = vk::CommandBufferLevel::ePrimary);
+  vk::UniqueCommandBuffer
+  allocateCommandBuffer(vk::CommandBufferLevel level = vk::CommandBufferLevel::ePrimary);
   CommandPool();
+
+  vk::CommandPool getVulkanCommandPool() const { return mPool.get(); }
+
+private:
+  std::shared_ptr<Device> mDevice;
+  vk::UniqueCommandPool mPool;
 };
 
 } // namespace core

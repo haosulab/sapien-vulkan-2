@@ -17,6 +17,9 @@ std::vector<uint8_t> loadImageFromMemory(unsigned char *buffer, int len, int &wi
 
 std::vector<uint8_t> loadKTXImage(std::string const &filename, int &width, int &height,
                                   int &levels, int &faces, int &layers, vk::Format &format);
+std::vector<uint8_t> loadKTXImageFromMemory(unsigned char *buffer, size_t size, int &width,
+                                            int &height, int &levels, int &faces, int &layers,
+                                            vk::Format &format);
 
 template <typename T> std::vector<char> toRawBytes(std::vector<T> const &data) {
   std::vector<char> raw(data.size() * sizeof(T));

@@ -50,7 +50,10 @@ target_include_directories(svulkan2 PUBLIC
     $<INSTALL_INTERFACE:include>
 )
 
-target_include_directories(svulkan2 PRIVATE "3rd_party/stb" "3rd_party/OptiX7SDK/include")
+target_include_directories(svulkan2 PRIVATE
+    "3rd_party/stb" "3rd_party/OptiX7SDK/include"
+    "3rd_party/tinygltf"
+)
 target_link_libraries(svulkan2 PUBLIC Vulkan::Headers glm)
 
 find_package(Threads REQUIRED)
@@ -94,11 +97,11 @@ install(DIRECTORY "${glm_SOURCE_DIR}/glm" DESTINATION "include")
 # install(IMPORTED_RUNTIME_ARTIFACTS OpenImageDenoise_device_cuda)
 
 
-# add_executable(svulkan2_main app/test.cpp)
-# target_link_libraries(svulkan2_main svulkan2 glfw imgui)
-# if (UNIX)
-#     target_link_libraries(svulkan2_main stdc++fs)
-# endif()
+add_executable(svulkan2_main app/main.cpp)
+target_link_libraries(svulkan2_main svulkan2 glfw imgui)
+if (UNIX)
+    target_link_libraries(svulkan2_main stdc++fs)
+endif()
 
 add_executable(gencube app/gencube.cpp)
 target_link_libraries(gencube svulkan2)

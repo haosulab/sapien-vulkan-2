@@ -7,10 +7,8 @@ namespace resource {
 
 static void updateDescriptorSets(
     vk::Device device, vk::DescriptorSet descriptorSet,
-    std::vector<std::tuple<vk::DescriptorType, vk::Buffer,
-                           vk::BufferView>> const &bufferData,
-    std::vector<std::tuple<vk::ImageView, vk::Sampler>> textureData,
-    uint32_t bindingOffset) {
+    std::vector<std::tuple<vk::DescriptorType, vk::Buffer, vk::BufferView>> const &bufferData,
+    std::vector<std::tuple<vk::ImageView, vk::Sampler>> textureData, uint32_t bindingOffset) {
 
   std::vector<vk::DescriptorBufferInfo> bufferInfos;
   bufferInfos.reserve(bufferData.size());
@@ -20,34 +18,37 @@ static void updateDescriptorSets(
 
   uint32_t dstBinding = bindingOffset;
   for (auto const &bd : bufferData) {
-    bufferInfos.push_back(
-        vk::DescriptorBufferInfo(std::get<1>(bd), 0, VK_WHOLE_SIZE));
-    writeDescriptorSets.push_back(vk::WriteDescriptorSet(
-        descriptorSet, dstBinding++, 0, 1, std::get<0>(bd), nullptr,
-        &bufferInfos.back(), std::get<2>(bd) ? &std::get<2>(bd) : nullptr));
+    bufferInfos.push_back(vk::DescriptorBufferInfo(std::get<1>(bd), 0, VK_WHOLE_SIZE));
+    writeDescriptorSets.push_back(
+        vk::WriteDescriptorSet(descriptorSet, dstBinding++, 0, 1, std::get<0>(bd), nullptr,
+                               &bufferInfos.back(), std::get<2>(bd) ? &std::get<2>(bd) : nullptr));
   }
 
   std::vector<vk::DescriptorImageInfo> imageInfos;
   for (auto const &tex : textureData) {
-    imageInfos.push_back(
-        vk::DescriptorImageInfo(std::get<1>(tex), std::get<0>(tex),
-                                vk::ImageLayout::eShaderReadOnlyOptimal));
+    imageInfos.push_back(vk::DescriptorImageInfo(std::get<1>(tex), std::get<0>(tex),
+                                                 vk::ImageLayout::eShaderReadOnlyOptimal));
   }
   if (imageInfos.size()) {
-    writeDescriptorSets.push_back(vk::WriteDescriptorSet(
-        descriptorSet, dstBinding, 0, imageInfos.size(),
-        vk::DescriptorType::eCombinedImageSampler, imageInfos.data()));
+    writeDescriptorSets.push_back(
+        vk::WriteDescriptorSet(descriptorSet, dstBinding, 0, imageInfos.size(),
+                               vk::DescriptorType::eCombinedImageSampler, imageInfos.data()));
   }
   device.updateDescriptorSets(writeDescriptorSets, nullptr);
 }
 
-SVMetallicMaterial::SVMetallicMaterial(glm::vec4 emission, glm::vec4 baseColor,
-                                       float fresnel, float roughness,
-                                       float metallic, float transparency,
+SVMetallicMaterial::SVMetallicMaterial(glm::vec4 emission, glm::vec4 baseColor, float fresnel,
+                                       float roughness, float metallic, float transparency,
                                        float ior, float transmissionRoughness) {
-  mBuffer = {emission, baseColor,    fresnel, roughness,
-             metallic, transparency, ior,     transmissionRoughness,
-             0};
+  mBuffer.emission = emission;
+  mBuffer.baseColor = baseColor;
+  mBuffer.fresnel = fresnel;
+  mBuffer.roughness = roughness;
+  mBuffer.metallic = metallic;
+  mBuffer.transmission = transparency;
+  mBuffer.ior = ior;
+  mBuffer.transmissionRoughness = transmissionRoughness;
+  mBuffer.textureMask = 0;
 }
 
 SVMetallicMaterial::~SVMetallicMaterial() {
@@ -115,9 +116,7 @@ void SVMetallicMaterial::setTransmission(float transmission) {
     uploadToDevice();
   }
 }
-float SVMetallicMaterial::getTransmission() const {
-  return mBuffer.transmission;
-}
+float SVMetallicMaterial::getTransmission() const { return mBuffer.transmission; }
 
 void SVMetallicMaterial::setIor(float ior) {
   mRequiresBufferUpload = true;
@@ -193,8 +192,7 @@ void SVMetallicMaterial::setDiffuseTexture(std::shared_ptr<SVTexture> texture) {
     uploadToDevice();
   }
 }
-void SVMetallicMaterial::setRoughnessTexture(
-    std::shared_ptr<SVTexture> texture) {
+void SVMetallicMaterial::setRoughnessTexture(std::shared_ptr<SVTexture> texture) {
   mRequiresTextureUpload = true;
   mRoughnessTexture = texture;
   if (mRoughnessTexture) {
@@ -220,8 +218,7 @@ void SVMetallicMaterial::setNormalTexture(std::shared_ptr<SVTexture> texture) {
   }
 }
 
-void SVMetallicMaterial::setMetallicTexture(
-    std::shared_ptr<SVTexture> texture) {
+void SVMetallicMaterial::setMetallicTexture(std::shared_ptr<SVTexture> texture) {
   mRequiresTextureUpload = true;
   mMetallicTexture = texture;
   if (mMetallicTexture) {
@@ -234,8 +231,7 @@ void SVMetallicMaterial::setMetallicTexture(
   }
 }
 
-void SVMetallicMaterial::setEmissionTexture(
-    std::shared_ptr<SVTexture> texture) {
+void SVMetallicMaterial::setEmissionTexture(std::shared_ptr<SVTexture> texture) {
   mRequiresTextureUpload = true;
   mEmissionTexture = texture;
   if (mEmissionTexture) {
@@ -248,8 +244,7 @@ void SVMetallicMaterial::setEmissionTexture(
   }
 }
 
-void SVMetallicMaterial::setTransmissionTexture(
-    std::shared_ptr<SVTexture> texture) {
+void SVMetallicMaterial::setTransmissionTexture(std::shared_ptr<SVTexture> texture) {
   mRequiresTextureUpload = true;
   mTransmissionTexture = texture;
   if (mTransmissionTexture) {
@@ -262,13 +257,74 @@ void SVMetallicMaterial::setTransmissionTexture(
   }
 }
 
-void SVMetallicMaterial::setTextures(
-    std::shared_ptr<SVTexture> baseColorTexture,
-    std::shared_ptr<SVTexture> roughnessTexture,
-    std::shared_ptr<SVTexture> normalTexture,
-    std::shared_ptr<SVTexture> metallicTexture,
-    std::shared_ptr<SVTexture> emissionTexture,
-    std::shared_ptr<SVTexture> transmissionTexture) {
+void SVMetallicMaterial::setDiffuseTextureTransform(glm::vec4 const &transform) {
+  mRequiresBufferUpload = true;
+  mBuffer.textureTransform[TextureBit::eBaseColor] = transform;
+  if (mDeviceBuffer) {
+    uploadToDevice();
+  }
+}
+void SVMetallicMaterial::setRoughnessTextureTransform(glm::vec4 const &transform) {
+  mRequiresBufferUpload = true;
+  mBuffer.textureTransform[TextureBit::eRoughness] = transform;
+  if (mDeviceBuffer) {
+    uploadToDevice();
+  }
+}
+void SVMetallicMaterial::setNormalTextureTransform(glm::vec4 const &transform) {
+  mRequiresBufferUpload = true;
+  mBuffer.textureTransform[TextureBit::eNormal] = transform;
+  if (mDeviceBuffer) {
+    uploadToDevice();
+  }
+}
+void SVMetallicMaterial::setMetallicTextureTransform(glm::vec4 const &transform) {
+  mRequiresBufferUpload = true;
+  mBuffer.textureTransform[TextureBit::eMetallic] = transform;
+  if (mDeviceBuffer) {
+    uploadToDevice();
+  }
+}
+void SVMetallicMaterial::setEmissionTextureTransform(glm::vec4 const &transform) {
+  mRequiresBufferUpload = true;
+  mBuffer.textureTransform[TextureBit::eEmission] = transform;
+  if (mDeviceBuffer) {
+    uploadToDevice();
+  }
+}
+void SVMetallicMaterial::setTransmissionTextureTransform(glm::vec4 const &transform) {
+  mRequiresBufferUpload = true;
+  mBuffer.textureTransform[TextureBit::eTransmission] = transform;
+  if (mDeviceBuffer) {
+    uploadToDevice();
+  }
+}
+
+glm::vec4 SVMetallicMaterial::getDiffuseTextureTransform() const {
+  return mBuffer.textureTransform[TextureBit::eBaseColor];
+}
+glm::vec4 SVMetallicMaterial::getRoughnessTextureTransform() const {
+  return mBuffer.textureTransform[TextureBit::eRoughness];
+}
+glm::vec4 SVMetallicMaterial::getNormalTextureTransform() const {
+  return mBuffer.textureTransform[TextureBit::eNormal];
+}
+glm::vec4 SVMetallicMaterial::getMetallicTextureTransform() const {
+  return mBuffer.textureTransform[TextureBit::eMetallic];
+}
+glm::vec4 SVMetallicMaterial::getEmissionTextureTransform() const {
+  return mBuffer.textureTransform[TextureBit::eEmission];
+}
+glm::vec4 SVMetallicMaterial::getTransmissionTextureTransform() const {
+  return mBuffer.textureTransform[TextureBit::eTransmission];
+}
+
+void SVMetallicMaterial::setTextures(std::shared_ptr<SVTexture> baseColorTexture,
+                                     std::shared_ptr<SVTexture> roughnessTexture,
+                                     std::shared_ptr<SVTexture> normalTexture,
+                                     std::shared_ptr<SVTexture> metallicTexture,
+                                     std::shared_ptr<SVTexture> emissionTexture,
+                                     std::shared_ptr<SVTexture> transmissionTexture) {
   mRequiresTextureUpload = true;
 
   mBaseColorTexture = baseColorTexture;
@@ -327,8 +383,8 @@ void SVMetallicMaterial::uploadToDevice() {
       flags |= vk::BufferUsageFlagBits::eStorageBuffer;
     }
 
-    mDeviceBuffer = std::make_unique<core::Buffer>(
-        sizeof(SVMetallicMaterial::Buffer), flags, VMA_MEMORY_USAGE_CPU_TO_GPU);
+    mDeviceBuffer = std::make_unique<core::Buffer>(sizeof(SVMetallicMaterial::Buffer), flags,
+                                                   VMA_MEMORY_USAGE_CPU_TO_GPU);
 
     auto layout = mContext->getMetallicDescriptorSetLayout();
     mDescriptorSet = mContext->getDescriptorPool().allocateSet(layout);
@@ -344,62 +400,51 @@ void SVMetallicMaterial::uploadToDevice() {
     std::vector<std::tuple<vk::ImageView, vk::Sampler>> textures;
     if (mBaseColorTexture) {
       mBaseColorTexture->uploadToDevice();
-      textures.push_back(
-          {mBaseColorTexture->getImageView(), mBaseColorTexture->getSampler()});
+      textures.push_back({mBaseColorTexture->getImageView(), mBaseColorTexture->getSampler()});
     } else {
       defaultTexture->uploadToDevice();
-      textures.push_back(
-          {defaultTexture->getImageView(), defaultTexture->getSampler()});
+      textures.push_back({defaultTexture->getImageView(), defaultTexture->getSampler()});
     }
     if (mRoughnessTexture) {
       mRoughnessTexture->uploadToDevice();
-      textures.push_back(
-          {mRoughnessTexture->getImageView(), mRoughnessTexture->getSampler()});
+      textures.push_back({mRoughnessTexture->getImageView(), mRoughnessTexture->getSampler()});
     } else {
       defaultTexture->uploadToDevice();
-      textures.push_back(
-          {defaultTexture->getImageView(), defaultTexture->getSampler()});
+      textures.push_back({defaultTexture->getImageView(), defaultTexture->getSampler()});
     }
     if (mNormalTexture) {
       mNormalTexture->uploadToDevice();
-      textures.push_back(
-          {mNormalTexture->getImageView(), mNormalTexture->getSampler()});
+      textures.push_back({mNormalTexture->getImageView(), mNormalTexture->getSampler()});
     } else {
       defaultTexture->uploadToDevice();
-      textures.push_back(
-          {defaultTexture->getImageView(), defaultTexture->getSampler()});
+      textures.push_back({defaultTexture->getImageView(), defaultTexture->getSampler()});
     }
     if (mMetallicTexture) {
       mMetallicTexture->uploadToDevice();
-      textures.push_back(
-          {mMetallicTexture->getImageView(), mMetallicTexture->getSampler()});
+      textures.push_back({mMetallicTexture->getImageView(), mMetallicTexture->getSampler()});
     } else {
       defaultTexture->uploadToDevice();
-      textures.push_back(
-          {defaultTexture->getImageView(), defaultTexture->getSampler()});
+      textures.push_back({defaultTexture->getImageView(), defaultTexture->getSampler()});
     }
     if (mEmissionTexture) {
       mEmissionTexture->uploadToDevice();
-      textures.push_back(
-          {mEmissionTexture->getImageView(), mEmissionTexture->getSampler()});
+      textures.push_back({mEmissionTexture->getImageView(), mEmissionTexture->getSampler()});
     } else {
       defaultTexture->uploadToDevice();
-      textures.push_back(
-          {defaultTexture->getImageView(), defaultTexture->getSampler()});
+      textures.push_back({defaultTexture->getImageView(), defaultTexture->getSampler()});
     }
     if (mTransmissionTexture) {
       mTransmissionTexture->uploadToDevice();
-      textures.push_back({mTransmissionTexture->getImageView(),
-                          mTransmissionTexture->getSampler()});
+      textures.push_back(
+          {mTransmissionTexture->getImageView(), mTransmissionTexture->getSampler()});
     } else {
       defaultTexture->uploadToDevice();
-      textures.push_back(
-          {defaultTexture->getImageView(), defaultTexture->getSampler()});
+      textures.push_back({defaultTexture->getImageView(), defaultTexture->getSampler()});
     }
-    updateDescriptorSets(mContext->getDevice(), mDescriptorSet.get(),
-                         {{vk::DescriptorType::eUniformBuffer,
-                           mDeviceBuffer->getVulkanBuffer(), nullptr}},
-                         textures, 0);
+    updateDescriptorSets(
+        mContext->getDevice(), mDescriptorSet.get(),
+        {{vk::DescriptorType::eUniformBuffer, mDeviceBuffer->getVulkanBuffer(), nullptr}},
+        textures, 0);
     mRequiresTextureUpload = false;
   }
 }

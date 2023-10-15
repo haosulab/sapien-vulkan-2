@@ -47,13 +47,30 @@ Image::Image(vk::ImageType type, vk::Extent3D extent, vk::Format format,
   VkMemoryPropertyFlags memFlags;
   vmaGetMemoryTypeProperties(mContext->getAllocator().getVmaAllocator(),
                              mAllocationInfo.memoryType, &memFlags);
-  mHostVisible = (memFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0;
-  mHostCoherent = (memFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0;
+  // mHostVisible = (memFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0;
+  // mHostCoherent = (memFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0;
+}
 
+Image::Image(ktxVulkanTexture tex) : mKtxTexture(tex) {
+  mContext = Context::Get();
+  mImage = tex.image;
+  mCurrentLayout = vk::ImageLayout(tex.imageLayout);
+  mTiling = vk::ImageTiling::eOptimal;
+  mMipLevels = tex.levelCount;
+  mArrayLayers = tex.layerCount;
+  mSampleCount = vk::SampleCountFlagBits::e1;
+  mUsageFlags = vk::ImageUsageFlagBits::eSampled;
+  mFormat = vk::Format(tex.imageFormat);
+  mExtent = vk::Extent3D{tex.width, tex.height, tex.depth};
+  mType = vk::ImageType::e2D;
 }
 
 Image::~Image() {
-  vmaDestroyImage(mContext->getAllocator().getVmaAllocator(), mImage, mAllocation);
+  if (mKtxTexture.image) {
+    ktxVulkanTexture_Destruct(&mKtxTexture, mContext->getDevice(), nullptr);
+  } else {
+    vmaDestroyImage(mContext->getAllocator().getVmaAllocator(), mImage, mAllocation);
+  }
 }
 
 void Image::uploadLevel(void const *data, size_t size, uint32_t arrayLayer, uint32_t mipLevel) {

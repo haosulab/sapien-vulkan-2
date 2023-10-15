@@ -50,7 +50,69 @@ static std::vector<uint8_t> loadCompressedTexture(aiTexture const *texture, int 
 
 static std::shared_ptr<SVTexture> loadEmbededTexture(aiTexture const *texture, uint32_t mipLevels,
                                                      int desiredChannels = 0, bool srgb = false) {
-  // TODO: check desired channels against channels
+  if (strcmp(texture->achFormatHint, "kx2") == 0) {
+    ktxTexture *ktex{};
+    auto res = ktxTexture_CreateFromMemory(reinterpret_cast<unsigned char *>(texture->pcData),
+                                           texture->mWidth, {}, &ktex);
+    if (res != KTX_SUCCESS) {
+      throw std::runtime_error("failed to load ktx texture from memory");
+    }
+
+    if (ktxTexture_NeedsTranscoding(ktex)) {
+      if (ktex->classId == ktxTexture2_c) {
+        res = ktxTexture2_TranscodeBasis(reinterpret_cast<ktxTexture2 *>(ktex),
+                                         ktx_transcode_fmt_e::KTX_TTF_BC7_RGBA, {});
+        if (res != KTX_SUCCESS) {
+          throw std::runtime_error("failed to transcode");
+        }
+      }
+    }
+
+    ktxVulkanDeviceInfo vdi;
+    auto context = core::Context::Get();
+    auto pool = context->createCommandPool();
+
+    ktxVulkanFunctions funcs{};
+    funcs.vkGetInstanceProcAddr = VULKAN_HPP_DEFAULT_DISPATCHER.vkGetInstanceProcAddr;
+    funcs.vkGetDeviceProcAddr = VULKAN_HPP_DEFAULT_DISPATCHER.vkGetDeviceProcAddr;
+
+    res = ktxVulkanDeviceInfo_ConstructEx(
+        &vdi, context->getInstance(), context->getPhysicalDevice(), context->getDevice(),
+        context->getQueue().getVulkanQueue(), pool->getVulkanCommandPool(), nullptr, &funcs);
+
+    if (res != KTX_SUCCESS) {
+      throw std::runtime_error("failed to construct ktx vulkan device");
+    }
+
+    ktxVulkanTexture vkTexture;
+
+    res = ktxTexture_VkUploadEx(ktex, &vdi, &vkTexture, VK_IMAGE_TILING_OPTIMAL,
+                                VK_IMAGE_USAGE_SAMPLED_BIT,
+                                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    if (res != KTX_SUCCESS) {
+      throw std::runtime_error("failed to load ktx texture: " + std::string(ktxErrorString(res)));
+    }
+
+    auto image = std::make_unique<core::Image>(vkTexture);
+    // TODO: ensure image has 1 layer
+    auto view = context->getDevice().createImageViewUnique(
+        vk::ImageViewCreateInfo({}, image->getVulkanImage(), vk::ImageViewType(vkTexture.viewType),
+                                vk::Format(vkTexture.imageFormat), {},
+                                vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0,
+                                                          image->getMipLevels(), 0, 1)));
+
+    // TODO: load sampler
+    auto tex = SVTexture::FromImage(
+        SVImage::FromDeviceImage(std::move(image)), std::move(view),
+        context->createSampler(vk::SamplerCreateInfo(
+            {}, vk::Filter::eLinear, vk::Filter::eLinear, vk::SamplerMipmapMode::eLinear,
+            vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat,
+            vk::SamplerAddressMode::eRepeat, 0.f, false, 0.f, false, vk::CompareOp::eNever, 0.f,
+            vkTexture.levelCount)));
+
+    ktxVulkanDeviceInfo_Destruct(&vdi);
+    return tex;
+  }
 
   if (texture->mHeight == 0) {
     int width, height, channels;
@@ -101,22 +163,53 @@ loadEmbededRoughnessMetallicTexture(aiTexture const *texture, uint32_t mipLevels
   if (texture->mHeight != 0) {
     std::runtime_error("Invalid roughness metallic texture");
   }
-  int width, height, channels;
-  auto loaded = loadCompressedTexture(texture, width, height, channels);
-  // TODO: check loaded channels
-  roughness.reserve(loaded.size() / channels);
-  metallic.reserve(loaded.size() / channels);
-  for (uint32_t i = 0; i < loaded.size() / channels; ++i) {
-    roughness.push_back(loaded[channels * i + 1]);
-    metallic.push_back(loaded[channels * i + 2]);
-  }
+  // int width, height, channels;
 
-  return {
-      SVTexture::FromRawData(width, height, 1, vk::Format::eR8Unorm, toRawBytes(roughness), 2,
-                             mipLevels),
-      SVTexture::FromRawData(width, height, 1, vk::Format::eR8Unorm, toRawBytes(metallic), 2,
-                             mipLevels),
-  };
+  auto tex = loadEmbededTexture(texture, 1, 4, false);
+  auto image = tex->getImage();
+  auto context = core::Context::Get();
+
+  // TODO: check image view type & layers
+  auto viewG = context->getDevice().createImageViewUnique(vk::ImageViewCreateInfo(
+      {}, image->getDeviceImage()->getVulkanImage(), vk::ImageViewType(vk::ImageViewType::e2D),
+      vk::Format(image->getFormat()),
+      vk::ComponentMapping(vk::ComponentSwizzle::eG, vk::ComponentSwizzle::eG,
+                           vk::ComponentSwizzle::eG, vk::ComponentSwizzle::eG),
+      vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0,
+                                image->getDeviceImage()->getMipLevels(), 0, 1)));
+  auto texRough = SVTexture::FromImage(
+      tex->getImage(), std::move(viewG),
+      context->createSampler(vk::SamplerCreateInfo(
+          {}, vk::Filter::eLinear, vk::Filter::eLinear, vk::SamplerMipmapMode::eLinear,
+          vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat,
+          vk::SamplerAddressMode::eRepeat, 0.f, false, 0.f, false, vk::CompareOp::eNever, 0.f,
+          image->getDeviceImage()->getMipLevels())));
+
+  auto viewB = context->getDevice().createImageViewUnique(vk::ImageViewCreateInfo(
+      {}, image->getDeviceImage()->getVulkanImage(), vk::ImageViewType(vk::ImageViewType::e2D),
+      vk::Format(image->getFormat()),
+      vk::ComponentMapping(vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eB,
+                           vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eB),
+      vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0,
+                                image->getDeviceImage()->getMipLevels(), 0, 1)));
+  auto texMetal = SVTexture::FromImage(
+      tex->getImage(), std::move(viewB),
+      context->createSampler(vk::SamplerCreateInfo(
+          {}, vk::Filter::eLinear, vk::Filter::eLinear, vk::SamplerMipmapMode::eLinear,
+          vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat,
+          vk::SamplerAddressMode::eRepeat, 0.f, false, 0.f, false, vk::CompareOp::eNever, 0.f,
+          image->getDeviceImage()->getMipLevels())));
+
+  // auto loaded = loadCompressedTexture(texture, width, height, channels);
+  // // TODO: check loaded channels
+  // roughness.reserve(loaded.size() / channels);
+  // metallic.reserve(loaded.size() / channels);
+  // for (uint32_t i = 0; i < loaded.size() / channels; ++i) {
+  //   roughness.push_back(loaded[channels * i + 1]);
+  //   metallic.push_back(loaded[channels * i + 2]);
+  // }
+
+  return {texRough, texMetal};
 }
 
 std::future<void> SVModel::loadAsync() {
@@ -147,6 +240,12 @@ std::future<void> SVModel::loadAsync() {
         newMat->setTextures(mat->getDiffuseTexture(), mat->getRoughnessTexture(),
                             mat->getNormalTexture(), mat->getMetallicTexture(),
                             mat->getEmissionTexture(), mat->getTransmissionTexture());
+        newMat->setDiffuseTextureTransform(mat->getDiffuseTextureTransform());
+        newMat->setRoughnessTextureTransform(mat->getRoughnessTextureTransform());
+        newMat->setNormalTextureTransform(mat->getNormalTextureTransform());
+        newMat->setMetallicTextureTransform(mat->getMetallicTextureTransform());
+        newMat->setEmissionTextureTransform(mat->getEmissionTextureTransform());
+        newMat->setTransmissionTextureTransform(mat->getTransmissionTextureTransform());
 
         newShape->mesh = s->mesh;
         newShape->material = newMat;
@@ -283,6 +382,15 @@ std::future<void> SVModel::loadAsync() {
       std::shared_ptr<SVTexture> emissionTexture{};
       std::shared_ptr<SVTexture> transmissionTexture{};
 
+      glm::vec4 baseColorTransform{0, 0, 1, 1};
+      glm::vec4 normalTransform{0, 0, 1, 1};
+      glm::vec4 roughnessTransform{0, 0, 1, 1};
+      glm::vec4 metallicTransform{0, 0, 1, 1};
+      glm::vec4 emissionTransform{0, 0, 1, 1};
+      glm::vec4 transmissionTransform{0, 0, 1, 1};
+
+      aiUVTransform transform;
+
       aiString path;
       if (m->GetTextureCount(aiTextureType_DIFFUSE) > 0 &&
           m->GetTexture(aiTextureType_DIFFUSE, 0, &path) == AI_SUCCESS) {
@@ -307,6 +415,11 @@ std::future<void> SVModel::loadAsync() {
             futures.push_back(baseColorTexture->loadAsync());
           }
         }
+        if (m->Get(AI_MATKEY_UVTRANSFORM_DIFFUSE(0), transform) == AI_SUCCESS) {
+          baseColorTransform = {transform.mTranslation.x,
+                                transform.mTranslation.y + 1 - transform.mScaling.y,
+                                transform.mScaling.x, transform.mScaling.y};
+        }
       }
 
       if (m->GetTextureCount(aiTextureType_METALNESS) > 0 &&
@@ -329,6 +442,12 @@ std::future<void> SVModel::loadAsync() {
             futures.push_back(metallicTexture->loadAsync());
           }
         }
+
+        if (m->Get(AI_MATKEY_UVTRANSFORM(aiTextureType_METALNESS, 0), transform) == AI_SUCCESS) {
+          metallicTransform = {transform.mTranslation.x,
+                               transform.mTranslation.y + 1 - transform.mScaling.y,
+                               transform.mScaling.x, transform.mScaling.y};
+        }
       }
 
       if (m->GetTextureCount(aiTextureType_NORMALS) > 0 &&
@@ -350,6 +469,11 @@ std::future<void> SVModel::loadAsync() {
             normalTexture = manager->CreateTextureFromFile(fullPath, MIP_LEVEL);
             futures.push_back(normalTexture->loadAsync());
           }
+        }
+        if (m->Get(AI_MATKEY_UVTRANSFORM_NORMALS(0), transform) == AI_SUCCESS) {
+          normalTransform = {transform.mTranslation.x,
+                             transform.mTranslation.y + 1 - transform.mScaling.y,
+                             transform.mScaling.x, transform.mScaling.y};
         }
       }
 
@@ -375,6 +499,11 @@ std::future<void> SVModel::loadAsync() {
             futures.push_back(emissionTexture->loadAsync());
           }
         }
+        if (m->Get(AI_MATKEY_UVTRANSFORM_EMISSIVE(0), transform) == AI_SUCCESS) {
+          emissionTransform = {transform.mTranslation.x,
+                               transform.mTranslation.y + 1 - transform.mScaling.y,
+                               transform.mScaling.x, transform.mScaling.y};
+        }
       }
 
       if (m->GetTextureCount(aiTextureType_DIFFUSE_ROUGHNESS) > 0 &&
@@ -396,6 +525,12 @@ std::future<void> SVModel::loadAsync() {
             roughnessTexture = manager->CreateTextureFromFile(fullPath, MIP_LEVEL);
             futures.push_back(roughnessTexture->loadAsync());
           }
+        }
+        if (m->Get(AI_MATKEY_UVTRANSFORM(aiTextureType_DIFFUSE_ROUGHNESS, 0), transform) ==
+            AI_SUCCESS) {
+          roughnessTransform = {transform.mTranslation.x,
+                                transform.mTranslation.y + 1 - transform.mScaling.y,
+                                transform.mScaling.x, transform.mScaling.y};
         }
       }
 
@@ -419,9 +554,16 @@ std::future<void> SVModel::loadAsync() {
                          "currently not supported");
           }
         }
+        // TODO: check if this actually does anything
+        if (m->Get(AI_MATKEY_UVTRANSFORM(aiTextureType_UNKNOWN, 0), transform) == AI_SUCCESS) {
+          roughnessTransform = metallicTransform = {
+              transform.mTranslation.x, transform.mTranslation.y + 1 - transform.mScaling.y,
+              transform.mScaling.x, transform.mScaling.y};
+        }
       }
 
-      if (m->GetTexture(AI_MATKEY_TRANSMISSION_TEXTURE, &path) == AI_SUCCESS) {
+      if (m->GetTextureCount(aiTextureType_TRANSMISSION) > 0 &&
+          m->GetTexture(aiTextureType_TRANSMISSION, 0, &path) == AI_SUCCESS) {
         if (core::Context::Get()->shouldNotLoadTexture()) {
           logger::info("Texture ignored {}", path.C_Str());
         } else {
@@ -440,6 +582,12 @@ std::future<void> SVModel::loadAsync() {
             futures.push_back(transmissionTexture->loadAsync());
           }
         }
+        if (m->Get(AI_MATKEY_UVTRANSFORM(aiTextureType_TRANSMISSION, 0), transform) ==
+            AI_SUCCESS) {
+          transmissionTransform = {transform.mTranslation.x,
+                                   transform.mTranslation.y + 1 - transform.mScaling.y,
+                                   transform.mScaling.x, transform.mScaling.y};
+        }
       }
 
       auto material = std::make_shared<SVMetallicMaterial>(
@@ -448,6 +596,12 @@ std::future<void> SVModel::loadAsync() {
           transmission, ior);
       material->setTextures(baseColorTexture, roughnessTexture, normalTexture, metallicTexture,
                             emissionTexture, transmissionTexture);
+      material->setDiffuseTextureTransform(baseColorTransform);
+      material->setNormalTextureTransform(normalTransform);
+      material->setRoughnessTextureTransform(roughnessTransform);
+      material->setMetallicTextureTransform(metallicTransform);
+      material->setTransmissionTextureTransform(transmissionTransform);
+      material->setEmissionTextureTransform(emissionTransform);
       materials.push_back(material);
     }
 
