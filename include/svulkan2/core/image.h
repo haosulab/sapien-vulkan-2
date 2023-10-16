@@ -9,10 +9,10 @@
 #include "svulkan2/common/vk.h"
 #include <memory>
 
-#include <ktxvulkan.h>
-
 typedef struct cudaMipmappedArray *cudaMipmappedArray_t;
 typedef struct CUexternalMemory_st *cudaExternalMemory_t;
+
+class ktxVulkanTexture;
 
 namespace svulkan2 {
 namespace core {
@@ -28,14 +28,12 @@ private:
   uint32_t mMipLevels;
   uint32_t mArrayLayers;
   vk::ImageTiling mTiling;
-  // bool mHostVisible;
-  // bool mHostCoherent;
 
   vk::Image mImage;
   VmaAllocation mAllocation;
   VmaAllocationInfo mAllocationInfo;
 
-  ktxVulkanTexture mKtxTexture{};
+  std::unique_ptr<ktxVulkanTexture> mKtxTexture;
 
   vk::ImageLayout mCurrentLayout{vk::ImageLayout::eUndefined};
 
@@ -47,7 +45,7 @@ public:
         vk::SampleCountFlagBits sampleCount = vk::SampleCountFlagBits::e1, uint32_t mipLevels = 1,
         uint32_t arrayLayers = 1, vk::ImageTiling tiling = vk::ImageTiling::eOptimal,
         vk::ImageCreateFlags flags = {});
-  Image(ktxVulkanTexture ktxImage);
+  Image(std::unique_ptr<ktxVulkanTexture> ktxImage);
 
   Image(const Image &) = delete;
   Image(const Image &&) = delete;

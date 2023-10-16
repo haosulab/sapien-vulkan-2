@@ -5,6 +5,8 @@
 #include "svulkan2/core/buffer.h"
 #include "svulkan2/core/context.h"
 
+#include <ktxvulkan.h>
+
 #ifdef SVULKAN2_CUDA_INTEROP
 #include "../common/cuda_helper.h"
 #endif
@@ -51,23 +53,23 @@ Image::Image(vk::ImageType type, vk::Extent3D extent, vk::Format format,
   // mHostCoherent = (memFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0;
 }
 
-Image::Image(ktxVulkanTexture tex) : mKtxTexture(tex) {
+Image::Image(std::unique_ptr<ktxVulkanTexture> tex) : mKtxTexture(std::move(tex)) {
   mContext = Context::Get();
-  mImage = tex.image;
-  mCurrentLayout = vk::ImageLayout(tex.imageLayout);
+  mImage = mKtxTexture->image;
+  mCurrentLayout = vk::ImageLayout(mKtxTexture->imageLayout);
   mTiling = vk::ImageTiling::eOptimal;
-  mMipLevels = tex.levelCount;
-  mArrayLayers = tex.layerCount;
+  mMipLevels = mKtxTexture->levelCount;
+  mArrayLayers = mKtxTexture->layerCount;
   mSampleCount = vk::SampleCountFlagBits::e1;
   mUsageFlags = vk::ImageUsageFlagBits::eSampled;
-  mFormat = vk::Format(tex.imageFormat);
-  mExtent = vk::Extent3D{tex.width, tex.height, tex.depth};
+  mFormat = vk::Format(mKtxTexture->imageFormat);
+  mExtent = vk::Extent3D{mKtxTexture->width, mKtxTexture->height, mKtxTexture->depth};
   mType = vk::ImageType::e2D;
 }
 
 Image::~Image() {
-  if (mKtxTexture.image) {
-    ktxVulkanTexture_Destruct(&mKtxTexture, mContext->getDevice(), nullptr);
+  if (mKtxTexture) {
+    ktxVulkanTexture_Destruct(mKtxTexture.get(), mContext->getDevice(), nullptr);
   } else {
     vmaDestroyImage(mContext->getAllocator().getVmaAllocator(), mImage, mAllocation);
   }

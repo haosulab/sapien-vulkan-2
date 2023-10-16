@@ -10,6 +10,8 @@
 #include <assimp/scene.h>
 #include <filesystem>
 
+#include <ktxvulkan.h>
+
 namespace fs = std::filesystem;
 
 namespace svulkan2 {
@@ -93,7 +95,7 @@ static std::shared_ptr<SVTexture> loadEmbededTexture(aiTexture const *texture, u
       throw std::runtime_error("failed to load ktx texture: " + std::string(ktxErrorString(res)));
     }
 
-    auto image = std::make_unique<core::Image>(vkTexture);
+    auto image = std::make_unique<core::Image>(std::make_unique<ktxVulkanTexture>(vkTexture));
     // TODO: ensure image has 1 layer
     auto view = context->getDevice().createImageViewUnique(
         vk::ImageViewCreateInfo({}, image->getVulkanImage(), vk::ImageViewType(vkTexture.viewType),
