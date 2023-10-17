@@ -170,6 +170,8 @@ loadEmbededRoughnessMetallicTexture(aiTexture const *texture, uint32_t mipLevels
   auto tex = loadEmbededTexture(texture, 1, 4, false);
   auto image = tex->getImage();
   auto context = core::Context::Get();
+  image->loadAsync().get();
+  image->uploadToDevice();
 
   // TODO: check image view type & layers
   auto viewG = context->getDevice().createImageViewUnique(vk::ImageViewCreateInfo(
