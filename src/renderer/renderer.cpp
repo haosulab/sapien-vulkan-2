@@ -579,7 +579,7 @@ void Renderer::prepareObjects(scene::Scene &scene) {
   auto pointObjects = mScene->getPointObjects();
 
   auto size = objects.size();
-  if (size == 0) {
+  if (size == 0 && lineObjects.size() == 0 && pointObjects.size() == 0) {
     throw std::runtime_error("failed to render: the scene is empty");
   }
 
