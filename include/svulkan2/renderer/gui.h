@@ -28,6 +28,10 @@ struct VulkanFrameSemaphores {
 };
 
 class GuiWindow {
+public:
+  static std::string gImguiIniFileLocation;
+
+private:
   std::shared_ptr<core::Context> mContext;
   GLFWwindow *mWindow;
   vk::UniqueSurfaceKHR mSurface;

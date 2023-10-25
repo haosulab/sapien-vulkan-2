@@ -3,6 +3,7 @@
 #include "svulkan2/common/fonts/roboto.hpp"
 #include "svulkan2/core/context.h"
 #include <GLFW/glfw3.h>
+#include <filesystem>
 
 // clang-format off
 #include <imgui.h>
@@ -53,6 +54,8 @@ static void windowCallback(GLFWwindow *window, int count, const char **paths) {
 static void windowFocusCallback(GLFWwindow *window, int focused) {
   static_cast<GuiWindow *>(glfwGetWindowUserPointer(window))->focusCallback(focused);
 }
+
+std::string GuiWindow::gImguiIniFileLocation = "";
 
 GuiWindow::GuiWindow(std::vector<vk::Format> const &requestFormats,
                      vk::ColorSpaceKHR requestColorSpace, uint32_t width, uint32_t height,
@@ -207,6 +210,12 @@ void GuiWindow::initImgui() {
   ImGui::CreateContext();
 
   auto &io = ImGui::GetIO();
+
+  if (gImguiIniFileLocation.length()) {
+    auto f = std::filesystem::path(gImguiIniFileLocation);
+    std::filesystem::create_directories(f.parent_path());
+    io.IniFilename = gImguiIniFileLocation.c_str();
+  }
 
   {
     int monitorCount = 0;
