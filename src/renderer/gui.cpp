@@ -293,7 +293,7 @@ void GuiWindow::imguiBeginFrame() {
   flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
 
   ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-  ImGui::Begin("DockSpace Demo", 0, flags);
+  ImGui::Begin("DockSpace", 0, flags);
   ImGui::PopStyleVar();
 
   ImGui::DockSpace(ImGui::GetID("Dockspace"), ImVec2(0, 0),
