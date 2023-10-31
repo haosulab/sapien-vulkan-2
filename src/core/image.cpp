@@ -39,6 +39,8 @@ Image::Image(vk::ImageType type, vk::Extent3D extent, vk::Format format,
 
   mContext = Context::Get();
 
+  mCurrentLayerLayout.resize(mArrayLayers, vk::ImageLayout::eUndefined);
+
   if (vmaCreateImage(mContext->getAllocator().getVmaAllocator(),
                      reinterpret_cast<VkImageCreateInfo *>(&imageInfo), &memoryInfo,
                      reinterpret_cast<VkImage *>(&mImage), &mAllocation,
@@ -49,14 +51,26 @@ Image::Image(vk::ImageType type, vk::Extent3D extent, vk::Format format,
   VkMemoryPropertyFlags memFlags;
   vmaGetMemoryTypeProperties(mContext->getAllocator().getVmaAllocator(),
                              mAllocationInfo.memoryType, &memFlags);
-  // mHostVisible = (memFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0;
-  // mHostCoherent = (memFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0;
+}
+
+void Image::setCurrentLayout(vk::ImageLayout layout) {
+  for (auto &l : mCurrentLayerLayout) {
+    l = layout;
+  }
+}
+
+void Image::setCurrentLayout(uint32_t layer, vk::ImageLayout layout) {
+  mCurrentLayerLayout.at(layer) = layout;
+}
+
+vk::ImageLayout Image::getCurrentLayout(uint32_t layer) const {
+  return mCurrentLayerLayout.at(layer);
 }
 
 Image::Image(std::unique_ptr<ktxVulkanTexture> tex) : mKtxTexture(std::move(tex)) {
   mContext = Context::Get();
   mImage = mKtxTexture->image;
-  mCurrentLayout = vk::ImageLayout(mKtxTexture->imageLayout);
+  setCurrentLayout(vk::ImageLayout(mKtxTexture->imageLayout));
   mTiling = vk::ImageTiling::eOptimal;
   mMipLevels = mKtxTexture->levelCount;
   mArrayLayers = mKtxTexture->layerCount;
@@ -68,6 +82,13 @@ Image::Image(std::unique_ptr<ktxVulkanTexture> tex) : mKtxTexture(std::move(tex)
 }
 
 Image::~Image() {
+#ifdef SVULKAN2_CUDA_INTEROP
+  if (mCudaArray) {
+    cudaFreeMipmappedArray(mCudaArray);
+    cudaDestroyExternalMemory(mCudaMem);
+  }
+#endif
+
   if (mKtxTexture) {
     ktxVulkanTexture_Destruct(mKtxTexture.get(), mContext->getDevice(), nullptr);
   } else {
@@ -76,6 +97,8 @@ Image::~Image() {
 }
 
 void Image::uploadLevel(void const *data, size_t size, uint32_t arrayLayer, uint32_t mipLevel) {
+  // TODO: this function requires the image to be in transferdst layout
+
   auto extent = computeMipLevelExtent(mExtent, mipLevel);
   size_t imageSize = extent.width * extent.height * extent.depth * getFormatSize(mFormat);
   if (size != imageSize) {
@@ -93,8 +116,10 @@ void Image::uploadLevel(void const *data, size_t size, uint32_t arrayLayer, uint
   auto pool = mContext->createCommandPool();
   auto cb = pool->allocateCommandBuffer();
   cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+
   cb->copyBufferToImage(stagingBuffer->getVulkanBuffer(), mImage,
                         vk::ImageLayout::eTransferDstOptimal, copyRegion);
+
   cb->end();
   mContext->getQueue().submitAndWait(cb.get());
 }
@@ -198,6 +223,8 @@ void Image::generateMipmaps(vk::CommandBuffer cb, uint32_t arrayLayer) {
   barrier.setDstAccessMask(vk::AccessFlagBits::eShaderRead);
   cb.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer,
                      vk::PipelineStageFlagBits::eFragmentShader, {}, {}, {}, barrier);
+
+  setCurrentLayout(arrayLayer, vk::ImageLayout::eShaderReadOnlyOptimal);
 }
 
 void Image::recordCopyToBuffer(vk::CommandBuffer cb, vk::Buffer buffer, size_t bufferOffset,
@@ -210,19 +237,20 @@ void Image::recordCopyToBuffer(vk::CommandBuffer cb, vk::Buffer buffer, size_t b
                              ", got " + std::to_string(size));
   }
 
-  if (mCurrentLayout == vk::ImageLayout::eGeneral) {
+  vk::ImageLayout layout = getCurrentLayout(arrayLayer);
+  if (layout == vk::ImageLayout::eGeneral) {
     // wait for everything in general layout
     transitionLayout(cb, vk::ImageLayout::eGeneral, vk::ImageLayout::eGeneral,
                      vk::AccessFlagBits::eMemoryWrite, vk::AccessFlagBits::eTransferRead,
-                     vk::PipelineStageFlagBits::eAllCommands,
-                     vk::PipelineStageFlagBits::eTransfer);
-  } else if (mCurrentLayout != vk::ImageLayout::eTransferSrcOptimal) {
+                     vk::PipelineStageFlagBits::eAllCommands, vk::PipelineStageFlagBits::eTransfer,
+                     arrayLayer);
+  } else if (layout != vk::ImageLayout::eTransferSrcOptimal) {
     // guess what to wait and transition to TransferSrcOptimal
     vk::ImageLayout sourceLayout = vk::ImageLayout::eUndefined;
     vk::AccessFlags sourceAccessFlag{};
     vk::PipelineStageFlags sourceStage{};
 
-    switch (mCurrentLayout) {
+    switch (layout) {
     case vk::ImageLayout::eColorAttachmentOptimal:
       sourceLayout = vk::ImageLayout::eColorAttachmentOptimal;
       sourceAccessFlag = vk::AccessFlagBits::eColorAttachmentWrite;
@@ -246,29 +274,14 @@ void Image::recordCopyToBuffer(vk::CommandBuffer cb, vk::Buffer buffer, size_t b
     }
     transitionLayout(cb, sourceLayout, vk::ImageLayout::eTransferSrcOptimal, sourceAccessFlag,
                      vk::AccessFlagBits::eTransferRead, sourceStage,
-                     vk::PipelineStageFlagBits::eTransfer);
+                     vk::PipelineStageFlagBits::eTransfer, arrayLayer);
   }
 
   vk::ImageAspectFlags aspect = getFormatAspectFlags(mFormat);
-  // switch (mFormat) {
-  // case vk::Format::eR8G8B8A8Unorm:
-  // case vk::Format::eR32G32B32A32Uint:
-  // case vk::Format::eR32G32B32A32Sfloat:
-  //   aspect = vk::ImageAspectFlagBits::eColor;
-  //   break;
-  // case vk::Format::eD32Sfloat:
-  //   aspect = vk::ImageAspectFlagBits::eDepth;
-  //   break;
-  // case vk::Format::eD24UnormS8Uint:
-  //   vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
-  //   break;
-  // default:
-  //   throw std::runtime_error("failed to download image: unsupported format.");
-  // }
 
   vk::BufferImageCopy copyRegion(bufferOffset, mExtent.width, mExtent.height, {aspect, 0, 0, 1},
                                  offset, extent);
-  cb.copyImageToBuffer(mImage, mCurrentLayout, buffer, copyRegion);
+  cb.copyImageToBuffer(mImage, getCurrentLayout(arrayLayer), buffer, copyRegion);
 }
 
 void Image::recordCopyFromBuffer(vk::CommandBuffer cb, vk::Buffer buffer, size_t bufferOffset,
@@ -281,14 +294,14 @@ void Image::recordCopyFromBuffer(vk::CommandBuffer cb, vk::Buffer buffer, size_t
                              std::to_string(imageSize) + ", got " + std::to_string(size));
   }
 
-  if (mCurrentLayout != vk::ImageLayout::eGeneral &&
-      mCurrentLayout != vk::ImageLayout::eTransferDstOptimal) {
+  vk::ImageLayout layout = getCurrentLayout(arrayLayer);
+  if (layout != vk::ImageLayout::eGeneral && layout != vk::ImageLayout::eTransferDstOptimal) {
 
     vk::ImageLayout sourceLayout = vk::ImageLayout::eUndefined;
     vk::AccessFlags sourceAccessFlag{};
     vk::PipelineStageFlags sourceStage{};
 
-    switch (mCurrentLayout) {
+    switch (layout) {
     case vk::ImageLayout::eColorAttachmentOptimal:
       sourceLayout = vk::ImageLayout::eColorAttachmentOptimal;
       sourceAccessFlag = vk::AccessFlagBits::eColorAttachmentWrite;
@@ -317,14 +330,14 @@ void Image::recordCopyFromBuffer(vk::CommandBuffer cb, vk::Buffer buffer, size_t
     }
     transitionLayout(cb, sourceLayout, vk::ImageLayout::eTransferDstOptimal, sourceAccessFlag,
                      vk::AccessFlagBits::eTransferWrite, sourceStage,
-                     vk::PipelineStageFlagBits::eTransfer);
+                     vk::PipelineStageFlagBits::eTransfer, arrayLayer);
   }
 
   vk::ImageAspectFlags aspect = getFormatAspectFlags(mFormat);
 
   vk::BufferImageCopy copyRegion(bufferOffset, mExtent.width, mExtent.height, {aspect, 0, 0, 1},
                                  offset, extent);
-  cb.copyBufferToImage(buffer, mImage, mCurrentLayout, copyRegion);
+  cb.copyBufferToImage(buffer, mImage, getCurrentLayout(arrayLayer), copyRegion);
 }
 
 void Image::copyToBuffer(vk::Buffer buffer, size_t size, vk::Offset3D offset, vk::Extent3D extent,
@@ -362,14 +375,15 @@ void Image::download(void *data, size_t size, vk::Offset3D offset, vk::Extent3D 
   auto cb = pool->allocateCommandBuffer();
   cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
 
-  if (mCurrentLayout == vk::ImageLayout::eGeneral) {
+  vk::ImageLayout layout = getCurrentLayout(arrayLayer);
+  if (layout == vk::ImageLayout::eGeneral) {
     // wait for everything in general layout
     transitionLayout(cb.get(), vk::ImageLayout::eGeneral, vk::ImageLayout::eGeneral,
                      vk::AccessFlagBits::eMemoryWrite, vk::AccessFlagBits::eTransferRead,
-                     vk::PipelineStageFlagBits::eAllCommands,
-                     vk::PipelineStageFlagBits::eTransfer);
-  } else if (mCurrentLayout != vk::ImageLayout::eTransferSrcOptimal) {
-    switch (mCurrentLayout) {
+                     vk::PipelineStageFlagBits::eAllCommands, vk::PipelineStageFlagBits::eTransfer,
+                     arrayLayer);
+  } else if (layout != vk::ImageLayout::eTransferSrcOptimal) {
+    switch (layout) {
     case vk::ImageLayout::eColorAttachmentOptimal:
       sourceLayout = vk::ImageLayout::eColorAttachmentOptimal;
       sourceAccessFlag = vk::AccessFlagBits::eColorAttachmentWrite;
@@ -394,7 +408,7 @@ void Image::download(void *data, size_t size, vk::Offset3D offset, vk::Extent3D 
 
     transitionLayout(cb.get(), sourceLayout, vk::ImageLayout::eTransferSrcOptimal,
                      sourceAccessFlag, vk::AccessFlagBits::eTransferRead, sourceStage,
-                     vk::PipelineStageFlagBits::eTransfer);
+                     vk::PipelineStageFlagBits::eTransfer, arrayLayer);
   }
 
   EASY_BLOCK("Allocating staging buffer");
@@ -402,7 +416,8 @@ void Image::download(void *data, size_t size, vk::Offset3D offset, vk::Extent3D 
   EASY_END_BLOCK;
   vk::BufferImageCopy copyRegion(0, extent.width, extent.height, {aspect, mipLevel, arrayLayer, 1},
                                  offset, extent);
-  cb->copyImageToBuffer(mImage, mCurrentLayout, stagingBuffer->getVulkanBuffer(), copyRegion);
+  cb->copyImageToBuffer(mImage, getCurrentLayout(arrayLayer), stagingBuffer->getVulkanBuffer(),
+                        copyRegion);
   cb->end();
   EASY_END_BLOCK;
 
@@ -438,20 +453,22 @@ void Image::transitionLayout(vk::CommandBuffer commandBuffer, vk::ImageLayout ol
                                  VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, mImage,
                                  imageSubresourceRange);
   commandBuffer.pipelineBarrier(sourceStage, destStage, {}, nullptr, nullptr, barrier);
-  mCurrentLayout = newImageLayout;
+  setCurrentLayout(arrayLayer, newImageLayout);
 }
 
 void Image::transitionLayout(vk::CommandBuffer commandBuffer, vk::ImageLayout oldImageLayout,
                              vk::ImageLayout newImageLayout, vk::AccessFlags sourceAccessMask,
                              vk::AccessFlags destAccessMask, vk::PipelineStageFlags sourceStage,
                              vk::PipelineStageFlags destStage) {
+  // TODO: check the old layout matches
+
   vk::ImageSubresourceRange imageSubresourceRange(getFormatAspectFlags(mFormat), 0, mMipLevels, 0,
                                                   mArrayLayers);
   vk::ImageMemoryBarrier barrier(sourceAccessMask, destAccessMask, oldImageLayout, newImageLayout,
                                  VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, mImage,
                                  imageSubresourceRange);
   commandBuffer.pipelineBarrier(sourceStage, destStage, {}, nullptr, nullptr, barrier);
-  mCurrentLayout = newImageLayout;
+  setCurrentLayout(newImageLayout);
 }
 
 #ifdef SVULKAN2_CUDA_INTEROP
@@ -501,12 +518,6 @@ cudaMipmappedArray_t Image::getCudaArray() {
     desc.formatDesc.y = 32;
     desc.formatDesc.z = 32;
     desc.formatDesc.w = 32;
-    desc.formatDesc.f = cudaChannelFormatKindFloat;
-  } else if (mFormat == vk::Format::eR32G32B32Sfloat) {
-    desc.formatDesc.x = 32;
-    desc.formatDesc.y = 32;
-    desc.formatDesc.z = 32;
-    desc.formatDesc.w = 0;
     desc.formatDesc.f = cudaChannelFormatKindFloat;
   }
 

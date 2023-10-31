@@ -1246,8 +1246,7 @@ void Renderer::display(std::string const &renderTargetName, vk::Image backBuffer
       targetFormat != vk::Format::eR32G32B32A32Sfloat) {
     throw std::runtime_error("failed to display: only color textures are supported in display");
   };
-  auto layout = renderTarget->getImage().getCurrentLayout();
-  // auto layout = mRenderTargetFinalLayouts.at(renderTargetName);
+  auto layout = renderTarget->getImage().getCurrentLayout(0);
 
   if (layout != vk::ImageLayout::eTransferSrcOptimal) {
     vk::AccessFlags sourceAccessMask;

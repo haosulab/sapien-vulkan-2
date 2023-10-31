@@ -28,14 +28,10 @@ class SVImage {
   uint32_t mWidth{1};
   uint32_t mHeight{1};
   uint32_t mDepth{1};
-  // uint32_t mChannels{};
   vk::ImageCreateFlags mCreateFlags{};
   vk::ImageUsageFlags mUsage{vk::ImageUsageFlagBits::eSampled |
                              vk::ImageUsageFlagBits::eTransferDst |
                              vk::ImageUsageFlagBits::eTransferSrc};
-
-  // std::vector<std::vector<uint8_t>> mData;
-  // std::vector<std::vector<float>> mFloatData;
 
   std::vector<std::vector<char>> mRawData;
 
@@ -76,8 +72,6 @@ public:
   inline SVImageDescription const &getDescription() const { return mDescription; }
 
   std::vector<std::vector<char>> const &getRawData() const { return mRawData; }
-  // std::vector<std::vector<uint8_t>> const &getUint8Data() const { return mData; }
-  // std::vector<std::vector<float>> const &getFloatData() const { return mFloatData; }
 
   inline uint32_t getWidth() const { return mWidth; }
   inline uint32_t getHeight() const { return mHeight; }

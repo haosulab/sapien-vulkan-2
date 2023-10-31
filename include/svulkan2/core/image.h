@@ -35,7 +35,7 @@ private:
 
   std::unique_ptr<ktxVulkanTexture> mKtxTexture;
 
-  vk::ImageLayout mCurrentLayout{vk::ImageLayout::eUndefined};
+  std::vector<vk::ImageLayout> mCurrentLayerLayout;
 
   void generateMipmaps(vk::CommandBuffer cb, uint32_t arrayLayer = 0);
 
@@ -102,9 +102,9 @@ public:
     return download<DataType>(offset, {1, 1, 1}, arrayLayer);
   }
 
-  /** call to tell this image its current layout, call before download */
-  void setCurrentLayout(vk::ImageLayout layout) { mCurrentLayout = layout; };
-  vk::ImageLayout getCurrentLayout() const { return mCurrentLayout; };
+  void setCurrentLayout(vk::ImageLayout layout);
+  void setCurrentLayout(uint32_t layer, vk::ImageLayout layout);
+  vk::ImageLayout getCurrentLayout(uint32_t layer) const;
 
   void transitionLayout(vk::CommandBuffer commandBuffer, vk::ImageLayout oldImageLayout,
                         vk::ImageLayout newImageLayout, vk::AccessFlags sourceAccessMask,

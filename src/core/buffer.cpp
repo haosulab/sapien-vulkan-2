@@ -68,14 +68,13 @@ Buffer::Buffer(vk::DeviceSize size, vk::BufferUsageFlags usageFlags, VmaMemoryUs
                              mAllocationInfo.memoryType, &memFlags);
   mHostVisible = (memFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0;
   mHostCoherent = (memFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0;
-
 }
 
 Buffer::~Buffer() {
 #ifdef SVULKAN2_CUDA_INTEROP
   if (mCudaPtr) {
-    checkCudaErrors(cudaDestroyExternalMemory(mCudaMem));
     checkCudaErrors(cudaFree(mCudaPtr));
+    checkCudaErrors(cudaDestroyExternalMemory(mCudaMem));
   }
 #endif
   vmaDestroyBuffer(mContext->getAllocator().getVmaAllocator(), mBuffer, mAllocation);

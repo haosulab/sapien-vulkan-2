@@ -94,8 +94,6 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/svulkan2 DESTINATION "incl
 install(DIRECTORY "${vulkan_SOURCE_DIR}/include/vulkan" DESTINATION "include")
 install(DIRECTORY "${vulkan_SOURCE_DIR}/include/vk_video" DESTINATION "include")
 install(DIRECTORY "${glm_SOURCE_DIR}/glm" DESTINATION "include")
-# install(IMPORTED_RUNTIME_ARTIFACTS OpenImageDenoise_device_cuda)
-
 
 add_executable(svulkan2_main app/main.cpp)
 target_link_libraries(svulkan2_main svulkan2 glfw imgui)
