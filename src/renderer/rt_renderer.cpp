@@ -826,6 +826,7 @@ void RTRenderer::enableDenoiser(DenoiserType type, std::string const &colorName,
 }
 
 RTRenderer::DenoiserType RTRenderer::getDenoiserType() const {
+#ifdef SVULKAN2_CUDA_INTEROP
   if (!mDenoiser) {
     return DenoiserType::eNONE;
   }
@@ -833,6 +834,9 @@ RTRenderer::DenoiserType RTRenderer::getDenoiserType() const {
     return DenoiserType::eOPTIX;
   }
   return DenoiserType::eOIDN;
+#else
+  return DenoiserType::eNONE;
+#endif
 }
 
 void RTRenderer::disableDenoiser() {

@@ -80,11 +80,20 @@ target_compile_definitions(svulkan2 PRIVATE VULKAN_HPP_STORAGE_SHARED_EXPORT)
 # other libraries use the exported storage api
 target_compile_definitions(svulkan2 PUBLIC VULKAN_HPP_STORAGE_SHARED)
 
-install(TARGETS svulkan2 Vulkan-Headers glm OpenImageDenoise OpenImageDenoise_core OpenImageDenoise_common
-    EXPORT svulkan2Targets
-    LIBRARY DESTINATION lib
-    ARCHIVE DESTINATION lib
-)
+if (${SVULKAN2_CUDA_INTEROP})
+    install(TARGETS svulkan2 Vulkan-Headers glm OpenImageDenoise OpenImageDenoise_core OpenImageDenoise_common
+        EXPORT svulkan2Targets
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib
+    )
+else ()
+    install(TARGETS svulkan2 Vulkan-Headers glm
+        EXPORT svulkan2Targets
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib
+    )
+endif ()
+
 install(EXPORT svulkan2Targets
     FILE svulkan2.cmake
     NAMESPACE svulkan2::
