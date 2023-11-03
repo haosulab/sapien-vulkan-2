@@ -7,7 +7,7 @@ DataType get_data_type(spirv_cross::SPIRType const &type) {
   uint32_t shape = type.vecsize * type.columns;
   switch (type.basetype) {
   case spirv_cross::SPIRType::Struct:
-    return DataType::eSTRUCT;
+    return DataType::STRUCT();
   case spirv_cross::SPIRType::SByte:
     return {shape, TypeKind::eInt, 1};
   case spirv_cross::SPIRType::Short:
@@ -98,58 +98,58 @@ DataType get_data_type(spirv_cross::SPIRType const &type) {
 
 // DataType get_data_type(spirv_cross::SPIRType const &type) {
 //   if (type_is_int(type)) {
-//     return DataType::eINT;
+//     return DataType::INT();
 //   }
 //   if (type_is_int2(type)) {
-//     return DataType::eINT2;
+//     return DataType::INT2();
 //   }
 //   if (type_is_int3(type)) {
-//     return DataType::eINT3;
+//     return DataType::INT3();
 //   }
 //   if (type_is_int4(type)) {
-//     return DataType::eINT4;
+//     return DataType::INT4();
 //   }
 //   if (type_is_int44(type)) {
-//     return DataType::eINT44;
+//     return DataType::INT44();
 //   }
 
 //   if (type_is_float(type)) {
-//     return DataType::eFLOAT;
+//     return DataType::FLOAT();
 //   }
 //   if (type_is_float2(type)) {
-//     return DataType::eFLOAT2;
+//     return DataType::FLOAT2();
 //   }
 //   if (type_is_float3(type)) {
-//     return DataType::eFLOAT3;
+//     return DataType::FLOAT3();
 //   }
 //   if (type_is_float4(type)) {
-//     return DataType::eFLOAT4;
+//     return DataType::FLOAT4();
 //   }
 //   if (type_is_float44(type)) {
-//     return DataType::eFLOAT44;
+//     return DataType::FLOAT44();
 //   }
 
 //   if (type_is_uint(type)) {
-//     return DataType::eUINT;
+//     return DataType::UINT();
 //   }
 //   if (type_is_uint2(type)) {
-//     return DataType::eUINT2;
+//     return DataType::UINT2();
 //   }
 //   if (type_is_uint3(type)) {
-//     return DataType::eUINT3;
+//     return DataType::UINT3();
 //   }
 //   if (type_is_uint4(type)) {
-//     return DataType::eUINT4;
+//     return DataType::UINT4();
 //   }
 //   if (type_is_uint44(type)) {
-//     return DataType::eUINT44;
+//     return DataType::UINT44();
 //   }
 
 //   if (type_is_struct(type)) {
-//     return DataType::eSTRUCT;
+//     return DataType::STRUCT();
 //   }
 
-//   return DataType::eUNKNOWN;
+//   return DataType::UNKNOWN();
 // }
 
 spirv_cross::Resource *find_uniform_by_decoration(spirv_cross::Compiler &compiler,

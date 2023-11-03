@@ -205,24 +205,4 @@ template <> bool isFormatCompatible<double>(vk::Format format) {
   return componentFormat == ComponentFormat::eSfloat && getFormatElementSize(format) == 8;
 }
 
-const DataType DataType::eUINT = {1, TypeKind::eUint, 4};
-const DataType DataType::eUINT2 = {2, TypeKind::eUint, 4};
-const DataType DataType::eUINT3 = {3, TypeKind::eUint, 4};
-const DataType DataType::eUINT4 = {4, TypeKind::eUint, 4};
-
-const DataType DataType::eINT = {1, TypeKind::eInt, 4};
-const DataType DataType::eINT2 = {2, TypeKind::eInt, 4};
-const DataType DataType::eINT3 = {3, TypeKind::eInt, 4};
-const DataType DataType::eINT4 = {4, TypeKind::eInt, 4};
-
-const DataType DataType::eFLOAT = {1, TypeKind::eFloat, 4};
-const DataType DataType::eFLOAT2 = {2, TypeKind::eFloat, 4};
-const DataType DataType::eFLOAT3 = {3, TypeKind::eFloat, 4};
-const DataType DataType::eFLOAT4 = {4, TypeKind::eFloat, 4};
-
-const DataType DataType::eINT44 = {16, TypeKind::eInt, 4};
-const DataType DataType::eFLOAT44 = {16, TypeKind::eFloat, 4};
-
-const DataType DataType::eSTRUCT = {0, TypeKind::eStruct, 0};
-
 } // namespace svulkan2

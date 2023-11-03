@@ -500,19 +500,19 @@ RayTracingShaderPack::computeCompatibleInputVertexLayout() const {
           }
           auto elem =
               set.buffers.at(binding.arrayIndex)->elements.begin()->second;
-          if (elem.arrayDim != 1 || elem.dtype != DataType::eSTRUCT) {
+          if (elem.arrayDim != 1 || elem.dtype != DataType::STRUCT()) {
             throw std::runtime_error("Vertices buffer must contain a single "
                                      "array of structs (Vertex)");
           }
           auto vertex = elem.member;
           if (!vertex->elements.contains("x") ||
-              vertex->elements.at("x").dtype != DataType::eFLOAT ||
+              vertex->elements.at("x").dtype != DataType::FLOAT() ||
               vertex->elements.at("x").offset != 0 ||
               !vertex->elements.contains("y") ||
-              vertex->elements.at("y").dtype != DataType::eFLOAT ||
+              vertex->elements.at("y").dtype != DataType::FLOAT() ||
               vertex->elements.at("y").offset != 4 ||
               !vertex->elements.contains("z") ||
-              vertex->elements.at("z").dtype != DataType::eFLOAT ||
+              vertex->elements.at("z").dtype != DataType::FLOAT() ||
               vertex->elements.at("z").offset != 8) {
             throw std::runtime_error(
                 "Vertex struct must contain float variables named "
@@ -521,7 +521,7 @@ RayTracingShaderPack::computeCompatibleInputVertexLayout() const {
           structOffset = 12;
           inputLayout->elements["position"] = {.name = "position",
                                                .location = location++,
-                                               .dtype = DataType::eFLOAT3};
+                                               .dtype = DataType::FLOAT3()};
 
           if (vertex->elements.contains("nx")) {
             if (vertex->elements.at("nx").offset != structOffset) {
@@ -534,9 +534,9 @@ RayTracingShaderPack::computeCompatibleInputVertexLayout() const {
               throw std::runtime_error("if a Vertex struct contains float "
                                        "nx, it must contain ny, nz");
             }
-            if (vertex->elements.at("nx").dtype != DataType::eFLOAT ||
-                vertex->elements.at("ny").dtype != DataType::eFLOAT ||
-                vertex->elements.at("nz").dtype != DataType::eFLOAT) {
+            if (vertex->elements.at("nx").dtype != DataType::FLOAT() ||
+                vertex->elements.at("ny").dtype != DataType::FLOAT() ||
+                vertex->elements.at("nz").dtype != DataType::FLOAT()) {
               throw std::runtime_error(
                   "Vertex struct member nx, ny, nz must be float");
             }
@@ -549,7 +549,7 @@ RayTracingShaderPack::computeCompatibleInputVertexLayout() const {
             structOffset += 12;
             inputLayout->elements["normal"] = {.name = "normal",
                                                .location = location++,
-                                               .dtype = DataType::eFLOAT3};
+                                               .dtype = DataType::FLOAT3()};
           }
 
           if (vertex->elements.contains("u")) {
@@ -562,8 +562,8 @@ RayTracingShaderPack::computeCompatibleInputVertexLayout() const {
               throw std::runtime_error(
                   "if a Vertex struct contains float u, it must contain v");
             }
-            if (vertex->elements.at("u").dtype != DataType::eFLOAT ||
-                vertex->elements.at("v").dtype != DataType::eFLOAT) {
+            if (vertex->elements.at("u").dtype != DataType::FLOAT() ||
+                vertex->elements.at("v").dtype != DataType::FLOAT()) {
               throw std::runtime_error(
                   "Vertex struct member u, v must be float");
             }
@@ -575,7 +575,7 @@ RayTracingShaderPack::computeCompatibleInputVertexLayout() const {
             structOffset += 8;
             inputLayout->elements["uv"] = {.name = "uv",
                                            .location = location++,
-                                           .dtype = DataType::eFLOAT2};
+                                           .dtype = DataType::FLOAT2()};
           }
 
           if (vertex->elements.contains("tx")) {
@@ -589,9 +589,9 @@ RayTracingShaderPack::computeCompatibleInputVertexLayout() const {
               throw std::runtime_error("if a Vertex struct contains float "
                                        "tx, it must contain ty, tz");
             }
-            if (vertex->elements.at("tx").dtype != DataType::eFLOAT ||
-                vertex->elements.at("ty").dtype != DataType::eFLOAT ||
-                vertex->elements.at("tz").dtype != DataType::eFLOAT) {
+            if (vertex->elements.at("tx").dtype != DataType::FLOAT() ||
+                vertex->elements.at("ty").dtype != DataType::FLOAT() ||
+                vertex->elements.at("tz").dtype != DataType::FLOAT()) {
               throw std::runtime_error(
                   "Vertex struct member tx, ty, tz must be float");
             }
@@ -604,7 +604,7 @@ RayTracingShaderPack::computeCompatibleInputVertexLayout() const {
             structOffset += 12;
             inputLayout->elements["tangent"] = {.name = "tangent",
                                                 .location = location++,
-                                                .dtype = DataType::eFLOAT3};
+                                                .dtype = DataType::FLOAT3()};
           }
 
           if (vertex->elements.contains("bx")) {
@@ -618,9 +618,9 @@ RayTracingShaderPack::computeCompatibleInputVertexLayout() const {
               throw std::runtime_error("if a Vertex struct contains float "
                                        "bx, it must contain by, bz");
             }
-            if (vertex->elements.at("bx").dtype != DataType::eFLOAT ||
-                vertex->elements.at("by").dtype != DataType::eFLOAT ||
-                vertex->elements.at("bz").dtype != DataType::eFLOAT) {
+            if (vertex->elements.at("bx").dtype != DataType::FLOAT() ||
+                vertex->elements.at("by").dtype != DataType::FLOAT() ||
+                vertex->elements.at("bz").dtype != DataType::FLOAT()) {
               throw std::runtime_error(
                   "Vertex struct member bx, by, bz must be float");
             }
@@ -633,7 +633,7 @@ RayTracingShaderPack::computeCompatibleInputVertexLayout() const {
             structOffset += 12;
             inputLayout->elements["bitangent"] = {.name = "bitangent",
                                                   .location = location++,
-                                                  .dtype = DataType::eFLOAT3};
+                                                  .dtype = DataType::FLOAT3()};
           }
 
           if (vertex->elements.contains("r")) {
@@ -648,10 +648,10 @@ RayTracingShaderPack::computeCompatibleInputVertexLayout() const {
               throw std::runtime_error("if a Vertex struct contains float r, "
                                        "it must contain g, b, a");
             }
-            if (vertex->elements.at("r").dtype != DataType::eFLOAT ||
-                vertex->elements.at("g").dtype != DataType::eFLOAT ||
-                vertex->elements.at("b").dtype != DataType::eFLOAT ||
-                vertex->elements.at("a").dtype != DataType::eFLOAT) {
+            if (vertex->elements.at("r").dtype != DataType::FLOAT() ||
+                vertex->elements.at("g").dtype != DataType::FLOAT() ||
+                vertex->elements.at("b").dtype != DataType::FLOAT() ||
+                vertex->elements.at("a").dtype != DataType::FLOAT()) {
               throw std::runtime_error(
                   "Vertex struct member r, g, b, a must be float");
             }
@@ -665,7 +665,7 @@ RayTracingShaderPack::computeCompatibleInputVertexLayout() const {
             structOffset += 16;
             inputLayout->elements["color"] = {.name = "color",
                                               .location = location++,
-                                              .dtype = DataType::eFLOAT4};
+                                              .dtype = DataType::FLOAT4()};
           }
         }
       }

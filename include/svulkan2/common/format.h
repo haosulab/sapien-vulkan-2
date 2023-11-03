@@ -39,25 +39,25 @@ struct DataType {
 
   bool operator==(DataType const &other) const = default;
 
-  static const DataType eUINT;
-  static const DataType eUINT2;
-  static const DataType eUINT3;
-  static const DataType eUINT4;
+  static constexpr const DataType UINT() { return {1, TypeKind::eUint, 4}; }
+  static constexpr const DataType UINT2() { return {2, TypeKind::eUint, 4}; }
+  static constexpr const DataType UINT3() { return {3, TypeKind::eUint, 4}; }
+  static constexpr const DataType UINT4() { return {4, TypeKind::eUint, 4}; }
 
-  static const DataType eINT;
-  static const DataType eINT2;
-  static const DataType eINT3;
-  static const DataType eINT4;
+  static constexpr const DataType INT() { return {1, TypeKind::eInt, 4}; }
+  static constexpr const DataType INT2() { return {2, TypeKind::eInt, 4}; }
+  static constexpr const DataType INT3() { return {3, TypeKind::eInt, 4}; }
+  static constexpr const DataType INT4() { return {4, TypeKind::eInt, 4}; }
 
-  static const DataType eFLOAT;
-  static const DataType eFLOAT2;
-  static const DataType eFLOAT3;
-  static const DataType eFLOAT4;
+  static constexpr const DataType FLOAT() { return {1, TypeKind::eFloat, 4}; }
+  static constexpr const DataType FLOAT2() { return {2, TypeKind::eFloat, 4}; }
+  static constexpr const DataType FLOAT3() { return {3, TypeKind::eFloat, 4}; }
+  static constexpr const DataType FLOAT4() { return {4, TypeKind::eFloat, 4}; }
 
-  static const DataType eINT44;
-  static const DataType eFLOAT44;
+  static constexpr const DataType INT44() { return {16, TypeKind::eInt, 4}; }
+  static constexpr const DataType FLOAT44() { return {16, TypeKind::eFloat, 4}; }
 
-  static const DataType eSTRUCT;
+  static constexpr const DataType STRUCT() { return {0, TypeKind::eStruct, 0}; }
 
   uint32_t size() const { return shape * bytes; }
   std::string typestr() const {
@@ -65,57 +65,37 @@ struct DataType {
   }
 };
 
-constexpr const DataType DataType::eUINT = {1, TypeKind::eUint, 4};
-constexpr const DataType DataType::eUINT2 = {2, TypeKind::eUint, 4};
-constexpr const DataType DataType::eUINT3 = {3, TypeKind::eUint, 4};
-constexpr const DataType DataType::eUINT4 = {4, TypeKind::eUint, 4};
-
-constexpr const DataType DataType::eINT = {1, TypeKind::eInt, 4};
-constexpr const DataType DataType::eINT2 = {2, TypeKind::eInt, 4};
-constexpr const DataType DataType::eINT3 = {3, TypeKind::eInt, 4};
-constexpr const DataType DataType::eINT4 = {4, TypeKind::eInt, 4};
-
-constexpr const DataType DataType::eFLOAT = {1, TypeKind::eFloat, 4};
-constexpr const DataType DataType::eFLOAT2 = {2, TypeKind::eFloat, 4};
-constexpr const DataType DataType::eFLOAT3 = {3, TypeKind::eFloat, 4};
-constexpr const DataType DataType::eFLOAT4 = {4, TypeKind::eFloat, 4};
-
-constexpr const DataType DataType::eINT44 = {16, TypeKind::eInt, 4};
-constexpr const DataType DataType::eFLOAT44 = {16, TypeKind::eFloat, 4};
-
-constexpr const DataType DataType::eSTRUCT = {0, TypeKind::eStruct, 0};
-
 template <typename T> struct DataTypeFor {};
 
 template <> struct DataTypeFor<int> {
-  static constexpr DataType value = DataType::eINT;
+  static constexpr DataType value = DataType::INT();
 };
 template <> struct DataTypeFor<glm::ivec4> {
-  static constexpr DataType value = DataType::eINT4;
+  static constexpr DataType value = DataType::INT4();
 };
 
 template <> struct DataTypeFor<uint32_t> {
-  static constexpr DataType value = DataType::eUINT;
+  static constexpr DataType value = DataType::UINT();
 };
 
 template <> struct DataTypeFor<glm::uvec4> {
-  static constexpr DataType value = DataType::eUINT4;
+  static constexpr DataType value = DataType::UINT4();
 };
 
 template <> struct DataTypeFor<float> {
-  static constexpr DataType value = DataType::eFLOAT;
+  static constexpr DataType value = DataType::FLOAT();
 };
 
 template <> struct DataTypeFor<glm::vec4> {
-  static constexpr DataType value = DataType::eFLOAT4;
+  static constexpr DataType value = DataType::FLOAT4();
 };
 
 template <> struct DataTypeFor<glm::vec3> {
-  static constexpr DataType value = DataType::eFLOAT3;
+  static constexpr DataType value = DataType::FLOAT3();
 };
 
 template <> struct DataTypeFor<glm::mat4> {
-  static constexpr DataType value = DataType::eFLOAT44;
+  static constexpr DataType value = DataType::FLOAT44();
 };
 
 } // namespace svulkan2

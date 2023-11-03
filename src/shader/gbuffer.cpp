@@ -199,13 +199,13 @@ vk::UniquePipeline GbufferPassParser::createPipeline(
   //       throw std::runtime_error("Type mismatch on specialization constant " + elems[i].name +
   //                                ".");
   //     }
-  //     if (elems[i].dtype == DataType::eINT) {
+  //     if (elems[i].dtype == DataType::INT()) {
   //       entries.emplace_back(elems[i].id, i * sizeof(int), sizeof(int));
   //       int v = specializationConstantInfo.find(elems[i].name) != specializationConstantInfo.end()
   //                   ? specializationConstantInfo.at(elems[i].name).intValue
   //                   : elems[i].intValue;
   //       std::memcpy(specializationData.data() + i, &v, sizeof(int));
-  //     } else if (elems[i].dtype == DataType::eFLOAT) {
+  //     } else if (elems[i].dtype == DataType::FLOAT()) {
   //       entries.emplace_back(elems[i].id, i * sizeof(float), sizeof(float));
   //       float v =
   //           specializationConstantInfo.find(elems[i].name) != specializationConstantInfo.end()
@@ -276,7 +276,7 @@ vk::UniquePipeline GbufferPassParser::createPipeline(
   auto outTextures = mTextureOutputLayout->getElementsSorted();
   for (uint32_t i = 0; i < numColorAttachments; ++i) {
     // alpha blend float textures
-    if (alphaBlend && outTextures[i].dtype == DataType::eFLOAT4) {
+    if (alphaBlend && outTextures[i].dtype == DataType::FLOAT4()) {
       pipelineColorBlendAttachmentStates.push_back(vk::PipelineColorBlendAttachmentState(
           true, vk::BlendFactor::eSrcAlpha, vk::BlendFactor::eOneMinusSrcAlpha, vk::BlendOp::eAdd,
           vk::BlendFactor::eOne, vk::BlendFactor::eZero, vk::BlendOp::eAdd, colorComponentFlags));

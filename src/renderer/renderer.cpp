@@ -1193,7 +1193,7 @@ std::vector<std::string> Renderer::getDisplayTargetNames() const {
       if (texName.ends_with("Depth")) {
         throw std::runtime_error("You are not allowed to name your texture \"*Depth\"");
       }
-      if (elem.second.dtype == DataType::eFLOAT4) {
+      if (elem.second.dtype == DataType::FLOAT4()) {
         names.insert(texName);
       }
     }
@@ -1583,7 +1583,7 @@ void Renderer::setCustomCubemap(std::string const &name,
 int Renderer::getCustomPropertyInt(std::string const &name) const{
   if (mSpecializationConstants.contains(name)) {
     auto c = mSpecializationConstants.at(name);
-    if (c.dtype == DataType::eINT) {
+    if (c.dtype == DataType::INT()) {
       int v;
       std::memcpy(&v, c.buffer, sizeof(int));
       return v;
@@ -1595,7 +1595,7 @@ int Renderer::getCustomPropertyInt(std::string const &name) const{
 float Renderer::getCustomPropertyFloat(std::string const &name) const{
   if (mSpecializationConstants.contains(name)) {
     auto c = mSpecializationConstants.at(name);
-    if (c.dtype == DataType::eFLOAT) {
+    if (c.dtype == DataType::FLOAT()) {
       float v;
       std::memcpy(&v, c.buffer, sizeof(float));
       return v;
@@ -1607,7 +1607,7 @@ float Renderer::getCustomPropertyFloat(std::string const &name) const{
 glm::vec3 Renderer::getCustomPropertyVec3(std::string const &name) const{
   if (mSpecializationConstants.contains(name)) {
     auto c = mSpecializationConstants.at(name);
-    if (c.dtype == DataType::eFLOAT3) {
+    if (c.dtype == DataType::FLOAT3()) {
       glm::vec3 v;
       std::memcpy(&v[0], c.buffer, sizeof(float) * 3);
       return v;
@@ -1618,7 +1618,7 @@ glm::vec3 Renderer::getCustomPropertyVec3(std::string const &name) const{
 glm::vec4 Renderer::getCustomPropertyVec4(std::string const &name) const{
   if (mSpecializationConstants.contains(name)) {
     auto c = mSpecializationConstants.at(name);
-    if (c.dtype == DataType::eFLOAT3) {
+    if (c.dtype == DataType::FLOAT3()) {
       glm::vec4 v;
       std::memcpy(&v[0], c.buffer, sizeof(float) * 4);
       return v;

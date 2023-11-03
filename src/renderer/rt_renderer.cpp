@@ -162,32 +162,32 @@ void RTRenderer::updatePushConstant() {
   auto layout = mShaderPack->getPushConstantLayout();
   for (auto &[name, value] : mCustomPropertiesInt) {
     auto it = layout->elements.find(name);
-    if (it != layout->elements.end() && it->second.dtype == DataType::eINT) {
+    if (it != layout->elements.end() && it->second.dtype == DataType::INT()) {
       std::memcpy(mPushConstantBuffer.data() + it->second.offset, &value, it->second.size);
     }
   }
   for (auto &[name, value] : mCustomPropertiesFloat) {
     auto it = layout->elements.find(name);
-    if (it != layout->elements.end() && it->second.dtype == DataType::eFLOAT) {
+    if (it != layout->elements.end() && it->second.dtype == DataType::FLOAT()) {
       std::memcpy(mPushConstantBuffer.data() + it->second.offset, &value, it->second.size);
     }
   }
   for (auto &[name, value] : mCustomPropertiesVec3) {
     auto it = layout->elements.find(name);
-    if (it != layout->elements.end() && it->second.dtype == DataType::eFLOAT3) {
+    if (it != layout->elements.end() && it->second.dtype == DataType::FLOAT3()) {
       std::memcpy(mPushConstantBuffer.data() + it->second.offset, &value, it->second.size);
     }
   }
   for (auto &[name, value] : mCustomPropertiesVec4) {
     auto it = layout->elements.find(name);
-    if (it != layout->elements.end() && it->second.dtype == DataType::eFLOAT4) {
+    if (it != layout->elements.end() && it->second.dtype == DataType::FLOAT4()) {
       std::memcpy(mPushConstantBuffer.data() + it->second.offset, &value, it->second.size);
     }
   }
 
   if (layout->elements.contains("pointLightCount")) {
     auto &elem = layout->elements.at("pointLightCount");
-    if (elem.dtype != DataType::eINT) {
+    if (elem.dtype != DataType::INT()) {
       throw std::runtime_error("pointLightCount must be type int");
     }
     uint32_t v = mScene->getPointLights().size();
@@ -196,7 +196,7 @@ void RTRenderer::updatePushConstant() {
 
   if (layout->elements.contains("directionalLightCount")) {
     auto &elem = layout->elements.at("directionalLightCount");
-    if (elem.dtype != DataType::eINT) {
+    if (elem.dtype != DataType::INT()) {
       throw std::runtime_error("directionalLightCount must be type int");
     }
     uint32_t v = mScene->getDirectionalLights().size();
@@ -205,7 +205,7 @@ void RTRenderer::updatePushConstant() {
 
   if (layout->elements.contains("spotLightCount")) {
     auto &elem = layout->elements.at("spotLightCount");
-    if (elem.dtype != DataType::eINT) {
+    if (elem.dtype != DataType::INT()) {
       throw std::runtime_error("spotLightCount must be type int");
     }
     uint32_t v = mScene->getSpotLights().size() + mScene->getTexturedLights().size();
@@ -214,7 +214,7 @@ void RTRenderer::updatePushConstant() {
 
   if (layout->elements.contains("parallelogramLightCount")) {
     auto &elem = layout->elements.at("parallelogramLightCount");
-    if (elem.dtype != DataType::eINT) {
+    if (elem.dtype != DataType::INT()) {
       throw std::runtime_error("parallelogramLightCount must be type int");
     }
     uint32_t v = mScene->getParallelogramLights().size();
@@ -223,7 +223,7 @@ void RTRenderer::updatePushConstant() {
 
   if (layout->elements.contains("frameCount")) {
     auto &elem = layout->elements.at("frameCount");
-    if (elem.dtype != DataType::eINT) {
+    if (elem.dtype != DataType::INT()) {
       throw std::runtime_error("frameCount must be type int");
     }
     std::memcpy(mPushConstantBuffer.data() + elem.offset, &mFrameCount, elem.size);
@@ -231,7 +231,7 @@ void RTRenderer::updatePushConstant() {
 
   if (layout->elements.contains("envmap")) {
     auto &elem = layout->elements.at("envmap");
-    if (elem.dtype != DataType::eINT) {
+    if (elem.dtype != DataType::INT()) {
       throw std::runtime_error("envmap must be type int");
     }
     int envmap = mScene->getEnvironmentMap() != nullptr;
@@ -240,7 +240,7 @@ void RTRenderer::updatePushConstant() {
 
   if (layout->elements.contains("ambientLight")) {
     auto &elem = layout->elements.at("ambientLight");
-    if (elem.dtype != DataType::eFLOAT3) {
+    if (elem.dtype != DataType::FLOAT3()) {
       throw std::runtime_error("ambientLight must be type vec3");
     }
     glm::vec3 ambientLight = mScene->getAmbientLight();
