@@ -29,7 +29,8 @@ struct VulkanFrameSemaphores {
 
 class GuiWindow {
 public:
-  static std::string gImguiIniFileLocation;
+  static void setImguiIniFileLocation(std::string const&);
+  static std::string getImguiIniFileLocation();
 
 private:
   std::shared_ptr<core::Context> mContext;

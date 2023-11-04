@@ -21,6 +21,10 @@ static void checkVKResult(VkResult err) {
   }
 }
 
+static std::string gImguiIniFileLocation = "";
+void GuiWindow::setImguiIniFileLocation(std::string const &path) { gImguiIniFileLocation = path; }
+std::string GuiWindow::getImguiIniFileLocation() { return gImguiIniFileLocation; }
+
 static vk::UniqueRenderPass createImguiRenderPass(vk::Device device, vk::Format format) {
 
   vk::AttachmentDescription attachment{{},
@@ -54,8 +58,6 @@ static void windowCallback(GLFWwindow *window, int count, const char **paths) {
 static void windowFocusCallback(GLFWwindow *window, int focused) {
   static_cast<GuiWindow *>(glfwGetWindowUserPointer(window))->focusCallback(focused);
 }
-
-std::string GuiWindow::gImguiIniFileLocation = "";
 
 GuiWindow::GuiWindow(std::vector<vk::Format> const &requestFormats,
                      vk::ColorSpaceKHR requestColorSpace, uint32_t width, uint32_t height,
