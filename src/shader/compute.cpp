@@ -2,6 +2,7 @@
 #include "svulkan2/common/fs.h"
 #include "svulkan2/core/context.h"
 #include "svulkan2/shader/brdf_lut.h"
+#include "svulkan2/shader/latlong_to_cubemap.h"
 #include "svulkan2/shader/prefilter.h"
 
 namespace svulkan2 {
@@ -69,8 +70,6 @@ std::unique_ptr<core::Image> generateBRDFLUT(uint32_t size) {
   cb->end();
   image->setCurrentLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
 
-  // context->getQueue().submit(vk::SubmitInfo({}, {}, cb.get()));
-  // context->getQueue().waitIdle();
   context->getQueue().submitAndWait(cb.get());
   return image;
 }
@@ -180,8 +179,6 @@ void prefilterCubemap(core::Image &image) {
 
     // if compute takes too long, it can cause device lost, so we split it
     cb->end();
-    // context->getQueue().submit(vk::SubmitInfo({}, {}, cb.get()));
-    // context->getQueue().waitIdle();
     context->getQueue().submitAndWait(cb.get());
     cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
   }
@@ -197,9 +194,107 @@ void prefilterCubemap(core::Image &image) {
 
   image.setCurrentLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
   cb->end();
-  // context->getQueue().submit(vk::SubmitInfo({}, {}, cb.get()));
-  // context->getQueue().waitIdle();
   context->getQueue().submitAndWait(cb.get());
+}
+
+std::unique_ptr<core::Image> latlongToCube(core::Image &latlong, int mipLevels) {
+  uint32_t width = latlong.getExtent().width;
+  uint32_t height = latlong.getExtent().height;
+  if (width != height * 2) {
+    throw std::runtime_error("invalid latlong map");
+  }
+
+  auto context = core::Context::Get();
+  auto device = context->getDevice();
+
+  auto cubemap = std::make_unique<core::Image>(
+      vk::ImageType::e2D, vk::Extent3D{height, height, 1}, vk::Format::eR16G16B16A16Sfloat,
+      vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst |
+          vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage,
+      VMA_MEMORY_USAGE_GPU_ONLY, vk::SampleCountFlagBits::e1, mipLevels, 6,
+      vk::ImageTiling::eOptimal, vk::ImageCreateFlagBits::eCubeCompatible);
+
+  auto binding0 = vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eCombinedImageSampler, 1,
+                                                 vk::ShaderStageFlagBits::eCompute);
+  auto binding1 = vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eStorageImage, 1,
+                                                 vk::ShaderStageFlagBits::eCompute);
+  auto descriptorSetLayout0 =
+      device.createDescriptorSetLayoutUnique(vk::DescriptorSetLayoutCreateInfo({}, binding0));
+  auto descriptorSetLayout1 =
+      device.createDescriptorSetLayoutUnique(vk::DescriptorSetLayoutCreateInfo({}, binding1));
+  std::vector<vk::DescriptorSetLayout> layouts = {descriptorSetLayout0.get(),
+                                                  descriptorSetLayout1.get()};
+  auto pipelineLayout =
+      device.createPipelineLayoutUnique(vk::PipelineLayoutCreateInfo({}, layouts));
+
+  // 2D image
+  auto descriptorSet = context->getDescriptorPool().allocateSet(descriptorSetLayout0.get());
+  vk::ImageViewCreateInfo viewInfo(
+      {}, latlong.getVulkanImage(), vk::ImageViewType::e2D, latlong.getFormat(),
+      vk::ComponentSwizzle::eIdentity,
+      vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1));
+  auto imageView = device.createImageViewUnique(viewInfo);
+  auto sampler = device.createSamplerUnique(vk::SamplerCreateInfo(
+      {}, vk::Filter::eLinear, vk::Filter::eLinear, vk::SamplerMipmapMode::eNearest,
+      vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat,
+      vk::SamplerAddressMode::eRepeat, 0.f, false, 0.f, false, vk::CompareOp::eNever, 0.f, 0.f,
+      vk::BorderColor::eFloatOpaqueWhite));
+  auto imageInfo = vk::DescriptorImageInfo(sampler.get(), imageView.get(),
+                                           vk::ImageLayout::eShaderReadOnlyOptimal);
+  vk::WriteDescriptorSet write(descriptorSet.get(), 0, 0,
+                               vk::DescriptorType::eCombinedImageSampler, imageInfo);
+  device.updateDescriptorSets(write, {});
+
+  std::vector<uint32_t> code(reinterpret_cast<const uint32_t *>(latlong_to_cubemap_code),
+                             reinterpret_cast<const uint32_t *>(latlong_to_cubemap_code) +
+                                 latlong_to_cubemap_size / 4);
+  auto shaderModule = device.createShaderModuleUnique(vk::ShaderModuleCreateInfo({}, code));
+  auto shaderStageInfo = vk::PipelineShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eCompute,
+                                                           shaderModule.get(), "main");
+  vk::ComputePipelineCreateInfo computePipelineCreateInfo({}, shaderStageInfo,
+                                                          pipelineLayout.get());
+  auto pipelinCache = device.createPipelineCacheUnique({});
+  auto pipeline =
+      device.createComputePipelineUnique(pipelinCache.get(), computePipelineCreateInfo).value;
+
+  // cube image
+  vk::ImageViewCreateInfo cubeBaseViewInfo(
+      {}, cubemap->getVulkanImage(), vk::ImageViewType::eCube, cubemap->getFormat(),
+      vk::ComponentSwizzle::eIdentity,
+      vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 6));
+  auto cubeView = device.createImageViewUnique(cubeBaseViewInfo);
+  auto cubeSet = context->getDescriptorPool().allocateSet(descriptorSetLayout1.get());
+  auto cubeImageInfo = vk::DescriptorImageInfo({}, cubeView.get(), vk::ImageLayout::eGeneral);
+  vk::WriteDescriptorSet write2(cubeSet.get(), 0, 0, vk::DescriptorType::eStorageImage,
+                                cubeImageInfo);
+  device.updateDescriptorSets(write2, {});
+
+  auto pool = context->createCommandPool();
+  auto cb = pool->allocateCommandBuffer();
+
+  cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+
+  cubemap->transitionLayout(cb.get(), vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral, {},
+                            vk::AccessFlagBits::eShaderWrite,
+                            vk::PipelineStageFlagBits::eTopOfPipe,
+                            vk::PipelineStageFlagBits::eComputeShader);
+
+  cb->bindPipeline(vk::PipelineBindPoint::eCompute, pipeline.get());
+  cb->bindDescriptorSets(vk::PipelineBindPoint::eCompute, pipelineLayout.get(), 0,
+                         descriptorSet.get(), {});
+  cb->bindDescriptorSets(vk::PipelineBindPoint::eCompute, pipelineLayout.get(), 1, cubeSet.get(),
+                         {});
+  cb->dispatch(height, height, 6);
+
+  cubemap->transitionLayout(
+      cb.get(), vk::ImageLayout::eGeneral, vk::ImageLayout::eShaderReadOnlyOptimal,
+      vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead,
+      vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eComputeShader);
+
+  cb->end();
+  context->getQueue().submitAndWait(cb.get());
+
+  return cubemap;
 }
 
 } // namespace shader

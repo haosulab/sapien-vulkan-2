@@ -3,6 +3,9 @@
 #include <ktxvulkan.h>
 #include <stdexcept>
 
+#include <ImfArray.h>
+#include <ImfRgbaFile.h>
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
 #define STB_IMAGE_IMPLEMENTATION
@@ -101,6 +104,28 @@ std::vector<uint8_t> loadKTXImage(std::string const &filename, int &width, int &
   }
 
   ktxTexture_Destroy(texture);
+  return data;
+}
+
+std::vector<std::byte> loadExrImage(std::string const &filename, int &width, int &height) {
+  Imf::RgbaInputFile file(filename.c_str());
+  Imath::Box2i dw = file.dataWindow();
+
+  width = dw.max.x - dw.min.x + 1;
+  height = dw.max.y - dw.min.y + 1;
+
+  Imf::Array2D<Imf::Rgba> pixels;
+  pixels.resizeErase(height, width);
+
+  file.setFrameBuffer(&pixels[0][0] - dw.min.x - dw.min.y * width, 1, width);
+  file.readPixels(dw.min.y, dw.max.y);
+
+  static_assert(sizeof(Imf::Rgba) == 8);
+
+  std::vector<std::byte> data(sizeof(Imf::Rgba) * width * height);
+  for (int h = 0; h < height; ++h) {
+    std::memcpy(&data[h * width * sizeof(Imf::Rgba)], &pixels[h][0], width * sizeof(Imf::Rgba));
+  }
   return data;
 }
 

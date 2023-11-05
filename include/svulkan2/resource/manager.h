@@ -57,6 +57,10 @@ public:
                                                     vk::Filter minFilter = vk::Filter::eLinear,
                                                     bool srgb = true);
 
+  std::shared_ptr<SVCubemap> CreateCubemapFromEXR(std::string const &filename, uint32_t mipLevels,
+                                                  vk::Filter magFilter = vk::Filter::eLinear,
+                                                  vk::Filter minFilter = vk::Filter::eLinear);
+
   std::shared_ptr<SVTexture> generateBRDFLUT(uint32_t size);
 
   std::shared_ptr<SVTexture> getDefaultBRDFLUT();

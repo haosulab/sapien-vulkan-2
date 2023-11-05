@@ -52,6 +52,9 @@ public:
            uint32_t mipLevels = 1, vk::Filter magFilter = vk::Filter::eLinear,
            vk::Filter minFilter = vk::Filter::eLinear, bool srgb = false);
 
+  static std::shared_ptr<SVCubemap> FromImage(std::shared_ptr<SVImage> image,
+                                              vk::UniqueImageView imageView, vk::Sampler sampler);
+
   void uploadToDevice();
   void removeFromDevice();
 

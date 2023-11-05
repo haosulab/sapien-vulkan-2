@@ -206,38 +206,51 @@ std::future<void> SVImage::loadAsync() {
       for (uint32_t i = 0; i < mDescription.filenames.size(); ++i) {
         int width, height, channels;
 
-        std::vector<uint8_t> rawData = loadImage(mDescription.filenames[i], width, height,
-                                                 channels, mDescription.desiredChannels);
+        vk::Format format{vk::Format::eUndefined};
+        if (mDescription.filenames[i].ends_with(".exr")) {
+          // exr
+          auto rawData = loadExrImage(mDescription.filenames[i], width, height);
+          format = vk::Format::eR16G16B16A16Sfloat;
+          channels = 4;
 
-        switch (channels) {
-        case 1:
-          mFormat = vk::Format::eR8Unorm;
-          break;
-        case 2:
-          mFormat = vk::Format::eR8G8Unorm;
-          break;
-        case 3:
-          mFormat = vk::Format::eR8G8B8Unorm;
-          break;
-        case 4:
-          mFormat = vk::Format::eR8G8B8A8Unorm;
-          break;
-        default:
-          throw std::runtime_error("invalid image channels");
+          mRawData.push_back(toRawBytes(rawData));
+        } else {
+          // png, jpg
+          std::vector<uint8_t> rawData = loadImage(mDescription.filenames[i], width, height,
+                                                   channels, mDescription.desiredChannels);
+
+          switch (channels) {
+          case 1:
+            format = vk::Format::eR8Unorm;
+            break;
+          case 2:
+            format = vk::Format::eR8G8Unorm;
+            break;
+          case 3:
+            format = vk::Format::eR8G8B8Unorm;
+            break;
+          case 4:
+            format = vk::Format::eR8G8B8A8Unorm;
+            break;
+          default:
+            throw std::runtime_error("invalid image channels");
+          }
+
+          mRawData.push_back(toRawBytes(rawData));
         }
 
         if ((mWidth != 0 && mWidth != static_cast<uint32_t>(width)) ||
-            (mHeight != 0 && mHeight != static_cast<uint32_t>(height))) {
-          throw std::runtime_error("image load failed: provided files have different sizes");
+            (mHeight != 0 && mHeight != static_cast<uint32_t>(height)) ||
+            (mFormat != vk::Format::eUndefined && mFormat != format)) {
+          throw std::runtime_error(
+              "image load failed: provided files have different sizes or formats");
         }
 
+        mFormat = format;
         mWidth = width;
         mHeight = height;
-
-        mRawData.push_back(toRawBytes(rawData));
-
-        mLoaded = true;
       }
+      mLoaded = true;
     }
   });
 }

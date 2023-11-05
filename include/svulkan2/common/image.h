@@ -21,6 +21,9 @@ std::vector<uint8_t> loadKTXImageFromMemory(unsigned char *buffer, size_t size, 
                                             int &height, int &levels, int &faces, int &layers,
                                             vk::Format &format);
 
+// the loaded image is always rgba float16
+std::vector<std::byte> loadExrImage(std::string const &filename, int &width, int &height);
+
 template <typename T> std::vector<char> toRawBytes(std::vector<T> const &data) {
   std::vector<char> raw(data.size() * sizeof(T));
   std::memcpy(raw.data(), data.data(), raw.size());

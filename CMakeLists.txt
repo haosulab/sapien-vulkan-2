@@ -30,7 +30,7 @@ include(glslang)
 include(spirv-cross)
 include(imgui)
 include(easy_profiler)
-
+include(openexr)
 
 file(GLOB_RECURSE SVULKAN2_SRC "src/*.cpp")
 
@@ -57,7 +57,7 @@ target_include_directories(svulkan2 PRIVATE
 target_link_libraries(svulkan2 PUBLIC Vulkan::Headers glm)
 
 find_package(Threads REQUIRED)
-target_link_libraries(svulkan2 PRIVATE assimp::assimp glslang SPIRV spirv-cross-cpp glfw spdlog::spdlog easy_profiler ktx imgui ${CMAKE_DL_LIBS} Threads::Threads)
+target_link_libraries(svulkan2 PRIVATE assimp::assimp glslang SPIRV spirv-cross-cpp glfw spdlog::spdlog easy_profiler ktx imgui ${CMAKE_DL_LIBS} Threads::Threads OpenEXR)
 
 if (${SVULKAN2_PROFILE})
     target_compile_definitions(svulkan2 PUBLIC SVULKAN2_PROFILE)

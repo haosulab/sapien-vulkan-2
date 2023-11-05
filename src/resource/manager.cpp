@@ -182,6 +182,53 @@ SVResourceManager::CreateCubemapFromKTX(std::string const &filename, uint32_t mi
   return cubemap;
 }
 
+// TODO: this function needs some major cleanup
+std::shared_ptr<SVCubemap> SVResourceManager::CreateCubemapFromEXR(std::string const &filename,
+                                                                   uint32_t mipLevels,
+                                                                   vk::Filter magFilter,
+                                                                   vk::Filter minFilter) {
+  // check cache
+  {
+    std::lock_guard<std::mutex> lock(mCreateLock);
+    auto it = mCubemapRegistry.find(filename);
+    if (it != mCubemapRegistry.end()) {
+      for (auto &tex : it->second) {
+        return tex;
+      }
+    }
+  }
+
+  // load 2d texture
+  auto tex = CreateTextureFromFile(filename, 1);
+  tex->loadAsync().get();
+  tex->uploadToDevice();
+
+  // create and filter cubemap
+  {
+    std::lock_guard<std::mutex> lock(mCreateLock);
+    auto cubeImage = shader::latlongToCube(*tex->getImage()->getDeviceImage(), mipLevels);
+    shader::prefilterCubemap(*cubeImage);
+    auto image = resource::SVImage::FromDeviceImage(std::move(cubeImage));
+    auto context = core::Context::Get();
+    auto cubemap = resource::SVCubemap::FromImage(
+        image,
+        context->getDevice().createImageViewUnique(vk::ImageViewCreateInfo(
+            {}, image->getDeviceImage()->getVulkanImage(), vk::ImageViewType::eCube,
+            image->getFormat(), vk::ComponentSwizzle::eIdentity,
+            vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0,
+                                      image->getDeviceImage()->getMipLevels(), 0, 6))),
+        context->createSampler(vk::SamplerCreateInfo(
+            {}, magFilter, minFilter, vk::SamplerMipmapMode::eLinear,
+            vk::SamplerAddressMode::eRepeat, vk::SamplerAddressMode::eRepeat,
+            vk::SamplerAddressMode::eRepeat, 0.f, false, 0.f, false, vk::CompareOp::eNever, 0.f,
+            static_cast<float>(image->getDeviceImage()->getMipLevels()),
+            vk::BorderColor::eFloatOpaqueBlack)));
+
+    mCubemapRegistry[filename].push_back(cubemap);
+    return cubemap;
+  }
+}
+
 std::shared_ptr<SVCubemap>
 SVResourceManager::CreateCubemapFromFiles(std::array<std::string, 6> const &filenames,
                                           uint32_t mipLevels, vk::Filter magFilter,

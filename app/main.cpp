@@ -137,7 +137,8 @@ int main() {
 
   // setupScene(*scene);
 
-  auto model = manager->CreateModelFromFile("/home/fx/Downloads/BoxTextured/BoxTextured_basisu.glb");
+  auto model =
+      manager->CreateModelFromFile("/home/fx/Downloads/BoxTextured/BoxTextured_basisu.glb");
   model->loadAsync().get();
   // auto model =
   //     manager->CreateModelFromFile("/home/fx/Downloads/Alarm_Clock_1.glb");
@@ -331,10 +332,9 @@ int main() {
 
   // renderer.setCustomTexture("BRDFLUT", lutTexture);
 
-  // auto cubemap =
-  //     context->getResourceManager()->CreateCubemapFromKTX("input.ktx", 5);
-  // scene.setEnvironmentMap(cubemap);
-  //
+  auto cubemap = context->getResourceManager()->CreateCubemapFromEXR(
+      "rosendal_mountain_midmorning_4k.exr", 5);
+  scene->setEnvironmentMap(cubemap);
 
   // auto cubemap = context->getResourceManager()->CreateCubemapFromFiles(
   //     {

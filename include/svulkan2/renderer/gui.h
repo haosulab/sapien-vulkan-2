@@ -29,7 +29,7 @@ struct VulkanFrameSemaphores {
 
 class GuiWindow {
 public:
-  static void setImguiIniFileLocation(std::string const&);
+  static void setImguiIniFileLocation(std::string const &);
   static std::string getImguiIniFileLocation();
 
 private:

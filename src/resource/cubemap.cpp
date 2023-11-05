@@ -54,6 +54,24 @@ std::shared_ptr<SVCubemap> SVCubemap::FromData(uint32_t size, vk::Format format,
   return texture;
 }
 
+std::shared_ptr<SVCubemap> SVCubemap::FromImage(std::shared_ptr<SVImage> image,
+                                                vk::UniqueImageView imageView,
+                                                vk::Sampler sampler) {
+  auto texture = std::shared_ptr<SVCubemap>(new SVCubemap);
+  texture->mContext = core::Context::Get();
+  texture->mDescription = {.source = SVCubemapDescription::SourceType::eCUSTOM};
+  texture->mImage = image;
+  texture->mImageView = std::move(imageView);
+  texture->mSampler = sampler;
+  texture->mLoaded = true;
+
+  if (image->isOnDevice()) {
+    texture->mOnDevice = true;
+  }
+
+  return texture;
+}
+
 void SVCubemap::uploadToDevice() {
   std::scoped_lock lock(mUploadingMutex);
   mContext = core::Context::Get();
