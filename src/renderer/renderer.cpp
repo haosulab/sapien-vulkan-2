@@ -577,11 +577,7 @@ void Renderer::prepareObjects(scene::Scene &scene) {
   auto objects = mScene->getObjects();
   auto lineObjects = mScene->getLineObjects();
   auto pointObjects = mScene->getPointObjects();
-
   auto size = objects.size();
-  if (size == 0 && lineObjects.size() == 0 && pointObjects.size() == 0) {
-    throw std::runtime_error("failed to render: the scene is empty");
-  }
 
   if (mShaderPack->hasLinePass()) {
     mLineObjectIndex = size;
@@ -1430,6 +1426,11 @@ void Renderer::prepareObjectBuffers(uint32_t numObjects) {
 
   bool updated{false};
 
+  // make sure object buffer can be created
+  if (numObjects == 0) {
+    numObjects = 1;
+  }
+
   // shrink
   if (numObjects * 2 < mObjectSet.size()) {
     updated = true;
@@ -1580,7 +1581,7 @@ void Renderer::setCustomCubemap(std::string const &name,
   mCustomCubemaps[name] = cubemap;
 }
 
-int Renderer::getCustomPropertyInt(std::string const &name) const{
+int Renderer::getCustomPropertyInt(std::string const &name) const {
   if (mSpecializationConstants.contains(name)) {
     auto c = mSpecializationConstants.at(name);
     if (c.dtype == DataType::INT()) {
@@ -1592,7 +1593,7 @@ int Renderer::getCustomPropertyInt(std::string const &name) const{
   throw std::runtime_error("invalid property " + name);
 }
 
-float Renderer::getCustomPropertyFloat(std::string const &name) const{
+float Renderer::getCustomPropertyFloat(std::string const &name) const {
   if (mSpecializationConstants.contains(name)) {
     auto c = mSpecializationConstants.at(name);
     if (c.dtype == DataType::FLOAT()) {
@@ -1604,7 +1605,7 @@ float Renderer::getCustomPropertyFloat(std::string const &name) const{
   throw std::runtime_error("invalid property " + name);
 }
 
-glm::vec3 Renderer::getCustomPropertyVec3(std::string const &name) const{
+glm::vec3 Renderer::getCustomPropertyVec3(std::string const &name) const {
   if (mSpecializationConstants.contains(name)) {
     auto c = mSpecializationConstants.at(name);
     if (c.dtype == DataType::FLOAT3()) {
@@ -1615,7 +1616,7 @@ glm::vec3 Renderer::getCustomPropertyVec3(std::string const &name) const{
   }
   throw std::runtime_error("invalid property " + name);
 }
-glm::vec4 Renderer::getCustomPropertyVec4(std::string const &name) const{
+glm::vec4 Renderer::getCustomPropertyVec4(std::string const &name) const {
   if (mSpecializationConstants.contains(name)) {
     auto c = mSpecializationConstants.at(name);
     if (c.dtype == DataType::FLOAT3()) {

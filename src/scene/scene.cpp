@@ -844,14 +844,14 @@ void Scene::createRTStorageBuffers(StructDataLayout const &materialBufferLayout,
   }
 
   // build texture index
-  mTextureIndexBuffer = std::make_unique<core::Buffer>(textureIndexBuffer.size(),
-                                                       vk::BufferUsageFlagBits::eStorageBuffer |
-                                                           vk::BufferUsageFlagBits::eTransferDst,
-                                                       VMA_MEMORY_USAGE_GPU_ONLY);
+  mTextureIndexBuffer = std::make_unique<core::Buffer>(
+      std::max(size_t(1), textureIndexBuffer.size()),
+      vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
+      VMA_MEMORY_USAGE_GPU_ONLY);
   mTextureIndexBuffer->upload(textureIndexBuffer);
 
   mGeometryInstanceBuffer = std::make_unique<core::Buffer>(
-      geometryInstanceBuffer.size(),
+      std::max(size_t(1), geometryInstanceBuffer.size()),
       vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
       VMA_MEMORY_USAGE_GPU_ONLY);
   mGeometryInstanceBuffer->upload(geometryInstanceBuffer);

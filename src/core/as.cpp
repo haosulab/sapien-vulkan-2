@@ -186,7 +186,7 @@ void TLAS::build() {
   uint32_t instanceCount = static_cast<uint32_t>(mInstances.size());
 
   mInstanceBuffer = std::make_unique<Buffer>(
-      sizeof(vk::AccelerationStructureInstanceKHR) * instanceCount,
+      sizeof(vk::AccelerationStructureInstanceKHR) * std::max(1u, instanceCount),
       vk::BufferUsageFlagBits::eShaderDeviceAddress |
           vk::BufferUsageFlagBits::eAccelerationStructureBuildInputReadOnlyKHR,
       VmaMemoryUsage::VMA_MEMORY_USAGE_CPU_TO_GPU);
