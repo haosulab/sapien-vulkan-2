@@ -270,13 +270,13 @@ std::future<void> SVModel::loadAsync() {
 
     const aiScene *scene = importer.ReadFile(path, flags);
 
-    if (scene->mRootNode->mMetaData) {
-      throw std::runtime_error("Failed to load mesh file: file contains unsupported metadata, " +
-                               path);
-    }
     if (!scene) {
       throw std::runtime_error("Failed to load scene: " + std::string(importer.GetErrorString()) +
                                ", " + path);
+    }
+    if (scene->mRootNode->mMetaData) {
+      throw std::runtime_error("Failed to load mesh file: file contains unsupported metadata, " +
+                               path);
     }
 
     fs::path parentDir = fs::path(path).parent_path();
