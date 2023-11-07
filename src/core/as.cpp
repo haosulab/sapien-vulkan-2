@@ -109,26 +109,26 @@ void BLAS::build() {
                  updateSizeInfo.updateScratchSize);
   }
 
+  // find compact size
+  // if compact size > original size, disable compaction
+  vk::DeviceSize compactSize{0};
   if (mCompaction) {
-    auto compactionCommandBuffer = commandPool->allocateCommandBuffer();
-    vk::DeviceSize compactSize{0};
-
     auto result = context->getDevice().getQueryPoolResults(
         queryPool.get(), 0, 1, sizeof(vk::DeviceSize), &compactSize, sizeof(vk::DeviceSize),
         vk::QueryResultFlagBits::eWait);
-
     if (result != vk::Result::eSuccess) {
       throw std::runtime_error("failed to get query pool result");
     }
-
     logger::info("BLAS original size {}, compact size {}", size, compactSize);
-
     if (compactSize > size) {
-      throw std::runtime_error("something is wrong in compact size query!");
+      logger::warn("compact size is greater than original size, aborting copmaction");
+      mCompaction = false;
     }
+  }
 
+  if (mCompaction) {
+    auto compactionCommandBuffer = commandPool->allocateCommandBuffer();
     compactionCommandBuffer->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
-
     auto asBufferCompact =
         std::make_unique<core::Buffer>(compactSize,
                                        vk::BufferUsageFlagBits::eAccelerationStructureStorageKHR |
@@ -138,14 +138,11 @@ void BLAS::build() {
         vk::AccelerationStructureCreateInfoKHR(
             {}, asBufferCompact->getVulkanBuffer(), {}, compactSize,
             vk::AccelerationStructureTypeKHR::eBottomLevel, {}));
-
     vk::CopyAccelerationStructureInfoKHR copyInfo(blas.get(), blasCompact.get(),
                                                   vk::CopyAccelerationStructureModeKHR::eCompact);
     compactionCommandBuffer->copyAccelerationStructureKHR(copyInfo);
     compactionCommandBuffer->end();
-
     context->getQueue().submitAndWait(compactionCommandBuffer.get());
-
     mBuffer = std::move(asBufferCompact);
     mAS = std::move(blasCompact);
   } else {
