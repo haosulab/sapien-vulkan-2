@@ -17,13 +17,18 @@ public:
 
   VmaAllocator getVmaAllocator() const { return mMemoryAllocator; }
   VmaPool getExternalPool() const { return mExternalMemoryPool; };
+  VmaPool getRTPool() const { return mRTPool; };
 
   ~Allocator();
 
 private:
   VmaAllocator mMemoryAllocator;
-  VmaPool mExternalMemoryPool;
+  VmaPool mExternalMemoryPool{};
   vk::ExportMemoryAllocateInfo mExternalAllocInfo;
+
+  // AS & SBT in ray tracing requires special alignment
+  // we allocate them from this pool
+  VmaPool mRTPool{};
 };
 
 } // namespace core

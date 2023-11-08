@@ -278,6 +278,26 @@ std::vector<PhysicalDevice::DeviceInfo> PhysicalDevice::summarizeDeviceInfo() co
   return devices;
 }
 
+vk::PhysicalDeviceRayTracingPipelinePropertiesKHR PhysicalDevice::getRayTracingProperties() const {
+  if (!mPickedDeviceInfo.rayTracing) {
+    throw std::runtime_error("the physical device does not support ray tracing");
+  }
+
+  auto properties =
+      mPickedDeviceInfo.device.getProperties2<vk::PhysicalDeviceProperties2,
+                                              vk::PhysicalDeviceRayTracingPipelinePropertiesKHR>();
+  return properties.get<vk::PhysicalDeviceRayTracingPipelinePropertiesKHR>();
+}
+
+vk::PhysicalDeviceAccelerationStructurePropertiesKHR PhysicalDevice::getASProperties() const {
+  if (!mPickedDeviceInfo.rayTracing) {
+    throw std::runtime_error("the physical device does not support ray tracing");
+  }
+  auto properties = mPickedDeviceInfo.device.getProperties2<
+      vk::PhysicalDeviceProperties2, vk::PhysicalDeviceAccelerationStructurePropertiesKHR>();
+  return properties.get<vk::PhysicalDeviceAccelerationStructurePropertiesKHR>();
+}
+
 PhysicalDevice::~PhysicalDevice() {}
 
 } // namespace core

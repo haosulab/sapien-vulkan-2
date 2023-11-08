@@ -17,8 +17,11 @@ public:
                                         bool external = false);
 
 public:
+  // TODO: clean up, combine the 2
   Buffer(vk::DeviceSize size, vk::BufferUsageFlags usageFlags, VmaMemoryUsage memoryUsage,
          VmaAllocationCreateFlags allocationFlags = {}, bool external = false);
+  Buffer(vk::DeviceSize size, vk::BufferUsageFlags usageFlags, VmaMemoryUsage memoryUsage,
+         VmaAllocationCreateFlags allocationFlags, VmaPool pool);
 
   Buffer(const Buffer &) = delete;
   Buffer(const Buffer &&) = delete;

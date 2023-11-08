@@ -30,6 +30,9 @@ public:
     return mPickedDeviceLimits;
   }
 
+  vk::PhysicalDeviceRayTracingPipelinePropertiesKHR getRayTracingProperties() const;
+  vk::PhysicalDeviceAccelerationStructurePropertiesKHR getASProperties() const;
+
   inline std::shared_ptr<Instance> getInstance() const { return mInstance; }
   std::shared_ptr<Device> createDevice();
 

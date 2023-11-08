@@ -70,6 +70,29 @@ Buffer::Buffer(vk::DeviceSize size, vk::BufferUsageFlags usageFlags, VmaMemoryUs
   mHostCoherent = (memFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0;
 }
 
+Buffer::Buffer(vk::DeviceSize size, vk::BufferUsageFlags usageFlags, VmaMemoryUsage memoryUsage,
+               VmaAllocationCreateFlags allocationFlags, VmaPool pool)
+    : mSize(size) {
+  mContext = Context::Get();
+  vk::BufferCreateInfo bufferInfo({}, size, usageFlags);
+  VmaAllocationCreateInfo memoryInfo{};
+  memoryInfo.usage = memoryUsage;
+  memoryInfo.flags = allocationFlags;
+  memoryInfo.pool = pool;
+  if (vmaCreateBuffer(mContext->getAllocator().getVmaAllocator(),
+                      reinterpret_cast<VkBufferCreateInfo *>(&bufferInfo), &memoryInfo,
+                      reinterpret_cast<VkBuffer *>(&mBuffer), &mAllocation,
+                      &mAllocationInfo) != VK_SUCCESS) {
+    throw std::runtime_error("cannot create buffer");
+  }
+
+  VkMemoryPropertyFlags memFlags;
+  vmaGetMemoryTypeProperties(mContext->getAllocator().getVmaAllocator(),
+                             mAllocationInfo.memoryType, &memFlags);
+  mHostVisible = (memFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0;
+  mHostCoherent = (memFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0;
+}
+
 Buffer::~Buffer() {
 #ifdef SVULKAN2_CUDA_INTEROP
   if (mCudaPtr) {

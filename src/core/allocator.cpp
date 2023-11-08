@@ -2,6 +2,7 @@
 #include "svulkan2/core/device.h"
 #include "svulkan2/core/instance.h"
 #include "svulkan2/core/physical_device.h"
+#include <bit>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wparentheses"
@@ -102,17 +103,36 @@ Allocator::Allocator(Device &device) {
     throw std::runtime_error("Failed to find a suitable memory type for external memory pool");
   }
 
-  VmaPoolCreateInfo poolInfo{};
-  poolInfo.memoryTypeIndex = static_cast<uint32_t>(index);
-  mExternalAllocInfo =
-      vk::ExportMemoryAllocateInfo(vk::ExternalMemoryHandleTypeFlagBits::eOpaqueFd);
-  poolInfo.pMemoryAllocateNext = &mExternalAllocInfo;
+  {
+    VmaPoolCreateInfo poolInfo{};
+    poolInfo.memoryTypeIndex = static_cast<uint32_t>(index);
+    mExternalAllocInfo =
+        vk::ExportMemoryAllocateInfo(vk::ExternalMemoryHandleTypeFlagBits::eOpaqueFd);
+    poolInfo.pMemoryAllocateNext = &mExternalAllocInfo;
+    vmaCreatePool(mMemoryAllocator, &poolInfo, &mExternalMemoryPool);
+  }
 
-  vmaCreatePool(mMemoryAllocator, &poolInfo, &mExternalMemoryPool);
+  {
+    auto rtprops = physicalDevice->getRayTracingProperties();
+    vk::DeviceSize sbtAlign = rtprops.shaderGroupBaseAlignment;
+    auto asprops = physicalDevice->getASProperties();
+    vk::DeviceSize asAlign = asprops.minAccelerationStructureScratchOffsetAlignment;
+    vk::DeviceSize alignment = std::bit_ceil(std::max(sbtAlign, asAlign));
+
+    VmaPoolCreateInfo poolInfo{};
+    poolInfo.memoryTypeIndex = static_cast<uint32_t>(index);
+    poolInfo.minAllocationAlignment = alignment;
+    vmaCreatePool(mMemoryAllocator, &poolInfo, &mRTPool);
+  }
 }
 
 Allocator::~Allocator() {
-  vmaDestroyPool(mMemoryAllocator, mExternalMemoryPool);
+  if (mRTPool) {
+    vmaDestroyPool(mMemoryAllocator, mRTPool);
+  }
+  if (mExternalMemoryPool) {
+    vmaDestroyPool(mMemoryAllocator, mExternalMemoryPool);
+  }
   vmaDestroyAllocator(mMemoryAllocator);
 }
 

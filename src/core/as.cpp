@@ -69,7 +69,9 @@ void BLAS::build() {
       sizeInfo.buildScratchSize,
       vk::BufferUsageFlagBits::eAccelerationStructureStorageKHR |
           vk::BufferUsageFlagBits::eShaderDeviceAddress | vk::BufferUsageFlagBits::eStorageBuffer,
-      VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY);
+      VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags{},
+      Context::Get()->getAllocator().getRTPool());
+
   vk::DeviceAddress scratchAddress =
       context->getDevice().getBufferAddress({scratchBuffer->getVulkanBuffer()});
 
@@ -97,12 +99,13 @@ void BLAS::build() {
     buildInfo.setMode(vk::BuildAccelerationStructureModeKHR::eUpdate);
     auto updateSizeInfo = context->getDevice().getAccelerationStructureBuildSizesKHR(
         vk::AccelerationStructureBuildTypeKHR::eDevice, buildInfo, mMaxPrimitiveCounts);
-    mUpdateScratchBuffer =
-        std::make_unique<core::Buffer>(updateSizeInfo.updateScratchSize,
-                                       vk::BufferUsageFlagBits::eAccelerationStructureStorageKHR |
-                                           vk::BufferUsageFlagBits::eShaderDeviceAddress |
-                                           vk::BufferUsageFlagBits::eStorageBuffer,
-                                       VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY);
+    mUpdateScratchBuffer = std::make_unique<core::Buffer>(
+        updateSizeInfo.updateScratchSize,
+        vk::BufferUsageFlagBits::eAccelerationStructureStorageKHR |
+            vk::BufferUsageFlagBits::eShaderDeviceAddress |
+            vk::BufferUsageFlagBits::eStorageBuffer,
+        VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags{},
+        Context::Get()->getAllocator().getRTPool());
     mUpdateScratchBufferAddress = mUpdateScratchBuffer->getAddress();
     logger::info("TLAS size {}, build scratch size {}, update scratch size {}",
                  sizeInfo.accelerationStructureSize, sizeInfo.buildScratchSize,
@@ -216,7 +219,8 @@ void TLAS::build() {
       buildSizeInfo.buildScratchSize,
       vk::BufferUsageFlagBits::eAccelerationStructureStorageKHR |
           vk::BufferUsageFlagBits::eShaderDeviceAddress | vk::BufferUsageFlagBits::eStorageBuffer,
-      VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY);
+      VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags{},
+      Context::Get()->getAllocator().getRTPool());
 
   buildInfo.setMode(vk::BuildAccelerationStructureModeKHR::eUpdate);
   auto updateSizeInfo = context->getDevice().getAccelerationStructureBuildSizesKHR(
@@ -225,7 +229,8 @@ void TLAS::build() {
       updateSizeInfo.updateScratchSize,
       vk::BufferUsageFlagBits::eAccelerationStructureStorageKHR |
           vk::BufferUsageFlagBits::eShaderDeviceAddress | vk::BufferUsageFlagBits::eStorageBuffer,
-      VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY);
+      VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags{},
+      Context::Get()->getAllocator().getRTPool());
   mUpdateScratchBufferAddress = mUpdateScratchBuffer->getAddress();
 
   logger::info("TLAS size {}, build scratch size {}, update scratch size {}",
