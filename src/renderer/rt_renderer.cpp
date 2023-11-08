@@ -417,14 +417,6 @@ void RTRenderer::prepareScene() {
     }
   }
 
-  mSceneSet.reset();
-
-  mScenePool = std::make_unique<core::DynamicDescriptorPool>(std::vector<vk::DescriptorPoolSize>{
-      {vk::DescriptorType::eAccelerationStructureKHR, asCount},
-      {vk::DescriptorType::eStorageBuffer, storageBufferCount},
-      {vk::DescriptorType::eCombinedImageSampler, textureCount}});
-  mSceneSet = mScenePool->allocateSet(mShaderPackInstance->getSceneSetLayout());
-
   std::vector<vk::WriteDescriptorSet> writeDescriptorSets;
   auto as = mScene->getTLAS()->getVulkanAS();
   vk::WriteDescriptorSetAccelerationStructureKHR asWrite(as);
@@ -451,6 +443,17 @@ void RTRenderer::prepareScene() {
   for (auto buffer : mScene->getRTIndexBuffers()) {
     indexBufferInfos.push_back({buffer, 0, VK_WHOLE_SIZE});
   }
+
+  mSceneSet.reset();
+  mScenePool = std::make_unique<core::DynamicDescriptorPool>(std::vector<vk::DescriptorPoolSize>{
+      {vk::DescriptorType::eAccelerationStructureKHR, asCount},
+      {vk::DescriptorType::eStorageBuffer,
+       storageBufferCount +
+           static_cast<uint32_t>(materialBufferInfos.size() + vertexBufferInfos.size() +
+                                 indexBufferInfos.size())},
+      {vk::DescriptorType::eCombinedImageSampler,
+       textureCount + static_cast<uint32_t>(textureInfos.size())}});
+  mSceneSet = mScenePool->allocateSet(mShaderPackInstance->getSceneSetLayout());
 
   vk::DescriptorBufferInfo pointLightBufferInfo(mScene->getRTPointLightBuffer(), 0, VK_WHOLE_SIZE);
   vk::DescriptorBufferInfo directionalLightBufferInfo(mScene->getRTDirectionalLightBuffer(), 0,
