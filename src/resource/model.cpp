@@ -718,7 +718,8 @@ void SVModel::buildBLAS(bool update) {
     maxPrimitiveCount.push_back(shape->mesh->getTriangleCount());
   }
 
-  mBLAS = std::make_unique<core::BLAS>(geometries, ranges, maxPrimitiveCount, !update, update);
+  // FIXME: compaction is always disabled, it is broken on some systems
+  mBLAS = std::make_unique<core::BLAS>(geometries, ranges, maxPrimitiveCount, false, update);
   mBLAS->build();
 }
 
