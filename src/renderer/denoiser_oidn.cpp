@@ -150,7 +150,7 @@ void DenoiserOidn::denoise(core::Image &color, core::Image *albedo, core::Image 
 
   char const *err;
   if (mDevice.getError(err) != oidn::Error::None) {
-    std::cout << "Error: " << err << std::endl;
+    logger::error("OIDN Error: {}", err);
   }
 
   // copy output buffer to external image
