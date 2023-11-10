@@ -13,7 +13,9 @@ class Scene;
 class Node {
 protected:
   std::string mName;
-  Transform mTransform{};
+  // Transform mTransform{};
+  TransformWithCache mTransform{};
+
   Node *mParent{};
   std::vector<Node *> mChildren{};
 
@@ -47,7 +49,7 @@ public:
   inline bool isMarkedRemoved() { return mRemoved; };
 
   void setTransform(Transform const &transform);
-  inline Transform const &getTransform() const { return mTransform; }
+  inline TransformWithCache const &getTransform() const { return mTransform; }
 
   void setPosition(glm::vec3 const &pos);
   void setRotation(glm::quat const &rot);
