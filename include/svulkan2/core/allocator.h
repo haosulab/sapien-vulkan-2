@@ -17,7 +17,12 @@ public:
 
   VmaAllocator getVmaAllocator() const { return mMemoryAllocator; }
   VmaPool getExternalPool() const { return mExternalMemoryPool; };
-  VmaPool getRTPool() const { return mRTPool; };
+  VmaPool getRTPool() const {
+    if (mRTPool) {
+      return mRTPool;
+    }
+    throw std::runtime_error("this physical device does not support ray tracing");
+  };
 
   ~Allocator();
 

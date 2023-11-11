@@ -112,7 +112,7 @@ Allocator::Allocator(Device &device) {
     vmaCreatePool(mMemoryAllocator, &poolInfo, &mExternalMemoryPool);
   }
 
-  {
+  if (physicalDevice->getPickedDeviceInfo().rayTracing) {
     auto rtprops = physicalDevice->getRayTracingProperties();
     vk::DeviceSize sbtAlign = rtprops.shaderGroupBaseAlignment;
     auto asprops = physicalDevice->getASProperties();
