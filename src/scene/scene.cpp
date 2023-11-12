@@ -299,6 +299,9 @@ std::vector<Object *> Scene::getObjects() {
   for (auto &obj : mObjects) {
     result.push_back(obj.get());
   }
+  for (auto &obj : mDeformableObjects) {
+    result.push_back(obj.get());
+  }
   return result;
 }
 
@@ -311,7 +314,9 @@ std::vector<Object *> Scene::getVisibleObjects() {
     }
   }
   for (auto &obj : mDeformableObjects) {
-    result.push_back(obj.get());
+    if (obj->getTransparency() < 1.f) {
+      result.push_back(obj.get());
+    }
   }
   return result;
 }

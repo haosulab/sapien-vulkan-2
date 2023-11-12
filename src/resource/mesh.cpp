@@ -216,20 +216,6 @@ void SVMeshDeformable::uploadToDevice() {
   size_t bufferSize = vertexSize * mMaxVertexCount;
   size_t indexBufferSize = sizeof(uint32_t) * mMaxTriangleCount * 3;
 
-  // std::vector<char> buffer(bufferSize, 0);
-  // auto elements = layout->getElementsSorted();
-  // uint32_t offset = 0;
-  // for (auto &elem : elements) {
-  //   if (mAttributes.find(elem.name) != mAttributes.end()) {
-  //     if (mAttributes[elem.name].size() * sizeof(float) != mVertexCount * elem.getSize()) {
-  //       throw std::runtime_error("vertex attribute " + elem.name + " has incorrect size");
-  //     }
-  //     strided_memcpy(buffer.data() + offset, mAttributes[elem.name].data(), elem.getSize(),
-  //                    mVertexCount, vertexSize);
-  //   }
-  //   offset += elem.getSize();
-  // }
-
   if (!mVertexBuffer) {
     vk::BufferUsageFlags deviceAddressFlag =
         context->isRayTracingAvailable()
@@ -249,8 +235,6 @@ void SVMeshDeformable::uploadToDevice() {
             vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc,
         VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags{}, true);
   }
-  // mVertexBuffer->upload(buffer.data(), vertexSize * mVertexCount);
-  // mIndexBuffer->upload<uint32_t>(mIndices);
 }
 
 void SVMeshDeformable::removeFromDevice() { throw std::runtime_error("not implemented"); }
