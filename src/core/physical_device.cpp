@@ -30,6 +30,9 @@ static inline uint32_t computeDevicePriority(PhysicalDevice::DeviceInfo const &i
     if (info.present && presentRequested) {
       score += 100;
     }
+    if (info.rayTracing) {
+      score += 1;
+    }
     return score;
   }
 
@@ -42,10 +45,14 @@ static inline uint32_t computeDevicePriority(PhysicalDevice::DeviceInfo const &i
   }
 
   // no device hint
+  // still prefer cuda device
   if (!info.supported) {
     return 0;
   }
   uint32_t score = 0;
+  if (info.cudaId >= 0) {
+    score += 1000;
+  }
   if (info.present && presentRequested) {
     score += 100;
   }
