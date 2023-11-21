@@ -337,7 +337,7 @@ std::future<void> ShaderPackInstance::loadAsync() {
                                                                   getDepthRenderTargetName(*pass)),
                                  msaa);
       res.pipeline = pass->createPipeline(device, res.layout.get(), res.renderPass.get(),
-                                          mDesc.config->culling, vk::FrontFace::eCounterClockwise,
+                                          vk::CullModeFlagBits::eBack, vk::FrontFace::eCounterClockwise,
                                           alpha, msaa, mDesc.specializationConstants);
 
       mNonShadowPassResources.push_back(std::move(res));

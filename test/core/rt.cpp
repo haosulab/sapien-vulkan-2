@@ -15,7 +15,6 @@ TEST(RTCore, Create) {
 
   auto config = std::make_shared<RendererConfig>();
   config->shaderDir = "../shader/point";
-  config->culling = vk::CullModeFlagBits::eNone;
   config->colorFormat4 = vk::Format::eR32G32B32A32Sfloat;
   renderer::Renderer renderer(config);
 

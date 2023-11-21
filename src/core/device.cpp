@@ -27,6 +27,10 @@ Device::Device(std::shared_ptr<PhysicalDevice> physicalDevice) : mPhysicalDevice
   timelineSemaphoreFeatures.setTimelineSemaphore(true);
   descriptorFeatures.setPNext(&timelineSemaphoreFeatures);
 
+  vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT extendedDynamicStateFeature;
+  extendedDynamicStateFeature.setExtendedDynamicState(true);
+  timelineSemaphoreFeatures.setPNext(&extendedDynamicStateFeature);
+
   vk::PhysicalDeviceAccelerationStructureFeaturesKHR asFeature;
   asFeature.setAccelerationStructure(true);
   vk::PhysicalDeviceRayTracingPipelineFeaturesKHR rtFeature;
@@ -46,12 +50,14 @@ Device::Device(std::shared_ptr<PhysicalDevice> physicalDevice) : mPhysicalDevice
     descriptorFeatures.setRuntimeDescriptorArray(true);
     descriptorFeatures.setShaderStorageBufferArrayNonUniformIndexing(true);
     descriptorFeatures.setShaderSampledImageArrayNonUniformIndexing(true);
-    timelineSemaphoreFeatures.setPNext(&asFeature);
+    extendedDynamicStateFeature.setPNext(&asFeature);
     asFeature.setPNext(&rtFeature);
     rtFeature.setPNext(&addrFeature);
     addrFeature.setPNext(&clockFeature);
     features.features.setShaderInt64(true);
   }
+
+  deviceExtensions.push_back(VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME);
 
 #ifdef SVULKAN2_CUDA_INTEROP
   deviceExtensions.push_back(VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME);

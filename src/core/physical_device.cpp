@@ -179,13 +179,23 @@ std::vector<PhysicalDevice::DeviceInfo> PhysicalDevice::summarizeDeviceInfo() co
       required_features = true;
     }
 
+    std::vector<const char *> all_required_extensions = {
+        VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME};
+    size_t required_extension_count = 0;
+
     // check extensions
     auto extensions = device.enumerateDeviceExtensionProperties();
     for (auto &ext : extensions) {
       if (std::strcmp(ext.extensionName, VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME) == 0) {
         rayTracing = 1;
       }
+      for (auto name : all_required_extensions)
+        if (std::strcmp(ext.extensionName, name) == 0) {
+          required_extension_count += 1;
+        }
     }
+
+    bool required_extensions = required_extension_count == all_required_extensions.size();
 
     auto properties = device.getProperties();
     name = std::string(properties.deviceName.begin(), properties.deviceName.end());
@@ -217,7 +227,7 @@ std::vector<PhysicalDevice::DeviceInfo> PhysicalDevice::summarizeDeviceInfo() co
       }
 #endif
     }
-    bool supported = required_features && queueIdx != -1;
+    bool supported = required_features && required_extensions && queueIdx != -1;
 
     ss << std::setw(3) << ord++ << std::setw(40) << name.substr(0, 39).c_str() << std::setw(10)
        << present << std::setw(10) << supported << std::hex << std::setw(10) << busid << std::dec
@@ -226,7 +236,7 @@ std::vector<PhysicalDevice::DeviceInfo> PhysicalDevice::summarizeDeviceInfo() co
 
     devices.push_back(PhysicalDevice::DeviceInfo{.device = device,
                                                  .present = present,
-                                                 .supported = required_features,
+                                                 .supported = supported,
                                                  .cudaId = cudaId,
                                                  .pciBus = busid,
                                                  .queueIndex = queueIdx,

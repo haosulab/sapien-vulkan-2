@@ -21,7 +21,7 @@ struct RendererConfig {
   std::unordered_map<std::string, vk::Format> textureFormat;
 
   vk::Format depthFormat{vk::Format::eD32Sfloat}; // D32Sfloat
-  vk::CullModeFlags culling{vk::CullModeFlagBits::eBack};
+  // vk::CullModeFlags culling{vk::CullModeFlagBits::eBack};
 
   // when true, a single depth texture is used for all gbuffer passes (incremental rendering)
   bool shareGbufferDepths{true};

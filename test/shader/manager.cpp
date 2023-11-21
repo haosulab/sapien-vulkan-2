@@ -9,7 +9,6 @@ TEST(ShaderManager, Load) {
   config->shaderDir = "../test/assets/shader/full";
   config->colorFormat = vk::Format::eR8G8B8A8Unorm;
   config->depthFormat = vk::Format::eD32Sfloat;
-  config->culling = vk::CullModeFlagBits::eBack;
   ShaderManager manager(config);
 }
 
@@ -18,7 +17,6 @@ TEST(ShaderManager, Parse) {
   config->shaderDir = "../test/assets/shader/full";
   config->colorFormat = vk::Format::eR8G8B8A8Unorm;
   config->depthFormat = vk::Format::eD32Sfloat;
-  config->culling = vk::CullModeFlagBits::eBack;
   ShaderManager manager(config);
   auto formats = manager.getRenderTargetFormats();
 

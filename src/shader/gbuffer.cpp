@@ -186,41 +186,6 @@ vk::UniquePipeline GbufferPassParser::createPipeline(
         entries.size(), entries.data(), specializationData.size(), specializationData.data());
   }
 
-
-  // auto elems = mSpecializationConstantLayout->getElementsSorted();
-  // vk::SpecializationInfo fragSpecializationInfo;
-  // std::vector<vk::SpecializationMapEntry> entries;
-  // std::vector<int> specializationData;
-  // if (elems.size()) {
-  //   specializationData.resize(elems.size());
-  //   for (uint32_t i = 0; i < elems.size(); ++i) {
-  //     if (specializationConstantInfo.find(elems[i].name) != specializationConstantInfo.end() &&
-  //         elems[i].dtype != specializationConstantInfo.at(elems[i].name).dtype) {
-  //       throw std::runtime_error("Type mismatch on specialization constant " + elems[i].name +
-  //                                ".");
-  //     }
-  //     if (elems[i].dtype == DataType::INT()) {
-  //       entries.emplace_back(elems[i].id, i * sizeof(int), sizeof(int));
-  //       int v = specializationConstantInfo.find(elems[i].name) != specializationConstantInfo.end()
-  //                   ? specializationConstantInfo.at(elems[i].name).intValue
-  //                   : elems[i].intValue;
-  //       std::memcpy(specializationData.data() + i, &v, sizeof(int));
-  //     } else if (elems[i].dtype == DataType::FLOAT()) {
-  //       entries.emplace_back(elems[i].id, i * sizeof(float), sizeof(float));
-  //       float v =
-  //           specializationConstantInfo.find(elems[i].name) != specializationConstantInfo.end()
-  //               ? specializationConstantInfo.at(elems[i].name).floatValue
-  //               : elems[i].floatValue;
-  //       std::memcpy(specializationData.data() + i, &v, sizeof(float));
-  //     } else {
-  //       throw std::runtime_error("only int and float are allowed specialization constants");
-  //     }
-  //   }
-  //   fragSpecializationInfo =
-  //       vk::SpecializationInfo(entries.size(), entries.data(),
-  //                              specializationData.size() * sizeof(int), specializationData.data());
-  // }
-
   std::array<vk::PipelineShaderStageCreateInfo, 2> pipelineShaderStageCreateInfos{
       vk::PipelineShaderStageCreateInfo(vk::PipelineShaderStageCreateFlags(),
                                         vk::ShaderStageFlagBits::eVertex, vsm.get(), "main",
@@ -291,9 +256,10 @@ vk::UniquePipeline GbufferPassParser::createPipeline(
       pipelineColorBlendAttachmentStates.data(), {{1.0f, 1.0f, 1.0f, 1.0f}});
 
   // dynamic
-  vk::DynamicState dynamicStates[2] = {vk::DynamicState::eViewport, vk::DynamicState::eScissor};
+  std::vector<vk::DynamicState> dynamicStates = {
+      vk::DynamicState::eViewport, vk::DynamicState::eScissor, vk::DynamicState::eCullMode};
   vk::PipelineDynamicStateCreateInfo pipelineDynamicStateCreateInfo(
-      vk::PipelineDynamicStateCreateFlags(), 2, dynamicStates);
+      vk::PipelineDynamicStateCreateFlags(), dynamicStates);
 
   vk::GraphicsPipelineCreateInfo graphicsPipelineCreateInfo(
       vk::PipelineCreateFlags(), pipelineShaderStageCreateInfos.size(),

@@ -40,6 +40,8 @@ class Object : public Node {
   bool mCastShadow{true};
   bool mShadeFlat{false};
 
+  vk::CullModeFlagBits mCullMode{vk::CullModeFlagBits::eBack};
+
 public:
   inline Type getType() const override { return Type::eObject; }
 
@@ -77,6 +79,9 @@ public:
   /** used to choose gbuffer pipelines */
   inline void setShadingMode(int mode) { mShadingMode = mode; }
   inline int getShadingMode() const { return mShadingMode; }
+
+  inline void setCullMode(vk::CullModeFlagBits cull) { mCullMode = cull; }
+  inline vk::CullModeFlagBits getCullMode() const { return mCullMode; }
 
   void setTransparency(float transparency);
   inline float getTransparency() const { return mTransparency; }

@@ -171,6 +171,7 @@ void DenoiserOidn::denoise(core::Image &color, core::Image *albedo, core::Image 
 }
 
 DenoiserOidn::~DenoiserOidn() {
+  logger::info("OIDN finished");
   free();
 
   mDevice = {};
