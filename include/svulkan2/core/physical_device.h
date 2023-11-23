@@ -13,6 +13,7 @@ public:
   PhysicalDevice(std::shared_ptr<Instance> instance, std::string const &hint);
 
   struct DeviceInfo {
+    std::string name;
     vk::PhysicalDevice device{};
     bool present{};
     bool supported{};
@@ -43,9 +44,9 @@ public:
   PhysicalDevice(PhysicalDevice const &&other) = delete;
   PhysicalDevice &operator=(PhysicalDevice const &&other) = delete;
 
-private:
   std::vector<DeviceInfo> summarizeDeviceInfo() const;
 
+private:
   std::shared_ptr<Instance> mInstance;
   DeviceInfo mPickedDeviceInfo{};
   vk::PhysicalDeviceLimits mPickedDeviceLimits{};

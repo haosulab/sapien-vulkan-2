@@ -50,6 +50,7 @@ public:
   vk::Device getDevice() const;
 
   vk::PhysicalDevice getPhysicalDevice() const;
+  std::shared_ptr<PhysicalDevice> getPhysicalDevice2() const;
   vk::PhysicalDeviceLimits const &getPhysicalDeviceLimits() const;
 
   inline std::mutex &getGlobalLock() { return mGlobalLock; }

@@ -234,7 +234,8 @@ std::vector<PhysicalDevice::DeviceInfo> PhysicalDevice::summarizeDeviceInfo() co
        << std::setw(10) << (cudaId < 0 ? "No Device" : std::to_string(cudaId)) << std::setw(15)
        << rayTracing << std::setw(10) << discrete << std::endl;
 
-    devices.push_back(PhysicalDevice::DeviceInfo{.device = device,
+    devices.push_back(PhysicalDevice::DeviceInfo{.name = name,
+                                                 .device = device,
                                                  .present = present,
                                                  .supported = supported,
                                                  .cudaId = cudaId,

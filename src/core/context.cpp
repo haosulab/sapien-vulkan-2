@@ -230,6 +230,8 @@ vk::PhysicalDevice Context::getPhysicalDevice() const {
   }
   return mPhysicalDevice->getPickedDeviceInfo().device;
 }
+std::shared_ptr<PhysicalDevice> Context::getPhysicalDevice2() const { return mPhysicalDevice; }
+
 vk::PhysicalDeviceLimits const &Context::getPhysicalDeviceLimits() const {
   if (!mPhysicalDevice) {
     throw std::runtime_error("invalid physical device");
