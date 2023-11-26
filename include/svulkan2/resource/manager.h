@@ -45,21 +45,17 @@ public:
       vk::SamplerAddressMode addressModeV = vk::SamplerAddressMode::eRepeat,
       vk::SamplerAddressMode addressModeW = vk::SamplerAddressMode::eRepeat, bool srgb = false);
 
-  std::shared_ptr<SVCubemap> CreateCubemapFromKTX(std::string const &filename,
-                                                  uint32_t mipLevels = 1,
-                                                  vk::Filter magFilter = vk::Filter::eLinear,
-                                                  vk::Filter minFilter = vk::Filter::eLinear,
-                                                  bool srgb = true);
+  std::shared_ptr<SVCubemap> CreateCubemapFromFile(std::string const &filename,
+                                                   uint32_t mipLevels = 1,
+                                                   vk::Filter magFilter = vk::Filter::eLinear,
+                                                   vk::Filter minFilter = vk::Filter::eLinear,
+                                                   bool srgb = true);
 
   std::shared_ptr<SVCubemap> CreateCubemapFromFiles(std::array<std::string, 6> const &filenames,
                                                     uint32_t mipLevels = 1,
                                                     vk::Filter magFilter = vk::Filter::eLinear,
                                                     vk::Filter minFilter = vk::Filter::eLinear,
                                                     bool srgb = true);
-
-  std::shared_ptr<SVCubemap> CreateCubemapFromEXR(std::string const &filename, uint32_t mipLevels,
-                                                  vk::Filter magFilter = vk::Filter::eLinear,
-                                                  vk::Filter minFilter = vk::Filter::eLinear);
 
   std::shared_ptr<SVTexture> generateBRDFLUT(uint32_t size);
 

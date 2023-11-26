@@ -7,7 +7,7 @@ namespace svulkan2 {
 namespace resource {
 
 struct SVCubemapDescription {
-  enum class SourceType { eFILES, eSINGLE_FILE, eCUSTOM } source{SourceType::eCUSTOM};
+  enum class SourceType { eFACES, eKTX, eLATLONG, eCUSTOM } source{SourceType::eCUSTOM};
   std::array<std::string, 6> filenames{};
   uint32_t mipLevels{1};
   vk::Filter magFilter{vk::Filter::eLinear};
@@ -25,6 +25,7 @@ class SVCubemap {
   std::shared_ptr<core::Context> mContext; // keep alive for sampler and image view
   SVCubemapDescription mDescription;
   std::shared_ptr<SVImage> mImage;
+  std::shared_ptr<SVImage> mLatLongImage;
 
   bool mOnDevice{};
   vk::UniqueImageView mImageView;

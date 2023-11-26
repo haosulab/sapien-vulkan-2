@@ -13,7 +13,10 @@ std::shared_ptr<SVCubemap> SVCubemap::FromFile(std::string const &filename, uint
                                                vk::Filter magFilter, vk::Filter minFilter,
                                                bool srgb) {
   auto texture = std::shared_ptr<SVCubemap>(new SVCubemap);
-  texture->mDescription = {.source = SVCubemapDescription::SourceType::eSINGLE_FILE,
+  auto source = (filename.ends_with(".ktx") || filename.ends_with(".KTX"))
+                    ? SVCubemapDescription::SourceType::eKTX
+                    : SVCubemapDescription::SourceType::eLATLONG;
+  texture->mDescription = {.source = source,
                            .filenames = {filename, "", "", "", "", ""},
                            .mipLevels = mipLevels,
                            .magFilter = magFilter,
@@ -26,7 +29,7 @@ std::shared_ptr<SVCubemap> SVCubemap::FromFile(std::array<std::string, 6> const 
                                                uint32_t mipLevels, vk::Filter magFilter,
                                                vk::Filter minFilter, bool srgb) {
   auto texture = std::shared_ptr<SVCubemap>(new SVCubemap);
-  texture->mDescription = {.source = SVCubemapDescription::SourceType::eFILES,
+  texture->mDescription = {.source = SVCubemapDescription::SourceType::eFACES,
                            .filenames = filenames,
                            .mipLevels = mipLevels,
                            .magFilter = magFilter,
@@ -78,6 +81,18 @@ void SVCubemap::uploadToDevice() {
   if (mOnDevice) {
     return;
   }
+
+  if (!mImage && !mLatLongImage) {
+    throw std::runtime_error("failed to upload cubemap: not loaded");
+  }
+
+  // latlong
+  if (!mImage) {
+    mLatLongImage->uploadToDevice();
+    mImage = resource::SVImage::FromDeviceImage(
+        shader::latlongToCube(*mLatLongImage->getDeviceImage(), mDescription.mipLevels));
+  }
+
   if (!mImage->isOnDevice()) {
     mImage->setUsage(vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst |
                      vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eStorage);
@@ -142,16 +157,17 @@ std::future<void> SVCubemap::loadAsync() {
     return std::async(std::launch::deferred, []() {});
   }
   switch (mDescription.source) {
-  case SVCubemapDescription::SourceType::eFILES:
+  case SVCubemapDescription::SourceType::eFACES:
     for (auto f : mDescription.filenames) {
       logger::info("Loading: {}", f);
     }
     break;
-  case (SVCubemapDescription::SourceType::eSINGLE_FILE):
+  case (SVCubemapDescription::SourceType::eKTX):
+  case (SVCubemapDescription::SourceType::eLATLONG):
     logger::info("Loading: {}", mDescription.filenames[0]);
     break;
   default:
-    throw std::runtime_error("failed to load texture: the texture is not specified by a file");
+    throw std::runtime_error("failed to load cubemap: not specified by a file");
   }
 
   return std::async(LAUNCH_ASYNC, [this]() {
@@ -159,15 +175,30 @@ std::future<void> SVCubemap::loadAsync() {
     if (mLoaded) {
       return;
     }
-    if (mDescription.source == SVCubemapDescription::SourceType::eFILES) {
+    switch (mDescription.source) {
+    case SVCubemapDescription::SourceType::eFACES: {
       auto vfiles =
           std::vector<std::string>(mDescription.filenames.begin(), mDescription.filenames.end());
       mImage = SVImage::FromFile(vfiles, mDescription.mipLevels, 4);
-    } else if (mDescription.source == SVCubemapDescription::SourceType::eSINGLE_FILE) {
-      mImage = SVImage::FromFile({mDescription.filenames[0]}, mDescription.mipLevels, 4);
+      mImage->setCreateFlags(vk::ImageCreateFlagBits::eCubeCompatible);
+      mImage->loadAsync().get();
+      break;
     }
-    mImage->setCreateFlags(vk::ImageCreateFlagBits::eCubeCompatible);
-    mImage->loadAsync().get();
+    case SVCubemapDescription::SourceType::eKTX: {
+      mImage = SVImage::FromFile({mDescription.filenames[0]}, mDescription.mipLevels, 4);
+      mImage->setCreateFlags(vk::ImageCreateFlagBits::eCubeCompatible);
+      mImage->loadAsync().get();
+      break;
+    }
+    case SVCubemapDescription::SourceType::eLATLONG: {
+      mLatLongImage = SVImage::FromFile({mDescription.filenames[0]}, 1, 4);
+      mLatLongImage->loadAsync().get();
+      break;
+    }
+    default:
+      throw std::runtime_error("failed to load cubemap: not specified by a file.");
+    };
+
     mLoaded = true;
   });
 }
