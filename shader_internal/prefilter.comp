@@ -62,11 +62,11 @@ vec3 PrefilterEnvMap(float Roughness, vec3 R) {
     float dotNL = max(dot(N, L), 0.0);
 
     if (dotNL > 0) {
-      PrefilteredColor += pow(textureLod(EnvMap, L, 0).rgb, vec3(2.2)) * dotNL;
+      PrefilteredColor += textureLod(EnvMap, L, 0).rgb * dotNL;
       TotalWeight += dotNL;
     }
   }
-  return pow(PrefilteredColor / TotalWeight, vec3(1/2.2));
+  return PrefilteredColor / TotalWeight;
 }
 
 // http://alinloghin.com/articles/compute_ibl.html
