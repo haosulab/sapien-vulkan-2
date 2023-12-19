@@ -32,6 +32,8 @@ enum UniformBindingType {
   eUnknown
 };
 
+std::vector<uint32_t> getDescriptorSetIds(spirv_cross::Compiler &compiler);
+
 struct DescriptorSetDescription {
   struct Binding {
     std::string name;

@@ -23,6 +23,7 @@ public:
     bool rayTracing{};
     int cudaComputeMode{-1};
     bool discrete{};
+    uint32_t subgroupSize{0};
   };
 
   inline vk::PhysicalDevice getInternal() const { return mPickedDeviceInfo.device; }
@@ -36,6 +37,9 @@ public:
 
   inline std::shared_ptr<Instance> getInstance() const { return mInstance; }
   std::shared_ptr<Device> createDevice();
+
+  uint32_t getMaxWorkGroupInvocations() const;
+  uint32_t getSubgroupSize() const;
 
   ~PhysicalDevice();
 

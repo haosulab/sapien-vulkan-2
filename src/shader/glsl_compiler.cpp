@@ -67,7 +67,6 @@ GLSLCompiler::loadGlslCodeWithDebugInfo(fs::path const &filepath) {
 
         lineInfo.insert(lineInfo.end(), includeInfo.begin(), includeInfo.end());
         result += includeCode;
-        // result += loadGlslCode(includePath) + "\n";
       } else {
         throw std::runtime_error("invalid include: " + line + " in " +
                                  filepath.string());
@@ -80,47 +79,47 @@ GLSLCompiler::loadGlslCodeWithDebugInfo(fs::path const &filepath) {
   return {result, lineInfo};
 }
 
-std::string GLSLCompiler::loadGlslCode(fs::path const &filepath) {
-  std::vector<char> charCode = readFile(filepath);
-  std::string code{charCode.begin(), charCode.end()};
-  std::istringstream iss(code);
-  std::string result;
+// std::string GLSLCompiler::loadGlslCode(fs::path const &filepath) {
+//   std::vector<char> charCode = readFile(filepath);
+//   std::string code{charCode.begin(), charCode.end()};
+//   std::istringstream iss(code);
+//   std::string result;
 
-  for (std::string line; std::getline(iss, line);) {
-    // left trim
-    line.erase(line.begin(),
-               std::find_if(line.begin(), line.end(), [](unsigned char ch) {
-                 return !std::isspace(ch);
-               }));
+//   for (std::string line; std::getline(iss, line);) {
+//     // left trim
+//     line.erase(line.begin(),
+//                std::find_if(line.begin(), line.end(), [](unsigned char ch) {
+//                  return !std::isspace(ch);
+//                }));
 
-    if (line.starts_with("#include") && std::isspace(line[8])) {
-      line = line.substr(8);
+//     if (line.starts_with("#include") && std::isspace(line[8])) {
+//       line = line.substr(8);
 
-      // lr trim
-      line.erase(line.begin(),
-                 std::find_if(line.begin(), line.end(), [](unsigned char ch) {
-                   return !std::isspace(ch);
-                 }));
-      line.erase(
-          std::find_if(line.rbegin(), line.rend(),
-                       [](unsigned char ch) { return !std::isspace(ch); })
-              .base(),
-          line.end());
-      if (line.size() >= 2 && line[0] == '"' && line[line.size() - 1] == '"') {
-        std::string filename = line.substr(1, line.size() - 2);
-        auto includePath = filepath.parent_path() / filename;
-        result += loadGlslCode(includePath) + "\n";
+//       // lr trim
+//       line.erase(line.begin(),
+//                  std::find_if(line.begin(), line.end(), [](unsigned char ch) {
+//                    return !std::isspace(ch);
+//                  }));
+//       line.erase(
+//           std::find_if(line.rbegin(), line.rend(),
+//                        [](unsigned char ch) { return !std::isspace(ch); })
+//               .base(),
+//           line.end());
+//       if (line.size() >= 2 && line[0] == '"' && line[line.size() - 1] == '"') {
+//         std::string filename = line.substr(1, line.size() - 2);
+//         auto includePath = filepath.parent_path() / filename;
+//         result += loadGlslCode(includePath) + "\n";
 
-      } else {
-        throw std::runtime_error("invalid include: " + line + " in " +
-                                 filepath.string());
-      }
-    } else {
-      result += line + "\n";
-    }
-  }
-  return result;
-}
+//       } else {
+//         throw std::runtime_error("invalid include: " + line + " in " +
+//                                  filepath.string());
+//       }
+//     } else {
+//       result += line + "\n";
+//     }
+//   }
+//   return result;
+// }
 
 static TBuiltInResource GetDefaultTBuiltInResource() {
   TBuiltInResource Resources;
@@ -321,10 +320,6 @@ std::vector<std::uint32_t> GLSLCompiler::compileToSpirv(
         }
       }
     }
-    // log = shader.getInfoDebugLog();
-    // if (log.length()) {
-    //   log::getLogger()->warn(log);
-    // }
   }
 
   if (!result) {

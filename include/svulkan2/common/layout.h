@@ -17,7 +17,7 @@ struct SpecializationConstantLayout {
     std::string name{};
     uint32_t id{0};
     DataType dtype{};
-    std::byte buffer[128];
+    std::byte buffer[128]{};
   };
   std::unordered_map<std::string, SpecializationConstantLayout::Element> elements;
   std::vector<SpecializationConstantLayout::Element> getElementsSorted() const;
