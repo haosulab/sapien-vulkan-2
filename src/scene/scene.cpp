@@ -321,28 +321,6 @@ std::vector<Object *> Scene::getVisibleObjects() {
   return result;
 }
 
-std::vector<Object *> Scene::getVisibleRigidObjects() {
-  forceRemove();
-  std::vector<Object *> result;
-  for (auto &obj : mObjects) {
-    if (obj->getTransparency() < 1.f) {
-      result.push_back(obj.get());
-    }
-  }
-  return result;
-}
-
-std::vector<Object *> Scene::getVisibleDeformableObjects() {
-  forceRemove();
-  std::vector<Object *> result;
-  for (auto &obj : mDeformableObjects) {
-    if (obj->getTransparency() < 1.f) {
-      result.push_back(obj.get());
-    }
-  }
-  return result;
-}
-
 std::vector<LineObject *> Scene::getLineObjects() {
   forceRemove();
   std::vector<LineObject *> result;
@@ -659,14 +637,81 @@ void Scene::updateVersion() {
 
 void Scene::updateRenderVersion() { mRenderVersion++; }
 
+void Scene::prepareObjectTransformBuffer() {
+  // transform buffer is up-to-date
+  if (mTransformBufferVersion == mVersion) {
+    return;
+  }
+
+  uint32_t count = 0;
+
+  auto objects = getVisibleObjects();
+  for (auto obj : objects) {
+    obj->setInternalGpuIndex(count++);
+  }
+  auto lineObjects = getLineObjects();
+  for (auto obj : lineObjects) {
+    obj->setInternalGpuIndex(count++);
+  }
+  auto pointObjects = getPointObjects();
+  for (auto obj : pointObjects) {
+    obj->setInternalGpuIndex(count++);
+  }
+
+  if (mTransformBuffer && mTransformBuffer->getSize() > sizeof(glm::mat4) * count) {
+    return;
+  }
+
+  mTransformBuffer = core::Buffer::Create(sizeof(glm::mat4) * count,
+                                          vk::BufferUsageFlagBits::eUniformBuffer |
+                                              vk::BufferUsageFlagBits::eTransferDst,
+                                          VMA_MEMORY_USAGE_CPU_TO_GPU, {}, true);
+  mTransformBufferVersion = mVersion;
+}
+
+void Scene::uploadObjectTransforms() {
+  // TODO: make thread safe?
+  if (mTransformBufferRenderVersion == mRenderVersion) {
+    return;
+  }
+
+  prepareObjectTransformBuffer();
+
+  auto objects = getVisibleObjects();
+  auto lineObjects = getLineObjects();
+  auto pointObjects = getPointObjects();
+  std::vector<glm::mat4> data;
+  data.reserve(objects.size() + lineObjects.size() + pointObjects.size());
+
+  for (auto obj : objects) {
+    data.push_back(obj->getTransform().worldModelMatrix);
+  }
+
+  for (auto obj : lineObjects) {
+    data.push_back(obj->getTransform().worldModelMatrix);
+  }
+
+  for (auto obj : pointObjects) {
+    data.push_back(obj->getTransform().worldModelMatrix);
+  }
+
+  mTransformBuffer->upload(data);
+  mTransformBufferRenderVersion = mRenderVersion;
+}
+
+std::shared_ptr<core::Buffer> Scene::getObjectTransformBuffer() {
+  prepareObjectTransformBuffer();
+  return mTransformBuffer;
+}
+
 void Scene::ensureBLAS() {
   // TODO ensure BLAS is not built multiple times, some rigid, some deformable
-  for (auto obj : getVisibleRigidObjects()) {
+  for (auto &obj : mObjects) {
     if (!obj->getModel()->getBLAS()) {
       obj->getModel()->buildBLAS(false);
     }
   }
-  for (auto obj : getVisibleDeformableObjects()) {
+  for (auto &obj : mDeformableObjects) {
     if (!obj->getModel()->getBLAS()) {
       obj->getModel()->buildBLAS(true);
     }
@@ -708,11 +753,11 @@ void Scene::updateTLAS() {
   mASUpdateCommandBuffer->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
 
   // update BLAS
-  for (auto obj : getVisibleDeformableObjects()) {
+  for (auto &obj : mDeformableObjects) {
     obj->getModel()->recordUpdateBLAS(mASUpdateCommandBuffer.get());
   }
 
-  auto objects = getVisibleObjects();
+  auto objects = getObjects();
   std::vector<vk::TransformMatrixKHR> transforms;
   transforms.reserve(objects.size());
 
@@ -743,7 +788,7 @@ void Scene::createRTStorageBuffers(StructDataLayout const &materialBufferLayout,
   uint32_t normalOffset = textureIndexBufferLayout.elements.at("normal").offset;
   uint32_t transmissionOffset = textureIndexBufferLayout.elements.at("transmission").offset;
 
-  auto objects = getVisibleObjects();
+  auto objects = getObjects();
 
   uint32_t instanceCount{0};
   uint32_t meshCount{0};

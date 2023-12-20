@@ -334,23 +334,40 @@ static void verifyMaterialBuffer(std::shared_ptr<StructDataLayout> layout) {
          "material textureMask should be int");
 }
 
-static void verifyObjectBuffer(std::shared_ptr<StructDataLayout> layout) {
-  ASSERT(layout->elements.size() >= 2, "object buffer requires modelMatrix and segmentation");
-
-  ASSERT(layout->elements.contains("modelMatrix"), "object buffer requires variable modelMatrix");
-  ASSERT(layout->elements.contains("segmentation"), "object buffer requires variable modelMatrix");
-
+static void verifyObjectTransformBuffer(std::shared_ptr<StructDataLayout> layout) {
+  ASSERT(layout->elements.size() == 1,
+         "ObjectTransformBuffer should only contain the field modelMatrix");
+  ASSERT(layout->elements.contains("modelMatrix"),
+         "ObjectTransformBuffer should only contain the field modelMatrix");
   ASSERT(layout->elements["modelMatrix"].dtype == DataType::FLOAT44(),
-         "object modelMatrix should be float44");
+         "modelMatrix should be mat4");
+}
+
+static void verifyObjectDataBuffer(std::shared_ptr<StructDataLayout> layout) {
+  ASSERT(layout->elements.size() > 1, "ObjectDataBuffer requires segmentation");
+
   ASSERT(layout->elements["segmentation"].dtype == DataType::UINT4(),
          "object segmentation should be uint4");
-  ASSERT(!layout->elements.contains("prevModelMatrix") ||
-             layout->elements["prevModelMatrix"].dtype == DataType::FLOAT44(),
-         "object prevModelMatrix should be float44");
-  ASSERT(!layout->elements.contains("userData") ||
-             layout->elements["userData"].dtype == DataType::FLOAT44(),
-         "object userData should be float44");
 }
+
+// static void verifyObjectBuffer(std::shared_ptr<StructDataLayout> layout) {
+//   ASSERT(layout->elements.size() >= 2, "object buffer requires modelMatrix and segmentation");
+
+//   ASSERT(layout->elements.contains("modelMatrix"), "object buffer requires variable
+//   modelMatrix"); ASSERT(layout->elements.contains("segmentation"), "object buffer requires
+//   variable modelMatrix");
+
+//   ASSERT(layout->elements["modelMatrix"].dtype == DataType::FLOAT44(),
+//          "object modelMatrix should be float44");
+//   ASSERT(layout->elements["segmentation"].dtype == DataType::UINT4(),
+//          "object segmentation should be uint4");
+//   ASSERT(!layout->elements.contains("prevModelMatrix") ||
+//              layout->elements["prevModelMatrix"].dtype == DataType::FLOAT44(),
+//          "object prevModelMatrix should be float44");
+//   ASSERT(!layout->elements.contains("userData") ||
+//              layout->elements["userData"].dtype == DataType::FLOAT44(),
+//          "object userData should be float44");
+// }
 
 static void verifySceneBuffer(std::shared_ptr<StructDataLayout> layout) {
   ASSERT(layout->elements.contains("ambientLight"), "scene buffer requires variable ambientLight");
@@ -619,9 +636,10 @@ DescriptorSetDescription getDescriptorSetDescription(spirv_cross::Compiler &comp
       verifyCameraBuffer(result.buffers[result.bindings[0].arrayIndex]);
       return result;
     }
-    if (name == "ObjectBuffer") {
+    if (name == "ObjectTransformBuffer") {
       result.type = UniformBindingType::eObject;
-      verifyObjectBuffer(result.buffers[result.bindings[0].arrayIndex]);
+      verifyObjectTransformBuffer(result.buffers[result.bindings[0].arrayIndex]);
+      verifyObjectDataBuffer(result.buffers[result.bindings.at(1).arrayIndex]);
       return result;
     }
     if (name == "SceneBuffer") {

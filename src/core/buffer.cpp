@@ -22,13 +22,16 @@ std::unique_ptr<Buffer> Buffer::CreateStaging(vk::DeviceSize size, bool readback
       VMA_MEMORY_USAGE_CPU_ONLY);
 }
 
-std::unique_ptr<Buffer> Buffer::CreateUniform(vk::DeviceSize size, bool deviceOnly) {
+std::unique_ptr<Buffer> Buffer::CreateUniform(vk::DeviceSize size, bool deviceOnly,
+                                              bool external) {
   if (deviceOnly) {
-    return std::make_unique<Buffer>(size, vk::BufferUsageFlagBits::eUniformBuffer,
-                                    VMA_MEMORY_USAGE_GPU_ONLY);
+    return std::make_unique<Buffer>(
+        size, vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst,
+        VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags{}, external);
   } else {
-    return std::make_unique<Buffer>(size, vk::BufferUsageFlagBits::eUniformBuffer,
-                                    VMA_MEMORY_USAGE_CPU_TO_GPU);
+    return std::make_unique<Buffer>(
+        size, vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst,
+        VMA_MEMORY_USAGE_CPU_TO_GPU, VmaAllocationCreateFlags{}, external);
   }
 }
 

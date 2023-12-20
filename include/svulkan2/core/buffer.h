@@ -10,7 +10,8 @@ namespace core {
 class Buffer {
 public:
   static std::unique_ptr<Buffer> CreateStaging(vk::DeviceSize size, bool readback = false);
-  static std::unique_ptr<Buffer> CreateUniform(vk::DeviceSize size, bool deviceOnly = false);
+  static std::unique_ptr<Buffer> CreateUniform(vk::DeviceSize size, bool deviceOnly = false,
+                                               bool external = false);
   static std::unique_ptr<Buffer> Create(vk::DeviceSize size, vk::BufferUsageFlags usageFlags,
                                         VmaMemoryUsage memoryUsage,
                                         VmaAllocationCreateFlags allocationFlags = {},

@@ -118,8 +118,7 @@ int main() {
   auto manager = context->createResourceManager();
 
   auto config = std::make_shared<RendererConfig>();
-  config->shaderDir = "../shader/ibl";
-  config->culling = vk::CullModeFlagBits::eNone;
+  config->shaderDir = "../shader/trivial";
   config->msaa = vk::SampleCountFlagBits::e1;
   config->colorFormat4 = vk::Format::eR32G32B32A32Sfloat;
   renderer::Renderer renderer(config);
@@ -133,16 +132,16 @@ int main() {
 
   auto scene = std::make_shared<svulkan2::scene::Scene>();
 
-  // createSphereArray(*scene);
+  createSphereArray(*scene);
 
   // setupScene(*scene);
 
-  auto model =
-      manager->CreateModelFromFile("/home/fx/Downloads/BoxTextured/BoxTextured_basisu.glb");
-  model->loadAsync().get();
+  // auto model =
+  //     manager->CreateModelFromFile("/home/fx/Downloads/BoxTextured/BoxTextured_basisu.glb");
+  // model->loadAsync().get();
   // auto model =
   //     manager->CreateModelFromFile("/home/fx/Downloads/Alarm_Clock_1.glb");
-  auto &obj = scene->addObject(model);
+  // auto &obj = scene->addObject(model);
 
   // {
   //   auto model =
@@ -332,9 +331,9 @@ int main() {
 
   // renderer.setCustomTexture("BRDFLUT", lutTexture);
 
-  auto cubemap = context->getResourceManager()->CreateCubemapFromEXR(
-      "rosendal_mountain_midmorning_4k.exr", 5);
-  scene->setEnvironmentMap(cubemap);
+  // auto cubemap = context->getResourceManager()->CreateCubemapFromFile(
+  //     "rosendal_mountain_midmorning_4k.exr", 5);
+  // scene->setEnvironmentMap(cubemap);
 
   // auto cubemap = context->getResourceManager()->CreateCubemapFromFiles(
   //     {
@@ -406,18 +405,6 @@ int main() {
   int count = 0;
   while (!window->isClosed()) {
     count += 1;
-    // spot
-    // / 50.f)});
-
-    if (count == 3) {
-      // auto &l = scene.addSpotLight();
-      // l.setColor({1, 1, 1});
-      // l.setPosition({0.5, 0.5, 0.5});
-      // l.enableShadow(true);
-      // l.setFov(2);
-      // l.setFovSmall(1);
-      // scene.updateModelMatrices();
-    }
 
     if (gSwapchainRebuild) {
       context->getDevice().waitIdle();
@@ -528,9 +515,11 @@ int main() {
 
     if (gClosed) {
       window->close();
+      break;
     }
     if (window->isKeyDown("q")) {
       window->close();
+      break;
     }
 
     bool update = false;

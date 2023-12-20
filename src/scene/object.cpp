@@ -16,16 +16,9 @@ void Object::uploadToDevice(core::Buffer &objectBuffer, uint32_t offset,
   EASY_END_BLOCK;
 
   EASY_BLOCK("copy matrix");
-  std::memcpy(buffer.data() + objectLayout.elements.at("modelMatrix").offset,
-              &mTransform.worldModelMatrix[0][0], 64);
   std::memcpy(buffer.data() + objectLayout.elements.at("segmentation").offset, &mSegmentation[0],
               16);
 
-  auto it = objectLayout.elements.find("prevModelMatrix");
-  if (it != objectLayout.elements.end()) {
-    std::memcpy(buffer.data() + objectLayout.elements.at("prevModelMatrix").offset,
-                &mTransform.prevWorldModelMatrix[0][0], 64);
-  }
   EASY_END_BLOCK;
 
   EASY_BLOCK("check other data");
@@ -153,15 +146,8 @@ LineObject::LineObject(std::shared_ptr<resource::SVLineSet> lineSet, std::string
 void LineObject::uploadToDevice(core::Buffer &objectBuffer, uint32_t offset,
                                 StructDataLayout const &objectLayout) {
   std::vector<char> buffer(objectLayout.size);
-  std::memcpy(buffer.data() + objectLayout.elements.at("modelMatrix").offset,
-              &mTransform.worldModelMatrix[0][0], 64);
   std::memcpy(buffer.data() + objectLayout.elements.at("segmentation").offset, &mSegmentation[0],
               16);
-  auto it = objectLayout.elements.find("prevModelMatrix");
-  if (it != objectLayout.elements.end()) {
-    std::memcpy(buffer.data() + objectLayout.elements.at("prevModelMatrix").offset,
-                &mTransform.prevWorldModelMatrix[0][0], 64);
-  }
   if (objectLayout.elements.find("transparency") != objectLayout.elements.end()) {
     auto &elem = objectLayout.elements.at("transparency");
     if (elem.dtype != DataType::FLOAT()) {
@@ -185,15 +171,8 @@ PointObject::PointObject(std::shared_ptr<resource::SVPointSet> pointSet, std::st
 void PointObject::uploadToDevice(core::Buffer &objectBuffer, uint32_t offset,
                                  StructDataLayout const &objectLayout) {
   std::vector<char> buffer(objectLayout.size);
-  std::memcpy(buffer.data() + objectLayout.elements.at("modelMatrix").offset,
-              &mTransform.worldModelMatrix[0][0], 64);
   std::memcpy(buffer.data() + objectLayout.elements.at("segmentation").offset, &mSegmentation[0],
               16);
-  auto it = objectLayout.elements.find("prevModelMatrix");
-  if (it != objectLayout.elements.end()) {
-    std::memcpy(buffer.data() + objectLayout.elements.at("prevModelMatrix").offset,
-                &mTransform.prevWorldModelMatrix[0][0], 64);
-  }
   if (objectLayout.elements.find("transparency") != objectLayout.elements.end()) {
     auto &elem = objectLayout.elements.at("transparency");
     if (elem.dtype != DataType::FLOAT()) {
@@ -213,6 +192,13 @@ void PointObject::setVertexCount(uint32_t count) {
   mScene->updateVersion();
   mVertexCount = count;
 }
+
+void Object::setInternalGpuIndex(int index) { mGpuIndex = index; }
+int Object::getInternalGpuIndex() const { return mGpuIndex; }
+void LineObject::setInternalGpuIndex(int index) { mGpuIndex = index; }
+int LineObject::getInternalGpuIndex() const { return mGpuIndex; }
+void PointObject::setInternalGpuIndex(int index) { mGpuIndex = index; }
+int PointObject::getInternalGpuIndex() const { return mGpuIndex; }
 
 } // namespace scene
 } // namespace svulkan2

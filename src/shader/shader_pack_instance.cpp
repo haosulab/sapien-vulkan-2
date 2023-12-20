@@ -24,8 +24,9 @@ createObjectDescriptorSetLayout(vk::Device device,
   std::vector<vk::DescriptorSetLayoutBinding> bindings;
   bindings.push_back({0, vk::DescriptorType::eUniformBuffer, 1,
                       vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment});
-
-  for (uint32_t bid = 1; bid < objectSetDescription.bindings.size(); ++bid) {
+  bindings.push_back({1, vk::DescriptorType::eUniformBuffer, 1,
+                      vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment});
+  for (uint32_t bid = 2; bid < objectSetDescription.bindings.size(); ++bid) {
     // TODO: verify bid is consecutive
     auto binding = objectSetDescription.bindings.at(bid);
     if (binding.type == vk::DescriptorType::eCombinedImageSampler) {
@@ -336,9 +337,9 @@ std::future<void> ShaderPackInstance::loadAsync() {
                                  getDepthAttachmentLayoutsForPass(textureOperationTable, pass,
                                                                   getDepthRenderTargetName(*pass)),
                                  msaa);
-      res.pipeline = pass->createPipeline(device, res.layout.get(), res.renderPass.get(),
-                                          vk::CullModeFlagBits::eBack, vk::FrontFace::eCounterClockwise,
-                                          alpha, msaa, mDesc.specializationConstants);
+      res.pipeline = pass->createPipeline(
+          device, res.layout.get(), res.renderPass.get(), vk::CullModeFlagBits::eBack,
+          vk::FrontFace::eCounterClockwise, alpha, msaa, mDesc.specializationConstants);
 
       mNonShadowPassResources.push_back(std::move(res));
     }

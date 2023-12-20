@@ -251,7 +251,8 @@ std::shared_ptr<ShaderConfig> ShaderPack::generateShaderInputLayouts() const {
   }
 
   layouts->cameraBufferLayout = cameraSetDesc.buffers.at(cameraSetDesc.bindings.at(0).arrayIndex);
-  layouts->objectBufferLayout = objectSetDesc.buffers.at(objectSetDesc.bindings.at(0).arrayIndex);
+  layouts->objectDataBufferLayout =
+      objectSetDesc.buffers.at(objectSetDesc.bindings.at(1).arrayIndex);
   layouts->sceneBufferLayout = sceneSetDesc.buffers.at(sceneSetDesc.bindings.at(0).arrayIndex);
 
   if (mShadowPass) {

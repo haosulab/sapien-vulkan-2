@@ -11,7 +11,8 @@
 namespace svulkan2 {
 namespace shader {
 class RayTracingShaderPack;
-};
+class DescriptorSetDescription;
+}; // namespace shader
 
 namespace resource {
 
@@ -93,9 +94,8 @@ public:
   void setVertexLayout(std::shared_ptr<InputDataLayout> layout);
   inline std::shared_ptr<InputDataLayout> getVertexLayout() const {
     if (!mVertexLayout) {
-      throw std::runtime_error(
-          "[resource manager] you need to load the shader (e.g. by creating a "
-          "camera) before accessing GPU data");
+      throw std::runtime_error("failed to infer vertex layout: you need to load a shader first "
+                               "(e.g. by creating a camera)");
     }
     return mVertexLayout;
   }
@@ -104,8 +104,8 @@ public:
   inline std::shared_ptr<InputDataLayout> getLineVertexLayout() const {
     if (!mLineVertexLayout) {
       throw std::runtime_error(
-          "[resource manager] you need to load the shader (e.g. by creating a "
-          "camera) before accessing GPU data");
+          "failed to infer vertex layout: you need to load a shader first (e.g. by "
+          "creating a camera) ");
     }
     return mLineVertexLayout;
   }

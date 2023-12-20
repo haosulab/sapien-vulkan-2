@@ -29,10 +29,8 @@ class Object : public Node {
   glm::uvec4 mSegmentation{0};
 
   std::unordered_map<std::string, CustomData> mCustomData;
-  std::unordered_map<std::string, std::shared_ptr<resource::SVTexture>>
-      mCustomTexture;
-  std::unordered_map<std::string,
-                     std::vector<std::shared_ptr<resource::SVTexture>>>
+  std::unordered_map<std::string, std::shared_ptr<resource::SVTexture>> mCustomTexture;
+  std::unordered_map<std::string, std::vector<std::shared_ptr<resource::SVTexture>>>
       mCustomTextureArray;
 
   int mShadingMode{};
@@ -42,11 +40,13 @@ class Object : public Node {
 
   vk::CullModeFlagBits mCullMode{vk::CullModeFlagBits::eBack};
 
+  // used to index the transform array
+  int mGpuIndex{-1};
+
 public:
   inline Type getType() const override { return Type::eObject; }
 
-  Object(std::shared_ptr<resource::SVModel> model,
-         std::string const &name = "");
+  Object(std::shared_ptr<resource::SVModel> model, std::string const &name = "");
 
   void uploadToDevice(core::Buffer &objectBuffer, uint32_t offset,
                       StructDataLayout const &objectLayout);
@@ -65,14 +65,11 @@ public:
   void setCustomDataInt3(std::string const &name, glm::ivec3 x);
   void setCustomDataInt4(std::string const &name, glm::ivec4 x);
 
-  void setCustomTexture(std::string const &name,
-                        std::shared_ptr<resource::SVTexture> texture);
-  std::shared_ptr<resource::SVTexture> const
-  getCustomTexture(std::string const &name) const;
+  void setCustomTexture(std::string const &name, std::shared_ptr<resource::SVTexture> texture);
+  std::shared_ptr<resource::SVTexture> const getCustomTexture(std::string const &name) const;
 
-  void setCustomTextureArray(
-      std::string const &name,
-      std::vector<std::shared_ptr<resource::SVTexture>> textures);
+  void setCustomTextureArray(std::string const &name,
+                             std::vector<std::shared_ptr<resource::SVTexture>> textures);
   std::vector<std::shared_ptr<resource::SVTexture>>
   getCustomTextureArray(std::string const &name) const;
 
@@ -92,25 +89,25 @@ public:
   void setShadeFlat(bool shadeFlat) { mShadeFlat = shadeFlat; };
   inline bool getShadeFlat() const { return mShadeFlat; }
 
-  std::unordered_map<std::string, CustomData> const &getCustomData() const {
-    return mCustomData;
-  }
+  std::unordered_map<std::string, CustomData> const &getCustomData() const { return mCustomData; }
+
+  void setInternalGpuIndex(int index);
+  int getInternalGpuIndex() const;
 };
 
 class LineObject : public Node {
   std::shared_ptr<resource::SVLineSet> mLineSet;
   glm::uvec4 mSegmentation{0};
-  // std::unordered_map<std::string, CustomData> mCustomData;
   float mTransparency{};
+
+  // used to index the transform array
+  int mGpuIndex{-1};
 
 public:
   inline Type getType() const override { return Type::eObject; }
 
-  LineObject(std::shared_ptr<resource::SVLineSet> lineSet,
-             std::string const &name = "");
-  inline std::shared_ptr<resource::SVLineSet> getLineSet() const {
-    return mLineSet;
-  }
+  LineObject(std::shared_ptr<resource::SVLineSet> lineSet, std::string const &name = "");
+  inline std::shared_ptr<resource::SVLineSet> getLineSet() const { return mLineSet; }
 
   // TODO: remove this function
   void uploadToDevice(core::Buffer &objectBuffer, uint32_t offset,
@@ -121,6 +118,9 @@ public:
 
   void setTransparency(float transparency);
   inline float getTransparency() const { return mTransparency; }
+
+  void setInternalGpuIndex(int index);
+  int getInternalGpuIndex() const;
 };
 
 class PointObject : public Node {
@@ -130,14 +130,14 @@ class PointObject : public Node {
   float mTransparency{0};
   uint32_t mVertexCount{0};
 
+  // used to index the transform array
+  int mGpuIndex{-1};
+
 public:
   inline Type getType() const override { return Type::eObject; }
 
-  PointObject(std::shared_ptr<resource::SVPointSet> pointSet,
-              std::string const &name = "");
-  inline std::shared_ptr<resource::SVPointSet> getPointSet() const {
-    return mPointSet;
-  }
+  PointObject(std::shared_ptr<resource::SVPointSet> pointSet, std::string const &name = "");
+  inline std::shared_ptr<resource::SVPointSet> getPointSet() const { return mPointSet; }
 
   /** used to choose pipelines */
   inline void setShadingMode(int mode) { mShadingMode = mode; }
@@ -152,12 +152,13 @@ public:
   void setTransparency(float transparency);
   inline float getTransparency() const { return mTransparency; }
 
-  inline uint32_t getMaxVertexCount() const {
-    return mPointSet->getVertexCount();
-  }
+  inline uint32_t getMaxVertexCount() const { return mPointSet->getVertexCount(); }
 
   inline uint32_t getVertexCount() const { return mVertexCount; }
   void setVertexCount(uint32_t count);
+
+  void setInternalGpuIndex(int index);
+  int getInternalGpuIndex() const;
 };
 
 } // namespace scene

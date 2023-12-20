@@ -58,7 +58,7 @@ struct DescriptorSetDescription {
 struct ShaderConfig {
   std::shared_ptr<InputDataLayout> vertexLayout;
   std::shared_ptr<InputDataLayout> primitiveVertexLayout;
-  std::shared_ptr<StructDataLayout> objectBufferLayout;
+  std::shared_ptr<StructDataLayout> objectDataBufferLayout;
   std::shared_ptr<StructDataLayout> sceneBufferLayout;
   std::shared_ptr<StructDataLayout> cameraBufferLayout;
   std::shared_ptr<StructDataLayout> lightBufferLayout;

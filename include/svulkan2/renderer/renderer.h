@@ -72,7 +72,10 @@ class Renderer : public RendererBase {
 
   std::unique_ptr<core::Buffer> mSceneBuffer;
   std::unique_ptr<core::Buffer> mCameraBuffer;
-  std::unique_ptr<core::Buffer> mObjectBuffer;
+  std::unique_ptr<core::Buffer> mObjectDataBuffer;
+
+  // transform buffer shared with all cameras
+  std::shared_ptr<core::Buffer> mObjectTransformBuffer;
 
   vk::UniqueDescriptorSet mSceneSet;
   vk::UniqueDescriptorSet mCameraSet;
@@ -163,6 +166,10 @@ public:
   void setCustomProperty(std::string const &name, glm::vec3 p) override;
   void setCustomProperty(std::string const &name, glm::vec4 p) override;
 
+  core::Buffer &getCameraBuffer();
+
+  void setAutoUploadEnabled(bool enable);
+
   Renderer(Renderer const &other) = delete;
   Renderer &operator=(Renderer const &other) = delete;
   Renderer(Renderer &&other) = default;
@@ -177,7 +184,7 @@ private:
 
   void prepareSceneBuffer();
   void prepareObjectBuffers(uint32_t numObjects);
-  void prepareCameaBuffer();
+  void prepareCameraBuffer();
   void prepareLightBuffers();
 
   void prepareInputTextureDescriptorSets();
@@ -194,14 +201,21 @@ private:
   vk::UniqueCommandBuffer mRenderCommandBuffer{};
   vk::UniqueCommandBuffer mDisplayCommandBuffer{};
 
-  void prepareObjects(scene::Scene &scene);
-  void recordShadows(scene::Scene &scene);
-  void recordRenderPasses(scene::Scene &scene);
+  void prepareObjects();
+  void recordShadows();
+  void recordRenderPasses();
 
   uint32_t mLineObjectIndex{};  // starting object index for line objects
   uint32_t mPointObjectIndex{}; // starting object index for point objects
 
+  bool mAutoUpload{true};
+
+  // load and uplaod required resources
   void prepareRender(scene::Camera &camera);
+
+  // upload resources to gpu, when mAutoUpload is true, it is called immediately after
+  // prepareRender
+  void uploadGpuResources(scene::Camera &camera);
 };
 
 } // namespace renderer

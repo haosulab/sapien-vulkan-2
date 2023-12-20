@@ -62,7 +62,8 @@ void RTRenderer::setScene(std::shared_ptr<scene::Scene> scene) {
 }
 
 void RTRenderer::prepareObjects() {
-  auto objects = mScene->getVisibleObjects();
+  auto objects = mScene->getObjects();
+  // auto objects = mScene->getVisibleObjects();
   mObjectBuffer = std::make_unique<core::Buffer>(
       std::max(size_t(1), objects.size()) * mObjectBufferLayout.size,
       vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
@@ -70,7 +71,8 @@ void RTRenderer::prepareObjects() {
 }
 
 void RTRenderer::updateObjects() {
-  auto objects = mScene->getVisibleObjects();
+  auto objects = mScene->getObjects();
+  // auto objects = mScene->getVisibleObjects();
 
   uint32_t segOffset = mObjectBufferLayout.elements.at("segmentation").offset;
   uint32_t transparencyOffset = mObjectBufferLayout.elements.at("transparency").offset;
@@ -101,7 +103,8 @@ void RTRenderer::prepareRender(scene::Camera &camera) {
     mRequiresRebuild = true;
   }
 
-  auto objects = camera.getScene()->getVisibleObjects();
+  auto objects = camera.getScene()->getObjects();
+  // auto objects = camera.getScene()->getVisibleObjects();
   auto scene = camera.getScene();
   if (mSceneVersion != scene->getVersion()) {
     mRequiresRebuild = true;

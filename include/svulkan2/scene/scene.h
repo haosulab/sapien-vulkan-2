@@ -65,9 +65,6 @@ public:
   std::vector<Object *> getObjects();
   std::vector<Object *> getVisibleObjects();
 
-  std::vector<Object *> getVisibleRigidObjects();
-  std::vector<Object *> getVisibleDeformableObjects();
-
   std::vector<LineObject *> getLineObjects();
   std::vector<PointObject *> getPointObjects();
   std::vector<Camera *> getCameras();
@@ -84,8 +81,8 @@ public:
   Scene();
   Scene(Scene const &other) = delete;
   Scene &operator=(Scene const &other) = delete;
-  Scene(Scene &&other) = default;
-  Scene &operator=(Scene &&other) = default;
+  Scene(Scene &&other) = delete;
+  Scene &operator=(Scene &&other) = delete;
 
   void uploadToDevice(core::Buffer &sceneBuffer, StructDataLayout const &sceneLayout);
   void uploadShadowToDevice(core::Buffer &shadowBuffer,
@@ -142,6 +139,10 @@ public:
   void registerAccessFence(vk::Fence fence);
   void unregisterAccessFence(vk::Fence fence);
 
+  void prepareObjectTransformBuffer();
+  std::shared_ptr<core::Buffer> getObjectTransformBuffer();
+  void uploadObjectTransforms();
+
 private:
   std::vector<std::unique_ptr<Node>> mNodes{};
   std::vector<std::unique_ptr<Object>> mObjects{};
@@ -168,6 +169,11 @@ private:
 
   /** when models in the scene are updated, the version changes */
   uint64_t mRenderVersion{1l};
+
+  // transform buffer helpers
+  uint64_t mTransformBufferVersion{0l};
+  uint64_t mTransformBufferRenderVersion{0l};
+  std::shared_ptr<core::Buffer> mTransformBuffer;
 
   // ray tracing helpers
   void ensureBLAS();
