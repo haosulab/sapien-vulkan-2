@@ -56,6 +56,10 @@ Buffer::Buffer(vk::DeviceSize size, vk::BufferUsageFlags usageFlags, VmaMemoryUs
 
   if (external) {
     bufferInfo.setPNext(&externalMemoryBufferInfo);
+
+    if (memoryUsage != VMA_MEMORY_USAGE_GPU_ONLY) {
+      throw std::runtime_error("external buffer can only be device local");
+    }
     memoryInfo.pool = mContext->getAllocator().getExternalPool();
   }
 
@@ -192,6 +196,8 @@ vk::DeviceAddress Buffer::getAddress() const {
 
 #ifdef SVULKAN2_CUDA_INTEROP
 void *Buffer::getCudaPtr() {
+  // FIXME: technically we need to transfer ownership to VK_QUEUE_FAMILY_EXTERNAL
+  // Current design is undefined behavior, but all NVIDIA's sample code do this
   if (!mExternal) {
     throw std::runtime_error("failed to get cuda pointer, \"external\" must be "
                              "passed at buffer creation");

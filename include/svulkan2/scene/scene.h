@@ -160,8 +160,8 @@ private:
 
   bool mRequireForceRemove{};
 
+  // lighting
   glm::vec4 mAmbientLight{};
-
   std::shared_ptr<resource::SVCubemap> mEnvironmentMap{};
 
   /** when anything is added or removed, the version changes */
@@ -170,10 +170,16 @@ private:
   /** when models in the scene are updated, the version changes */
   uint64_t mRenderVersion{1l};
 
-  // transform buffer helpers
+  // for transform update and AS update
+  std::unique_ptr<core::CommandPool> mCommandPool;
+  core::CommandPool &getCommandPool();
+
+  // transform buffers
   uint64_t mTransformBufferVersion{0l};
   uint64_t mTransformBufferRenderVersion{0l};
+  std::shared_ptr<core::Buffer> mTransformBufferCpu;
   std::shared_ptr<core::Buffer> mTransformBuffer;
+  vk::UniqueCommandBuffer mTransformUpdateCommandBuffer;
 
   // ray tracing helpers
   void ensureBLAS();
@@ -254,7 +260,6 @@ private:
   std::vector<vk::Fence> mAccessFences;
 
   // used to update AS
-  std::unique_ptr<core::CommandPool> mASUpdateCommandPool;
   vk::UniqueCommandBuffer mASUpdateCommandBuffer;
 };
 

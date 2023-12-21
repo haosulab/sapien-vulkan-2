@@ -71,7 +71,10 @@ class Renderer : public RendererBase {
   bool mRequiresRebuild{true};
 
   std::unique_ptr<core::Buffer> mSceneBuffer;
+
+  std::unique_ptr<core::Buffer> mCameraBufferCpu;
   std::unique_ptr<core::Buffer> mCameraBuffer;
+
   std::unique_ptr<core::Buffer> mObjectDataBuffer;
 
   // transform buffer shared with all cameras
@@ -193,15 +196,21 @@ private:
   std::unordered_set<std::shared_ptr<resource::SVLineSet>> mLineSetCache;
   std::unordered_set<std::shared_ptr<resource::SVPointSet>> mPointSetCache;
 
+  std::unique_ptr<core::CommandPool> mUploadCommandPool{};
   std::unique_ptr<core::CommandPool> mShadowCommandPool{};
   std::unique_ptr<core::CommandPool> mRenderCommandPool{};
   std::unique_ptr<core::CommandPool> mDisplayCommandPool{};
 
+  vk::UniqueCommandBuffer mUploadCommandBuffer{};
   vk::UniqueCommandBuffer mShadowCommandBuffer{};
   vk::UniqueCommandBuffer mRenderCommandBuffer{};
   vk::UniqueCommandBuffer mDisplayCommandBuffer{};
 
   void prepareObjects();
+
+  // record data upload commands (e.g. camera buffer upload)
+  void recordUpload();
+
   void recordShadows();
   void recordRenderPasses();
 

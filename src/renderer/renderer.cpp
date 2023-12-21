@@ -418,15 +418,41 @@ void Renderer::resize(int width, int height) {
   mRequiresRebuild = true;
 }
 
+void Renderer::recordUpload() {
+  if (!mContext->isVulkanAvailable()) {
+    return;
+  }
+
+  mUploadCommandBuffer.reset();
+  mUploadCommandPool = mContext->createCommandPool();
+  mUploadCommandBuffer = mUploadCommandPool->allocateCommandBuffer();
+
+  mUploadCommandBuffer->begin(vk::CommandBufferBeginInfo({}, {}));
+  vk::BufferCopy region(0, 0, mCameraBufferCpu->getSize());
+  mUploadCommandBuffer->copyBuffer(mCameraBufferCpu->getVulkanBuffer(),
+                                   mCameraBuffer->getVulkanBuffer(), region);
+
+  vk::BufferMemoryBarrier barrier(
+      vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eShaderRead, VK_QUEUE_FAMILY_IGNORED,
+      VK_QUEUE_FAMILY_IGNORED, mCameraBuffer->getVulkanBuffer(), 0, VK_WHOLE_SIZE);
+  mUploadCommandBuffer->pipelineBarrier(vk::PipelineStageFlagBits::eTransfer,
+                                        vk::PipelineStageFlagBits::eVertexShader |
+                                            vk::PipelineStageFlagBits::eFragmentShader,
+                                        {}, {}, barrier, {});
+
+  mUploadCommandBuffer->end();
+}
+
 void Renderer::recordShadows() {
+  if (!mContext->isVulkanAvailable()) {
+    return;
+  }
+
   mShadowCommandBuffer.reset();
   mShadowCommandPool = mContext->createCommandPool();
   mShadowCommandBuffer = mShadowCommandPool->allocateCommandBuffer();
 
   mShadowCommandBuffer->begin(vk::CommandBufferBeginInfo({}, {}));
-  if (!mContext->isVulkanAvailable()) {
-    return;
-  }
 
   // render shadow passes
   if (mShaderPack->getShadowPass()) {
@@ -1022,6 +1048,9 @@ void Renderer::prepareRender(scene::Camera &camera) {
 
   if (mRequiresRecord) {
     prepareObjects();
+
+    recordUpload();
+
     {
       EASY_BLOCK("Record shadow draw calls");
       recordShadows();
@@ -1032,6 +1061,7 @@ void Renderer::prepareRender(scene::Camera &camera) {
     }
 
     uploadGpuResources(camera);
+    mContext->getQueue().waitIdle();
   }
 
   mRequiresRecord = false;
@@ -1052,7 +1082,7 @@ void Renderer::uploadGpuResources(scene::Camera &camera) {
   {
     EASY_BLOCK("Update camera & scene");
     // update camera
-    camera.uploadToDevice(*mCameraBuffer,
+    camera.uploadToDevice(*mCameraBufferCpu,
                           *mShaderPack->getShaderInputLayouts()->cameraBufferLayout);
 
     // update scene
@@ -1078,12 +1108,7 @@ void Renderer::uploadGpuResources(scene::Camera &camera) {
 
     {
       auto layout = mShaderPack->getShaderInputLayouts()->objectDataBufferLayout;
-      // int modelMatrixOffset = layout->elements.at("modelMatrix").offset;
       int segmentationOffset = layout->elements.at("segmentation").offset;
-      // int prevModelMatrixOffset =
-      //     layout->elements.find("prevModelMatrix") == layout->elements.end()
-      //         ? -1
-      //         : layout->elements.at("prevModelMatrix").offset;
       int transparencyOffset = layout->elements.find("transparency") == layout->elements.end()
                                    ? -1
                                    : layout->elements.at("transparency").offset;
@@ -1092,21 +1117,14 @@ void Renderer::uploadGpuResources(scene::Camera &camera) {
                                 : layout->elements.at("shadeFlat").offset;
 
       for (uint32_t i = 0; i < objects.size(); ++i) {
-        // const auto &transform = objects[i]->getTransform();
         auto segmentation = objects[i]->getSegmentation();
         float transparency = objects[i]->getTransparency();
         int shadeFlat = static_cast<int>(objects[i]->getShadeFlat());
 
         assert(objects[i]->getInternalGpuIndex() == i);
 
-        // mObjectBuffer->upload(&transform.worldModelMatrix, 64, i * bufferSize +
-        // modelMatrixOffset);
         mObjectDataBuffer->upload(&segmentation, 16, i * bufferSize + segmentationOffset);
 
-        // if (prevModelMatrixOffset >= 0) {
-        //   mObjectBuffer->upload(&transform.prevWorldModelMatrix, 64,
-        //                         i * bufferSize + prevModelMatrixOffset);
-        // }
         if (transparencyOffset >= 0) {
           mObjectDataBuffer->upload(&transparency, 4, i * bufferSize + transparencyOffset);
         }
@@ -1148,6 +1166,9 @@ void Renderer::uploadGpuResources(scene::Camera &camera) {
     }
     mObjectDataBuffer->unmap();
   }
+
+  // mContext->getQueue().submit(mUploadCommandBuffer.get(), {});
+  mContext->getQueue().submitAndWait(mUploadCommandBuffer.get());
 }
 
 void Renderer::render(scene::Camera &camera, std::vector<vk::Semaphore> const &waitSemaphores,
@@ -1632,8 +1653,11 @@ void Renderer::prepareCameraBuffer() {
     return;
   }
 
+  mCameraBufferCpu =
+      core::Buffer::Create(mShaderPack->getShaderInputLayouts()->cameraBufferLayout->size,
+                           vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_ONLY);
   mCameraBuffer = core::Buffer::CreateUniform(
-      mShaderPack->getShaderInputLayouts()->cameraBufferLayout->size, false, true);
+      mShaderPack->getShaderInputLayouts()->cameraBufferLayout->size, true, true);
 
   auto layout = mShaderPackInstance->getCameraDescriptorSetLayout();
   mCameraSet = std::move(mContext->getDevice()

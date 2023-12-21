@@ -37,6 +37,8 @@ public:
 
   inline vk::Queue getVulkanQueue() const { return mQueue; }
 
+  void waitIdle() const;
+
   ~Queue();
 
   Queue(Queue &) = delete;

@@ -64,6 +64,8 @@ vk::Result Queue::present(vk::ArrayProxyNoTemporaries<vk::Semaphore const> const
   return mQueue.presentKHR(info);
 }
 
+void Queue::waitIdle() const { mQueue.waitIdle(); }
+
 Queue::~Queue(){};
 
 } // namespace core

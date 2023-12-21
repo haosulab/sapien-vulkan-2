@@ -658,45 +658,75 @@ void Scene::prepareObjectTransformBuffer() {
     obj->setInternalGpuIndex(count++);
   }
 
-  if (mTransformBuffer && mTransformBuffer->getSize() > sizeof(glm::mat4) * count) {
+  // no need to create buffer if it is large enough
+  if (mTransformBuffer && mTransformBuffer->getSize() >= sizeof(glm::mat4) * count) {
     return;
   }
 
-  mTransformBuffer = core::Buffer::Create(sizeof(glm::mat4) * count,
-                                          vk::BufferUsageFlagBits::eUniformBuffer |
-                                              vk::BufferUsageFlagBits::eTransferDst,
-                                          VMA_MEMORY_USAGE_CPU_TO_GPU, {}, true);
+  logger::info("recreating object transform buffer.");
+
+  mTransformBufferCpu = core::Buffer::Create(
+      sizeof(glm::mat4) * count, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_ONLY);
+  mTransformBuffer = core::Buffer::CreateUniform(sizeof(glm::mat4) * count, true, true);
   mTransformBufferVersion = mVersion;
 }
 
 void Scene::uploadObjectTransforms() {
-  // TODO: make thread safe?
   if (mTransformBufferRenderVersion == mRenderVersion) {
     return;
   }
 
   prepareObjectTransformBuffer();
 
+  // collect data
   auto objects = getVisibleObjects();
   auto lineObjects = getLineObjects();
   auto pointObjects = getPointObjects();
   std::vector<glm::mat4> data;
   data.reserve(objects.size() + lineObjects.size() + pointObjects.size());
-
   for (auto obj : objects) {
     data.push_back(obj->getTransform().worldModelMatrix);
   }
-
   for (auto obj : lineObjects) {
     data.push_back(obj->getTransform().worldModelMatrix);
   }
-
   for (auto obj : pointObjects) {
     data.push_back(obj->getTransform().worldModelMatrix);
   }
 
-  mTransformBuffer->upload(data);
+  // put data on CPU
+  mTransformBufferCpu->upload(data);
+
+  if (!mTransformUpdateCommandBuffer) {
+    mTransformUpdateCommandBuffer = getCommandPool().allocateCommandBuffer();
+  }
+  mTransformUpdateCommandBuffer->reset();
+  mTransformUpdateCommandBuffer->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+
+  vk::BufferCopy region(0, 0, data.size() * sizeof(glm::mat4));
+  mTransformUpdateCommandBuffer->copyBuffer(mTransformBufferCpu->getVulkanBuffer(),
+                                            mTransformBuffer->getVulkanBuffer(), region);
+
+  vk::BufferMemoryBarrier barrier(
+      vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eShaderRead, VK_QUEUE_FAMILY_IGNORED,
+      VK_QUEUE_FAMILY_IGNORED, mTransformBuffer->getVulkanBuffer(), 0, VK_WHOLE_SIZE);
+  mTransformUpdateCommandBuffer->pipelineBarrier(vk::PipelineStageFlagBits::eTransfer,
+                                                 vk::PipelineStageFlagBits::eVertexShader |
+                                                     vk::PipelineStageFlagBits::eFragmentShader,
+                                                 {}, {}, barrier, {});
+
+  mTransformUpdateCommandBuffer->end();
+
+  core::Context::Get()->getQueue().submit(mTransformUpdateCommandBuffer.get(), {});
+
   mTransformBufferRenderVersion = mRenderVersion;
+}
+
+core::CommandPool &Scene::getCommandPool() {
+  if (!mCommandPool) {
+    mCommandPool = core::Context::Get()->createCommandPool();
+  }
+  return *mCommandPool;
 }
 
 std::shared_ptr<core::Buffer> Scene::getObjectTransformBuffer() {
@@ -745,9 +775,8 @@ void Scene::buildTLAS() {
 }
 
 void Scene::updateTLAS() {
-  if (!mASUpdateCommandPool) {
-    mASUpdateCommandPool = core::Context::Get()->createCommandPool();
-    mASUpdateCommandBuffer = mASUpdateCommandPool->allocateCommandBuffer();
+  if (!mASUpdateCommandBuffer) {
+    mASUpdateCommandBuffer = getCommandPool().allocateCommandBuffer();
   }
   mASUpdateCommandBuffer->reset();
   mASUpdateCommandBuffer->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
