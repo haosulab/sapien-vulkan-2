@@ -1167,8 +1167,15 @@ void Renderer::uploadGpuResources(scene::Camera &camera) {
     mObjectDataBuffer->unmap();
   }
 
-  // mContext->getQueue().submit(mUploadCommandBuffer.get(), {});
-  mContext->getQueue().submitAndWait(mUploadCommandBuffer.get());
+  mContext->getQueue().submit(mUploadCommandBuffer.get(), {});
+}
+
+void Renderer::forceUploadCameraBuffer(scene::Camera &camera) {
+  if (mCameraBufferCpu && mUploadCommandBuffer) {
+    camera.uploadToDevice(*mCameraBufferCpu,
+                          *mShaderPack->getShaderInputLayouts()->cameraBufferLayout);
+    mContext->getQueue().submitAndWait(mUploadCommandBuffer.get());
+  }
 }
 
 void Renderer::render(scene::Camera &camera, std::vector<vk::Semaphore> const &waitSemaphores,

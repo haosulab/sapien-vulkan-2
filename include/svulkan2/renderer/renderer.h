@@ -172,6 +172,9 @@ public:
   core::Buffer &getCameraBuffer();
 
   void setAutoUploadEnabled(bool enable);
+  bool getAutoUploadEnabled() { return mAutoUpload; }
+
+  void forceUploadCameraBuffer(scene::Camera &camera);
 
   Renderer(Renderer const &other) = delete;
   Renderer &operator=(Renderer const &other) = delete;
