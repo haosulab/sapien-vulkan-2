@@ -227,6 +227,71 @@ void Image::generateMipmaps(vk::CommandBuffer cb, uint32_t arrayLayer) {
   setCurrentLayout(arrayLayer, vk::ImageLayout::eShaderReadOnlyOptimal);
 }
 
+void Image::recordCopyToBuffer(vk::CommandBuffer cb, vk::ImageLayout layout, vk::Buffer buffer,
+                               size_t bufferOffset, size_t size, vk::Offset3D offset,
+                               vk::Extent3D extent, uint32_t arrayLayer) const {
+  size_t imageSize = extent.width * extent.height * extent.depth * getFormatSize(mFormat);
+
+  if (size != imageSize) {
+    throw std::runtime_error("copy to buffer failed: expecting size " + std::to_string(imageSize) +
+                             ", got " + std::to_string(size));
+  }
+
+  vk::ImageLayout finalLayout = vk::ImageLayout::eTransferSrcOptimal;
+  if (layout == vk::ImageLayout::eGeneral) {
+    vk::ImageSubresourceRange imageSubresourceRange(getFormatAspectFlags(mFormat), 0, mMipLevels,
+                                                    arrayLayer, 1);
+    vk::ImageMemoryBarrier barrier(vk::AccessFlagBits::eMemoryWrite,
+                                   vk::AccessFlagBits::eTransferRead, vk::ImageLayout::eGeneral,
+                                   vk::ImageLayout::eGeneral, VK_QUEUE_FAMILY_IGNORED,
+                                   VK_QUEUE_FAMILY_IGNORED, mImage, imageSubresourceRange);
+    cb.pipelineBarrier(vk::PipelineStageFlagBits::eAllCommands,
+                       vk::PipelineStageFlagBits::eTransfer, {}, nullptr, nullptr, barrier);
+    finalLayout = vk::ImageLayout::eGeneral;
+  } else if (layout != vk::ImageLayout::eTransferSrcOptimal) {
+    // guess what to wait and transition to TransferSrcOptimal
+    vk::ImageLayout sourceLayout = vk::ImageLayout::eUndefined;
+    vk::AccessFlags sourceAccessFlag{};
+    vk::PipelineStageFlags sourceStage{};
+
+    switch (layout) {
+    case vk::ImageLayout::eColorAttachmentOptimal:
+      sourceLayout = vk::ImageLayout::eColorAttachmentOptimal;
+      sourceAccessFlag = vk::AccessFlagBits::eColorAttachmentWrite;
+      sourceStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+      break;
+    case vk::ImageLayout::eDepthStencilAttachmentOptimal:
+      sourceLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+      sourceAccessFlag = vk::AccessFlagBits::eDepthStencilAttachmentWrite;
+      sourceStage = vk::PipelineStageFlagBits::eEarlyFragmentTests |
+                    vk::PipelineStageFlagBits::eLateFragmentTests;
+      break;
+    case vk::ImageLayout::eShaderReadOnlyOptimal:
+      sourceLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+      sourceAccessFlag = vk::AccessFlagBits::eShaderRead;
+      sourceStage = vk::PipelineStageFlagBits::eFragmentShader;
+      break;
+    case vk::ImageLayout::eTransferSrcOptimal:
+      break;
+    default:
+      throw std::runtime_error("failed to download image: invalid layout.");
+    }
+
+    vk::ImageSubresourceRange imageSubresourceRange(getFormatAspectFlags(mFormat), 0, mMipLevels,
+                                                    arrayLayer, 1);
+    vk::ImageMemoryBarrier barrier(sourceAccessFlag, vk::AccessFlagBits::eTransferRead,
+                                   sourceLayout, vk::ImageLayout::eTransferSrcOptimal,
+                                   VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, mImage,
+                                   imageSubresourceRange);
+    cb.pipelineBarrier(sourceStage, vk::PipelineStageFlagBits::eTransfer, {}, nullptr, nullptr,
+                       barrier);
+  }
+  vk::ImageAspectFlags aspect = getFormatAspectFlags(mFormat);
+  vk::BufferImageCopy copyRegion(bufferOffset, mExtent.width, mExtent.height, {aspect, 0, 0, 1},
+                                 offset, extent);
+  cb.copyImageToBuffer(mImage, finalLayout, buffer, copyRegion);
+}
+
 void Image::recordCopyToBuffer(vk::CommandBuffer cb, vk::Buffer buffer, size_t bufferOffset,
                                size_t size, vk::Offset3D offset, vk::Extent3D extent,
                                uint32_t arrayLayer) {

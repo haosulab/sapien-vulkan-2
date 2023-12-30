@@ -66,9 +66,18 @@ public:
 
   void copyToBuffer(vk::Buffer buffer, size_t size, vk::Offset3D offset, vk::Extent3D extent,
                     uint32_t arrayLayer = 0);
+
+  // this function is const, the caller is responsible to change the image layout
+  void recordCopyToBuffer(vk::CommandBuffer cb, vk::ImageLayout layout, vk::Buffer buffer,
+                          size_t bufferOffset, size_t size, vk::Offset3D offset,
+                          vk::Extent3D extent, uint32_t arrayLayer) const;
+
+  // this function assumes the copy executes immediately and sets current layout
   void recordCopyToBuffer(vk::CommandBuffer cb, vk::Buffer buffer, size_t bufferOffset,
                           size_t size, vk::Offset3D offset, vk::Extent3D extent,
                           uint32_t arrayLayer = 0);
+
+  // this function assumes the copy executes immediately
   void recordCopyFromBuffer(vk::CommandBuffer cb, vk::Buffer buffer, size_t bufferOffset,
                             size_t size, vk::Offset3D offset, vk::Extent3D extent,
                             uint32_t arrayLayer = 0);

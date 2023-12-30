@@ -150,7 +150,11 @@ public:
 
   core::Image &getRenderImage(std::string const &name) override {
     return getRenderTarget(name)->getImage();
-  };
+  }
+
+  vk::ImageLayout getRenderTargetImageLayout(std::string const &name) override {
+    return mRenderTargetFinalLayouts.at(name);
+  }
 
   void setCustomTextureArray(std::string const &name,
                              std::vector<std::shared_ptr<resource::SVTexture>> texture) override;

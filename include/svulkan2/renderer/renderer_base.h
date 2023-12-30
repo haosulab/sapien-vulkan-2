@@ -61,6 +61,7 @@ public:
   virtual std::vector<std::string> getDisplayTargetNames() const = 0;
   virtual std::vector<std::string> getRenderTargetNames() const = 0;
   virtual core::Image &getRenderImage(std::string const &name) = 0;
+  virtual vk::ImageLayout getRenderTargetImageLayout(std::string const &name) = 0;
 
   template <typename T>
   std::tuple<std::vector<T>, std::array<uint32_t, 3>>
