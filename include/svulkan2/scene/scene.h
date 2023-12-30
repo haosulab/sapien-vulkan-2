@@ -63,7 +63,7 @@ public:
   inline glm::vec4 getAmbientLight() const { return mAmbientLight; };
 
   std::vector<Object *> getObjects();
-  std::vector<Object *> getVisibleObjects();
+  // std::vector<Object *> getVisibleObjects();
 
   std::vector<LineObject *> getLineObjects();
   std::vector<PointObject *> getPointObjects();

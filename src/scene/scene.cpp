@@ -305,21 +305,21 @@ std::vector<Object *> Scene::getObjects() {
   return result;
 }
 
-std::vector<Object *> Scene::getVisibleObjects() {
-  forceRemove();
-  std::vector<Object *> result;
-  for (auto &obj : mObjects) {
-    if (obj->getTransparency() < 1.f) {
-      result.push_back(obj.get());
-    }
-  }
-  for (auto &obj : mDeformableObjects) {
-    if (obj->getTransparency() < 1.f) {
-      result.push_back(obj.get());
-    }
-  }
-  return result;
-}
+// std::vector<Object *> Scene::getVisibleObjects() {
+//   forceRemove();
+//   std::vector<Object *> result;
+//   for (auto &obj : mObjects) {
+//     if (obj->getTransparency() < 1.f) {
+//       result.push_back(obj.get());
+//     }
+//   }
+//   for (auto &obj : mDeformableObjects) {
+//     if (obj->getTransparency() < 1.f) {
+//       result.push_back(obj.get());
+//     }
+//   }
+//   return result;
+// }
 
 std::vector<LineObject *> Scene::getLineObjects() {
   forceRemove();
@@ -645,7 +645,7 @@ void Scene::prepareObjectTransformBuffer() {
 
   uint32_t count = 0;
 
-  auto objects = getVisibleObjects();
+  auto objects = getObjects();
   for (auto obj : objects) {
     obj->setInternalGpuIndex(count++);
   }
@@ -679,7 +679,7 @@ void Scene::uploadObjectTransforms() {
   prepareObjectTransformBuffer();
 
   // collect data
-  auto objects = getVisibleObjects();
+  auto objects = getObjects();
   auto lineObjects = getLineObjects();
   auto pointObjects = getPointObjects();
   std::vector<glm::mat4> data;
@@ -754,7 +754,7 @@ void Scene::buildTLAS() {
   std::vector<vk::AccelerationStructureInstanceKHR> instances;
   uint32_t globalGeomIdx{0};
 
-  for (auto obj : getVisibleObjects()) {
+  for (auto obj : getObjects()) {
     glm::mat4 modelTranspose =
         glm::transpose(obj->getTransform().worldModelMatrix); // column major matrix
     vk::TransformMatrixKHR mat;
