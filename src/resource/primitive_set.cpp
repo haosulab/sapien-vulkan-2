@@ -51,7 +51,6 @@ void SVPrimitiveSet::uploadToDevice() {
     throw std::runtime_error("primitive set upload failed: no vertex positions");
   }
 
-  size_t vertexCount = mAttributes["position"].size() / 3;
   size_t vertexSize = layout->getSize();
 
   if (mVertexCapacity == 0) {
@@ -69,14 +68,26 @@ void SVPrimitiveSet::uploadToDevice() {
   uint32_t offset = 0;
   for (auto &elem : elements) {
     if (mAttributes.find(elem.name) != mAttributes.end()) {
-      if (mAttributes[elem.name].size() * sizeof(float) != vertexCount * elem.getSize()) {
+      if (mAttributes[elem.name].size() * sizeof(float) > mVertexCapacity * elem.getSize()) {
         throw std::runtime_error("vertex attribute " + elem.name + " has incorrect size");
       }
-      strided_memcpy(buffer.data() + offset, mAttributes[elem.name].data(), elem.getSize(),
-                     vertexCount, vertexSize);
+      auto count = mAttributes[elem.name].size() * sizeof(float) / elem.getSize();
+      strided_memcpy(buffer.data() + offset, mAttributes[elem.name].data(), elem.getSize(), count,
+                     vertexSize);
     }
     offset += elem.getSize();
   }
+
+  // for (auto &elem : elements) {
+  //   if (mAttributes.find(elem.name) != mAttributes.end()) {
+  //     if (mAttributes[elem.name].size() * sizeof(float) != vertexCount * elem.getSize()) {
+  //       throw std::runtime_error("vertex attribute " + elem.name + " has incorrect size");
+  //     }
+  //     strided_memcpy(buffer.data() + offset, mAttributes[elem.name].data(), elem.getSize(),
+  //                    vertexCount, vertexSize);
+  //   }
+  //   offset += elem.getSize();
+  // }
 
   if (!mVertexBuffer) {
     mVertexBuffer = std::make_unique<core::Buffer>(
