@@ -665,6 +665,8 @@ void Scene::prepareObjectTransformBuffer() {
 
   logger::info("recreating object transform buffer.");
 
+  count = std::max(count, 1u);
+
   mTransformBufferCpu = core::Buffer::Create(
       sizeof(glm::mat4) * count, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_ONLY);
   mTransformBuffer = core::Buffer::CreateUniform(sizeof(glm::mat4) * count, true, true);
@@ -692,6 +694,11 @@ void Scene::uploadObjectTransforms() {
   }
   for (auto obj : pointObjects) {
     data.push_back(obj->getTransform().worldModelMatrix);
+  }
+
+  // rendering empty scene
+  if (data.empty()) {
+    return;
   }
 
   // put data on CPU

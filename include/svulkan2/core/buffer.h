@@ -29,8 +29,6 @@ public:
   Buffer &operator=(const Buffer &) = delete;
   Buffer &operator=(Buffer &&) = delete;
 
-  ~Buffer();
-
   vk::Buffer getVulkanBuffer() const { return mBuffer; }
   vk::DeviceAddress getAddress() const;
 
@@ -58,18 +56,20 @@ public:
 
   inline vk::DeviceSize getSize() const { return mSize; }
 
+  ~Buffer();
+
 protected:
   std::shared_ptr<class Context> mContext;
-  vk::DeviceSize mSize;
-  bool mHostVisible;
-  bool mHostCoherent;
+  vk::DeviceSize mSize{};
+  bool mHostVisible{};
+  bool mHostCoherent{};
 
-  vk::Buffer mBuffer;
+  vk::Buffer mBuffer{};
   VmaAllocation mAllocation;
   VmaAllocationInfo mAllocationInfo;
 
   bool mMapped{};
-  void *mMappedData;
+  void *mMappedData{};
 
   bool mExternal{};
 

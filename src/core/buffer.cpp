@@ -45,7 +45,9 @@ Buffer::Buffer(vk::DeviceSize size, vk::BufferUsageFlags usageFlags, VmaMemoryUs
                VmaAllocationCreateFlags allocationFlags, bool external)
     : mSize(size), mExternal(external) {
   mContext = Context::Get();
-
+  if (size == 0) {
+    throw std::runtime_error("failed to create buffer: buffer size must not be 0.");
+  }
   vk::BufferCreateInfo bufferInfo({}, size, usageFlags);
   vk::ExternalMemoryBufferCreateInfo externalMemoryBufferInfo(
       vk::ExternalMemoryHandleTypeFlagBits::eOpaqueFd);
@@ -115,8 +117,7 @@ void *Buffer::map() {
     auto result =
         vmaMapMemory(mContext->getAllocator().getVmaAllocator(), mAllocation, &mMappedData);
     if (result != VK_SUCCESS) {
-      logger::critical("unable to map memory");
-      abort();
+      throw std::runtime_error("failed to map buffer memory");
     }
     mMapped = true;
   }
@@ -135,10 +136,6 @@ void Buffer::flush() {
 }
 
 void Buffer::upload(void const *data, size_t size, size_t offset) {
-  if (size == 0) {
-    return;
-  }
-
   if (offset + size > mSize) {
     throw std::runtime_error("failed to upload buffer: upload size exceeds buffer size");
   }
@@ -169,6 +166,10 @@ void Buffer::upload(void const *data, size_t size, size_t offset) {
 }
 
 void Buffer::download(void *data, size_t size, size_t offset) {
+  if (size == 0) {
+    return;
+  }
+
   if (offset + size > mSize) {
     throw std::runtime_error("failed to download buffer: download size exceeds buffer size");
   }
