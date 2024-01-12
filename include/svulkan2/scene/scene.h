@@ -140,9 +140,9 @@ public:
 
   void prepareObjectTransformBuffer();
   std::shared_ptr<core::Buffer> getObjectTransformBuffer();
-  void uploadObjectTransforms();
+  virtual void uploadObjectTransforms();
 
-private:
+protected:
   std::vector<std::unique_ptr<Node>> mNodes{};
   std::vector<std::unique_ptr<Object>> mObjects{};
   std::vector<std::unique_ptr<Object>> mDeformableObjects{};
