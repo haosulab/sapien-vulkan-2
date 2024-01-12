@@ -305,22 +305,6 @@ std::vector<Object *> Scene::getObjects() {
   return result;
 }
 
-// std::vector<Object *> Scene::getVisibleObjects() {
-//   forceRemove();
-//   std::vector<Object *> result;
-//   for (auto &obj : mObjects) {
-//     if (obj->getTransparency() < 1.f) {
-//       result.push_back(obj.get());
-//     }
-//   }
-//   for (auto &obj : mDeformableObjects) {
-//     if (obj->getTransparency() < 1.f) {
-//       result.push_back(obj.get());
-//     }
-//   }
-//   return result;
-// }
-
 std::vector<LineObject *> Scene::getLineObjects() {
   forceRemove();
   std::vector<LineObject *> result;

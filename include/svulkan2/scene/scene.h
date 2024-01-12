@@ -62,8 +62,7 @@ public:
   inline void setAmbientLight(glm::vec4 const &color) { mAmbientLight = color; }
   inline glm::vec4 getAmbientLight() const { return mAmbientLight; };
 
-  std::vector<Object *> getObjects();
-  // std::vector<Object *> getVisibleObjects();
+  virtual std::vector<Object *> getObjects();
 
   std::vector<LineObject *> getLineObjects();
   std::vector<PointObject *> getPointObjects();
