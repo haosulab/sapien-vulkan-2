@@ -123,6 +123,8 @@ int main() {
   config->colorFormat4 = vk::Format::eR32G32B32A32Sfloat;
   renderer::Renderer renderer(config);
 
+  renderer::Renderer camRenderer(config);
+
   // renderer::RTRenderer renderer("../shader/rt");
   // renderer.setCustomProperty("maxDepth", 6);
   // renderer.setCustomProperty("russianRoulette", 1);
@@ -311,6 +313,9 @@ int main() {
   // controller.setXYZ(0, 0.5, 0);
   controller.setXYZ(0, 0.5, 3);
 
+  auto &camNode = scene->addCamera();
+  camNode.setPerspectiveParameters(0.05, 50, 1, 256, 128);
+
   // auto &customLight = scene.addCustomLight(cameraNode);
   // customLight.setTransform({.position = {0.1, 0, 0}});
   // customLight.setShadowProjectionMatrix(math::perspective(0.7f, 1.f,
@@ -394,11 +399,21 @@ int main() {
   //                      ->Label("Checkbox")
   //                      ->Checked(true));
 
-  auto gizmo = ui::Widget::Create<ui::Gizmo>()->Matrix(glm::mat4(1));
-  auto uiWindow =
-      ui::Widget::Create<ui::Window>()->Size({400, 400})->Label("main window")->append(gizmo);
-
   renderer.setScene(scene);
+
+  camRenderer.setScene(scene);
+  camRenderer.resize(256, 128);
+  camRenderer.render(camNode, {}, {}, {}, {});
+  context->getDevice().waitIdle();
+
+  auto gizmo = ui::Widget::Create<ui::Gizmo>()->Matrix(glm::mat4(1));
+  auto uiWindow = ui::Widget::Create<ui::Window>()
+                      ->Size({400, 400})
+                      ->Label("main window")
+                      ->append(gizmo)
+                      ->append(ui::Widget::Create<ui::DisplayImage>()->Image(
+                          camRenderer.getRenderImage("Color"),
+                          camRenderer.getRenderTargetImageLayout("Color")));
 
   scene->updateModelMatrices();
 
@@ -427,15 +442,13 @@ int main() {
       continue;
     }
 
+    camRenderer.render(camNode, {}, {}, {}, {});
+
     ImGui::NewFrame();
     ImGuizmo::BeginFrame();
 
     ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".cpp,.h,.hpp",
                                             ".");
-
-    // float scaling = ImGui::GetWindowDpiScale();
-    // // log::info("Window DPI scale: {}", scaling);
-    // applyStyle(1.f);
 
     ImGuiWindowFlags flags = ImGuiWindowFlags_MenuBar;
     flags |= ImGuiWindowFlags_NoDocking;
@@ -459,8 +472,9 @@ int main() {
     ImGui::End();
     ImGui::PopStyleVar();
 
-    uiWindow->build();
     ImGui::ShowDemoWindow();
+
+    uiWindow->build();
 
     ImGui::Render();
 
@@ -475,6 +489,7 @@ int main() {
 
     std::async(std::launch::async, [&]() {
       {
+
         renderer.render(cameraNode, std::vector<vk::Semaphore>{}, {}, {}, {});
 
         auto imageAcquiredSemaphore = window->getImageAcquiredSemaphore();
