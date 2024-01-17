@@ -43,8 +43,12 @@ std::shared_ptr<DisplayImage> DisplayImage::Image(core::Image &image) {
       {}, image.getVulkanImage(), vk::ImageViewType::e2D, image.getFormat(), mapping,
       vk::ImageSubresourceRange(getFormatAspectFlags(format), 0, 1, 0, 1)));
 
-  mDS = ImGui_ImplVulkan_AddTexture(mSampler, mImageView.get(),
-                                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+  mDS = ImGui_ImplVulkan_AddTexture(
+      mSampler, mImageView.get(),
+      // HACK: assume general layout image will always use general layout
+      image.getCurrentLayout(0) == vk::ImageLayout::eGeneral
+          ? VK_IMAGE_LAYOUT_GENERAL
+          : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
   return std::static_pointer_cast<DisplayImage>(shared_from_this());
 }
@@ -66,10 +70,19 @@ std::shared_ptr<DisplayImage> DisplayImage::Clear() {
 void DisplayImage::build() {
   if (mImage) {
     mCommandBuffer->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
-    mImage->transitionLayout(
-        mCommandBuffer.get(), mImage->getCurrentLayout(0), vk::ImageLayout::eShaderReadOnlyOptimal,
-        vk::AccessFlagBits::eMemoryWrite, vk::AccessFlagBits::eShaderRead,
-        vk::PipelineStageFlagBits::eAllCommands, vk::PipelineStageFlagBits::eFragmentShader);
+    if (mImage->getCurrentLayout(0) == vk::ImageLayout::eGeneral) {
+      mImage->transitionLayout(
+          mCommandBuffer.get(), vk::ImageLayout::eGeneral, vk::ImageLayout::eGeneral,
+          vk::AccessFlagBits::eMemoryWrite, vk::AccessFlagBits::eShaderRead,
+          vk::PipelineStageFlagBits::eAllCommands, vk::PipelineStageFlagBits::eFragmentShader);
+    } else {
+      mImage->transitionLayout(mCommandBuffer.get(), mImage->getCurrentLayout(0),
+                               vk::ImageLayout::eShaderReadOnlyOptimal,
+                               vk::AccessFlagBits::eMemoryWrite, vk::AccessFlagBits::eShaderRead,
+                               vk::PipelineStageFlagBits::eAllCommands,
+                               vk::PipelineStageFlagBits::eFragmentShader);
+    }
+
     mCommandBuffer->end();
 
     // TODO: async
