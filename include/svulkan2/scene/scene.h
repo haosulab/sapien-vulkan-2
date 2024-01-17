@@ -179,6 +179,7 @@ protected:
   std::shared_ptr<core::Buffer> mTransformBufferCpu;
   std::shared_ptr<core::Buffer> mTransformBuffer;
   vk::UniqueCommandBuffer mTransformUpdateCommandBuffer;
+  vk::UniqueFence mTransformUpdateFence{};
 
   // ray tracing helpers
   void ensureBLAS();

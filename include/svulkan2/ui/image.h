@@ -13,7 +13,7 @@ UI_CLASS(DisplayImage) {
   UI_DECLARE_LABEL(DisplayImage);
 
   // TODO: own core::Image
-  std::shared_ptr<DisplayImage> Image(core::Image &, vk::ImageLayout);
+  std::shared_ptr<DisplayImage> Image(core::Image &);
   std::shared_ptr<DisplayImage> Clear();
   UI_ATTRIBUTE(DisplayImage, glm::vec2, Size);
 
@@ -26,7 +26,6 @@ protected:
   vk::UniqueCommandBuffer mCommandBuffer;
 
   core::Image *mImage{};
-  vk::ImageLayout mLayout{};
 
   vk::Sampler mSampler;
   vk::UniqueImageView mImageView;

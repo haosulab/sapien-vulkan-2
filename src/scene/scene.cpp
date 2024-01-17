@@ -627,6 +627,9 @@ void Scene::prepareObjectTransformBuffer() {
     return;
   }
 
+  // handle back-to-back render, update, render
+  core::Context::Get()->getDevice().waitIdle();
+
   uint32_t count = 0;
 
   auto objects = getObjects();
@@ -690,25 +693,48 @@ void Scene::uploadObjectTransforms() {
 
   if (!mTransformUpdateCommandBuffer) {
     mTransformUpdateCommandBuffer = getCommandPool().allocateCommandBuffer();
+    mTransformUpdateFence =
+        core::Context::Get()->getDevice().createFenceUnique({vk::FenceCreateFlagBits::eSignaled});
   }
+
+  // previous frame may still be rendering
+  if (core::Context::Get()->getDevice().waitForFences(mTransformUpdateFence.get(), true,
+                                                      UINT64_MAX) != vk::Result::eSuccess) {
+    throw std::runtime_error("failed to wait for fence");
+  }
+  core::Context::Get()->getDevice().resetFences(mTransformUpdateFence.get());
+
   mTransformUpdateCommandBuffer->reset();
   mTransformUpdateCommandBuffer->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+  {
+    // make sure previous read has finished
+    vk::BufferMemoryBarrier barrier(vk::AccessFlagBits::eShaderRead,
+                                    vk::AccessFlagBits::eTransferWrite, VK_QUEUE_FAMILY_IGNORED,
+                                    VK_QUEUE_FAMILY_IGNORED, mTransformBuffer->getVulkanBuffer(),
+                                    0, VK_WHOLE_SIZE);
+    mTransformUpdateCommandBuffer->pipelineBarrier(
+        vk::PipelineStageFlagBits::eVertexShader | vk::PipelineStageFlagBits::eFragmentShader,
+        vk::PipelineStageFlagBits::eTransfer, {}, {}, barrier, {});
+  }
 
   vk::BufferCopy region(0, 0, data.size() * sizeof(glm::mat4));
   mTransformUpdateCommandBuffer->copyBuffer(mTransformBufferCpu->getVulkanBuffer(),
                                             mTransformBuffer->getVulkanBuffer(), region);
-
-  vk::BufferMemoryBarrier barrier(
-      vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eShaderRead, VK_QUEUE_FAMILY_IGNORED,
-      VK_QUEUE_FAMILY_IGNORED, mTransformBuffer->getVulkanBuffer(), 0, VK_WHOLE_SIZE);
-  mTransformUpdateCommandBuffer->pipelineBarrier(vk::PipelineStageFlagBits::eTransfer,
-                                                 vk::PipelineStageFlagBits::eVertexShader |
-                                                     vk::PipelineStageFlagBits::eFragmentShader,
-                                                 {}, {}, barrier, {});
+  {
+    vk::BufferMemoryBarrier barrier(vk::AccessFlagBits::eTransferWrite,
+                                    vk::AccessFlagBits::eShaderRead, VK_QUEUE_FAMILY_IGNORED,
+                                    VK_QUEUE_FAMILY_IGNORED, mTransformBuffer->getVulkanBuffer(),
+                                    0, VK_WHOLE_SIZE);
+    mTransformUpdateCommandBuffer->pipelineBarrier(vk::PipelineStageFlagBits::eTransfer,
+                                                   vk::PipelineStageFlagBits::eVertexShader |
+                                                       vk::PipelineStageFlagBits::eFragmentShader,
+                                                   {}, {}, barrier, {});
+  }
 
   mTransformUpdateCommandBuffer->end();
 
-  core::Context::Get()->getQueue().submit(mTransformUpdateCommandBuffer.get(), {});
+  core::Context::Get()->getQueue().submit(mTransformUpdateCommandBuffer.get(),
+                                          mTransformUpdateFence.get());
 
   mTransformBufferRenderVersion = mRenderVersion;
 }

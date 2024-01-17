@@ -6,32 +6,23 @@
 namespace svulkan2 {
 namespace ui {
 
-std::shared_ptr<DisplayImage> DisplayImage::Image(core::Image &image, vk::ImageLayout layout) {
+std::shared_ptr<DisplayImage> DisplayImage::Image(core::Image &image) {
   if (mImage == &image) {
     return std::static_pointer_cast<DisplayImage>(shared_from_this());
   }
 
+  core::Context::Get()->getDevice().waitIdle();
   if (mDS) {
-    core::Context::Get()->getDevice().waitIdle();
-    mCommandBuffer.reset();
     ImGui_ImplVulkan_RemoveTexture(mDS);
     mDS = {};
   }
 
   mImage = &image;
-  mLayout = layout;
 
   if (!mCommandPool) {
     mCommandPool = core::Context::Get()->createCommandPool();
+    mCommandBuffer = mCommandPool->allocateCommandBuffer();
   }
-
-  mCommandBuffer = mCommandPool->allocateCommandBuffer();
-  mCommandBuffer->begin({vk::CommandBufferUsageFlags()});
-  mImage->transitionLayout(mCommandBuffer.get(), mLayout, vk::ImageLayout::eShaderReadOnlyOptimal,
-                           vk::AccessFlagBits::eMemoryWrite, vk::AccessFlagBits::eShaderRead,
-                           vk::PipelineStageFlagBits::eAllCommands,
-                           vk::PipelineStageFlagBits::eFragmentShader);
-  mCommandBuffer->end();
 
   auto context = core::Context::Get();
   mSampler = context->createSampler(vk::SamplerCreateInfo(
@@ -60,7 +51,6 @@ std::shared_ptr<DisplayImage> DisplayImage::Image(core::Image &image, vk::ImageL
 
 std::shared_ptr<DisplayImage> DisplayImage::Clear() {
   core::Context::Get()->getDevice().waitIdle();
-  mCommandBuffer.reset();
   if (mDS) {
     ImGui_ImplVulkan_RemoveTexture(mDS);
     mDS = {};
@@ -68,7 +58,6 @@ std::shared_ptr<DisplayImage> DisplayImage::Clear() {
 
   mImageView = {};
   mSampler = vk::Sampler{};
-  mLayout = {};
   mImage = {};
 
   return std::static_pointer_cast<DisplayImage>(shared_from_this());
@@ -76,9 +65,16 @@ std::shared_ptr<DisplayImage> DisplayImage::Clear() {
 
 void DisplayImage::build() {
   if (mImage) {
+    mCommandBuffer->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+    mImage->transitionLayout(
+        mCommandBuffer.get(), mImage->getCurrentLayout(0), vk::ImageLayout::eShaderReadOnlyOptimal,
+        vk::AccessFlagBits::eMemoryWrite, vk::AccessFlagBits::eShaderRead,
+        vk::PipelineStageFlagBits::eAllCommands, vk::PipelineStageFlagBits::eFragmentShader);
+    mCommandBuffer->end();
 
     // TODO: async
     core::Context::Get()->getQueue().submitAndWait(mCommandBuffer.get());
+    mCommandBuffer->reset();
 
     if (mSize[0] <= 0 && mSize[1] <= 0) {
       mSize[0] = ImGui::GetWindowContentRegionWidth();
