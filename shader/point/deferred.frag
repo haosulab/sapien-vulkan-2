@@ -47,14 +47,12 @@ layout(set = 1, binding = 0) uniform CameraBuffer {
   mat4 projectionMatrix;
   mat4 viewMatrixInverse;
   mat4 projectionMatrixInverse;
-  mat4 prevViewMatrix;
-  mat4 prevViewMatrixInverse;
   float width;
   float height;
 } cameraBuffer;
 
 layout(set = 2, binding = 0) uniform sampler2D samplerAlbedo;
-layout(set = 2, binding = 1) uniform sampler2D samplerPosition0;
+layout(set = 2, binding = 1) uniform sampler2D samplerPosition;
 layout(set = 2, binding = 2) uniform sampler2D samplerSpecular;
 layout(set = 2, binding = 3) uniform sampler2D samplerNormal;
 layout(set = 2, binding = 4) uniform sampler2D samplerEmission;
@@ -73,20 +71,20 @@ vec4 world2camera(vec4 pos) {
 }
 
 vec3 getBackgroundColor(vec3 texcoord) {
-  texcoord = vec3(-texcoord.y, texcoord.z, -texcoord.x);
+  texcoord = texcoord.xzy;
   return textureLod(samplerEnvironment, texcoord, 0).rgb;
 }
 
 vec3 diffuseIBL(vec3 albedo, vec3 N) {
-  N = vec3(-N.y, N.z, -N.x);
+  N = N.xzy;
   vec3 color = textureLod(samplerEnvironment, N, 5).rgb;
-  return color * albedo / 3.1415926535;
+  return color * albedo;
 }
 
 vec3 specularIBL(vec3 fresnel, float roughness, vec3 N, vec3 V) {
   float dotNV = max(dot(N, V), 0);
   vec3 R = 2 * dot(N, V) * N - V;
-  R = vec3(-R.y, R.z, -R.x);
+  R = R.xzy;
   vec3 color = textureLod(samplerEnvironment, R, roughness * 5).rgb;
   vec2 envBRDF = texture(samplerBRDFLUT, vec2(roughness, dotNV)).xy;
   return color * (fresnel * envBRDF.x + envBRDF.y);

@@ -14,26 +14,18 @@ layout(set = 0, binding = 0) uniform LightBuffer {
   int height;
 } lightBuffer;
 
-layout(set = 1, binding = 0) uniform ObjectBuffer {
+layout(set = 1, binding = 0) uniform ObjectTransformBuffer {
   mat4 modelMatrix;
-  mat4 prevModelMatrix;
+} objectTransformBuffer;
+
+layout(set = 1, binding = 1) uniform ObjectDataBuffer {
   uvec4 segmentation;
   float transparency;
   int shadeFlat;
-} objectBuffer;
+} objectDataBuffer;
 
 void main() {
   if (gl_PointCoord.s * gl_PointCoord.s + gl_PointCoord.t * gl_PointCoord.t > 1) {
     discard;
   }
-  // vec2 centerNdc = inNdcRadius.xy;
-  // vec2 res = vec2(lightBuffer.width, lightBuffer.height) * RESOLUTION_SCALE;
-  // vec2 pixelNdc = gl_FragCoord.xy / res * 2.0 - 1.0;
-  // vec2 offsetNdc = pixelNdc - centerNdc;
-  // vec2 offset = offsetNdc * (-inPosition.z) / vec2(lightBuffer.projectionMatrix[0][0], lightBuffer.projectionMatrix[1][1]);
-  // float radius = inNdcRadius.w;
-  // offset /= radius;
-  // if (offset.x * offset.x + offset.y * offset.y > 1) {
-  //   discard;
-  // }
 }

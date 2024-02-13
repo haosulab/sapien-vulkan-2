@@ -57,7 +57,9 @@ void main() {
     float ax = ar * cos(at);
     float ay = ar * sin(at);
 
+    // vec2 r = vec2(rnd(ray.seed), rnd(ray.seed));
     vec2 r = halton2d(frameCount * spp + i, 2, 3);
+
     vec2 d = pixel + r * invScreen;  // jittered pixel position
     vec4 csDir = cameraBuffer.projectionMatrixInverse * vec4(d, 1.0, 1.0);
 
@@ -112,7 +114,7 @@ void main() {
         imageStore(outPosition, ivec2(gl_LaunchIDEXT.xy), vec4(position.xyz, ndc.z / ndc.w));
       }
     }
-    radiance += attenuation * ambientLight;  // HACK: implement unterminated ray properly
+    // TODO: implement unterminated ray properly
   }
   radiance /= spp;
   alpha /= spp;

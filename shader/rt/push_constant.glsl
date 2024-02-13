@@ -16,4 +16,8 @@ layout(push_constant) uniform Constants {
   int parallelogramLightCount;
 
   int envmap;
+
+  // post processing
+  float exposure;
+  int toneMapper;
 };
