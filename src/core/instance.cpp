@@ -8,8 +8,8 @@ namespace svulkan2 {
 namespace core {
 
 static void glfwErrorCallback(int error_code, const char *description) {
-  logger::error("GLFW error: {}. You may suppress this message by setting environment variable "
-                "SAPIEN_NO_DISPLAY=1",
+  logger::error("GLFW error: {}. You may suppress this message by unsetting environment variable "
+                "DISPLAY so SAPIEN will not attempt to test on-screen rendering",
                 description);
 }
 
@@ -28,14 +28,12 @@ Instance::Instance(uint32_t appVersion, uint32_t engineVersion, uint32_t apiVers
     : mApiVersion(apiVersion) {
 
   bool glfw = false;
-  if (!std::getenv("SAPIEN_NO_DISPLAY")) {
-    if (glfwInit() && glfwVulkanSupported()) {
-      logger::info("GLFW initialized.");
-      glfw = true;
-      glfwSetErrorCallback(glfwErrorCallback);
-    } else {
-      logger::info("Failed to initialize GLFW. Display is disabled.");
-    }
+  if (glfwInit() && glfwVulkanSupported()) {
+    logger::info("GLFW initialized.");
+    glfw = true;
+    glfwSetErrorCallback(glfwErrorCallback);
+  } else {
+    logger::info("Failed to initialize GLFW. Display is disabled.");
   }
 
   // try to load system vulkan library
