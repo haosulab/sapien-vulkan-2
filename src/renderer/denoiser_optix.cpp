@@ -128,14 +128,14 @@ void DenoiserOptix::allocate(uint32_t width, uint32_t height) {
                                 mSizes.stateSizeInBytes, mScratchPtr,
                                 mSizes.withoutOverlapScratchSizeInBytes));
 
-  mInputBuffer = std::make_unique<core::Buffer>(
-      width * height * mPixelSize,
-      vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc,
-      VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags{}, true);
+  mInputBuffer = core::Buffer::Create(width * height * mPixelSize,
+                                      vk::BufferUsageFlagBits::eTransferDst |
+                                          vk::BufferUsageFlagBits::eTransferSrc,
+                                      VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags{}, true);
   auto ptr = mInputBuffer->getCudaPtr();
   std::memcpy(&mInputPtr, &ptr, sizeof(ptr));
 
-  mOutputBuffer = std::make_unique<core::Buffer>(
+  mOutputBuffer = core::Buffer::Create(
       width * height * mPixelSize,
       vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc,
       VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags{}, true);
@@ -143,7 +143,7 @@ void DenoiserOptix::allocate(uint32_t width, uint32_t height) {
   std::memcpy(&mOutputPtr, &ptr, sizeof(ptr));
 
   if (useAlbedo()) {
-    mAlbedoBuffer = std::make_unique<core::Buffer>(
+    mAlbedoBuffer = core::Buffer::Create(
         width * height * mPixelSize,
         vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc,
         VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags{}, true);
@@ -152,7 +152,7 @@ void DenoiserOptix::allocate(uint32_t width, uint32_t height) {
   }
 
   if (useNormal()) {
-    mNormalBuffer = std::make_unique<core::Buffer>(
+    mNormalBuffer = core::Buffer::Create(
         width * height * mPixelSize,
         vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc,
         VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags{}, true);

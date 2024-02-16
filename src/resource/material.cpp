@@ -383,8 +383,8 @@ void SVMetallicMaterial::uploadToDevice() {
       flags |= vk::BufferUsageFlagBits::eStorageBuffer;
     }
 
-    mDeviceBuffer = std::make_unique<core::Buffer>(sizeof(SVMetallicMaterial::Buffer), flags,
-                                                   VMA_MEMORY_USAGE_CPU_TO_GPU);
+    mDeviceBuffer = core::Buffer::Create(sizeof(SVMetallicMaterial::Buffer), flags,
+                                         VMA_MEMORY_USAGE_CPU_TO_GPU);
 
     auto layout = mContext->getMetallicDescriptorSetLayout();
     mDescriptorSet = mContext->getDescriptorPool().allocateSet(layout);

@@ -1,4 +1,5 @@
 #include "svulkan2/core/instance.h"
+#include "../common/cuda_helper.h"
 #include "../common/logger.h"
 #include "svulkan2/core/physical_device.h"
 #include <GLFW/glfw3.h>
@@ -7,17 +8,25 @@
 namespace svulkan2 {
 namespace core {
 
+static std::weak_ptr<Instance> gInstance;
+
 static void glfwErrorCallback(int error_code, const char *description) {
   logger::error("GLFW error: {}. You may suppress this message by unsetting environment variable "
                 "DISPLAY so SAPIEN will not attempt to test on-screen rendering",
                 description);
 }
 
-std::shared_ptr<Instance> Instance::Create(uint32_t appVersion, uint32_t engineVersion,
-                                           uint32_t apiVersion) {
+std::shared_ptr<Instance> Instance::Get(uint32_t appVersion, uint32_t engineVersion,
+                                        uint32_t apiVersion) {
+  std::shared_ptr<Instance> instance = gInstance.lock();
+  if (instance) {
+    return instance;
+  }
+
   try {
-    return std::make_shared<Instance>(VK_MAKE_VERSION(0, 0, 1), VK_MAKE_VERSION(0, 0, 1),
-                                      VK_API_VERSION_1_2);
+    gInstance = instance = std::make_shared<Instance>(
+        VK_MAKE_VERSION(0, 0, 1), VK_MAKE_VERSION(0, 0, 1), VK_API_VERSION_1_2);
+    return instance;
   } catch (std::runtime_error &e) {
     logger::error("Failed to create renderer with error: {}", e.what());
   }
@@ -158,15 +167,300 @@ Instance::Instance(uint32_t appVersion, uint32_t engineVersion, uint32_t apiVers
         "Your GPU driver does not support Vulkan. You may not use the renderer for rendering.");
     throw err;
   }
+
+  mPhysicalDeviceInfo = summarizePhysicalDevices();
+}
+
+std::vector<PhysicalDeviceInfo> Instance::summarizePhysicalDevices() const {
+  std::vector<PhysicalDeviceInfo> devices;
+
+  // prepare a surface for window testing
+  bool presentEnabled = isGLFWEnabled();
+  GLFWwindow *window{};
+  VkSurfaceKHR tmpSurface = nullptr;
+  if (presentEnabled) {
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+    window = glfwCreateWindow(1, 1, "SAPIEN", nullptr, nullptr);
+    auto result = glfwCreateWindowSurface(mInstance.get(), window, nullptr, &tmpSurface);
+    if (result != VK_SUCCESS) {
+      throw std::runtime_error(
+          "Window creation test failed, you may not create GLFW window for display.");
+      presentEnabled = false;
+    }
+    glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
+  }
+
+  std::stringstream ss;
+  ss << "Devices visible to Vulkan" << std::endl;
+  ss << std::setw(3) << "Id" << std::setw(40) << "name" << std::setw(10) << "Present"
+     << std::setw(10) << "Supported" << std::setw(25) << "Pci" << std::setw(10) << "CudaId"
+     << std::setw(15) << "RayTracing" << std::setw(10) << "Discrete" << std::setw(15)
+     << "SubgroupSize" << std::endl;
+
+  vk::PhysicalDeviceFeatures2 features{};
+  vk::PhysicalDeviceDescriptorIndexingFeatures descriptorFeatures{};
+  vk::PhysicalDeviceTimelineSemaphoreFeatures timelineSemaphoreFeatures{};
+  features.setPNext(&descriptorFeatures);
+  descriptorFeatures.setPNext(&timelineSemaphoreFeatures);
+
+  int ord = 0;
+  for (auto device : mInstance->enumeratePhysicalDevices()) {
+    std::string name;
+    bool present = false;
+    bool required_features = false;
+    int cudaId = -1;
+    int queueIdxNoPresent = -1;
+    int queueIdxPresent = -1;
+    int queueIdx = -1;
+    bool rayTracing = false;
+
+    // check graphics & compute queues
+    std::vector<vk::QueueFamilyProperties> queueFamilyProperties =
+        device.getQueueFamilyProperties();
+    for (uint32_t i = 0; i < queueFamilyProperties.size(); ++i) {
+      if (queueFamilyProperties[i].queueFlags & vk::QueueFlagBits::eGraphics &&
+          queueFamilyProperties[i].queueFlags & vk::QueueFlagBits::eCompute) {
+        if (queueIdxNoPresent == -1) {
+          queueIdxNoPresent = i;
+        }
+        if (tmpSurface && device.getSurfaceSupportKHR(i, tmpSurface)) {
+          queueIdxPresent = i;
+          present = true;
+          break;
+        }
+      }
+    }
+
+    if (queueIdxPresent != -1) {
+      queueIdx = queueIdxPresent;
+    } else {
+      queueIdx = queueIdxNoPresent;
+    }
+
+    // check features
+    device.getFeatures2(&features);
+    if (features.features.independentBlend && features.features.wideLines &&
+        features.features.geometryShader && descriptorFeatures.descriptorBindingPartiallyBound &&
+        timelineSemaphoreFeatures.timelineSemaphore) {
+      required_features = true;
+    }
+
+    std::vector<const char *> all_required_extensions = {
+        VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME};
+    size_t required_extension_count = 0;
+
+    // check extensions
+    auto extensions = device.enumerateDeviceExtensionProperties();
+    for (auto &ext : extensions) {
+      if (std::strcmp(ext.extensionName, VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME) == 0) {
+        rayTracing = 1;
+      }
+      for (auto name : all_required_extensions)
+        if (std::strcmp(ext.extensionName, name) == 0) {
+          required_extension_count += 1;
+        }
+    }
+
+    bool required_extensions = required_extension_count == all_required_extensions.size();
+
+    auto properties2 =
+        device.getProperties2<vk::PhysicalDeviceProperties2, vk::PhysicalDeviceSubgroupProperties,
+                              vk::PhysicalDevicePCIBusInfoPropertiesEXT>();
+    auto properties = properties2.get<vk::PhysicalDeviceProperties2>().properties;
+
+    name = std::string(properties.deviceName.begin(), properties.deviceName.end());
+    auto deviceType = properties.deviceType;
+
+    std::array<uint32_t, 4> pci = {
+        properties2.get<vk::PhysicalDevicePCIBusInfoPropertiesEXT>().pciDomain,
+        properties2.get<vk::PhysicalDevicePCIBusInfoPropertiesEXT>().pciBus,
+        properties2.get<vk::PhysicalDevicePCIBusInfoPropertiesEXT>().pciDevice,
+        properties2.get<vk::PhysicalDevicePCIBusInfoPropertiesEXT>().pciFunction};
+
+    uint32_t subgroupSize = properties2.get<vk::PhysicalDeviceSubgroupProperties>().subgroupSize;
+
+    int computeMode{-1};
+    auto SAPIEN_DISABLE_RAY_TRACING = std::getenv("SAPIEN_DISABLE_RAY_TRACING");
+    if (SAPIEN_DISABLE_RAY_TRACING && std::strcmp(SAPIEN_DISABLE_RAY_TRACING, "1") == 0) {
+      rayTracing = 0;
+    } else {
+#ifdef SVULKAN2_CUDA_INTEROP
+      cudaId = getCudaDeviceIdFromPhysicalDevice(device);
+      cudaDeviceGetAttribute(&computeMode, cudaDevAttrComputeMode, cudaId);
+      if ((computeMode == cudaComputeModeExclusiveProcess ||
+           computeMode == cudaComputeModeExclusive) &&
+          rayTracing) {
+        logger::warn("CUDA device {} is in EXCLUSIVE or EXCLUSIVE_PROCESS mode. You "
+                     "many not use this renderer with external CUDA programs unless "
+                     "you switch off ray tracing by environment variable "
+                     "SAPIEN_DISABLE_RAY_TRACING=1.",
+                     cudaId);
+      }
+#endif
+    }
+    bool supported = required_features && required_extensions && queueIdx != -1;
+    bool discrete = deviceType == vk::PhysicalDeviceType::eDiscreteGpu;
+
+    ss << std::setw(3) << ord++ << std::setw(40) << name.substr(0, 39).c_str() << std::setw(10)
+       << present << std::setw(10) << supported << std::setw(25) << std::hex << PCIToString(pci)
+       << std::dec << std::setw(10) << (cudaId < 0 ? "No Device" : std::to_string(cudaId))
+       << std::setw(15) << rayTracing << std::setw(10) << discrete << std::setw(15) << subgroupSize
+       << std::endl;
+
+    devices.push_back(PhysicalDeviceInfo{.name = std::string(name.c_str()),
+                                         .device = device,
+                                         .present = present,
+                                         .supported = supported,
+                                         .cudaId = cudaId,
+                                         .pci = pci,
+                                         .queueIndex = queueIdx,
+                                         .rayTracing = rayTracing,
+                                         .cudaComputeMode = computeMode,
+                                         .deviceType = deviceType,
+                                         .subgroupSize = subgroupSize});
+  }
+  logger::info(ss.str());
+
+#ifdef SVULKAN2_CUDA_INTEROP
+  ss = {};
+  ss << "Devices visible to Cuda" << std::endl;
+  ss << std::setw(10) << "CudaId" << std::setw(25) << "Pci" << std::endl;
+
+  int count{0};
+  cudaGetDeviceCount(&count);
+  for (int i = 0; i < count; ++i) {
+    std::string pciBus(20, '\0');
+    auto result = cudaDeviceGetPCIBusId(pciBus.data(), 20, i);
+
+    switch (result) {
+    case cudaErrorInvalidValue:
+      pciBus = "Invalid Value";
+      break;
+    case cudaErrorInvalidDevice:
+      pciBus = "Invalid Device";
+      break;
+    case cudaErrorInitializationError:
+      pciBus = "Not Initialized";
+      break;
+    case cudaErrorInsufficientDriver:
+      pciBus = "Insufficient Driver";
+      break;
+    case cudaErrorNoDevice:
+      pciBus = "No Device";
+      break;
+    default:
+      ss << std::setw(10) << i << std::hex << std::dec << std::setw(25) << pciBus.c_str()
+         << std::endl;
+      break;
+    }
+  }
+  logger::info(ss.str());
+#endif
+
+  // clean up
+  if (tmpSurface) {
+    mInstance->destroySurfaceKHR(tmpSurface);
+  }
+  if (window) {
+    glfwDestroyWindow(window);
+  }
+
+  return devices;
+}
+
+static inline uint32_t computeDevicePriority(PhysicalDeviceInfo const &info,
+                                             std::string const &hint) {
+
+  // specific cuda device
+  if (hint.starts_with("cuda:")) {
+    if (info.cudaId == std::stoi(hint.substr(5))) {
+      return 1000;
+    }
+    return 0;
+  }
+
+  // any cuda device
+  if (hint == std::string("cuda")) {
+    uint32_t score = 0;
+    if (info.cudaId >= 0) {
+      score += 1000;
+    }
+    if (info.present) {
+      score += 100;
+    }
+    if (info.rayTracing) {
+      score += 1;
+    }
+    return score;
+  }
+
+  // specific device
+  if (hint.starts_with("pci:")) {
+    std::string pciString = hint.substr(4);
+
+    // pci can be parsed
+    try {
+      auto pci = parsePCIString(pciString);
+      if (info.pci == pci) {
+        return 1000;
+      }
+    } catch (std::runtime_error const &) {
+    }
+
+    // only bus is provided
+    try {
+      if (info.pci[1] == std::stoi(pciString, 0, 16)) {
+        return 1000;
+      }
+    } catch (std::runtime_error const &) {
+    }
+
+    throw std::runtime_error("invalid PCI string");
+  }
+
+  // no device hint
+  // still prefer cuda device
+  if (!info.supported) {
+    return 0;
+  }
+  uint32_t score = 0;
+  if (info.cudaId >= 0) {
+    score += 1000;
+  }
+  if (info.present) {
+    score += 100;
+  }
+  if (info.deviceType == vk::PhysicalDeviceType::eDiscreteGpu) {
+    score += 10;
+  }
+  if (info.rayTracing) {
+    score += 1;
+  }
+  return score;
 }
 
 std::shared_ptr<PhysicalDevice> Instance::createPhysicalDevice(std::string const &hint) {
-  try {
-    return std::make_shared<PhysicalDevice>(shared_from_this(), hint);
-  } catch (std::runtime_error &e) {
-    logger::error("Failed to create renderer with error: {}", e.what());
+
+  int pickedDeviceIdx = -1;
+  {
+    uint32_t maxPriority = 0;
+    uint32_t idx = 0;
+    for (auto &device : mPhysicalDeviceInfo) {
+      uint32_t priority = computeDevicePriority(device, hint);
+      if (priority > maxPriority) {
+        maxPriority = priority;
+        pickedDeviceIdx = idx;
+      }
+      idx++;
+    }
   }
-  return nullptr;
+  if (pickedDeviceIdx < 0) {
+    throw std::runtime_error("Failed to find a supported physical device \"" + hint + "\"");
+  }
+
+  return std::make_shared<PhysicalDevice>(shared_from_this(),
+                                          mPhysicalDeviceInfo.at(pickedDeviceIdx));
 }
 
 Instance::~Instance() { glfwTerminate(); }

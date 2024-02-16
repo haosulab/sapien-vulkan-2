@@ -7,10 +7,24 @@ namespace core {
 
 class PhysicalDevice;
 
+struct PhysicalDeviceInfo {
+  std::string name;
+  vk::PhysicalDevice device{};
+  bool present{};
+  bool supported{};
+  int cudaId{-1};
+  std::array<uint32_t, 4> pci;
+  int queueIndex{-1};
+  bool rayTracing{};
+  int cudaComputeMode{-1};
+  vk::PhysicalDeviceType deviceType{};
+  uint32_t subgroupSize{0};
+};
+
 class Instance : public std::enable_shared_from_this<Instance> {
 public:
-  static std::shared_ptr<Instance> Create(uint32_t appVersion, uint32_t engineVersion,
-                                          uint32_t apiVersion = VK_API_VERSION_1_2);
+  static std::shared_ptr<Instance> Get(uint32_t appVersion, uint32_t engineVersion,
+                                       uint32_t apiVersion = VK_API_VERSION_1_2);
 
   Instance(uint32_t appVersion, uint32_t engineVersion, uint32_t apiVersion);
   ~Instance();
@@ -21,6 +35,7 @@ public:
 
   auto getProcAddr(char const *name) const { return mInstance->getProcAddr(name); }
 
+  std::vector<PhysicalDeviceInfo> summarizePhysicalDevices() const;
   std::shared_ptr<PhysicalDevice> createPhysicalDevice(std::string const &hint);
 
   Instance(Instance const &other) = delete;
@@ -33,6 +48,7 @@ private:
   std::unique_ptr<vk::DynamicLoader> mDynamicLoader;
   vk::UniqueInstance mInstance{};
   bool mGLFWSupported{};
+  std::vector<PhysicalDeviceInfo> mPhysicalDeviceInfo;
 };
 
 } // namespace core

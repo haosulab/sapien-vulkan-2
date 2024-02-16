@@ -4,12 +4,14 @@
 
 namespace svulkan2 {
 namespace core {
-CommandPool::CommandPool() {
-  auto context = Context::Get();
-  mDevice = context->getDevice2();
+CommandPool::CommandPool(std::shared_ptr<Device> device) : mDevice(device) {
+  if (!device) {
+    throw std::runtime_error("failed to create command pool: invalid device");
+  }
+
   mPool = mDevice->getInternal().createCommandPoolUnique(
       {vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
-       context->getGraphicsQueueFamilyIndex()});
+       mDevice->getGraphicsQueueFamilyIndex()});
 }
 
 vk::UniqueCommandBuffer CommandPool::allocateCommandBuffer(vk::CommandBufferLevel level) {

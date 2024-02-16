@@ -90,7 +90,7 @@ void SVPrimitiveSet::uploadToDevice() {
   // }
 
   if (!mVertexBuffer) {
-    mVertexBuffer = std::make_unique<core::Buffer>(
+    mVertexBuffer = core::Buffer::Create(
         bufferSize,
         vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst |
             vk::BufferUsageFlagBits::eTransferSrc,

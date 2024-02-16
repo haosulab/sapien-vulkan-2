@@ -64,7 +64,7 @@ void RTRenderer::setScene(std::shared_ptr<scene::Scene> scene) {
 void RTRenderer::prepareObjects() {
   auto objects = mScene->getObjects();
   // auto objects = mScene->getVisibleObjects();
-  mObjectBuffer = std::make_unique<core::Buffer>(
+  mObjectBuffer = core::Buffer::Create(
       std::max(size_t(1), objects.size()) * mObjectBufferLayout.size,
       vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
       VMA_MEMORY_USAGE_CPU_TO_GPU);

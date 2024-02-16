@@ -1,4 +1,5 @@
 #pragma once
+#include "command_pool.h"
 #include "svulkan2/common/vk.h"
 #include <memory>
 
@@ -16,6 +17,10 @@ public:
   inline vk::Device getInternal() const { return mDevice.get(); }
   inline Queue &getQueue() const { return *mQueue; }
   inline Allocator &getAllocator() const { return *mAllocator; }
+
+  uint32_t getGraphicsQueueFamilyIndex() const;
+
+  std::unique_ptr<CommandPool> createCommandPool();
 
   ~Device();
 

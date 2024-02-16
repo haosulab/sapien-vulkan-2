@@ -1,4 +1,5 @@
 #pragma once
+#include "./instance.h"
 #include "svulkan2/common/vk.h"
 #include <memory>
 
@@ -10,26 +11,10 @@ class Device;
 
 class PhysicalDevice : public std::enable_shared_from_this<PhysicalDevice> {
 public:
-  PhysicalDevice(std::shared_ptr<Instance> instance, std::string const &hint);
-
-  struct DeviceInfo {
-    std::string name;
-    vk::PhysicalDevice device{};
-    bool present{};
-    bool supported{};
-    int cudaId{-1};
-    std::array<uint32_t, 4> pci;
-    // int pciBus{-1};
-    int queueIndex{-1};
-    bool rayTracing{};
-    int cudaComputeMode{-1};
-    vk::PhysicalDeviceType deviceType{};
-    // bool discrete{};
-    uint32_t subgroupSize{0};
-  };
+  PhysicalDevice(std::shared_ptr<Instance> instance, PhysicalDeviceInfo const &deviceInfo);
 
   inline vk::PhysicalDevice getInternal() const { return mPickedDeviceInfo.device; }
-  inline DeviceInfo const &getPickedDeviceInfo() const { return mPickedDeviceInfo; }
+  inline PhysicalDeviceInfo const &getPickedDeviceInfo() const { return mPickedDeviceInfo; }
   inline vk::PhysicalDeviceLimits const &getPickedDeviceLimits() const {
     return mPickedDeviceLimits;
   }
@@ -50,12 +35,12 @@ public:
   PhysicalDevice(PhysicalDevice const &&other) = delete;
   PhysicalDevice &operator=(PhysicalDevice const &&other) = delete;
 
-  static std::vector<DeviceInfo> summarizeDeviceInfo(Instance const &instance);
-  std::vector<DeviceInfo> summarizeDeviceInfo() const;
+  // static std::vector<DeviceInfo> summarizeDeviceInfo(Instance const &instance);
+  // std::vector<DeviceInfo> summarizeDeviceInfo() const;
 
 private:
   std::shared_ptr<Instance> mInstance;
-  DeviceInfo mPickedDeviceInfo{};
+  PhysicalDeviceInfo mPickedDeviceInfo{};
   vk::PhysicalDeviceLimits mPickedDeviceLimits{};
 };
 

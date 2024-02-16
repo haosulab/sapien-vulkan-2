@@ -8,6 +8,10 @@ namespace svulkan2 {
 namespace core {
 
 Device::Device(std::shared_ptr<PhysicalDevice> physicalDevice) : mPhysicalDevice(physicalDevice) {
+  if (!physicalDevice) {
+    throw std::runtime_error("failed to create device: invalid physical device");
+  }
+
   float queuePriority = 0.0f;
   int queueIndex = mPhysicalDevice->getPickedDeviceInfo().queueIndex;
   vk::DeviceQueueCreateInfo deviceQueueCreateInfo({}, queueIndex, 1, &queuePriority);
@@ -80,6 +84,14 @@ Device::Device(std::shared_ptr<PhysicalDevice> physicalDevice) : mPhysicalDevice
 
   auto instance = mPhysicalDevice->getInstance();
   mAllocator = std::make_unique<Allocator>(*this);
+}
+
+uint32_t Device::getGraphicsQueueFamilyIndex() const {
+  return mPhysicalDevice->getPickedDeviceInfo().queueIndex;
+}
+
+std::unique_ptr<CommandPool> Device::createCommandPool() {
+  return std::make_unique<CommandPool>(shared_from_this());
 }
 
 Device::~Device(){};

@@ -940,13 +940,13 @@ void Scene::createRTStorageBuffers(StructDataLayout const &materialBufferLayout,
   }
 
   // build texture index
-  mTextureIndexBuffer = std::make_unique<core::Buffer>(
+  mTextureIndexBuffer = core::Buffer::Create(
       std::max(size_t(1), textureIndexBuffer.size()),
       vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
       VMA_MEMORY_USAGE_GPU_ONLY);
   mTextureIndexBuffer->upload(textureIndexBuffer);
 
-  mGeometryInstanceBuffer = std::make_unique<core::Buffer>(
+  mGeometryInstanceBuffer = core::Buffer::Create(
       std::max(size_t(1), geometryInstanceBuffer.size()),
       vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
       VMA_MEMORY_USAGE_GPU_ONLY);
@@ -958,7 +958,7 @@ void Scene::createRTStorageBuffers(StructDataLayout const &materialBufferLayout,
     mRTPointLightBufferHost.push_back(
         RTPointLight{.position = l->getPosition(), .radius = 0, .rgb = l->getColor()});
   }
-  mRTPointLightBuffer = std::make_unique<core::Buffer>(
+  mRTPointLightBuffer = core::Buffer::Create(
       std::max(getPointLights().size(), size_t(1)) * sizeof(RTPointLight),
       vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
       VMA_MEMORY_USAGE_CPU_TO_GPU);
@@ -969,7 +969,7 @@ void Scene::createRTStorageBuffers(StructDataLayout const &materialBufferLayout,
     mRTDirectionalLightBufferHost.push_back(
         RTDirectionalLight{.direction = l->getDirection(), .softness = 0, .rgb = l->getColor()});
   }
-  mRTDirectionalLightBuffer = std::make_unique<core::Buffer>(
+  mRTDirectionalLightBuffer = core::Buffer::Create(
       std::max(getDirectionalLights().size(), size_t(1)) * sizeof(RTDirectionalLight),
       vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
       VMA_MEMORY_USAGE_CPU_TO_GPU);
@@ -1005,7 +1005,7 @@ void Scene::createRTStorageBuffers(StructDataLayout const &materialBufferLayout,
                     .fovOuter = l->getFov(),
                     .textureId = textureId});
   }
-  mRTSpotLightBuffer = std::make_unique<core::Buffer>(
+  mRTSpotLightBuffer = core::Buffer::Create(
       std::max(getTexturedLights().size() + getSpotLights().size(), size_t(1)) *
           sizeof(RTSpotLight),
       vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
@@ -1021,7 +1021,7 @@ void Scene::createRTStorageBuffers(StructDataLayout const &materialBufferLayout,
         .edge1 = l->getEdgeY(),
     });
   }
-  mRTParallelogramLightBuffer = std::make_unique<core::Buffer>(
+  mRTParallelogramLightBuffer = core::Buffer::Create(
       std::max(getParallelogramLights().size(), size_t(1)) * sizeof(RTParallelogramLight),
       vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
       VMA_MEMORY_USAGE_CPU_TO_GPU);

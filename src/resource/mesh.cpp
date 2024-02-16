@@ -128,12 +128,12 @@ void SVMeshRigid::uploadToDevice() {
                   vk::BufferUsageFlagBits::eStorageBuffer
             : vk::BufferUsageFlags{};
 
-    mVertexBuffer = std::make_unique<core::Buffer>(
+    mVertexBuffer = core::Buffer::Create(
         bufferSize,
         deviceAddressFlag | vk::BufferUsageFlagBits::eVertexBuffer |
             vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc,
         VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags{}, true);
-    mIndexBuffer = std::make_unique<core::Buffer>(
+    mIndexBuffer = core::Buffer::Create(
         indexBufferSize,
         deviceAddressFlag | vk::BufferUsageFlagBits::eIndexBuffer |
             vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc,
@@ -224,12 +224,12 @@ void SVMeshDeformable::uploadToDevice() {
                   vk::BufferUsageFlagBits::eStorageBuffer
             : vk::BufferUsageFlags{};
 
-    mVertexBuffer = std::make_unique<core::Buffer>(
+    mVertexBuffer = core::Buffer::Create(
         bufferSize,
         deviceAddressFlag | vk::BufferUsageFlagBits::eVertexBuffer |
             vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc,
         VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags{}, true);
-    mIndexBuffer = std::make_unique<core::Buffer>(
+    mIndexBuffer = core::Buffer::Create(
         indexBufferSize,
         deviceAddressFlag | vk::BufferUsageFlagBits::eIndexBuffer |
             vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc,

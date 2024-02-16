@@ -7,6 +7,8 @@ typedef struct CUexternalMemory_st *cudaExternalMemory_t;
 namespace svulkan2 {
 namespace core {
 
+class Device;
+
 class Buffer {
 public:
   static std::unique_ptr<Buffer> CreateStaging(vk::DeviceSize size, bool readback = false);
@@ -15,14 +17,12 @@ public:
   static std::unique_ptr<Buffer> Create(vk::DeviceSize size, vk::BufferUsageFlags usageFlags,
                                         VmaMemoryUsage memoryUsage,
                                         VmaAllocationCreateFlags allocationFlags = {},
-                                        bool external = false);
+                                        bool external = false, VmaPool pool = {});
 
 public:
-  // TODO: clean up, combine the 2
-  Buffer(vk::DeviceSize size, vk::BufferUsageFlags usageFlags, VmaMemoryUsage memoryUsage,
-         VmaAllocationCreateFlags allocationFlags = {}, bool external = false);
-  Buffer(vk::DeviceSize size, vk::BufferUsageFlags usageFlags, VmaMemoryUsage memoryUsage,
-         VmaAllocationCreateFlags allocationFlags, VmaPool pool);
+  Buffer(std::shared_ptr<Device> device, vk::DeviceSize size, vk::BufferUsageFlags usageFlags,
+         VmaMemoryUsage memoryUsage, VmaAllocationCreateFlags allocationFlags = {},
+         bool external = false, VmaPool pool = {});
 
   Buffer(const Buffer &) = delete;
   Buffer(const Buffer &&) = delete;
@@ -59,7 +59,7 @@ public:
   ~Buffer();
 
 protected:
-  std::shared_ptr<class Context> mContext;
+  std::shared_ptr<Device> mDevice;
   vk::DeviceSize mSize{};
   bool mHostVisible{};
   bool mHostCoherent{};

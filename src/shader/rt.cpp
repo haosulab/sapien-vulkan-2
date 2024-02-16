@@ -877,7 +877,7 @@ void RayTracingShaderPackInstance::initSBT() {
       alignUp(hitCount * handleSizeAligned, pipelineProperties.shaderGroupBaseAlignment);
 
   vk::DeviceSize sbtSize = rgenSize + missSize + hitSize; // there is no call region
-  mSBTBuffer = std::make_unique<core::Buffer>(
+  mSBTBuffer = core::Buffer::Create(
       sbtSize,
       vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eShaderDeviceAddress |
           vk::BufferUsageFlagBits::eShaderBindingTableKHR | vk::BufferUsageFlagBits::eTransferDst,

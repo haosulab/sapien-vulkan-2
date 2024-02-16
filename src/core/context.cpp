@@ -54,7 +54,7 @@ Context::Context(uint32_t maxNumMaterials, uint32_t maxNumTextures, uint32_t def
 #endif
 
   mInstance =
-      Instance::Create(VK_MAKE_VERSION(0, 0, 1), VK_MAKE_VERSION(0, 0, 1), VK_API_VERSION_1_2);
+      Instance::Get(VK_MAKE_VERSION(0, 0, 1), VK_MAKE_VERSION(0, 0, 1), VK_API_VERSION_1_2);
   if (!mInstance) {
     return;
   }
@@ -125,7 +125,7 @@ void Context::createDescriptorPool() {
 
 std::unique_ptr<CommandPool> Context::createCommandPool() const {
   EASY_FUNCTION();
-  return std::make_unique<CommandPool>();
+  return mDevice->createCommandPool();
 }
 
 vk::UniqueSemaphore Context::createTimelineSemaphore(uint64_t initialValue = 0) {

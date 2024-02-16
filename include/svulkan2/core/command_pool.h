@@ -12,7 +12,7 @@ class CommandPool {
 public:
   vk::UniqueCommandBuffer
   allocateCommandBuffer(vk::CommandBufferLevel level = vk::CommandBufferLevel::ePrimary);
-  CommandPool();
+  CommandPool(std::shared_ptr<Device> device);
 
   vk::CommandPool getVulkanCommandPool() const { return mPool.get(); }
 

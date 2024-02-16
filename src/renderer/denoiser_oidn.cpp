@@ -47,17 +47,17 @@ void DenoiserOidn::allocate(uint32_t width, uint32_t height) {
 
   mFilter = mDevice.newFilter("RT");
 
-  mInputBuffer = std::make_unique<core::Buffer>(
-      width * height * mPixelSize,
-      vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc,
-      VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags{}, true);
+  mInputBuffer = core::Buffer::Create(width * height * mPixelSize,
+                                      vk::BufferUsageFlagBits::eTransferDst |
+                                          vk::BufferUsageFlagBits::eTransferSrc,
+                                      VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags{}, true);
   mInputBufferOidn = mDevice.newBuffer(mInputBuffer->getCudaPtr(), mInputBuffer->getSize());
   mFilter.setImage("color", mInputBufferOidn, oidn::Format::Float3, mWidth, mHeight, 0, 16);
 
   mFilter.setImage("output", mInputBufferOidn, oidn::Format::Float3, mWidth, mHeight, 0, 16);
 
   if (useAlbedo()) {
-    mAlbedoBuffer = std::make_unique<core::Buffer>(
+    mAlbedoBuffer = core::Buffer::Create(
         width * height * mPixelSize,
         vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc,
         VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags{}, true);
@@ -65,7 +65,7 @@ void DenoiserOidn::allocate(uint32_t width, uint32_t height) {
     mFilter.setImage("albedo", mAlbedoBufferOidn, oidn::Format::Float3, mWidth, mHeight, 0, 16);
   }
   if (useNormal()) {
-    mNormalBuffer = std::make_unique<core::Buffer>(
+    mNormalBuffer = core::Buffer::Create(
         width * height * mPixelSize,
         vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eTransferSrc,
         VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags{}, true);
