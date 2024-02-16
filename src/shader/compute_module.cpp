@@ -43,7 +43,7 @@ static std::string summarizeResources(std::vector<DescriptorSetDescription> cons
            << "size" << std::setw(15) << "dim" << std::setw(15) << "type" << std::endl;
         for (auto &elem : set.buffers[b.arrayIndex]->getElementsSorted()) {
           ss << "    " << std::setw(15) << elem->name << std::setw(15) << elem->offset
-             << std::setw(15) << elem->size << std::setw(15) << elem->arrayDim << std::setw(15)
+             << std::setw(15) << elem->size << std::setw(15) << elem->array.size() << std::setw(15)
              << elem->dtype.typestr() << std::endl;
         }
         break;

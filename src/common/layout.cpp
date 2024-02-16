@@ -120,7 +120,7 @@ StructDataLayout::getElementsSorted() const {
 bool StructDataLayout::Element::operator==(
     StructDataLayout::Element const &other) const {
   if (!(name == other.name && size == other.size && offset == other.offset &&
-        arrayDim == other.arrayDim && dtype == other.dtype)) {
+        array == other.array && dtype == other.dtype)) {
     return false;
   }
   if (member == nullptr && other.member == nullptr) {

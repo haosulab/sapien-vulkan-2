@@ -269,7 +269,7 @@ void Renderer::prepareShadowRenderTargets() {
     }
   }
 
-  // active lights
+  // textured lights
   {
     for (uint32_t size : mTexturedLightShadowSizes) {
       auto shadowImage = std::make_shared<core::Image>(
@@ -1412,7 +1412,7 @@ void Renderer::prepareSceneBuffer() {
       for (auto l : lights) {
         auto t = l->getTexture();
         if (!t) {
-          logger::error("A textured light does not have texture!");
+          logger::error("A textured light does not have a texture attached");
           t = mContext->getResourceManager()->getDefaultTexture();
           t->loadAsync().get();
           t->uploadToDevice();

@@ -172,10 +172,143 @@ ShaderPack::ShaderPack(std::string const &dirname) {
   }
   // GLSL compiler ends
 
-  mShaderInputLayouts = generateShaderInputLayouts();
+  mShaderInputLayouts = generateShaderLayouts();
+  updateMaxLightCount();
 }
 
-std::shared_ptr<ShaderConfig> ShaderPack::generateShaderInputLayouts() const {
+void ShaderPack::updateMaxLightCount() {
+  {
+    auto set = mShaderInputLayouts->sceneSetDescription;
+
+    {
+      // process scene buffer
+      if (mShaderInputLayouts->sceneBufferLayout->elements.contains("pointLights")) {
+        mMaxPointLightCount =
+            mShaderInputLayouts->sceneBufferLayout->elements.at("pointLights").array.at(0);
+      }
+      if (mShaderInputLayouts->sceneBufferLayout->elements.contains("directionalLights")) {
+        mMaxDirectionalLightCount =
+            mShaderInputLayouts->sceneBufferLayout->elements.at("directionalLights").array.at(0);
+      }
+      if (mShaderInputLayouts->sceneBufferLayout->elements.contains("spotLights")) {
+        mMaxSpotLightCount =
+            mShaderInputLayouts->sceneBufferLayout->elements.at("spotLights").array.at(0);
+      }
+      if (mShaderInputLayouts->sceneBufferLayout->elements.contains("texturedLights")) {
+        mMaxTexturedLightCount =
+            mShaderInputLayouts->sceneBufferLayout->elements.at("texturedLights").array.at(0);
+      }
+    }
+
+    {
+      // process shadow buffer
+      auto it = std::find_if(set.bindings.begin(), set.bindings.end(),
+                             [](std::pair<uint32_t, DescriptorSetDescription::Binding> const &p) {
+                               return p.second.name == "ShadowBuffer";
+                             });
+      mMaxPointShadowCount = 0;
+      mMaxDirectionalShadowCount = 0;
+      mMaxSpotShadowCount = 0;
+      mMaxTexturedShadowCount = 0;
+      if (it != set.bindings.end()) {
+        auto shadowBuffer = set.buffers.at(it->second.arrayIndex);
+        if (shadowBuffer->elements.contains("pointLightBuffers")) {
+          mMaxPointShadowCount = shadowBuffer->elements.at("pointLightBuffers").array.at(0) / 6;
+        }
+        if (shadowBuffer->elements.contains("directionalLightBuffers")) {
+          mMaxDirectionalShadowCount =
+              shadowBuffer->elements.at("directionalLightBuffers").array.at(0);
+        }
+        if (shadowBuffer->elements.contains("spotLightBuffers")) {
+          mMaxSpotShadowCount = shadowBuffer->elements.at("spotLightBuffers").array.at(0);
+        }
+        if (shadowBuffer->elements.contains("texturedLightBuffers")) {
+          mMaxTexturedShadowCount = shadowBuffer->elements.at("texturedLightBuffers").array.at(0);
+        }
+      }
+
+      if (mMaxPointShadowCount > mMaxPointLightCount) {
+        throw std::runtime_error(
+            "ShadowBuffer pointLightBuffers size must not exceed SceneBuffer pointLights");
+      }
+      if (mMaxDirectionalShadowCount > mMaxDirectionalLightCount) {
+        throw std::runtime_error("ShadowBuffer directionalLightBuffers size must not exceed "
+                                 "SceneBuffer directionalLights");
+      }
+      if (mMaxSpotShadowCount > mMaxSpotLightCount) {
+        throw std::runtime_error(
+            "ShadowBuffer spotLightBuffers size must not exceed SceneBuffer spotLights");
+      }
+      if (mMaxTexturedShadowCount > mMaxTexturedLightCount) {
+        throw std::runtime_error(
+            "ShadowBuffer texturedLightBuffers size must not exceed SceneBuffer texturedLights");
+      }
+    }
+
+    // verify shadow map texture shapes
+    {
+      uint32_t maxPointTexCount = 0;
+      uint32_t maxDirectionalTexCount = 0;
+      uint32_t maxSpotTexCount = 0;
+      uint32_t maxTexturedTexCount = 0;
+
+      // process shadow textures
+      auto it = std::find_if(set.bindings.begin(), set.bindings.end(),
+                             [](std::pair<uint32_t, DescriptorSetDescription::Binding> const &p) {
+                               return p.second.name == "samplerPointLightDepths";
+                             });
+      if (it != set.bindings.end()) {
+        maxPointTexCount = it->second.arraySize;
+      }
+
+      it = std::find_if(set.bindings.begin(), set.bindings.end(),
+                        [](std::pair<uint32_t, DescriptorSetDescription::Binding> const &p) {
+                          return p.second.name == "samplerDirectionalLightDepths";
+                        });
+      if (it != set.bindings.end()) {
+        maxDirectionalTexCount = it->second.arraySize;
+      }
+
+      it = std::find_if(set.bindings.begin(), set.bindings.end(),
+                        [](std::pair<uint32_t, DescriptorSetDescription::Binding> const &p) {
+                          return p.second.name == "samplerSpotLightDepths";
+                        });
+      if (it != set.bindings.end()) {
+        maxSpotTexCount = it->second.arraySize;
+      }
+
+      it = std::find_if(set.bindings.begin(), set.bindings.end(),
+                        [](std::pair<uint32_t, DescriptorSetDescription::Binding> const &p) {
+                          return p.second.name == "samplerTexturedLightDepths";
+                        });
+      if (it != set.bindings.end()) {
+        maxTexturedTexCount = it->second.arraySize;
+      }
+
+      if (maxPointTexCount != mMaxPointShadowCount) {
+        throw std::runtime_error("samplerPointLightDepths and ShadowBuffer pointLightBuffers "
+                                 "should have matching sizes (N vs 6N)");
+      }
+
+      if (maxDirectionalTexCount != mMaxDirectionalShadowCount) {
+        throw std::runtime_error("samplerDirectionalLightDepths and ShadowBuffer "
+                                 "directionalLightBuffers should have the same size");
+      }
+
+      if (maxSpotTexCount != mMaxSpotShadowCount) {
+        throw std::runtime_error("samplerSpotLightDepths and ShadowBuffer "
+                                 "spotLightBuffers should have the same size");
+      }
+
+      if (maxTexturedTexCount != mMaxTexturedShadowCount) {
+        throw std::runtime_error("samplerTexturedLightDepths and ShadowBuffer "
+                                 "texturedLightBuffers should have the same size");
+      }
+    }
+  }
+}
+
+std::shared_ptr<ShaderConfig> ShaderPack::generateShaderLayouts() const {
   DescriptorSetDescription cameraSetDesc;
   DescriptorSetDescription objectSetDesc;
   DescriptorSetDescription sceneSetDesc;

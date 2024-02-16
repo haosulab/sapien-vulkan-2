@@ -54,7 +54,8 @@ public:
   inline bool hasPointPass() const { return !mPointPasses.empty(); }
 
 private:
-  std::shared_ptr<ShaderConfig> generateShaderInputLayouts() const;
+  std::shared_ptr<ShaderConfig> generateShaderLayouts() const;
+  void updateMaxLightCount();
 
   std::shared_ptr<ShadowPassParser> mShadowPass{};
   std::shared_ptr<PointShadowParser> mPointShadowPass{};
@@ -63,6 +64,15 @@ private:
   std::vector<std::shared_ptr<GbufferPassParser>> mGbufferPasses;
   std::vector<std::shared_ptr<PointPassParser>> mPointPasses;
   std::vector<std::shared_ptr<LinePassParser>> mLinePasses;
+
+  uint32_t mMaxPointLightCount{};
+  uint32_t mMaxPointShadowCount{};
+  uint32_t mMaxDirectionalLightCount{};
+  uint32_t mMaxDirectionalShadowCount{};
+  uint32_t mMaxSpotLightCount{};
+  uint32_t mMaxSpotShadowCount{};
+  uint32_t mMaxTexturedLightCount{};
+  uint32_t mMaxTexturedShadowCount{};
 
   std::shared_ptr<ShaderConfig> mShaderInputLayouts;
 

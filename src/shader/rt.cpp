@@ -454,7 +454,7 @@ std::shared_ptr<InputDataLayout> RayTracingShaderPack::computeCompatibleInputVer
                                      "array of structs (Vertex)");
           }
           auto elem = set.buffers.at(binding.arrayIndex)->elements.begin()->second;
-          if (elem.arrayDim != 1 || elem.dtype != DataType::STRUCT()) {
+          if (elem.array.size() != 1 || elem.dtype != DataType::STRUCT()) {
             throw std::runtime_error("Vertices buffer must contain a single "
                                      "array of structs (Vertex)");
           }
