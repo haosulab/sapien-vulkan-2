@@ -12,6 +12,7 @@ namespace svulkan2 {
 namespace logger {
 
 void setLogLevel(std::string_view level);
+std::string getLogLevel();
 
 }; // namespace logger
 
@@ -25,7 +26,7 @@ class Allocator;
 class Context : public std::enable_shared_from_this<Context> {
 public:
   static std::shared_ptr<Context> Get();
-  static std::shared_ptr<Context> Create(bool present = true, uint32_t maxNumMaterials = 5000,
+  static std::shared_ptr<Context> Create(uint32_t maxNumMaterials = 5000,
                                          uint32_t maxNumTextures = 5000,
                                          uint32_t defaultMipLevels = 1,
                                          bool doNotLoadTexture = false, std::string device = "");
@@ -93,7 +94,7 @@ private:
 
   vk::UniqueDescriptorSetLayout mMetallicDescriptorSetLayout;
 
-  Context(bool present = true, uint32_t maxNumMaterials = 5000, uint32_t maxNumTextures = 5000,
+  Context(uint32_t maxNumMaterials = 5000, uint32_t maxNumTextures = 5000,
           uint32_t defaultMipLevels = 1, bool doNotLoadTexture = false, std::string device = "");
 
   void createDescriptorPool();

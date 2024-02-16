@@ -38,10 +38,26 @@ static inline uint32_t computeDevicePriority(PhysicalDevice::DeviceInfo const &i
 
   // specific device
   if (hint.starts_with("pci:")) {
-    if (info.pciBus == std::stoi(hint.substr(4), 0, 16)) {
-      return 1000;
+    std::string pciString = hint.substr(4);
+
+    // pci can be parsed
+    try {
+      auto pci = parsePCIString(pciString);
+      if (info.pci == pci) {
+        return 1000;
+      }
+    } catch (std::runtime_error const &) {
     }
-    return 0;
+
+    // only bus is provided
+    try {
+      if (info.pci[1] == std::stoi(pciString, 0, 16)) {
+        return 1000;
+      }
+    } catch (std::runtime_error const &) {
+    }
+
+    throw std::runtime_error("invalid PCI string");
   }
 
   // no device hint
@@ -56,7 +72,7 @@ static inline uint32_t computeDevicePriority(PhysicalDevice::DeviceInfo const &i
   if (info.present && presentRequested) {
     score += 100;
   }
-  if (info.discrete) {
+  if (info.deviceType == vk::PhysicalDeviceType::eDiscreteGpu) {
     score += 10;
   }
   if (info.rayTracing) {
@@ -103,18 +119,19 @@ std::shared_ptr<Device> PhysicalDevice::createDevice() {
   return std::make_shared<Device>(shared_from_this());
 }
 
-std::vector<PhysicalDevice::DeviceInfo> PhysicalDevice::summarizeDeviceInfo() const {
+std::vector<PhysicalDevice::DeviceInfo>
+PhysicalDevice::summarizeDeviceInfo(Instance const &instance) {
   std::vector<PhysicalDevice::DeviceInfo> devices;
 
   // prepare a surface for window testing
-  bool presentEnabled = mInstance->isGLFWEnabled();
+  bool presentEnabled = instance.isGLFWEnabled();
   GLFWwindow *window{};
   VkSurfaceKHR tmpSurface = nullptr;
   if (presentEnabled) {
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
     window = glfwCreateWindow(1, 1, "SAPIEN", nullptr, nullptr);
-    auto result = glfwCreateWindowSurface(mInstance->getInternal(), window, nullptr, &tmpSurface);
+    auto result = glfwCreateWindowSurface(instance.getInternal(), window, nullptr, &tmpSurface);
     if (result != VK_SUCCESS) {
       throw std::runtime_error(
           "Window creation test failed, you may not create GLFW window for display.");
@@ -126,7 +143,7 @@ std::vector<PhysicalDevice::DeviceInfo> PhysicalDevice::summarizeDeviceInfo() co
   std::stringstream ss;
   ss << "Devices visible to Vulkan" << std::endl;
   ss << std::setw(3) << "Id" << std::setw(40) << "name" << std::setw(10) << "Present"
-     << std::setw(10) << "Supported" << std::setw(10) << "PciBus" << std::setw(10) << "CudaId"
+     << std::setw(10) << "Supported" << std::setw(25) << "Pci" << std::setw(10) << "CudaId"
      << std::setw(15) << "RayTracing" << std::setw(10) << "Discrete" << std::setw(15)
      << "SubgroupSize" << std::endl;
 
@@ -137,17 +154,15 @@ std::vector<PhysicalDevice::DeviceInfo> PhysicalDevice::summarizeDeviceInfo() co
   descriptorFeatures.setPNext(&timelineSemaphoreFeatures);
 
   int ord = 0;
-  for (auto device : mInstance->getInternal().enumeratePhysicalDevices()) {
+  for (auto device : instance.getInternal().enumeratePhysicalDevices()) {
     std::string name;
     bool present = false;
     bool required_features = false;
     int cudaId = -1;
-    int busid = -1;
     int queueIdxNoPresent = -1;
     int queueIdxPresent = -1;
     int queueIdx = -1;
     bool rayTracing = false;
-    bool discrete = false;
 
     // check graphics & compute queues
     std::vector<vk::QueueFamilyProperties> queueFamilyProperties =
@@ -158,7 +173,7 @@ std::vector<PhysicalDevice::DeviceInfo> PhysicalDevice::summarizeDeviceInfo() co
         if (queueIdxNoPresent == -1) {
           queueIdxNoPresent = i;
         }
-        if (presentEnabled && device.getSurfaceSupportKHR(i, tmpSurface)) {
+        if (tmpSurface && device.getSurfaceSupportKHR(i, tmpSurface)) {
           queueIdxPresent = i;
           present = true;
           break;
@@ -204,8 +219,14 @@ std::vector<PhysicalDevice::DeviceInfo> PhysicalDevice::summarizeDeviceInfo() co
     auto properties = properties2.get<vk::PhysicalDeviceProperties2>().properties;
 
     name = std::string(properties.deviceName.begin(), properties.deviceName.end());
-    discrete = properties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu;
-    busid = properties2.get<vk::PhysicalDevicePCIBusInfoPropertiesEXT>().pciBus;
+    auto deviceType = properties.deviceType;
+
+    std::array<uint32_t, 4> pci = {
+        properties2.get<vk::PhysicalDevicePCIBusInfoPropertiesEXT>().pciDomain,
+        properties2.get<vk::PhysicalDevicePCIBusInfoPropertiesEXT>().pciBus,
+        properties2.get<vk::PhysicalDevicePCIBusInfoPropertiesEXT>().pciDevice,
+        properties2.get<vk::PhysicalDevicePCIBusInfoPropertiesEXT>().pciFunction};
+
     uint32_t subgroupSize = properties2.get<vk::PhysicalDeviceSubgroupProperties>().subgroupSize;
 
     int computeMode{-1};
@@ -228,22 +249,24 @@ std::vector<PhysicalDevice::DeviceInfo> PhysicalDevice::summarizeDeviceInfo() co
 #endif
     }
     bool supported = required_features && required_extensions && queueIdx != -1;
+    bool discrete = deviceType == vk::PhysicalDeviceType::eDiscreteGpu;
 
     ss << std::setw(3) << ord++ << std::setw(40) << name.substr(0, 39).c_str() << std::setw(10)
-       << present << std::setw(10) << supported << std::hex << std::setw(10) << busid << std::dec
-       << std::setw(10) << (cudaId < 0 ? "No Device" : std::to_string(cudaId)) << std::setw(15)
-       << rayTracing << std::setw(10) << discrete << std::setw(15) << subgroupSize << std::endl;
+       << present << std::setw(10) << supported << std::setw(25) << std::hex << PCIToString(pci)
+       << std::dec << std::setw(10) << (cudaId < 0 ? "No Device" : std::to_string(cudaId))
+       << std::setw(15) << rayTracing << std::setw(10) << discrete << std::setw(15) << subgroupSize
+       << std::endl;
 
-    devices.push_back(PhysicalDevice::DeviceInfo{.name = name,
+    devices.push_back(PhysicalDevice::DeviceInfo{.name = std::string(name.c_str()),
                                                  .device = device,
                                                  .present = present,
                                                  .supported = supported,
                                                  .cudaId = cudaId,
-                                                 .pciBus = busid,
+                                                 .pci = pci,
                                                  .queueIndex = queueIdx,
                                                  .rayTracing = rayTracing,
                                                  .cudaComputeMode = computeMode,
-                                                 .discrete = discrete,
+                                                 .deviceType = deviceType,
                                                  .subgroupSize = subgroupSize});
   }
   logger::info(ss.str());
@@ -251,13 +274,11 @@ std::vector<PhysicalDevice::DeviceInfo> PhysicalDevice::summarizeDeviceInfo() co
 #ifdef SVULKAN2_CUDA_INTEROP
   ss = {};
   ss << "Devices visible to Cuda" << std::endl;
-  ss << std::setw(10) << "CudaId" << std::setw(10) << "PciBus" << std::setw(25) << "PciBusString"
-     << std::endl;
+  ss << std::setw(10) << "CudaId" << std::setw(25) << "Pci" << std::endl;
 
   int count{0};
   cudaGetDeviceCount(&count);
   for (int i = 0; i < count; ++i) {
-    int busId = getPCIBusIdFromCudaDeviceId(i);
     std::string pciBus(20, '\0');
     auto result = cudaDeviceGetPCIBusId(pciBus.data(), 20, i);
 
@@ -278,8 +299,8 @@ std::vector<PhysicalDevice::DeviceInfo> PhysicalDevice::summarizeDeviceInfo() co
       pciBus = "No Device";
       break;
     default:
-      ss << std::setw(10) << i << std::hex << std::setw(10) << busId << std::dec << std::setw(25)
-         << pciBus.c_str() << std::endl;
+      ss << std::setw(10) << i << std::hex << std::dec << std::setw(25) << pciBus.c_str()
+         << std::endl;
       break;
     }
   }
@@ -288,13 +309,17 @@ std::vector<PhysicalDevice::DeviceInfo> PhysicalDevice::summarizeDeviceInfo() co
 
   // clean up
   if (tmpSurface) {
-    mInstance->getInternal().destroySurfaceKHR(tmpSurface);
+    instance.getInternal().destroySurfaceKHR(tmpSurface);
   }
   if (window) {
     glfwDestroyWindow(window);
   }
 
   return devices;
+}
+
+std::vector<PhysicalDevice::DeviceInfo> PhysicalDevice::summarizeDeviceInfo() const {
+  return summarizeDeviceInfo(*mInstance);
 }
 
 vk::PhysicalDeviceRayTracingPipelinePropertiesKHR PhysicalDevice::getRayTracingProperties() const {

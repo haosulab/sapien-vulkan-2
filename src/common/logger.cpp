@@ -33,5 +33,26 @@ void setLogLevel(std::string_view level) {
   }
 }
 
+std::string getLogLevel() {
+  switch (getLogger()->level()) {
+  case spdlog::level::off:
+    return "off";
+  case spdlog::level::trace:
+    return "trace";
+  case spdlog::level::debug:
+    return "debug";
+  case spdlog::level::info:
+    return "info";
+  case spdlog::level::warn:
+    return "warn";
+  case spdlog::level::err:
+    return "err";
+  case spdlog::level::critical:
+    return "critical";
+  default:
+    return "";
+  }
+}
+
 } // namespace logger
 } // namespace svulkan2

@@ -26,9 +26,9 @@ std::shared_ptr<Context> Context::Get() {
   return context;
 }
 
-std::shared_ptr<Context> Context::Create(bool present, uint32_t maxNumMaterials,
-                                         uint32_t maxNumTextures, uint32_t defaultMipLevels,
-                                         bool doNotLoadTexture, std::string device) {
+std::shared_ptr<Context> Context::Create(uint32_t maxNumMaterials, uint32_t maxNumTextures,
+                                         uint32_t defaultMipLevels, bool doNotLoadTexture,
+                                         std::string device) {
   if (auto context = gContext.lock()) {
     if (context->mDefaultMipLevels != defaultMipLevels &&
         context->mDoNotLoadTexture != doNotLoadTexture) {
@@ -38,14 +38,14 @@ std::shared_ptr<Context> Context::Create(bool present, uint32_t maxNumMaterials,
     context->mDoNotLoadTexture = doNotLoadTexture;
     return context;
   }
-  auto context = std::shared_ptr<Context>(new Context(present, maxNumMaterials, maxNumTextures,
-                                                      defaultMipLevels, doNotLoadTexture, device));
+  auto context = std::shared_ptr<Context>(
+      new Context(maxNumMaterials, maxNumTextures, defaultMipLevels, doNotLoadTexture, device));
   gContext = context;
   return context;
 }
 
-Context::Context(bool present, uint32_t maxNumMaterials, uint32_t maxNumTextures,
-                 uint32_t defaultMipLevels, bool doNotLoadTexture, std::string device)
+Context::Context(uint32_t maxNumMaterials, uint32_t maxNumTextures, uint32_t defaultMipLevels,
+                 bool doNotLoadTexture, std::string device)
     : mMaxNumMaterials(maxNumMaterials), mMaxNumTextures(maxNumTextures),
       mDefaultMipLevels(defaultMipLevels), mDoNotLoadTexture(doNotLoadTexture) {
 
@@ -53,8 +53,8 @@ Context::Context(bool present, uint32_t maxNumMaterials, uint32_t maxNumTextures
   profiler::startListen();
 #endif
 
-  mInstance = Instance::Create(present, VK_MAKE_VERSION(0, 0, 1), VK_MAKE_VERSION(0, 0, 1),
-                               VK_API_VERSION_1_2);
+  mInstance =
+      Instance::Create(VK_MAKE_VERSION(0, 0, 1), VK_MAKE_VERSION(0, 0, 1), VK_API_VERSION_1_2);
   if (!mInstance) {
     return;
   }

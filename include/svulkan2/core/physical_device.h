@@ -18,11 +18,13 @@ public:
     bool present{};
     bool supported{};
     int cudaId{-1};
-    int pciBus{-1};
+    std::array<uint32_t, 4> pci;
+    // int pciBus{-1};
     int queueIndex{-1};
     bool rayTracing{};
     int cudaComputeMode{-1};
-    bool discrete{};
+    vk::PhysicalDeviceType deviceType{};
+    // bool discrete{};
     uint32_t subgroupSize{0};
   };
 
@@ -48,6 +50,7 @@ public:
   PhysicalDevice(PhysicalDevice const &&other) = delete;
   PhysicalDevice &operator=(PhysicalDevice const &&other) = delete;
 
+  static std::vector<DeviceInfo> summarizeDeviceInfo(Instance const &instance);
   std::vector<DeviceInfo> summarizeDeviceInfo() const;
 
 private:

@@ -8,36 +8,33 @@ namespace svulkan2 {
 namespace core {
 
 static void glfwErrorCallback(int error_code, const char *description) {
-  if (!std::getenv("SAPIEN_NO_DISPLAY")) {
-    logger::error("GLFW error: {}. You may suppress this message by setting environment variable "
-                  "SAPIEN_NO_DISPLAY=1",
-                  description);
-  }
+  logger::error("GLFW error: {}. You may suppress this message by setting environment variable "
+                "SAPIEN_NO_DISPLAY=1",
+                description);
 }
 
-std::shared_ptr<Instance> Instance::Create(bool enableGLFW, uint32_t appVersion,
-                                           uint32_t engineVersion, uint32_t apiVersion) {
+std::shared_ptr<Instance> Instance::Create(uint32_t appVersion, uint32_t engineVersion,
+                                           uint32_t apiVersion) {
   try {
-    return std::make_shared<Instance>(enableGLFW, VK_MAKE_VERSION(0, 0, 1),
-                                      VK_MAKE_VERSION(0, 0, 1), VK_API_VERSION_1_2);
+    return std::make_shared<Instance>(VK_MAKE_VERSION(0, 0, 1), VK_MAKE_VERSION(0, 0, 1),
+                                      VK_API_VERSION_1_2);
   } catch (std::runtime_error &e) {
     logger::error("Failed to create renderer with error: {}", e.what());
   }
   return nullptr;
 }
 
-Instance::Instance(bool enableGLFW, uint32_t appVersion, uint32_t engineVersion,
-                   uint32_t apiVersion)
+Instance::Instance(uint32_t appVersion, uint32_t engineVersion, uint32_t apiVersion)
     : mApiVersion(apiVersion) {
 
-  if (enableGLFW) {
-    glfwSetErrorCallback(glfwErrorCallback);
-    if (glfwInit()) {
+  bool glfw = false;
+  if (!std::getenv("SAPIEN_NO_DISPLAY")) {
+    if (glfwInit() && glfwVulkanSupported()) {
       logger::info("GLFW initialized.");
+      glfw = true;
+      glfwSetErrorCallback(glfwErrorCallback);
     } else {
-      if (!std::getenv("SAPIEN_NO_DISPLAY")) {
-        logger::warn("Failed to initialize GLFW. Display is disabled.");
-      }
+      logger::info("Failed to initialize GLFW. Display is disabled.");
     }
   }
 
@@ -127,7 +124,7 @@ Instance::Instance(bool enableGLFW, uint32_t appVersion, uint32_t engineVersion,
     }
   }
 
-  if (enableGLFW && glfwVulkanSupported()) {
+  if (glfw) {
     uint32_t glfwExtensionCount = 0;
     const char **glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
     if (glfwExtensions) {

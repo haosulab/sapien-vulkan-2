@@ -9,11 +9,10 @@ class PhysicalDevice;
 
 class Instance : public std::enable_shared_from_this<Instance> {
 public:
-  static std::shared_ptr<Instance> Create(bool enableGLFW, uint32_t appVersion,
-                                          uint32_t engineVersion,
+  static std::shared_ptr<Instance> Create(uint32_t appVersion, uint32_t engineVersion,
                                           uint32_t apiVersion = VK_API_VERSION_1_2);
 
-  Instance(bool enableGLFW, uint32_t appVersion, uint32_t engineVersion, uint32_t apiVersion);
+  Instance(uint32_t appVersion, uint32_t engineVersion, uint32_t apiVersion);
   ~Instance();
 
   inline bool isGLFWEnabled() const { return mGLFWSupported; }
