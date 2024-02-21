@@ -881,7 +881,7 @@ void RayTracingShaderPackInstance::initSBT() {
       sbtSize,
       vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eShaderDeviceAddress |
           vk::BufferUsageFlagBits::eShaderBindingTableKHR | vk::BufferUsageFlagBits::eTransferDst,
-      VMA_MEMORY_USAGE_CPU_TO_GPU, VmaAllocationCreateFlags{},
+      VMA_MEMORY_USAGE_CPU_TO_GPU, VmaAllocationCreateFlags{}, false,
       context->getAllocator().getRTPool());
 
   vk::DeviceSize rgenAddress = mSBTBuffer->getAddress();
