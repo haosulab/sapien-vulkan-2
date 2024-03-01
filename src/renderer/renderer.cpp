@@ -897,6 +897,7 @@ void Renderer::recordRenderPasses() {
         }
         if (lineObj->getTransparency() < 1) {
           mLineSetCache.insert(lineObj->getLineSet());
+          mRenderCommandBuffer->setLineWidth(lineObj->getLineWidth());
           mRenderCommandBuffer->bindVertexBuffers(
               0, lineObj->getLineSet()->getVertexBuffer().getVulkanBuffer(), vk::DeviceSize(0));
           mRenderCommandBuffer->draw(lineObj->getLineSet()->getVertexCount(), 1, 0, 0);

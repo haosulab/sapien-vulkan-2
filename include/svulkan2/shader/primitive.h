@@ -15,16 +15,13 @@ public:
     return mVertexInputLayout;
   }
 
-  inline std::shared_ptr<OutputDataLayout>
-  getTextureOutputLayout() const override {
+  inline std::shared_ptr<OutputDataLayout> getTextureOutputLayout() const override {
     return mTextureOutputLayout;
   }
 
   vk::UniqueRenderPass createRenderPass(
-      vk::Device device, std::vector<vk::Format> const &colorFormats,
-      vk::Format depthFormat,
-      std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const
-          &colorTargetLayouts,
+      vk::Device device, std::vector<vk::Format> const &colorFormats, vk::Format depthFormat,
+      std::vector<std::pair<vk::ImageLayout, vk::ImageLayout>> const &colorTargetLayouts,
       std::pair<vk::ImageLayout, vk::ImageLayout> const &depthLayout,
       vk::SampleCountFlagBits sampleCount) const override;
 
@@ -32,8 +29,7 @@ public:
   std::optional<std::string> getDepthRenderTargetName() const override;
   std::vector<UniformBindingType> getUniformBindingTypes() const override;
 
-  inline std::vector<DescriptorSetDescription>
-  getDescriptorSetDescriptions() const override {
+  inline std::vector<DescriptorSetDescription> getDescriptorSetDescriptions() const override {
     return mDescriptorSetDescriptions;
   };
 
@@ -43,42 +39,34 @@ private:
 
 protected:
   // primitiveType 0 for point, 1 for line
-  vk::UniquePipeline
-  createPipelineHelper(vk::Device device, vk::PipelineLayout layout,
-                       vk::RenderPass renderPass, vk::CullModeFlags cullMode,
-                       vk::FrontFace frontFace, bool alphaBlend,
-                       vk::SampleCountFlagBits sampleCount,
-                       std::map<std::string, SpecializationConstantValue> const
-                           &specializationConstantInfo,
-                       int primitiveType, float primitiveSize) const;
+  vk::UniquePipeline createPipelineHelper(
+      vk::Device device, vk::PipelineLayout layout, vk::RenderPass renderPass,
+      vk::CullModeFlags cullMode, vk::FrontFace frontFace, bool alphaBlend,
+      vk::SampleCountFlagBits sampleCount,
+      std::map<std::string, SpecializationConstantValue> const &specializationConstantInfo,
+      int primitiveType) const;
 };
 
 class LinePassParser : public PrimitivePassParser {
 
-  float mLineWidth{1.f};
-
 public:
-  inline void setLineWidth(float w) { mLineWidth = w; }
-
-  vk::UniquePipeline
-  createPipeline(vk::Device device, vk::PipelineLayout layout,
-                 vk::RenderPass renderPass, vk::CullModeFlags cullMode,
-                 vk::FrontFace frontFace, bool alphaBlend,
-                 vk::SampleCountFlagBits sampleCount,
-                 std::map<std::string, SpecializationConstantValue> const
-                     &specializationConstantInfo) const override;
+  vk::UniquePipeline createPipeline(vk::Device device, vk::PipelineLayout layout,
+                                    vk::RenderPass renderPass, vk::CullModeFlags cullMode,
+                                    vk::FrontFace frontFace, bool alphaBlend,
+                                    vk::SampleCountFlagBits sampleCount,
+                                    std::map<std::string, SpecializationConstantValue> const
+                                        &specializationConstantInfo) const override;
 };
 
 class PointPassParser : public PrimitivePassParser {
 
 public:
-  vk::UniquePipeline
-  createPipeline(vk::Device device, vk::PipelineLayout layout,
-                 vk::RenderPass renderPass, vk::CullModeFlags cullMode,
-                 vk::FrontFace frontFace, bool alphaBlend,
-                 vk::SampleCountFlagBits sampleCount,
-                 std::map<std::string, SpecializationConstantValue> const
-                     &specializationConstantInfo) const override;
+  vk::UniquePipeline createPipeline(vk::Device device, vk::PipelineLayout layout,
+                                    vk::RenderPass renderPass, vk::CullModeFlags cullMode,
+                                    vk::FrontFace frontFace, bool alphaBlend,
+                                    vk::SampleCountFlagBits sampleCount,
+                                    std::map<std::string, SpecializationConstantValue> const
+                                        &specializationConstantInfo) const override;
 };
 
 } // namespace shader

@@ -143,7 +143,6 @@ ShaderPack::ShaderPack(std::string const &dirname) {
     if (check_file(vsFile) && check_file(fsFile)) {
       linePass = std::make_shared<LinePassParser>();
       linePass->setName("Line");
-      linePass->setLineWidth(2.f);
       mNonShadowPasses.push_back(linePass);
       mLinePasses.push_back(linePass);
       linePass->setIndex(mNonShadowPasses.size() - 1);

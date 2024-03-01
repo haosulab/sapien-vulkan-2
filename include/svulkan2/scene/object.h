@@ -99,6 +99,7 @@ class LineObject : public Node {
   std::shared_ptr<resource::SVLineSet> mLineSet;
   glm::uvec4 mSegmentation{0};
   float mTransparency{};
+  float mLineWidth{1.f};
 
   // used to index the transform array
   int mGpuIndex{-1};
@@ -108,6 +109,9 @@ public:
 
   LineObject(std::shared_ptr<resource::SVLineSet> lineSet, std::string const &name = "");
   inline std::shared_ptr<resource::SVLineSet> getLineSet() const { return mLineSet; }
+
+  void setLineWidth(float w) { mLineWidth = w; }
+  float getLineWidth() const { return mLineWidth; }
 
   // TODO: remove this function
   void uploadToDevice(core::Buffer &objectBuffer, uint32_t offset,
