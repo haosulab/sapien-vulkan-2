@@ -38,6 +38,9 @@ public:
   std::vector<PhysicalDeviceInfo> summarizePhysicalDevices() const;
   std::shared_ptr<PhysicalDevice> createPhysicalDevice(std::string const &hint);
 
+  // HACK: shutdown VR should be called before device shutdown
+  void shutdownVR() const;
+
   Instance(Instance const &other) = delete;
   Instance(Instance const &&other) = delete;
   Instance &operator=(Instance const &other) = delete;
@@ -48,6 +51,7 @@ private:
   std::unique_ptr<vk::DynamicLoader> mDynamicLoader;
   vk::UniqueInstance mInstance{};
   bool mGLFWSupported{};
+  bool mVRSupported{};
   std::vector<PhysicalDeviceInfo> mPhysicalDeviceInfo;
 };
 

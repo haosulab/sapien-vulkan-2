@@ -4,6 +4,7 @@
 #include "svulkan2/core/physical_device.h"
 #include <GLFW/glfw3.h>
 #include <filesystem>
+#include <openvr/openvr.h>
 
 namespace svulkan2 {
 namespace core {
@@ -31,6 +32,42 @@ std::shared_ptr<Instance> Instance::Get(uint32_t appVersion, uint32_t engineVers
     logger::error("Failed to create renderer with error: {}", e.what());
   }
   return nullptr;
+}
+
+// https://github.com/ValveSoftware/openvr/blob/f51d87ecf8f7903e859b0aa4d617ff1e5f33db5a/samples/hellovr_vulkan/hellovr_vulkan_main.cpp#L673
+static bool GetVRInstanceExtensionsRequired(std::vector<std::string> &outInstanceExtensionList) {
+  if (!vr::VRCompositor()) {
+    return false;
+  }
+
+  outInstanceExtensionList.clear();
+  uint32_t nBufferSize = vr::VRCompositor()->GetVulkanInstanceExtensionsRequired(nullptr, 0);
+  if (nBufferSize > 0) {
+    // Allocate memory for the space separated list and query for it
+    char *pExtensionStr = new char[nBufferSize];
+    pExtensionStr[0] = 0;
+    vr::VRCompositor()->GetVulkanInstanceExtensionsRequired(pExtensionStr, nBufferSize);
+
+    // Break up the space separated list into entries on the CUtlStringList
+    std::string curExtStr;
+    uint32_t nIndex = 0;
+    while (pExtensionStr[nIndex] != 0 && (nIndex < nBufferSize)) {
+      if (pExtensionStr[nIndex] == ' ') {
+        outInstanceExtensionList.push_back(curExtStr);
+        curExtStr.clear();
+      } else {
+        curExtStr += pExtensionStr[nIndex];
+      }
+      nIndex++;
+    }
+    if (curExtStr.size() > 0) {
+      outInstanceExtensionList.push_back(curExtStr);
+    }
+
+    delete[] pExtensionStr;
+  }
+
+  return true;
 }
 
 Instance::Instance(uint32_t appVersion, uint32_t engineVersion, uint32_t apiVersion)
@@ -138,6 +175,30 @@ Instance::Instance(uint32_t appVersion, uint32_t engineVersion, uint32_t apiVers
       mGLFWSupported = true;
       for (uint32_t i = 0; i < glfwExtensionCount; ++i) {
         extensions.push_back(glfwExtensions[i]);
+      }
+    }
+  }
+
+  // vr
+  if (vr::VR_IsHmdPresent()) {
+    vr::EVRInitError err = vr::VRInitError_None;
+    vr::VR_Init(&err, vr::VRApplication_Scene);
+    if (err == vr::VRInitError_None) {
+      std::vector<char const *> vrExtensions;
+      std::vector<std::string> names;
+      if (GetVRInstanceExtensionsRequired(names)) {
+        for (std::string const &name : names) {
+          for (auto const &prop : availableExtensions) {
+            if (strcmp(prop.extensionName, name.c_str()) == 0) {
+              vrExtensions.push_back(prop.extensionName);
+              continue;
+            }
+          }
+        }
+      }
+      if (vrExtensions.size() == names.size()) {
+        mVRSupported = true;
+        extensions.insert(extensions.end(), vrExtensions.begin(), vrExtensions.end());
       }
     }
   }
@@ -463,7 +524,16 @@ std::shared_ptr<PhysicalDevice> Instance::createPhysicalDevice(std::string const
                                           mPhysicalDeviceInfo.at(pickedDeviceIdx));
 }
 
-Instance::~Instance() { glfwTerminate(); }
+void Instance::shutdownVR() const {
+  if (mVRSupported) {
+    logger::info("VR shutting down");
+    vr::VR_Shutdown();
+  }
+}
+
+Instance::~Instance() {
+  glfwTerminate();
+}
 
 } // namespace core
 } // namespace svulkan2

@@ -7,9 +7,11 @@
 #include "svulkan2/shader/compute.h"
 #include "svulkan2/shader/shader.h"
 #include "svulkan2/ui/ui.h"
-#include <GLFW/glfw3.h>
 #include <chrono>
+#include <csignal>
 #include <iostream>
+
+#include "svulkan2/renderer/vr.h"
 
 // clang-format off
 #include <imgui.h>
@@ -22,17 +24,9 @@
 
 using namespace svulkan2;
 
-static bool gSwapchainRebuild = true;
 static bool gClosed = false;
 
 static fs::path assetDir;
-
-static void glfw_resize_callback(GLFWwindow *, int w, int h) { gSwapchainRebuild = true; }
-
-static void window_close_callback(GLFWwindow *window) {
-  gClosed = true;
-  glfwSetWindowShouldClose(window, GLFW_FALSE);
-}
 
 static void setupSphereArray(svulkan2::scene::Scene &scene) {
   for (uint32_t i = 0; i < 3; ++i) {
@@ -73,6 +67,12 @@ static void setupMonkey(svulkan2::scene::Scene &scene, resource::SVResourceManag
   o.setTransform({.position = {0.5, 0.075, 0}, .scale = {0.05, 0.05, 0.05}});
 }
 
+bool exited = false;
+void handleSIGINT(int signal) {
+  exited = true;
+  std::cout << "SIGINT received. Exiting gracefully." << std::endl;
+}
+
 int main() {
   assetDir = fs::path(__FILE__).parent_path() / "assets";
 
@@ -86,13 +86,18 @@ int main() {
   config->msaa = vk::SampleCountFlagBits::e1;
   config->colorFormat4 = vk::Format::eR32G32B32A32Sfloat;
 
-  auto renderer = std::make_shared<renderer::Renderer>(config);
-  // auto renderer = std::make_shared<renderer::RTRenderer>("../shader/rt");
+  auto rendererLeft = std::make_shared<renderer::Renderer>(config);
+  auto rendererRight = std::make_shared<renderer::Renderer>(config);
 
-  // renderer->enableDenoiser(renderer::RTRenderer::DenoiserType::eOIDN, "HdrColor", "Albedo",
-  //                          "Normal");
+  auto vr = renderer::VRDisplay();
+  auto [width, height] = vr.getScreenSize();
 
   auto scene = std::make_shared<svulkan2::scene::Scene>();
+
+  rendererLeft->resize(width, height);
+  rendererRight->resize(width, height);
+  rendererLeft->setScene(scene);
+  rendererRight->setScene(scene);
 
   setupGround(*scene);
   setupSphereArray(*scene);
@@ -125,95 +130,49 @@ int main() {
       assetDir / "flashlight.jpg", 1, vk::Filter::eLinear, vk::Filter::eLinear,
       vk::SamplerAddressMode::eClampToBorder, vk::SamplerAddressMode::eClampToBorder, true));
 
+  auto leftCamPose = vr.getEyePoseLeft();
+  auto rightCamPose = vr.getEyePoseRight();
+
   // camera
-  auto &cameraNode = scene->addCamera();
-  cameraNode.setPerspectiveParameters(0.05, 50, 1.05, 1920, 1080);
-  FPSCameraController controller(cameraNode, {0, 0, -1}, {0, 1, 0});
-  controller.setXYZ(0, 0.3, 1);
+  auto &cameraLeftNode = scene->addCamera();
+  auto &cameraRightNode = scene->addCamera();
+
+  {
+    auto frustumLeft = vr.getCameraFrustumLeft();
+    float f = math::clip2focal(frustumLeft.left, frustumLeft.right, width);
+    float cx = math::clip2principal(frustumLeft.left, frustumLeft.right, width);
+    float cy = math::clip2principal(-frustumLeft.top, -frustumLeft.bottom, height);
+    cameraLeftNode.setPerspectiveParameters(0.05, 50, f, f, cx, cy, width, height, 0.f);
+  }
+
+  {
+    auto frustumRight = vr.getCameraFrustumRight();
+    float f = math::clip2focal(frustumRight.left, frustumRight.right, width);
+    float cx = math::clip2principal(frustumRight.left, frustumRight.right, width);
+    float cy = math::clip2principal(-frustumRight.top, -frustumRight.bottom, height);
+    cameraRightNode.setPerspectiveParameters(0.05, 50, f, f, cx, cy, width, height, 0.f);
+  }
 
   auto cubemap = context->getResourceManager()->CreateCubemapFromFile(
       assetDir / "rosendal_mountain_midmorning_4k.exr", 5);
   scene->setEnvironmentMap(cubemap);
 
-  auto window = context->createWindow(1920, 1080);
-
-  window->initImgui();
   context->getDevice().waitIdle();
   vk::UniqueSemaphore sceneRenderSemaphore = context->getDevice().createSemaphoreUnique({});
   vk::UniqueFence sceneRenderFence =
       context->getDevice().createFenceUnique({vk::FenceCreateFlagBits::eSignaled});
 
-  // setup glfw
-  glfwSetFramebufferSizeCallback(window->getGLFWWindow(), glfw_resize_callback);
-  glfwSetWindowCloseCallback(window->getGLFWWindow(), window_close_callback);
-
-  renderer->setScene(scene);
-
   context->getDevice().waitIdle();
-
-  auto gizmo = ui::Widget::Create<ui::Gizmo>()->Matrix(glm::mat4(1));
-  auto uiWindow =
-      ui::Widget::Create<ui::Window>()->Size({400, 400})->Label("main window")->append(gizmo);
-
   scene->updateModelMatrices();
 
+  auto pool = context->createCommandPool();
+  auto cb = pool->allocateCommandBuffer();
+
+  std::signal(SIGINT, handleSIGINT);
+
   int count = 0;
-  while (!window->isClosed()) {
+  while (!exited) {
     count += 1;
-
-    if (gSwapchainRebuild) {
-      context->getDevice().waitIdle();
-      int width, height;
-      glfwGetFramebufferSize(window->getGLFWWindow(), &width, &height);
-      if (!window->updateSize(width, height)) {
-        continue;
-      }
-      gSwapchainRebuild = false;
-      renderer->resize(width, height);
-      context->getDevice().waitIdle();
-      cameraNode.setWidth(window->getWidth());
-      cameraNode.setHeight(window->getHeight());
-      continue;
-    }
-
-    try {
-      window->newFrame();
-    } catch (vk::OutOfDateKHRError &e) {
-      gSwapchainRebuild = true;
-      context->getDevice().waitIdle();
-      continue;
-    }
-
-    ImGui::NewFrame();
-    ImGuizmo::BeginFrame();
-
-    ImGuiWindowFlags flags = ImGuiWindowFlags_MenuBar;
-    flags |= ImGuiWindowFlags_NoDocking;
-    ImGuiViewport *viewport = ImGui::GetMainViewport();
-    ImGui::SetNextWindowPos(viewport->Pos);
-    ImGui::SetNextWindowSize(viewport->Size);
-    ImGui::SetNextWindowViewport(viewport->ID);
-    ImGui::SetNextWindowBgAlpha(0.f);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-    flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
-             ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
-    flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
-
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-    ImGui::Begin("DockSpace Demo", 0, flags);
-    ImGui::PopStyleVar();
-
-    ImGui::DockSpace(ImGui::GetID("Dockspace"), ImVec2(0, 0),
-                     ImGuiDockNodeFlags_PassthruCentralNode |
-                         ImGuiDockNodeFlags_NoDockingInCentralNode);
-    ImGui::End();
-    ImGui::PopStyleVar();
-
-    ImGui::ShowDemoWindow();
-
-    uiWindow->build();
-
-    ImGui::Render();
 
     // wait for previous frame to finish
     {
@@ -224,71 +183,55 @@ int main() {
       context->getDevice().resetFences(sceneRenderFence.get());
     }
 
-    {
-      renderer->render(cameraNode, std::vector<vk::Semaphore>{}, {}, {}, {});
-      auto imageAcquiredSemaphore = window->getImageAcquiredSemaphore();
-      renderer->display("Color", window->getBackbuffer(), window->getBackBufferFormat(),
-                        window->getWidth(), window->getHeight(), {imageAcquiredSemaphore},
-                        {vk::PipelineStageFlagBits::eColorAttachmentOutput},
-                        {sceneRenderSemaphore.get()}, {});
-    }
+    vr.updatePoses();
 
-    try {
-      window->presentFrameWithImgui(sceneRenderSemaphore.get(), sceneRenderFence.get());
-    } catch (vk::OutOfDateKHRError &e) {
-      gSwapchainRebuild = true;
+    glm::vec3 scale;
+    glm::quat quat;
+    glm::vec3 pos;
+    glm::vec3 skew;
+    glm::vec4 pers;
+
+    glm::decompose(vr.getHMDPose(), scale, quat, pos, skew, pers);
+    printf("hmd pos: %f %f %f\n", pos.x, pos.y, pos.z);
+    printf("hmd rot: %f %f %f %f\n", quat.w, quat.x, quat.y, quat.z);
+
+    glm::decompose(vr.getHMDPose() * leftCamPose, scale, quat, pos, skew, pers);
+    cameraLeftNode.setTransform({.position = pos, .rotation = quat});
+
+    glm::decompose(vr.getHMDPose() * rightCamPose, scale, quat, pos, skew, pers);
+    cameraRightNode.setTransform({.position = pos, .rotation = quat});
+
+    scene->updateModelMatrices();
+    {
+      rendererLeft->render(cameraLeftNode, std::vector<vk::Semaphore>{}, {}, {}, {});
+      rendererRight->render(cameraRightNode, std::vector<vk::Semaphore>{}, {}, {}, {});
+
       context->getDevice().waitIdle();
-    }
 
-    // context->getDevice().waitIdle();
+      auto &imageLeft = rendererLeft->getRenderImage("Color");
+      auto &imageRight = rendererRight->getRenderImage("Color");
 
-    if (gClosed) {
-      window->close();
-      break;
-    }
+      cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+      imageLeft.transitionLayout(
+          cb.get(), rendererLeft->getRenderTargetImageLayout("Color"),
+          vk::ImageLayout::eTransferSrcOptimal, vk::AccessFlagBits::eMemoryWrite,
+          vk::AccessFlagBits::eTransferRead, vk::PipelineStageFlagBits::eAllGraphics,
+          vk::PipelineStageFlagBits::eTransfer);
+      imageRight.transitionLayout(
+          cb.get(), rendererRight->getRenderTargetImageLayout("Color"),
+          vk::ImageLayout::eTransferSrcOptimal, vk::AccessFlagBits::eMemoryWrite,
+          vk::AccessFlagBits::eTransferRead, vk::PipelineStageFlagBits::eAllGraphics,
+          vk::PipelineStageFlagBits::eTransfer);
+      cb->end();
 
-    bool update = false;
+      context->getQueue().submit(cb.get(), sceneRenderFence.get());
 
-    // user input
-    float r = 1e-2;
-    if (window->isMouseKeyDown(1)) {
-      auto [x, y] = window->getMouseDelta();
-      controller.rotate(0, -r * y, -r * x);
-      update = true;
-    }
-    if (window->isKeyDown("w")) {
-      controller.move(r, 0, 0);
-      update = true;
-    }
-    if (window->isKeyDown("s")) {
-      controller.move(-r, 0, 0);
-      update = true;
-    }
-    if (window->isKeyDown("a")) {
-      controller.move(0, r, 0);
-      update = true;
-    }
-    if (window->isKeyDown("d")) {
-      controller.move(0, -r, 0);
-      update = true;
-    }
-
-    if (update) {
-      scene->updateModelMatrices();
-    }
-
-    // update gizmo
-    {
-      auto model = cameraNode.computeWorldModelMatrix();
-      auto view = glm::affineInverse(model);
-      auto proj = cameraNode.getProjectionMatrix();
-      proj[1][1] *= -1;
-      proj[2][1] *= -1;
-      gizmo->setCameraParameters(view, proj);
+      vr.renderFrame(imageLeft, imageRight);
     }
   }
 
   context->getDevice().waitIdle();
+  vr::VR_Shutdown();
 
   return 0;
 }

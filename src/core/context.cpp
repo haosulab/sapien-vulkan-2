@@ -74,6 +74,7 @@ Context::Context(uint32_t maxNumMaterials, uint32_t maxNumTextures, uint32_t def
 Context::~Context() {
   GLSLCompiler::FinalizeProcess();
 
+  mInstance->shutdownVR();
   if (mDevice) {
     getDevice().waitIdle();
   }

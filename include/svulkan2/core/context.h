@@ -101,8 +101,6 @@ private:
 
   std::mutex mSamplerLock{};
   std::map<vk::SamplerCreateInfo, vk::UniqueSampler> mSamplerRegistry;
-
-  // std::vector<PhysicalDeviceInfo> summarizeDeviceInfo(VkSurfaceKHR tmpSurface = nullptr);
 };
 
 } // namespace core

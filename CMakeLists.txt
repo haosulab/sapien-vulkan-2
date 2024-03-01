@@ -31,6 +31,7 @@ include(spirv-cross)
 include(imgui)
 include(easy_profiler)
 include(openexr)
+include(openvr)
 
 file(GLOB_RECURSE SVULKAN2_SRC "src/*.cpp")
 
@@ -57,7 +58,7 @@ target_include_directories(svulkan2 PRIVATE
 target_link_libraries(svulkan2 PUBLIC Vulkan::Headers glm)
 
 find_package(Threads REQUIRED)
-target_link_libraries(svulkan2 PRIVATE assimp::assimp glslang SPIRV spirv-cross-cpp glfw spdlog::spdlog easy_profiler ktx imgui ${CMAKE_DL_LIBS} Threads::Threads OpenEXR)
+target_link_libraries(svulkan2 PRIVATE assimp::assimp glslang SPIRV spirv-cross-cpp glfw spdlog::spdlog easy_profiler ktx imgui ${CMAKE_DL_LIBS} Threads::Threads OpenEXR openvr_api)
 
 if (${SVULKAN2_PROFILE})
     target_compile_definitions(svulkan2 PUBLIC SVULKAN2_PROFILE)
@@ -108,6 +109,12 @@ add_executable(svulkan2_main app/main.cpp)
 target_link_libraries(svulkan2_main svulkan2 glfw imgui)
 if (UNIX)
     target_link_libraries(svulkan2_main stdc++fs)
+endif()
+
+add_executable(svulkan2_vr app/vr.cpp)
+target_link_libraries(svulkan2_vr svulkan2 glfw imgui)
+if (UNIX)
+    target_link_libraries(svulkan2_vr stdc++fs)
 endif()
 
 add_executable(gencube app/gencube.cpp)
