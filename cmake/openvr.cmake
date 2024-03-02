@@ -7,8 +7,8 @@ FetchContent_Declare(
     GIT_PROGRESS TRUE
 )
 
-FetchContent_MakeAvailable(openvr)
-# if(NOT openvr_POPULATED)
-#   FetchContent_Populate(openvr)
-#   add_subdirectory(${openvr_SOURCE_DIR} ${openvr_BINARY_DIR} EXCLUDE_FROM_ALL)
-# endif()
+# FetchContent_MakeAvailable(openvr)
+if(NOT openvr_POPULATED)
+  FetchContent_Populate(openvr)
+  add_subdirectory(${openvr_SOURCE_DIR} ${openvr_BINARY_DIR} EXCLUDE_FROM_ALL)
+endif()

@@ -4,7 +4,7 @@
 #include "svulkan2/core/instance.h"
 #include "svulkan2/core/physical_device.h"
 #include "svulkan2/core/queue.h"
-#include <openvr/openvr.h>
+#include <openvr.h>
 
 namespace svulkan2 {
 namespace core {

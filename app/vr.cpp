@@ -231,7 +231,5 @@ int main() {
   }
 
   context->getDevice().waitIdle();
-  vr::VR_Shutdown();
-
   return 0;
 }

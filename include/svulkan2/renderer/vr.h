@@ -1,7 +1,6 @@
 #pragma once
 #include "svulkan2/common/glm.h"
 #include <memory>
-#include <openvr/openvr.h>
 #include <vector>
 #include <vulkan/vulkan.hpp>
 
@@ -30,13 +29,13 @@ public:
   Frustum getCameraFrustumLeft() const;
   Frustum getCameraFrustumRight() const;
 
-  std::vector<vr::TrackedDeviceIndex_t> getControllers();
-  glm::mat4 getControllerPose(vr::TrackedDeviceIndex_t id) const;
+  std::vector<uint32_t> getControllers();
+  glm::mat4 getControllerPose(uint32_t id) const;
   glm::mat4 getHMDPose() const;
 
-  uint64_t getControllerButtonPressed(vr::TrackedDeviceIndex_t id);
-  uint64_t getControllerButtonTouched(vr::TrackedDeviceIndex_t id);
-  std::array<float, 2> getControllerAxis(vr::TrackedDeviceIndex_t id, uint32_t axis);
+  uint64_t getControllerButtonPressed(uint32_t id);
+  uint64_t getControllerButtonTouched(uint32_t id);
+  std::array<float, 2> getControllerAxis(uint32_t id, uint32_t axis);
 
   void handleInput();
   void updatePoses();
@@ -46,11 +45,6 @@ public:
 
 private:
   std::shared_ptr<core::Context> mContext;
-  vr::IVRSystem *mSystem;
-
-  std::array<vr::TrackedDevicePose_t, vr::k_unMaxTrackedDeviceCount> mTrackedDevicePose{};
-  std::array<glm::mat4, vr::k_unMaxTrackedDeviceCount> mDevicePoses{};
-  std::array<vr::VRControllerState_t, vr::k_unMaxTrackedDeviceCount> mDeviceState{};
 };
 
 } // namespace renderer

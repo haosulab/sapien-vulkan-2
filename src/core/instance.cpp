@@ -4,7 +4,7 @@
 #include "svulkan2/core/physical_device.h"
 #include <GLFW/glfw3.h>
 #include <filesystem>
-#include <openvr/openvr.h>
+#include <openvr.h>
 
 namespace svulkan2 {
 namespace core {

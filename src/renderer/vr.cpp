@@ -1,12 +1,22 @@
 #include "svulkan2/renderer/vr.h"
 #include "svulkan2/core/context.h"
+#include <openvr.h>
 
 namespace svulkan2 {
 namespace renderer {
 
-VRDisplay::VRDisplay() : mSystem(vr::VRSystem()) {
+static vr::IVRSystem *gSystem;
+static std::array<vr::TrackedDevicePose_t, vr::k_unMaxTrackedDeviceCount> gTrackedDevicePose{};
+static std::array<glm::mat4, vr::k_unMaxTrackedDeviceCount> gDevicePoses{};
+static std::array<vr::VRControllerState_t, vr::k_unMaxTrackedDeviceCount> gDeviceState{};
+
+VRDisplay::VRDisplay() {
+  if (!gSystem) {
+    gSystem = vr::VRSystem();
+  }
+
   mContext = core::Context::Get();
-  if (!mSystem) {
+  if (!gSystem) {
     throw std::runtime_error("VR is not supported");
   }
   initDevices();
@@ -15,7 +25,7 @@ VRDisplay::VRDisplay() : mSystem(vr::VRSystem()) {
 void VRDisplay::initDevices() {
   vr::TrackedDeviceIndex_t hmd = vr::k_unTrackedDeviceIndexInvalid;
   for (vr::TrackedDeviceIndex_t di = 0; di < vr::k_unMaxTrackedDeviceCount; ++di) {
-    switch (mSystem->GetTrackedDeviceClass(di)) {
+    switch (gSystem->GetTrackedDeviceClass(di)) {
     case vr::TrackedDeviceClass::TrackedDeviceClass_HMD:
       hmd = di;
       break;
@@ -31,19 +41,19 @@ void VRDisplay::initDevices() {
 std::array<uint32_t, 2> VRDisplay::getScreenSize() const {
   uint32_t width{};
   uint32_t height{};
-  mSystem->GetRecommendedRenderTargetSize(&width, &height);
+  gSystem->GetRecommendedRenderTargetSize(&width, &height);
   return {width, height};
 }
 
 glm::mat4 VRDisplay::getEyePoseLeft() const {
-  vr::HmdMatrix34_t mat = mSystem->GetEyeToHeadTransform(vr::EVREye::Eye_Left);
+  vr::HmdMatrix34_t mat = gSystem->GetEyeToHeadTransform(vr::EVREye::Eye_Left);
   return glm::mat4(mat.m[0][0], mat.m[1][0], mat.m[2][0], 0.f, mat.m[0][1], mat.m[1][1],
                    mat.m[2][1], 0.f, mat.m[0][2], mat.m[1][2], mat.m[2][2], 0.f, mat.m[0][3],
                    mat.m[1][3], mat.m[2][3], 1.f);
 }
 
 glm::mat4 VRDisplay::getEyePoseRight() const {
-  vr::HmdMatrix34_t mat = mSystem->GetEyeToHeadTransform(vr::EVREye::Eye_Right);
+  vr::HmdMatrix34_t mat = gSystem->GetEyeToHeadTransform(vr::EVREye::Eye_Right);
   return glm::mat4(mat.m[0][0], mat.m[1][0], mat.m[2][0], 0.f, mat.m[0][1], mat.m[1][1],
                    mat.m[2][1], 0.f, mat.m[0][2], mat.m[1][2], mat.m[2][2], 0.f, mat.m[0][3],
                    mat.m[1][3], mat.m[2][3], 1.f);
@@ -55,14 +65,14 @@ VRDisplay::Frustum VRDisplay::getCameraFrustumLeft() const {
   // GetProjectionRaw should return left, right, top, bottom
   // But in reality it returns left, right, bottom, top
   // see https://github.com/ValveSoftware/openvr/issues/816
-  mSystem->GetProjectionRaw(vr::EVREye::Eye_Left, &frustum.left, &frustum.right, &frustum.bottom,
+  gSystem->GetProjectionRaw(vr::EVREye::Eye_Left, &frustum.left, &frustum.right, &frustum.bottom,
                             &frustum.top);
   return frustum;
 }
 
 VRDisplay::Frustum VRDisplay::getCameraFrustumRight() const {
   VRDisplay::Frustum frustum;
-  mSystem->GetProjectionRaw(vr::EVREye::Eye_Right, &frustum.left, &frustum.right, &frustum.bottom,
+  gSystem->GetProjectionRaw(vr::EVREye::Eye_Right, &frustum.left, &frustum.right, &frustum.bottom,
                             &frustum.top);
   return frustum;
 }
@@ -70,7 +80,7 @@ VRDisplay::Frustum VRDisplay::getCameraFrustumRight() const {
 std::vector<vr::TrackedDeviceIndex_t> VRDisplay::getControllers() {
   std::vector<vr::TrackedDeviceIndex_t> controllers;
   for (vr::TrackedDeviceIndex_t di = 0; di < vr::k_unMaxTrackedDeviceCount; ++di) {
-    switch (mSystem->GetTrackedDeviceClass(di)) {
+    switch (gSystem->GetTrackedDeviceClass(di)) {
     case vr::TrackedDeviceClass::TrackedDeviceClass_Controller:
       controllers.push_back(di);
       break;
@@ -82,10 +92,10 @@ std::vector<vr::TrackedDeviceIndex_t> VRDisplay::getControllers() {
 }
 
 glm::mat4 VRDisplay::getControllerPose(vr::TrackedDeviceIndex_t id) const {
-  return mDevicePoses.at(id);
+  return gDevicePoses.at(id);
 }
 
-glm::mat4 VRDisplay::getHMDPose() const { return mDevicePoses.at(0); }
+glm::mat4 VRDisplay::getHMDPose() const { return gDevicePoses.at(0); }
 
 static glm::mat4 VRPoseToMat4(vr::HmdMatrix34_t const &pose) {
   // clang-format off
@@ -101,33 +111,33 @@ void VRDisplay::handleInput() {
   for (vr::TrackedDeviceIndex_t unDevice = 0; unDevice < vr::k_unMaxTrackedDeviceCount;
        unDevice++) {
     vr::VRControllerState_t state;
-    if (mSystem->GetControllerState(unDevice, &state, sizeof(state))) {
-      mDeviceState[unDevice] = state;
+    if (gSystem->GetControllerState(unDevice, &state, sizeof(state))) {
+      gDeviceState[unDevice] = state;
     }
   }
 }
 
 uint64_t VRDisplay::getControllerButtonPressed(vr::TrackedDeviceIndex_t id) {
-  return mDeviceState.at(id).ulButtonPressed;
+  return gDeviceState.at(id).ulButtonPressed;
 }
 
 uint64_t VRDisplay::getControllerButtonTouched(vr::TrackedDeviceIndex_t id) {
-  return mDeviceState.at(id).ulButtonTouched;
+  return gDeviceState.at(id).ulButtonTouched;
 }
 
 std::array<float, 2> VRDisplay::getControllerAxis(vr::TrackedDeviceIndex_t id, uint32_t axis) {
   if (axis >= vr::k_unControllerStateAxisCount) {
     throw std::runtime_error("requested controller axis out of range");
   }
-  return {mDeviceState.at(id).rAxis[axis].x, mDeviceState.at(id).rAxis[axis].y};
+  return {gDeviceState.at(id).rAxis[axis].x, gDeviceState.at(id).rAxis[axis].y};
 }
 
 void VRDisplay::updatePoses() {
-  vr::VRCompositor()->WaitGetPoses(mTrackedDevicePose.data(), vr::k_unMaxTrackedDeviceCount, NULL,
+  vr::VRCompositor()->WaitGetPoses(gTrackedDevicePose.data(), vr::k_unMaxTrackedDeviceCount, NULL,
                                    0);
   for (int nDevice = 0; nDevice < vr::k_unMaxTrackedDeviceCount; ++nDevice) {
-    if (mTrackedDevicePose[nDevice].bPoseIsValid) {
-      mDevicePoses[nDevice] = VRPoseToMat4(mTrackedDevicePose[nDevice].mDeviceToAbsoluteTracking);
+    if (gTrackedDevicePose[nDevice].bPoseIsValid) {
+      gDevicePoses[nDevice] = VRPoseToMat4(gTrackedDevicePose[nDevice].mDeviceToAbsoluteTracking);
     }
   }
 }
