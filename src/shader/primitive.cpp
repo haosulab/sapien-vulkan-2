@@ -287,13 +287,14 @@ vk::UniquePipeline PrimitivePassParser::createPipelineHelper(
       pipelineColorBlendAttachmentStates.data(), {{1.0f, 1.0f, 1.0f, 1.0f}});
 
   // dynamic
-  std::array<vk::DynamicState, 3> dynamicStates;
+  std::vector<vk::DynamicState> dynamicStates;
 
   if (primitiveType == 0) {
-    dynamicStates = {vk::DynamicState::eViewport, vk::DynamicState::eScissor};
+    dynamicStates =
+        std::vector<vk::DynamicState>{vk::DynamicState::eViewport, vk::DynamicState::eScissor};
   } else {
-    dynamicStates = {vk::DynamicState::eViewport, vk::DynamicState::eScissor,
-                     vk::DynamicState::eLineWidth};
+    dynamicStates = std::vector<vk::DynamicState>{
+        vk::DynamicState::eViewport, vk::DynamicState::eScissor, vk::DynamicState::eLineWidth};
   }
 
   vk::PipelineDynamicStateCreateInfo pipelineDynamicStateCreateInfo(
