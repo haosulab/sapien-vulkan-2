@@ -192,6 +192,10 @@ void Buffer::flush() {
 }
 
 void Buffer::upload(void const *data, size_t size, size_t offset) {
+  if (size == 0) {
+    return;
+  }
+
   if (offset + size > mSize) {
     throw std::runtime_error("failed to upload buffer: upload size exceeds buffer size");
   }

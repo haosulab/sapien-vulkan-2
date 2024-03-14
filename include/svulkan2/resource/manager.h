@@ -100,7 +100,7 @@ public:
     return mVertexLayout;
   }
 
-  void setLineVertexLayout(std::shared_ptr<InputDataLayout> layout);
+  void setPrimitiveVertexLayout(std::shared_ptr<InputDataLayout> layout);
   inline std::shared_ptr<InputDataLayout> getLineVertexLayout() const {
     if (!mLineVertexLayout) {
       throw std::runtime_error(

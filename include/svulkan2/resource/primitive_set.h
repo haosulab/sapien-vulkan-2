@@ -1,6 +1,7 @@
 #pragma once
 #include "svulkan2/common/layout.h"
 #include "svulkan2/common/vk.h"
+#include "svulkan2/core/as.h"
 #include "svulkan2/core/buffer.h"
 #include <mutex>
 
@@ -23,7 +24,7 @@ public:
   void uploadToDevice();
   void removeFromDevice();
 
-private:
+protected:
   uint32_t mVertexCapacity;
 
   std::unordered_map<std::string, std::vector<float>> mAttributes;
@@ -37,8 +38,22 @@ private:
   std::mutex mUploadingMutex;
 };
 
-typedef SVPrimitiveSet SVLineSet;
-typedef SVPrimitiveSet SVPointSet;
+class SVLineSet : public SVPrimitiveSet {
+public:
+  using SVPrimitiveSet::SVPrimitiveSet;
+};
+class SVPointSet : public SVPrimitiveSet {
+public:
+  using SVPrimitiveSet::SVPrimitiveSet;
+  void buildBLAS(bool update);
+  core::BLAS *getBLAS() { return mBLAS.get(); }
+  core::Buffer *getAabbBuffer() const { return mAabbBuffer.get(); }
+  void recordUpdateBLAS(vk::CommandBuffer commandBuffer);
+
+private:
+  std::unique_ptr<core::BLAS> mBLAS;
+  std::unique_ptr<core::Buffer> mAabbBuffer;
+};
 
 } // namespace resource
 } // namespace svulkan2

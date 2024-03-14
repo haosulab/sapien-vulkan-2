@@ -763,13 +763,18 @@ void Scene::ensureBLAS() {
       obj->getModel()->buildBLAS(true);
     }
   }
+  for (auto &obj : mPointObjects) {
+    if (!obj->getPointSet()->getBLAS()) {
+      obj->getPointSet()->buildBLAS(true);
+    }
+  }
 }
 
 void Scene::buildTLAS() {
   logger::info("building TLAS");
   auto context = core::Context::Get();
   std::vector<vk::AccelerationStructureInstanceKHR> instances;
-  uint32_t globalGeomIdx{0};
+  uint32_t instanceIndex{0};
 
   for (auto obj : getObjects()) {
     glm::mat4 modelTranspose =
@@ -779,11 +784,23 @@ void Scene::buildTLAS() {
     std::memcpy(&mat.matrix[0][0], &modelTranspose, sizeof(mat));
 
     vk::AccelerationStructureInstanceKHR inst(
-        mat, globalGeomIdx, 0xff, 0, vk::GeometryInstanceFlagBitsKHR::eTriangleFacingCullDisable,
+        mat, instanceIndex, 0xff, 0, vk::GeometryInstanceFlagBitsKHR::eTriangleFacingCullDisable,
         obj->getModel()->getBLAS()->getAddress());
 
-    globalGeomIdx += obj->getModel()->getShapes().size();
+    instanceIndex += obj->getModel()->getShapes().size();
 
+    instances.push_back(inst);
+  }
+
+  instanceIndex = 0;
+  for (auto obj : getPointObjects()) {
+    glm::mat4 modelTranspose = glm::transpose(obj->getTransform().worldModelMatrix);
+    vk::TransformMatrixKHR mat;
+    std::memcpy(&mat.matrix[0][0], &modelTranspose, sizeof(mat));
+
+    vk::AccelerationStructureInstanceKHR inst(mat, instanceIndex, 0xff, 1, {},
+                                              obj->getPointSet()->getBLAS()->getAddress());
+    instanceIndex++;
     instances.push_back(inst);
   }
 
@@ -803,9 +820,16 @@ void Scene::updateTLAS() {
     obj->getModel()->recordUpdateBLAS(mASUpdateCommandBuffer.get());
   }
 
-  auto objects = getObjects();
+  // FIXME: update per pointset, not per point cloud
+  for (auto &obj : getPointObjects()) {
+    obj->getPointSet()->recordUpdateBLAS(mASUpdateCommandBuffer.get());
+  }
+
   std::vector<vk::TransformMatrixKHR> transforms;
-  transforms.reserve(objects.size());
+  auto objects = getObjects();
+  auto pointObjects = getPointObjects();
+
+  transforms.reserve(objects.size() + pointObjects.size());
 
   for (auto obj : objects) {
     glm::mat4 modelTranspose = glm::transpose(obj->getTransform().worldModelMatrix);
@@ -813,6 +837,14 @@ void Scene::updateTLAS() {
     std::memcpy(&mat.matrix[0][0], &modelTranspose, sizeof(mat));
     transforms.push_back(mat);
   }
+
+  for (auto obj : pointObjects) {
+    glm::mat4 modelTranspose = glm::transpose(obj->getTransform().worldModelMatrix);
+    vk::TransformMatrixKHR mat;
+    std::memcpy(&mat.matrix[0][0], &modelTranspose, sizeof(mat));
+    transforms.push_back(mat);
+  }
+
   mTLAS->recordUpdate(mASUpdateCommandBuffer.get(), transforms);
   mASUpdateCommandBuffer->end();
   core::Context::Get()->getQueue().submit(mASUpdateCommandBuffer.get(), {});
@@ -940,10 +972,10 @@ void Scene::createRTStorageBuffers(StructDataLayout const &materialBufferLayout,
   }
 
   // build texture index
-  mTextureIndexBuffer = core::Buffer::Create(
-      std::max(size_t(1), textureIndexBuffer.size()),
-      vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
-      VMA_MEMORY_USAGE_GPU_ONLY);
+  mTextureIndexBuffer = core::Buffer::Create(std::max(size_t(1), textureIndexBuffer.size()),
+                                             vk::BufferUsageFlagBits::eStorageBuffer |
+                                                 vk::BufferUsageFlagBits::eTransferDst,
+                                             VMA_MEMORY_USAGE_GPU_ONLY);
   mTextureIndexBuffer->upload(textureIndexBuffer);
 
   mGeometryInstanceBuffer = core::Buffer::Create(
@@ -951,6 +983,31 @@ void Scene::createRTStorageBuffers(StructDataLayout const &materialBufferLayout,
       vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
       VMA_MEMORY_USAGE_GPU_ONLY);
   mGeometryInstanceBuffer->upload(geometryInstanceBuffer);
+
+  // point objects
+  uint32_t pointsetCount{0};
+  auto pointObjects = getPointObjects();
+  std::unordered_map<std::shared_ptr<resource::SVPointSet>, uint32_t> pointset2Id;
+  std::vector<std::shared_ptr<resource::SVPointSet>> pointsets;
+  std::vector<int> pointInstanceBuffer;
+  for (auto &obj : pointObjects) {
+    if (!pointset2Id.contains(obj->getPointSet())) {
+      pointset2Id[obj->getPointSet()] = pointsetCount++;
+      pointsets.push_back(obj->getPointSet());
+    }
+    pointInstanceBuffer.push_back(pointset2Id[obj->getPointSet()]);
+  }
+  mPointInstanceBuffer = core::Buffer::Create(
+      std::max(size_t(1), pointInstanceBuffer.size() * sizeof(int)),
+      vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
+      VMA_MEMORY_USAGE_GPU_ONLY);
+  mPointInstanceBuffer->upload(pointInstanceBuffer);
+
+  // point sets
+  mPointSetBuffers.clear();
+  for (auto s : pointsets) {
+    mPointSetBuffers.push_back(s->getVertexBuffer().getVulkanBuffer());
+  }
 
   // begin lights
   mRTPointLightBufferHost.clear();

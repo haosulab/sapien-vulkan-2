@@ -11,34 +11,47 @@ namespace shader {
 
 class RayTracingStageParser {
 public:
-  std::future<void> loadFileAsync(std::string const &filepath,
-                                  vk::ShaderStageFlagBits stage);
+  std::future<void> loadFileAsync(std::string const &filepath, vk::ShaderStageFlagBits stage);
   void reflectSPV();
-  inline std::unordered_map<uint32_t, DescriptorSetDescription> const &
-  getResources() const {
+  inline std::unordered_map<uint32_t, DescriptorSetDescription> const &getResources() const {
     return mResources;
   }
   inline std::shared_ptr<StructDataLayout> getPushConstantLayout() const {
     return mPushConstantLayout;
   }
   inline std::vector<uint32_t> const &getCode() const { return mSPVCode; }
-
   std::string summary() const;
+
+  void setNmae(std::string const &name) { mName = name; }
+  std::string getName() const { return mName; }
 
 private:
   std::vector<uint32_t> mSPVCode;
   std::unordered_map<uint32_t, DescriptorSetDescription> mResources;
   std::shared_ptr<StructDataLayout> mPushConstantLayout;
+  std::string mName;
 };
 
 class RayTracingShaderPack {
 public:
+  struct HitGroupParser {
+    std::string name;
+    std::unique_ptr<RayTracingStageParser> any;
+    std::unique_ptr<RayTracingStageParser> closest;
+    std::unique_ptr<RayTracingStageParser> intersect;
+  };
+
+  struct MissGroupParser {
+    std::string name;
+    std::unique_ptr<RayTracingStageParser> miss;
+  };
+
   RayTracingShaderPack(std::string const &shaderDir);
 
   std::shared_ptr<InputDataLayout> computeCompatibleInputVertexLayout() const;
+  std::shared_ptr<InputDataLayout> computePrimitiveLayout() const;
 
-  inline std::unordered_map<uint32_t, DescriptorSetDescription> const &
-  getResources() const {
+  inline std::unordered_map<uint32_t, DescriptorSetDescription> const &getResources() const {
     return mResources;
   }
   inline std::shared_ptr<StructDataLayout> getPushConstantLayout() const {
@@ -47,21 +60,24 @@ public:
 
   std::string summary() const;
 
-  inline RayTracingStageParser *getRaygenStageParser() const {
-    return mRaygenStageParser.get();
-  };
-  inline std::vector<std::unique_ptr<RayTracingStageParser>> const &
-  getMissStageParsers() const {
-    return mMissStageParsers;
+  RayTracingStageParser *getRaygenStageParser() const { return mRaygenStageParser.get(); };
+  inline std::vector<MissGroupParser> const &getMissGroupParsers() const {
+    return mMissGroupParsers;
   }
-  inline std::vector<std::unique_ptr<RayTracingStageParser>> const &
-  getAnyHitStageParsers() const {
-    return mAnyHitStageParsers;
-  }
-  inline std::vector<std::unique_ptr<RayTracingStageParser>> const &
-  getClosestHitStageParsers() const {
-    return mClosestHitStageParsers;
-  }
+  inline std::vector<HitGroupParser> const &getHitGroupParsers() const { return mHitGroupParsers; }
+
+  // inline std::vector<std::unique_ptr<RayTracingStageParser>> const &getAnyHitStageParsers()
+  // const {
+  //   return mAnyHitStageParsers;
+  // }
+  // inline std::vector<std::unique_ptr<RayTracingStageParser>> const &
+  // getClosestHitStageParsers() const {
+  //   return mClosestHitStageParsers;
+  // }
+  // inline std::vector<std::unique_ptr<RayTracingStageParser>> const &
+  // getIntersectStageParsers() const {
+  //   return mIntersectStageParsers;
+  // }
   inline std::vector<std::unique_ptr<PostprocessingShaderParser>> const &
   getPostprocessingParsers() const {
     return mPostprocessingParsers;
@@ -77,19 +93,11 @@ public:
   DescriptorSetDescription const &getCameraDescription() const;
 
 private:
-  std::future<void>
-  loadGLSLFilesAsync(std::string const &raygenFile,
-                     std::vector<std::string> const &missFiles,
-                     std::vector<std::string> const &anyhitFiles,
-                     std::vector<std::string> const &closestHitFiles);
-
   std::unique_ptr<RayTracingStageParser> mRaygenStageParser;
-  std::vector<std::unique_ptr<RayTracingStageParser>> mMissStageParsers;
-  std::vector<std::unique_ptr<RayTracingStageParser>> mAnyHitStageParsers;
-  std::vector<std::unique_ptr<RayTracingStageParser>> mClosestHitStageParsers;
+  std::vector<MissGroupParser> mMissGroupParsers;
+  std::vector<HitGroupParser> mHitGroupParsers;
 
-  std::vector<std::unique_ptr<PostprocessingShaderParser>>
-      mPostprocessingParsers;
+  std::vector<std::unique_ptr<PostprocessingShaderParser>> mPostprocessingParsers;
 
   std::unordered_map<uint32_t, DescriptorSetDescription> mResources;
   std::shared_ptr<StructDataLayout> mPushConstantLayout;
@@ -100,6 +108,7 @@ struct RayTracingShaderPackInstanceDesc {
   uint32_t maxMeshes{};
   uint32_t maxMaterials{};
   uint32_t maxTextures{};
+  uint32_t maxPointSets{};
 };
 
 class RayTracingShaderPackInstance {
@@ -113,38 +122,39 @@ public:
   vk::DescriptorSetLayout getSceneSetLayout();
   vk::DescriptorSetLayout getCameraSetLayout();
 
-  inline std::shared_ptr<RayTracingShaderPack> getShaderPack() const {
-    return mShaderPack;
-  }
+  inline std::shared_ptr<RayTracingShaderPack> getShaderPack() const { return mShaderPack; }
 
   vk::StridedDeviceAddressRegionKHR const &getRgenRegion();
   vk::StridedDeviceAddressRegionKHR const &getMissRegion();
   vk::StridedDeviceAddressRegionKHR const &getHitRegion();
   vk::StridedDeviceAddressRegionKHR const &getCallRegion();
 
-  inline std::vector<vk::UniqueDescriptorSetLayout> const &
-  getPostprocessingSetLayouts() const {
+  inline std::vector<vk::UniqueDescriptorSetLayout> const &getPostprocessingSetLayouts() const {
     return mPostprocessingSetLayouts;
   }
 
-  inline std::vector<vk::UniquePipeline> const &
-  getPostprocessingPipelines() const {
+  inline std::vector<vk::UniquePipeline> const &getPostprocessingPipelines() const {
     return mPostprocessingPipelines;
   }
-  inline std::vector<vk::UniquePipelineLayout> const &
-  getPostprocessingPipelineLayouts() const {
+  inline std::vector<vk::UniquePipelineLayout> const &getPostprocessingPipelineLayouts() const {
     return mPostprocessingPipelineLayouts;
   }
 
   RayTracingShaderPackInstance(RayTracingShaderPackInstance const &) = delete;
-  RayTracingShaderPackInstance &
-  operator=(RayTracingShaderPackInstance const &) = delete;
+  RayTracingShaderPackInstance &operator=(RayTracingShaderPackInstance const &) = delete;
 
 private:
   void initPipeline();
+
   void initSBT();
 
   RayTracingShaderPackInstanceDesc mDesc;
+
+  // vk::UniqueShaderModule mRgenModule;
+  // std::vector<vk::UniqueShaderModule> mMissModules;
+  // std::vector<vk::UniqueShaderModule> mRcHitModules;
+  // std::vector<vk::UniqueShaderModule> mRaHitModules;
+  // std::vector<vk::UniqueShaderModule> mIntersectModules;
 
   vk::UniqueDescriptorSetLayout mSceneSetLayout;
   vk::UniqueDescriptorSetLayout mCameraSetLayout;

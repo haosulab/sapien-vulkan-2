@@ -73,6 +73,16 @@ static void setupMonkey(svulkan2::scene::Scene &scene, resource::SVResourceManag
   o.setTransform({.position = {0.5, 0.075, 0}, .scale = {0.05, 0.05, 0.05}});
 }
 
+static void setupPoints(svulkan2::scene::Scene &scene, resource::SVResourceManager &manager) {
+  auto pointset = std::make_shared<resource::SVPointSet>(2);
+  pointset->setVertexAttribute("position", std::vector<float>{0, 0.2, 0, 0, 0, 0});
+  pointset->setVertexAttribute("color", std::vector<float>{1, 0, 0, 1, 0, 1, 0, 1});
+  pointset->setVertexAttribute("scale", std::vector<float>{0.1, 0.1});
+
+  auto &o = scene.addPointObject(pointset);
+  o.setTransform({.position = {0.7, 0.1, 0}, .scale = {1, 1, 1}});
+}
+
 int main() {
   assetDir = fs::path(__FILE__).parent_path() / "assets";
 
@@ -86,18 +96,25 @@ int main() {
   config->msaa = vk::SampleCountFlagBits::e1;
   config->colorFormat4 = vk::Format::eR32G32B32A32Sfloat;
 
-  auto renderer = std::make_shared<renderer::Renderer>(config);
-  // auto renderer = std::make_shared<renderer::RTRenderer>("../shader/rt");
+  // auto renderer = std::make_shared<renderer::Renderer>(config);
+  auto renderer = std::make_shared<renderer::RTRenderer>("../shader/rt");
 
   // renderer->enableDenoiser(renderer::RTRenderer::DenoiserType::eOIDN, "HdrColor", "Albedo",
   //                          "Normal");
 
   auto scene = std::make_shared<svulkan2::scene::Scene>();
 
+  // camera
+  auto &cameraNode = scene->addCamera();
+  cameraNode.setPerspectiveParameters(0.05, 50, 1.05, 1920, 1080);
+  FPSCameraController controller(cameraNode, {0, 0, -1}, {0, 1, 0});
+  controller.setXYZ(0, 0.3, 1);
+
   setupGround(*scene);
   setupSphereArray(*scene);
   setupCornellBox(*scene, *manager);
   setupMonkey(*scene, *manager);
+  setupPoints(*scene, *manager);
 
   // lights
   auto &dl = scene->addDirectionalLight();
@@ -124,12 +141,6 @@ int main() {
   tl.setTexture(context->getResourceManager()->CreateTextureFromFile(
       assetDir / "flashlight.jpg", 1, vk::Filter::eLinear, vk::Filter::eLinear,
       vk::SamplerAddressMode::eClampToBorder, vk::SamplerAddressMode::eClampToBorder, true));
-
-  // camera
-  auto &cameraNode = scene->addCamera();
-  cameraNode.setPerspectiveParameters(0.05, 50, 1.05, 1920, 1080);
-  FPSCameraController controller(cameraNode, {0, 0, -1}, {0, 1, 0});
-  controller.setXYZ(0, 0.3, 1);
 
   auto cubemap = context->getResourceManager()->CreateCubemapFromFile(
       assetDir / "rosendal_mountain_midmorning_4k.exr", 5);

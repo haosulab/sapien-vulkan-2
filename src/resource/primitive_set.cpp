@@ -78,22 +78,11 @@ void SVPrimitiveSet::uploadToDevice() {
     offset += elem.getSize();
   }
 
-  // for (auto &elem : elements) {
-  //   if (mAttributes.find(elem.name) != mAttributes.end()) {
-  //     if (mAttributes[elem.name].size() * sizeof(float) != vertexCount * elem.getSize()) {
-  //       throw std::runtime_error("vertex attribute " + elem.name + " has incorrect size");
-  //     }
-  //     strided_memcpy(buffer.data() + offset, mAttributes[elem.name].data(), elem.getSize(),
-  //                    vertexCount, vertexSize);
-  //   }
-  //   offset += elem.getSize();
-  // }
-
   if (!mVertexBuffer) {
     mVertexBuffer = core::Buffer::Create(
         bufferSize,
         vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst |
-            vk::BufferUsageFlagBits::eTransferSrc,
+            vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eStorageBuffer,
         VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags{}, true);
   }
   mVertexBuffer->upload(buffer.data(), bufferSize);
@@ -105,6 +94,54 @@ void SVPrimitiveSet::removeFromDevice() {
   mDirty = true;
   mOnDevice = false;
   mVertexBuffer.reset();
+}
+
+void SVPointSet::buildBLAS(bool update) {
+  if (getVertexCapacity() == 0) {
+    throw std::runtime_error("failed to build BLAS: unspecified vertex capacity");
+  }
+  struct Aabb {
+    glm::vec3 min;
+    glm::vec3 max;
+  };
+
+  if (!mAabbBuffer) {
+    mAabbBuffer = core::Buffer::Create(
+        getVertexCapacity() * sizeof(Aabb),
+        vk::BufferUsageFlagBits::eShaderDeviceAddress |
+            vk::BufferUsageFlagBits::eAccelerationStructureBuildInputReadOnlyKHR |
+            vk::BufferUsageFlagBits::eStorageBuffer |
+            vk::BufferUsageFlagBits::eAccelerationStructureStorageKHR |
+            vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eTransferDst,
+        VmaMemoryUsage::VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags{}, true);
+  }
+
+  std::vector<Aabb> aabbs;
+  auto position = mAttributes.at("position");
+  auto scale = mAttributes.at("scale");
+  int size = position.size() / 3;
+  aabbs.reserve(size);
+  for (int i = 0; i < size; ++i) {
+    glm::vec3 center = glm::vec3(position[3 * i], position[3 * i + 1], position[3 * i + 2]);
+    aabbs.push_back({center - glm::vec3(scale.at(i)),
+                     center + glm::vec3(scale.at(i))}); // TODO use a proper scale
+  }
+  mAabbBuffer->upload(aabbs);
+
+  static_assert(sizeof(Aabb) == sizeof(float) * 6);
+
+  vk::AccelerationStructureGeometryAabbsDataKHR data(mAabbBuffer->getAddress(), sizeof(Aabb));
+  vk::AccelerationStructureGeometryKHR geom(vk::GeometryTypeKHR::eAabbs, data,
+                                            vk::GeometryFlagBitsKHR::eOpaque);
+  vk::AccelerationStructureBuildRangeInfoKHR range(getVertexCount(), 0, 0, 0);
+  mBLAS = std::make_unique<core::BLAS>(std::vector{geom}, std::vector{range},
+                                       std::vector<uint32_t>{getVertexCapacity()}, false, update);
+  mBLAS->build();
+}
+
+void SVPointSet::recordUpdateBLAS(vk::CommandBuffer commandBuffer) {
+  vk::AccelerationStructureBuildRangeInfoKHR range(getVertexCount(), 0, 0, 0);
+  mBLAS->recordUpdate(commandBuffer, {range});
 }
 
 } // namespace resource

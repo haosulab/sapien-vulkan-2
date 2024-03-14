@@ -112,6 +112,7 @@ public:
   void updateRTResources();
   inline core::TLAS *getTLAS() const { return mTLAS.get(); }
 
+  inline std::vector<vk::Buffer> const &getRTPointSetBuffers() { return mPointSetBuffers; }
   inline std::vector<vk::Buffer> const &getRTVertexBuffers() { return mVertexBuffers; }
   inline std::vector<vk::Buffer> const &getRTIndexBuffers() const { return mIndexBuffers; }
   inline std::vector<vk::Buffer> const &getRTMaterialBuffers() const { return mMaterialBuffers; }
@@ -120,6 +121,9 @@ public:
   }
   inline vk::Buffer getRTGeometryInstanceBuffer() const {
     return mGeometryInstanceBuffer->getVulkanBuffer();
+  }
+  inline vk::Buffer getRTPointInstanceBuffer() const {
+    return mPointInstanceBuffer->getVulkanBuffer();
   }
   inline vk::Buffer getRTTextureIndexBuffer() const {
     return mTextureIndexBuffer->getVulkanBuffer();
@@ -201,6 +205,9 @@ protected:
   std::vector<std::tuple<vk::ImageView, vk::Sampler>> mTextures;
   std::unique_ptr<core::Buffer> mTextureIndexBuffer;
   std::unique_ptr<core::Buffer> mGeometryInstanceBuffer;
+
+  std::vector<vk::Buffer> mPointSetBuffers;
+  std::unique_ptr<core::Buffer> mPointInstanceBuffer;
 
   struct RTPointLight {
     glm::vec3 position;

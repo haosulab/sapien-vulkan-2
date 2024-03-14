@@ -218,21 +218,19 @@ std::shared_ptr<StructDataLayout> parseBuffer(spirv_cross::Compiler &compiler,
     }
 
     if (dataType == DataType::STRUCT()) {
-      layout->elements[memberName] = {
-          .name = memberName,
-          .size = memberSize,
-          .offset = memberOffset,
-          .array = {memberType.array.begin(), memberType.array.end()},
-          .dtype = dataType,
-          .member = parseBuffer(compiler, memberType)};
+      layout->elements[memberName] = {.name = memberName,
+                                      .size = memberSize,
+                                      .offset = memberOffset,
+                                      .array = {memberType.array.begin(), memberType.array.end()},
+                                      .dtype = dataType,
+                                      .member = parseBuffer(compiler, memberType)};
     } else {
-      layout->elements[memberName] = {
-          .name = memberName,
-          .size = memberSize,
-          .offset = memberOffset,
-          .array = {memberType.array.begin(), memberType.array.end()},
-          .dtype = dataType,
-          .member = nullptr};
+      layout->elements[memberName] = {.name = memberName,
+                                      .size = memberSize,
+                                      .offset = memberOffset,
+                                      .array = {memberType.array.begin(), memberType.array.end()},
+                                      .dtype = dataType,
+                                      .member = nullptr};
     }
   }
   return layout;

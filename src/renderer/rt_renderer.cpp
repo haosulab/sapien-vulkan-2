@@ -121,7 +121,8 @@ void RTRenderer::prepareRender(scene::Camera &camera) {
             .shaderDir = mShaderDir,
             .maxMeshes = static_cast<uint32_t>(mScene->getRTVertexBuffers().size()),
             .maxMaterials = static_cast<uint32_t>(mScene->getRTMaterialBuffers().size()),
-            .maxTextures = static_cast<uint32_t>(mScene->getRTTextures().size())});
+            .maxTextures = static_cast<uint32_t>(mScene->getRTTextures().size()),
+            .maxPointSets = static_cast<uint32_t>(mScene->getRTPointSetBuffers().size())});
     prepareOutput();
     prepareCamera();
     prepareScene();
@@ -429,6 +430,9 @@ void RTRenderer::prepareScene() {
                                                       VK_WHOLE_SIZE);
   vk::DescriptorBufferInfo textureIndexBufferInfo(mScene->getRTTextureIndexBuffer(), 0,
                                                   VK_WHOLE_SIZE);
+  vk::DescriptorBufferInfo pointInstanceBufferInfo(mScene->getRTPointInstanceBuffer(), 0,
+                                                   VK_WHOLE_SIZE);
+
   std::vector<vk::DescriptorBufferInfo> materialBufferInfos;
   for (auto buffer : mScene->getRTMaterialBuffers()) {
     materialBufferInfos.push_back({buffer, 0, VK_WHOLE_SIZE});
@@ -445,6 +449,10 @@ void RTRenderer::prepareScene() {
   std::vector<vk::DescriptorBufferInfo> indexBufferInfos;
   for (auto buffer : mScene->getRTIndexBuffers()) {
     indexBufferInfos.push_back({buffer, 0, VK_WHOLE_SIZE});
+  }
+  std::vector<vk::DescriptorBufferInfo> pointsetBufferInfos;
+  for (auto buffer : mScene->getRTPointSetBuffers()) {
+    pointsetBufferInfos.push_back({buffer, 0, VK_WHOLE_SIZE});
   }
 
   mSceneSet.reset();
@@ -533,7 +541,21 @@ void RTRenderer::prepareScene() {
       writeDescriptorSets.push_back(
           vk::WriteDescriptorSet(mSceneSet.get(), bid, 0,
                                  vk::DescriptorType::eCombinedImageSampler, cubeMapInfo, {}, {}));
-    } else {
+    }
+
+    else if (binding.name == "PointInstances") {
+      writeDescriptorSets.push_back(vk::WriteDescriptorSet(mSceneSet.get(), bid, 0,
+                                                           vk::DescriptorType::eStorageBuffer, {},
+                                                           pointInstanceBufferInfo, {}));
+    } else if (binding.name == "Points") {
+      if (pointsetBufferInfos.size()) {
+        writeDescriptorSets.push_back(vk::WriteDescriptorSet(mSceneSet.get(), bid, 0,
+                                                             vk::DescriptorType::eStorageBuffer,
+                                                             {}, pointsetBufferInfos, {}));
+      }
+    }
+
+    else {
       throw std::runtime_error("unrecognized scene set binding " + binding.name);
     }
   }

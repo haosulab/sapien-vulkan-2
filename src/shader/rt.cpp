@@ -186,35 +186,253 @@ std::string RayTracingStageParser::summary() const { return summarizeResources(m
 
 RayTracingShaderPack::RayTracingShaderPack(std::string const &shaderDir) {
   fs::path path(shaderDir);
-  auto raygenFile = path / "camera.rgen";
-  if (!fs::exists(raygenFile)) {
-    throw std::runtime_error("ray tracing shader directory must contain camera.rgen");
+
+  std::vector<std::future<void>> futures;
+  std::vector<RayTracingStageParser *> allParsers;
+
+  // ray gen stage
+  {
+    auto raygenFile = path / "camera.rgen";
+    if (!fs::exists(raygenFile)) {
+      throw std::runtime_error("ray tracing shader directory must contain camera.rgen");
+    }
+    mRaygenStageParser = std::make_unique<RayTracingStageParser>();
+    allParsers.push_back(mRaygenStageParser.get());
+    futures.push_back(mRaygenStageParser->loadFileAsync(raygenFile.string(),
+                                                        vk::ShaderStageFlagBits::eRaygenKHR));
   }
 
-  auto rchitFile = path / "camera.rchit";
-  if (!fs::exists(rchitFile)) {
-    throw std::runtime_error("ray tracing shader directory must contain camera.rchit");
+  // miss stages
+  {
+    auto cameraRmissFile = path / "camera.rmiss";
+    if (!fs::exists(cameraRmissFile)) {
+      throw std::runtime_error("ray tracing shader directory must contain camera.rmiss");
+    }
+    mMissGroupParsers.push_back({"camera", std::make_unique<RayTracingStageParser>()});
+    allParsers.push_back(mMissGroupParsers.back().miss.get());
+    futures.push_back(mMissGroupParsers.back().miss->loadFileAsync(
+        cameraRmissFile.string(), vk::ShaderStageFlagBits::eMissKHR));
   }
 
-  auto rahitFile = path / "camera.rahit";
-  if (!fs::exists(rahitFile)) {
-    throw std::runtime_error("ray tracing shader directory must contain camera.rahit");
+  {
+    auto shadowRmissFile = path / "shadow.rmiss";
+    if (!fs::exists(shadowRmissFile)) {
+      throw std::runtime_error("ray tracing shader directory must contain shadow.rmiss");
+    }
+    mMissGroupParsers.push_back({"shadow", std::make_unique<RayTracingStageParser>()});
+    allParsers.push_back(mMissGroupParsers.back().miss.get());
+    futures.push_back(mMissGroupParsers.back().miss->loadFileAsync(
+        shadowRmissFile.string(), vk::ShaderStageFlagBits::eMissKHR));
   }
 
-  auto cameraRmissFile = path / "camera.rmiss";
-  if (!fs::exists(cameraRmissFile)) {
-    throw std::runtime_error("ray tracing shader directory must contain camera.rmiss");
+  // mesh hit
+  {
+    auto camRahitFile = path / "camera.rahit";
+    auto camRchitFile = path / "camera.rchit";
+    if (!fs::exists(camRchitFile) || !fs::exists(camRahitFile)) {
+      throw std::runtime_error(
+          "ray tracing shader directory must contain camera.rchit and camera.rahit ");
+    }
+    mHitGroupParsers.push_back({.name = "camera",
+                                .any = std::make_unique<RayTracingStageParser>(),
+                                .closest = std::make_unique<RayTracingStageParser>()});
+    allParsers.push_back(mHitGroupParsers.back().any.get());
+    allParsers.push_back(mHitGroupParsers.back().closest.get());
+    futures.push_back(mHitGroupParsers.back().any->loadFileAsync(
+        camRahitFile.string(), vk::ShaderStageFlagBits::eAnyHitKHR));
+    futures.push_back(mHitGroupParsers.back().closest->loadFileAsync(
+        camRchitFile.string(), vk::ShaderStageFlagBits::eClosestHitKHR));
   }
 
-  auto shadowRmissFile = path / "shadow.rmiss";
-  if (!fs::exists(shadowRmissFile)) {
-    throw std::runtime_error("ray tracing shader directory must contain shadow.rmiss");
+  // TODO: point rahit
+  // point hit
+  {
+    auto pointRchitFile = path / "point.rchit";
+    auto pointIntersectFile = path / "point.rint";
+    if (fs::exists(pointIntersectFile) || fs::exists(pointRchitFile)) {
+      if (!(fs::exists(pointIntersectFile) && fs::exists(pointRchitFile))) {
+        throw std::runtime_error(
+            "ray tracing shader directory should contain both point.rint and point.rchit");
+      }
+      mHitGroupParsers.push_back({.name = "point",
+                                  .closest = std::make_unique<RayTracingStageParser>(),
+                                  .intersect = std::make_unique<RayTracingStageParser>()});
+      allParsers.push_back(mHitGroupParsers.back().closest.get());
+      allParsers.push_back(mHitGroupParsers.back().intersect.get());
+      futures.push_back(mHitGroupParsers.back().intersect->loadFileAsync(
+          pointIntersectFile.string(), vk::ShaderStageFlagBits::eIntersectionKHR));
+      futures.push_back(mHitGroupParsers.back().closest->loadFileAsync(
+          pointRchitFile.string(), vk::ShaderStageFlagBits::eClosestHitKHR));
+    }
   }
 
-  loadGLSLFilesAsync(raygenFile.string(), {cameraRmissFile.string(), shadowRmissFile.string()},
-                     {rahitFile.string()}, {rchitFile.string()})
-      .get();
+  // wait for glsl loading to finish
+  for (auto &f : futures) {
+    f.get();
+  }
 
+  // reflect set layouts
+  mResources = mRaygenStageParser->getResources();
+  std::shared_ptr<StructDataLayout> pushConstantLayout;
+  for (auto &parser : allParsers) {
+    for (auto &[sid, set] : parser->getResources()) {
+      if (mResources.contains(sid)) {
+        mResources[sid] = mResources.at(sid).merge(set);
+
+        logger::info("Merging...");
+
+        {
+          logger::info("Left");
+          auto set = mResources.at(sid);
+          std::stringstream ss;
+          ss << "\nSet " << std::setw(2) << sid;
+          if (set.type != UniformBindingType::eUnknown) {
+            if (set.type == UniformBindingType::eRTCamera) {
+              ss << "    Camera";
+            } else if (set.type == UniformBindingType::eRTScene) {
+              ss << "     Scene";
+            } else if (set.type == UniformBindingType::eRTOutput) {
+              ss << "    Output";
+            }
+          }
+          ss << "\n";
+          for (auto &[bid, b] : set.bindings) {
+            ss << "  Binding " << std::setw(2) << bid << std::setw(20) << b.name;
+            switch (b.type) {
+            case vk::DescriptorType::eUniformBuffer:
+              ss << " UniformBuffer\n";
+              ss << "    Dim  " << b.dim << "\n";
+              if (b.dim > 0) {
+                ss << "    Size " << b.arraySize << "\n";
+              }
+              break;
+            case vk::DescriptorType::eStorageBuffer:
+              ss << " StorageBuffer\n";
+              ss << "    Dim  " << b.dim << "\n";
+              if (b.dim > 0) {
+                ss << "    Size " << b.arraySize << "\n";
+              }
+              ss << "    " << std::setw(10) << "Field" << std::setw(10) << "offset"
+                 << std::setw(10) << "size\n";
+              for (auto &elem : set.buffers[b.arrayIndex]->getElementsSorted()) {
+                ss << "    " << std::setw(10) << elem->name << std::setw(10) << elem->offset
+                   << std::setw(10) << elem->size << "\n";
+              }
+              break;
+            case vk::DescriptorType::eCombinedImageSampler:
+              ss << " CombinedImageSampler\n";
+              break;
+            case vk::DescriptorType::eStorageImage:
+              ss << " StorageImage\n";
+              break;
+            case vk::DescriptorType::eAccelerationStructureKHR:
+              ss << " AccelerationStructure\n";
+              break;
+            default:
+              ss << " Unknown\n";
+              break;
+            }
+          }
+          logger::info(ss.str());
+        }
+
+        {
+          logger::info("Right");
+          std::stringstream ss;
+          ss << "\nSet " << std::setw(2) << sid;
+          if (set.type != UniformBindingType::eUnknown) {
+            if (set.type == UniformBindingType::eRTCamera) {
+              ss << "    Camera";
+            } else if (set.type == UniformBindingType::eRTScene) {
+              ss << "     Scene";
+            } else if (set.type == UniformBindingType::eRTOutput) {
+              ss << "    Output";
+            }
+          }
+          ss << "\n";
+          for (auto &[bid, b] : set.bindings) {
+            ss << "  Binding " << std::setw(2) << bid << std::setw(20) << b.name;
+            switch (b.type) {
+            case vk::DescriptorType::eUniformBuffer:
+              ss << " UniformBuffer\n";
+              ss << "    Dim  " << b.dim << "\n";
+              if (b.dim > 0) {
+                ss << "    Size " << b.arraySize << "\n";
+              }
+              break;
+            case vk::DescriptorType::eStorageBuffer:
+              ss << " StorageBuffer\n";
+              ss << "    Dim  " << b.dim << "\n";
+              if (b.dim > 0) {
+                ss << "    Size " << b.arraySize << "\n";
+              }
+              ss << "    " << std::setw(10) << "Field" << std::setw(10) << "offset"
+                 << std::setw(10) << "size\n";
+              for (auto &elem : set.buffers[b.arrayIndex]->getElementsSorted()) {
+                ss << "    " << std::setw(10) << elem->name << std::setw(10) << elem->offset
+                   << std::setw(10) << elem->size << "\n";
+              }
+              break;
+            case vk::DescriptorType::eCombinedImageSampler:
+              ss << " CombinedImageSampler\n";
+              break;
+            case vk::DescriptorType::eStorageImage:
+              ss << " StorageImage\n";
+              break;
+            case vk::DescriptorType::eAccelerationStructureKHR:
+              ss << " AccelerationStructure\n";
+              break;
+            default:
+              ss << " Unknown\n";
+              break;
+            }
+          }
+          logger::info(ss.str());
+        }
+
+      } else {
+        mResources[sid] = set;
+      }
+      if (auto layout = parser->getPushConstantLayout()) {
+        if (!pushConstantLayout) {
+          pushConstantLayout = layout;
+        } else {
+          if (*pushConstantLayout != *layout) {
+            throw std::runtime_error("push_constant must be the same for all shader stages");
+          }
+        }
+      }
+    }
+  }
+  mPushConstantLayout = pushConstantLayout;
+
+  // determine set types
+  for (uint32_t setId = 0;; setId++) {
+    if (!mResources.contains(setId)) {
+      if (mResources.size() != setId) {
+        throw std::runtime_error("descriptor sets numbers must be "
+                                 "consecurive integers starting from 0");
+      }
+      break;
+    }
+    for (auto &[bid, b] : mResources.at(setId).bindings) {
+      if (b.type == vk::DescriptorType::eAccelerationStructureKHR) {
+        mResources.at(setId).type = UniformBindingType::eRTScene;
+        break;
+      } else if (b.name == "CameraBuffer") {
+        mResources.at(setId).type = UniformBindingType::eRTCamera;
+        break;
+      } else if (b.name.starts_with("out") && b.type == vk::DescriptorType::eStorageImage) {
+        mResources.at(setId).type = UniformBindingType::eRTOutput;
+        break;
+      }
+    }
+    if (mResources.at(setId).type == UniformBindingType::eUnknown) {
+      throw std::runtime_error("cannot identify descriptor set " + std::to_string(setId));
+    }
+  }
+
+  // load post processing shaders
   // TODO: handle more postprocessing files
   auto postprocessingFile = path / "postprocessing.comp";
   if (fs::exists(postprocessingFile)) {
@@ -314,130 +532,6 @@ DescriptorSetDescription const &RayTracingShaderPack::getSceneDescription() cons
     }
   }
   throw std::runtime_error("failed to retrieve output descriptor set");
-}
-
-std::future<void> RayTracingShaderPack::loadGLSLFilesAsync(
-    const std::string &raygenFile, const std::vector<std::string> &missFiles,
-    const std::vector<std::string> &anyhitFiles, const std::vector<std::string> &closesthitFiles) {
-
-  return std::async(LAUNCH_ASYNC, [=, this]() {
-    std::vector<std::future<void>> futures;
-    mRaygenStageParser = std::make_unique<RayTracingStageParser>();
-    futures.push_back(
-        mRaygenStageParser->loadFileAsync(raygenFile, vk::ShaderStageFlagBits::eRaygenKHR));
-
-    mMissStageParsers.clear();
-    for (auto &path : missFiles) {
-      mMissStageParsers.push_back(std::make_unique<RayTracingStageParser>());
-      futures.push_back(
-          mMissStageParsers.back()->loadFileAsync(path, vk::ShaderStageFlagBits::eMissKHR));
-    }
-
-    mAnyHitStageParsers.clear();
-    for (auto &path : anyhitFiles) {
-      mAnyHitStageParsers.push_back(std::make_unique<RayTracingStageParser>());
-      futures.push_back(
-          mAnyHitStageParsers.back()->loadFileAsync(path, vk::ShaderStageFlagBits::eAnyHitKHR));
-    }
-
-    mClosestHitStageParsers.clear();
-    for (auto &path : closesthitFiles) {
-      mClosestHitStageParsers.push_back(std::make_unique<RayTracingStageParser>());
-      futures.push_back(mClosestHitStageParsers.back()->loadFileAsync(
-          path, vk::ShaderStageFlagBits::eClosestHitKHR));
-    }
-
-    for (auto &f : futures) {
-      f.get();
-    }
-
-    mResources = mRaygenStageParser->getResources();
-    std::shared_ptr<StructDataLayout> pushConstantLayout;
-
-    // TODO: clean up, hopefully one day view::concat is available
-    for (auto &parser : mMissStageParsers) {
-      for (auto &[sid, set] : parser->getResources()) {
-        if (mResources.contains(sid)) {
-          mResources[sid] = mResources.at(sid).merge(set);
-        } else {
-          mResources[sid] = set;
-        }
-        if (auto layout = parser->getPushConstantLayout()) {
-          if (!pushConstantLayout) {
-            pushConstantLayout = layout;
-          } else {
-            if (*pushConstantLayout != *layout) {
-              throw std::runtime_error("push_constant must be the same for all shader stages");
-            }
-          }
-        }
-      }
-    }
-    for (auto &parser : mAnyHitStageParsers) {
-      for (auto &[sid, set] : parser->getResources()) {
-        if (mResources.contains(sid)) {
-          mResources[sid] = mResources.at(sid).merge(set);
-        } else {
-          mResources[sid] = set;
-        }
-        if (auto layout = parser->getPushConstantLayout()) {
-          if (!pushConstantLayout) {
-            pushConstantLayout = layout;
-          } else {
-            if (*pushConstantLayout != *layout) {
-              throw std::runtime_error("push_constant must be the same for all shader stages");
-            }
-          }
-        }
-      }
-    }
-    for (auto &parser : mClosestHitStageParsers) {
-      for (auto &[sid, set] : parser->getResources()) {
-        if (mResources.contains(sid)) {
-          mResources[sid] = mResources.at(sid).merge(set);
-        } else {
-          mResources[sid] = set;
-        }
-        if (auto layout = parser->getPushConstantLayout()) {
-          if (!pushConstantLayout) {
-            pushConstantLayout = layout;
-          } else {
-            if (*pushConstantLayout != *layout) {
-              throw std::runtime_error("push_constant must be the same for all shader stages");
-            }
-          }
-        }
-      }
-    }
-    mPushConstantLayout = pushConstantLayout;
-
-    for (uint32_t setId = 0;; setId++) {
-      if (!mResources.contains(setId)) {
-        if (mResources.size() != setId) {
-          throw std::runtime_error("descriptor sets numbers must be "
-                                   "consecurive integers starting from 0");
-        }
-        break;
-      }
-
-      for (auto &[bid, b] : mResources.at(setId).bindings) {
-        if (b.type == vk::DescriptorType::eAccelerationStructureKHR) {
-          mResources.at(setId).type = UniformBindingType::eRTScene;
-          break;
-        } else if (b.name == "CameraBuffer") {
-          mResources.at(setId).type = UniformBindingType::eRTCamera;
-          break;
-        } else if (b.name.starts_with("out") && b.type == vk::DescriptorType::eStorageImage) {
-          mResources.at(setId).type = UniformBindingType::eRTOutput;
-          break;
-        }
-      }
-
-      if (mResources.at(setId).type == UniformBindingType::eUnknown) {
-        throw std::runtime_error("cannot identify descriptor set " + std::to_string(setId));
-      }
-    }
-  });
 }
 
 std::shared_ptr<InputDataLayout> RayTracingShaderPack::computeCompatibleInputVertexLayout() const {
@@ -600,6 +694,37 @@ std::shared_ptr<InputDataLayout> RayTracingShaderPack::computeCompatibleInputVer
   throw std::runtime_error("failed to find the vertex buffer in the shader");
 }
 
+std::shared_ptr<InputDataLayout> RayTracingShaderPack::computePrimitiveLayout() const {
+  for (auto &[sid, set] : mResources) {
+    if (set.type == UniformBindingType::eRTScene) {
+      auto inputLayout = std::make_shared<InputDataLayout>();
+
+      uint32_t location{0};
+      for (auto &[bid, binding] : set.bindings) {
+        if (binding.name == "Points" && binding.type == vk::DescriptorType::eStorageBuffer) {
+          if (set.buffers.at(binding.arrayIndex)->elements.size() != 1) {
+            throw std::runtime_error(
+                "Point buffer must contain a single array of structs (Point)");
+          }
+          auto elem = set.buffers.at(binding.arrayIndex)->elements.begin()->second;
+          if (elem.array.size() != 1 || elem.dtype != DataType::STRUCT()) {
+            throw std::runtime_error(
+                "Point buffer must contain a single array of structs (Point)");
+          }
+          auto vertex = elem.member;
+
+          for (auto &e : vertex->getElementsSorted()) {
+            inputLayout->elements[e->name] = {
+                .name = e->name, .location = location++, .dtype = e->dtype};
+          }
+        }
+      }
+      return inputLayout;
+    }
+  }
+  return nullptr;
+}
+
 std::string RayTracingShaderPack::summary() const { return summarizeResources(mResources); }
 
 RayTracingShaderPackInstance::RayTracingShaderPackInstance(RayTracingShaderPackInstanceDesc desc)
@@ -609,7 +734,8 @@ RayTracingShaderPackInstance::RayTracingShaderPackInstance(RayTracingShaderPackI
 
 static vk::UniqueDescriptorSetLayout
 createSceneDescriptorSetLayout(vk::Device device, DescriptorSetDescription const &description,
-                               uint32_t maxMeshes, uint32_t maxMaterials, uint32_t maxTextures) {
+                               uint32_t maxMeshes, uint32_t maxMaterials, uint32_t maxTextures,
+                               uint32_t maxPointSets) {
   std::vector<vk::DescriptorSetLayoutBinding> bindings;
   std::vector<vk::DescriptorBindingFlags> bindingFlags;
   for (uint32_t bid = 0; bid < description.bindings.size(); ++bid) {
@@ -642,13 +768,26 @@ createSceneDescriptorSetLayout(vk::Device device, DescriptorSetDescription const
              vk::ShaderStageFlagBits::eAnyHitKHR | vk::ShaderStageFlagBits::eClosestHitKHR,
              {}});
         bindingFlags.push_back({});
+      }
+
+      else if (description.bindings.at(bid).name == "Points") {
+        bindings.push_back({bid,
+                            vk::DescriptorType::eStorageBuffer,
+                            maxPointSets,
+                            vk::ShaderStageFlagBits::eAnyHitKHR |
+                                vk::ShaderStageFlagBits::eClosestHitKHR |
+                                vk::ShaderStageFlagBits::eIntersectionKHR,
+                            {}});
+        bindingFlags.push_back({});
+
       } else if (description.bindings.at(bid).dim == 0) {
-        bindings.push_back(
-            {bid,
-             vk::DescriptorType::eStorageBuffer,
-             1,
-             vk::ShaderStageFlagBits::eAnyHitKHR | vk::ShaderStageFlagBits::eClosestHitKHR,
-             {}});
+        bindings.push_back({bid,
+                            vk::DescriptorType::eStorageBuffer,
+                            1,
+                            vk::ShaderStageFlagBits::eAnyHitKHR |
+                                vk::ShaderStageFlagBits::eClosestHitKHR |
+                                vk::ShaderStageFlagBits::eIntersectionKHR,
+                            {}});
         bindingFlags.push_back({});
       } else {
         throw std::runtime_error("unrecognized storage buffer " +
@@ -725,18 +864,6 @@ void RayTracingShaderPackInstance::initPipeline() {
   auto context = core::Context::Get();
   vk::Device device = context->getDevice();
 
-  // TODO: handle multiple chit, ahit, and miss modules
-  auto rgenModule = device.createShaderModuleUnique(
-      vk::ShaderModuleCreateInfo({}, mShaderPack->getRaygenStageParser()->getCode()));
-  auto cameraMissModule = device.createShaderModuleUnique(
-      vk::ShaderModuleCreateInfo({}, mShaderPack->getMissStageParsers().at(0)->getCode()));
-  auto shadowMissModule = device.createShaderModuleUnique(
-      vk::ShaderModuleCreateInfo({}, mShaderPack->getMissStageParsers().at(1)->getCode()));
-  auto ahitModule = device.createShaderModuleUnique(
-      vk::ShaderModuleCreateInfo({}, mShaderPack->getAnyHitStageParsers().at(0)->getCode()));
-  auto chitModule = device.createShaderModuleUnique(
-      vk::ShaderModuleCreateInfo({}, mShaderPack->getClosestHitStageParsers().at(0)->getCode()));
-
   std::vector<vk::PushConstantRange> pushConstantRanges;
   if (mShaderPack->getPushConstantLayout()) {
     pushConstantRanges.push_back(vk::PushConstantRange(
@@ -751,8 +878,8 @@ void RayTracingShaderPackInstance::initPipeline() {
     auto &set = mShaderPack->getResources().at(sid);
     switch (set.type) {
     case UniformBindingType::eRTScene:
-      mSceneSetLayout = createSceneDescriptorSetLayout(device, set, mDesc.maxMeshes,
-                                                       mDesc.maxMaterials, mDesc.maxTextures);
+      mSceneSetLayout = createSceneDescriptorSetLayout(
+          device, set, mDesc.maxMeshes, mDesc.maxMaterials, mDesc.maxTextures, mDesc.maxPointSets);
       descriptorSetLayouts.push_back(mSceneSetLayout.get());
       break;
     case UniformBindingType::eRTOutput:
@@ -772,33 +899,101 @@ void RayTracingShaderPackInstance::initPipeline() {
   mPipelineLayout = device.createPipelineLayoutUnique(layoutInfo);
 
   std::vector<vk::PipelineShaderStageCreateInfo> shaderStages;
+  std::vector<vk::RayTracingShaderGroupCreateInfoKHR> groups;
+
+  vk::UniqueShaderModule rgenModule;
+  std::vector<vk::UniqueShaderModule> missModules;
+  std::vector<vk::UniqueShaderModule> rcHitModules;
+  std::vector<vk::UniqueShaderModule> raHitModules;
+  std::vector<vk::UniqueShaderModule> intersectModules;
+
+  int count = 0;
+  std::map<RayTracingStageParser *, int> parserIndex;
+
+  parserIndex[mShaderPack->getRaygenStageParser()] = count++;
+  rgenModule = device.createShaderModuleUnique(
+      vk::ShaderModuleCreateInfo({}, mShaderPack->getRaygenStageParser()->getCode()));
   shaderStages.push_back(vk::PipelineShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eRaygenKHR,
                                                            rgenModule.get(), "main"));
-  shaderStages.push_back(vk::PipelineShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eMissKHR,
-                                                           cameraMissModule.get(), "main"));
-  shaderStages.push_back(vk::PipelineShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eMissKHR,
-                                                           shadowMissModule.get(), "main"));
-  shaderStages.push_back(vk::PipelineShaderStageCreateInfo(
-      {}, vk::ShaderStageFlagBits::eClosestHitKHR, chitModule.get(), "main"));
-  shaderStages.push_back(vk::PipelineShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eAnyHitKHR,
-                                                           ahitModule.get(), "main"));
+  for (auto &p : mShaderPack->getMissGroupParsers()) {
+    parserIndex[p.miss.get()] = count++;
+    missModules.push_back(
+        device.createShaderModuleUnique(vk::ShaderModuleCreateInfo({}, p.miss->getCode())));
+    shaderStages.push_back(vk::PipelineShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eMissKHR,
+                                                             missModules.back().get(), "main"));
+  }
+  for (auto &p : mShaderPack->getHitGroupParsers()) {
+    if (p.closest) {
+      parserIndex[p.closest.get()] = count++;
+      rcHitModules.push_back(
+          device.createShaderModuleUnique(vk::ShaderModuleCreateInfo({}, p.closest->getCode())));
+      shaderStages.push_back(vk::PipelineShaderStageCreateInfo(
+          {}, vk::ShaderStageFlagBits::eClosestHitKHR, rcHitModules.back().get(), "main"));
+    }
+  }
+  for (auto &p : mShaderPack->getHitGroupParsers()) {
+    if (p.any) {
+      parserIndex[p.any.get()] = count++;
+      raHitModules.push_back(
+          device.createShaderModuleUnique(vk::ShaderModuleCreateInfo({}, p.any->getCode())));
+      shaderStages.push_back(vk::PipelineShaderStageCreateInfo(
+          {}, vk::ShaderStageFlagBits::eAnyHitKHR, raHitModules.back().get(), "main"));
+    }
+  }
+  for (auto &p : mShaderPack->getHitGroupParsers()) {
+    if (p.intersect) {
+      parserIndex[p.intersect.get()] = count++;
+      intersectModules.push_back(
+          device.createShaderModuleUnique(vk::ShaderModuleCreateInfo({}, p.intersect->getCode())));
+      shaderStages.push_back(vk::PipelineShaderStageCreateInfo(
+          {}, vk::ShaderStageFlagBits::eIntersectionKHR, intersectModules.back().get(), "main"));
+    }
+  }
 
-  std::vector<vk::RayTracingShaderGroupCreateInfoKHR> groups;
-  groups.push_back(vk::RayTracingShaderGroupCreateInfoKHR(
-      vk::RayTracingShaderGroupTypeKHR::eGeneral, 0, VK_SHADER_UNUSED_KHR, VK_SHADER_UNUSED_KHR,
-      VK_SHADER_UNUSED_KHR)); // raygen
-  groups.push_back(vk::RayTracingShaderGroupCreateInfoKHR(
-      vk::RayTracingShaderGroupTypeKHR::eGeneral, 1, VK_SHADER_UNUSED_KHR, VK_SHADER_UNUSED_KHR,
-      VK_SHADER_UNUSED_KHR)); // camera miss
-  groups.push_back(vk::RayTracingShaderGroupCreateInfoKHR(
-      vk::RayTracingShaderGroupTypeKHR::eGeneral, 2, VK_SHADER_UNUSED_KHR, VK_SHADER_UNUSED_KHR,
-      VK_SHADER_UNUSED_KHR)); // shadow miss
-  groups.push_back(vk::RayTracingShaderGroupCreateInfoKHR(
-      vk::RayTracingShaderGroupTypeKHR::eTrianglesHitGroup, VK_SHADER_UNUSED_KHR, 3, 4,
-      VK_SHADER_UNUSED_KHR)); // chit, ahit
+  // gen group
+  groups.push_back(
+      vk::RayTracingShaderGroupCreateInfoKHR(vk::RayTracingShaderGroupTypeKHR::eGeneral,
+                                             parserIndex.at(mShaderPack->getRaygenStageParser()),
+                                             VK_SHADER_UNUSED_KHR, VK_SHADER_UNUSED_KHR,
+                                             VK_SHADER_UNUSED_KHR)); // raygen
+
+  // miss group
+  for (auto &parser : mShaderPack->getMissGroupParsers()) {
+    groups.push_back(vk::RayTracingShaderGroupCreateInfoKHR(
+        vk::RayTracingShaderGroupTypeKHR::eGeneral, parserIndex.at(parser.miss.get()),
+        VK_SHADER_UNUSED_KHR, VK_SHADER_UNUSED_KHR,
+        VK_SHADER_UNUSED_KHR)); // camera miss
+  }
+
+  // hit group
+  for (auto &parser : mShaderPack->getHitGroupParsers()) {
+    uint32_t closest = VK_SHADER_UNUSED_KHR;
+    uint32_t any = VK_SHADER_UNUSED_KHR;
+    uint32_t intersect = VK_SHADER_UNUSED_KHR;
+
+    auto groupType = parser.name == "camera"
+                         ? vk::RayTracingShaderGroupTypeKHR::eTrianglesHitGroup
+                         : vk::RayTracingShaderGroupTypeKHR::eProceduralHitGroup;
+
+    if (parser.closest) {
+      closest = parserIndex.at(parser.closest.get());
+    }
+
+    if (parser.any) {
+      any = parserIndex.at(parser.any.get());
+    }
+
+    if (parser.intersect) {
+      intersect = parserIndex.at(parser.intersect.get());
+    }
+
+    groups.push_back(vk::RayTracingShaderGroupCreateInfoKHR(groupType, VK_SHADER_UNUSED_KHR,
+                                                            closest, any, intersect));
+  }
 
   vk::RayTracingPipelineCreateInfoKHR createInfo({}, shaderStages, groups, 30, nullptr, nullptr,
                                                  nullptr, mPipelineLayout.get(), {}, 0);
+
   auto result = device.createRayTracingPipelineKHRUnique({}, nullptr, createInfo);
   if (result.result != vk::Result::eSuccess) {
     throw std::runtime_error("failed to create ray tracing pipeline");
@@ -850,11 +1045,11 @@ void RayTracingShaderPackInstance::initSBT() {
                                         vk::PhysicalDeviceRayTracingPipelinePropertiesKHR>();
   auto pipelineProperties = properties.get<vk::PhysicalDeviceRayTracingPipelinePropertiesKHR>();
 
-  // TODO: get these count
-  uint32_t missCount = 2;
-  uint32_t hitCount = 1;
+  uint32_t genCount = 1;
+  uint32_t missCount = mShaderPack->getMissGroupParsers().size();
+  uint32_t hitCount = mShaderPack->getHitGroupParsers().size();
 
-  uint32_t handleCount = 1 + missCount + hitCount;
+  uint32_t handleCount = genCount + missCount + hitCount;
   uint32_t handleSize = pipelineProperties.shaderGroupHandleSize;
   uint32_t dataSize = handleCount * handleSize;
   std::vector<uint8_t> shaderHandleStorage(dataSize);
@@ -899,14 +1094,13 @@ void RayTracingShaderPackInstance::initSBT() {
   bufferOffset = rgenSize;
 
   for (uint32_t i = 0; i < missCount; ++i) {
-    mSBTBuffer->upload(shaderHandleStorage.data() + handleOffset, missSize, bufferOffset);
+    mSBTBuffer->upload(shaderHandleStorage.data() + handleOffset, handleSize, bufferOffset);
     handleOffset += handleSize;
     bufferOffset += missStride;
   }
 
-  bufferOffset = rgenSize + missSize;
   for (uint32_t i = 0; i < hitCount; ++i) {
-    mSBTBuffer->upload(shaderHandleStorage.data() + handleOffset, hitSize, bufferOffset);
+    mSBTBuffer->upload(shaderHandleStorage.data() + handleOffset, handleSize, bufferOffset);
     handleOffset += handleSize;
     bufferOffset += hitStride;
   }

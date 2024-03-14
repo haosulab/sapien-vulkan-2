@@ -51,7 +51,7 @@ SVResourceManager::CreateShaderPack(std::string const &dirname) {
   }
 
   if (shaderPack->getShaderInputLayouts()->primitiveVertexLayout) {
-    setLineVertexLayout(shaderPack->getShaderInputLayouts()->primitiveVertexLayout);
+    setPrimitiveVertexLayout(shaderPack->getShaderInputLayouts()->primitiveVertexLayout);
   }
 
   return shaderPack;
@@ -91,6 +91,10 @@ SVResourceManager::CreateRTShaderPack(std::string const &dirname) {
   mRTShaderPackRegistry[key] = shaderPack;
 
   setVertexLayout(shaderPack->computeCompatibleInputVertexLayout());
+  if (auto layout = shaderPack->computePrimitiveLayout()) {
+    setPrimitiveVertexLayout(layout);
+  }
+
   return shaderPack;
 }
 
@@ -346,13 +350,13 @@ void SVResourceManager::setVertexLayout(std::shared_ptr<InputDataLayout> layout)
   }
 }
 
-void SVResourceManager::setLineVertexLayout(std::shared_ptr<InputDataLayout> layout) {
+void SVResourceManager::setPrimitiveVertexLayout(std::shared_ptr<InputDataLayout> layout) {
   if (!mLineVertexLayout) {
     mLineVertexLayout = layout;
     return;
   }
   if (*mLineVertexLayout != *layout) {
-    throw std::runtime_error("All line vertex layouts are required to be the "
+    throw std::runtime_error("All primitive vertex layouts are required to be the "
                              "same even across renderers");
   }
 }
