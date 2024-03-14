@@ -46,7 +46,7 @@ DescriptorSetDescription::merge(DescriptorSetDescription const &other) const {
         break;
       case vk::DescriptorType::eStorageImage:
         if (other.images.at(binding.arrayIndex) !=
-                samplers.at((bindings.at(bindingIndex)).arrayIndex) ||
+                images.at((bindings.at(bindingIndex)).arrayIndex) ||
             bindings.at(bindingIndex).format != binding.format) {
           throw std::runtime_error("Incompatible descriptor at binding " +
                                    std::to_string(bindingIndex) + ": image names are different.");
