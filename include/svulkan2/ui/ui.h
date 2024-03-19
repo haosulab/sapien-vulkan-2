@@ -4,6 +4,7 @@
 #include "dummy.h"
 #include "filechooser.h"
 #include "gizmo.h"
+#include "image.h"
 #include "keyframe.h"
 #include "options.h"
 #include "popup.h"
@@ -15,4 +16,3 @@
 #include "treenode.h"
 #include "widget.h"
 #include "window.h"
-#include "image.h"

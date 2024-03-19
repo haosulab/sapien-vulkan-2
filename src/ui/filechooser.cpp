@@ -16,6 +16,7 @@ void FileChooser::build() {
                   filePath);
       }
     }
+    ImGuiFileDialog::Instance()->Close();
   }
 }
 

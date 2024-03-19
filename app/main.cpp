@@ -74,13 +74,25 @@ static void setupMonkey(svulkan2::scene::Scene &scene, resource::SVResourceManag
 }
 
 static void setupPoints(svulkan2::scene::Scene &scene, resource::SVResourceManager &manager) {
-  auto pointset = std::make_shared<resource::SVPointSet>(2);
-  pointset->setVertexAttribute("position", std::vector<float>{0, 0.2, 0, 0, 0, 0});
-  pointset->setVertexAttribute("color", std::vector<float>{1, 0, 0, 1, 0, 1, 0, 1});
-  pointset->setVertexAttribute("scale", std::vector<float>{0.1, 0.1});
+  {
+    auto pointset = std::make_shared<resource::SVPointSet>(2);
+    pointset->setVertexAttribute("position", std::vector<float>{0, 0.2, 0, 0, 0, 0});
+    pointset->setVertexAttribute("color", std::vector<float>{1, 0, 0, 1, 0, 1, 0, 1});
+    pointset->setVertexAttribute("scale", std::vector<float>{0.05, 0.1});
 
-  auto &o = scene.addPointObject(pointset);
-  o.setTransform({.position = {0.7, 0.1, 0}, .scale = {1, 1, 1}});
+    auto &o = scene.addPointObject(pointset);
+    o.setTransform({.position = {0.7, 0.1, 0}, .scale = {1, 1, 1}});
+  }
+
+  {
+    auto pointset = std::make_shared<resource::SVPointSet>(2);
+    pointset->setVertexAttribute("position", std::vector<float>{0, 0.2, 0, 0, 0, 0});
+    pointset->setVertexAttribute("color", std::vector<float>{0, 0, 1, 1, 0, 1, 1, 1});
+    pointset->setVertexAttribute("scale", std::vector<float>{0.1, 0.05});
+
+    auto &o = scene.addPointObject(pointset);
+    o.setTransform({.position = {-0.7, 0.1, 0}, .scale = {1, 1, 1}});
+  }
 }
 
 int main() {
@@ -163,10 +175,17 @@ int main() {
   context->getDevice().waitIdle();
 
   auto gizmo = ui::Widget::Create<ui::Gizmo>()->Matrix(glm::mat4(1));
-  auto uiWindow =
-      ui::Widget::Create<ui::Window>()->Size({400, 400})->Label("main window")->append(gizmo);
+
+  auto filechooser = ui::Widget::Create<ui::FileChooser>();
+
+  auto uiWindow = ui::Widget::Create<ui::Window>()
+                      ->Size({400, 400})
+                      ->Label("main window")
+                      ->append(gizmo)
+                      ->append(filechooser);
 
   scene->updateModelMatrices();
+
 
   int count = 0;
   while (!window->isClosed()) {
@@ -213,6 +232,8 @@ int main() {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
     ImGui::Begin("DockSpace Demo", 0, flags);
     ImGui::PopStyleVar();
+
+    filechooser->open();
 
     ImGui::DockSpace(ImGui::GetID("Dockspace"), ImVec2(0, 0),
                      ImGuiDockNodeFlags_PassthruCentralNode |
