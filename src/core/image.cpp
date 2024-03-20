@@ -1,5 +1,5 @@
 #include "svulkan2/core/image.h"
-#include "easy/profiler.h"
+#include "svulkan2/common/profiler.h"
 #include "svulkan2/common/image.h"
 #include "svulkan2/core/allocator.h"
 #include "svulkan2/core/buffer.h"
@@ -420,7 +420,7 @@ void Image::copyToBuffer(vk::Buffer buffer, size_t size, vk::Offset3D offset, vk
 
 void Image::download(void *data, size_t size, vk::Offset3D offset, vk::Extent3D extent,
                      uint32_t arrayLayer, uint32_t mipLevel) {
-  EASY_FUNCTION();
+  SVULKAN2_PROFILE_FUNCTION;
 
   size_t imageSize = extent.width * extent.height * extent.depth * getFormatSize(mFormat);
 
@@ -435,7 +435,7 @@ void Image::download(void *data, size_t size, vk::Offset3D offset, vk::Extent3D 
 
   vk::ImageAspectFlags aspect = getFormatAspectFlags(mFormat);
 
-  EASY_BLOCK("Record command buffer");
+  SVULKAN2_PROFILE_BLOCK_BEGIN("Record command buffer");
   auto pool = mContext->createCommandPool();
   auto cb = pool->allocateCommandBuffer();
   cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
@@ -476,28 +476,28 @@ void Image::download(void *data, size_t size, vk::Offset3D offset, vk::Extent3D 
                      vk::PipelineStageFlagBits::eTransfer, arrayLayer);
   }
 
-  EASY_BLOCK("Allocating staging buffer");
+  SVULKAN2_PROFILE_BLOCK_BEGIN("Allocating staging buffer");
   auto stagingBuffer = Buffer::CreateStaging(size, true);
-  EASY_END_BLOCK;
+  SVULKAN2_PROFILE_BLOCK_END;
   vk::BufferImageCopy copyRegion(0, extent.width, extent.height, {aspect, mipLevel, arrayLayer, 1},
                                  offset, extent);
   cb->copyImageToBuffer(mImage, getCurrentLayout(arrayLayer), stagingBuffer->getVulkanBuffer(),
                         copyRegion);
   cb->end();
-  EASY_END_BLOCK;
+  SVULKAN2_PROFILE_BLOCK_END;
 
-  EASY_BLOCK("Submit and wait");
+  SVULKAN2_PROFILE_BLOCK_BEGIN("Submit and wait");
   vk::Result result = mContext->getQueue().submitAndWait(cb.get());
 
   if (result != vk::Result::eSuccess) {
     throw std::runtime_error("failed to wait for fence");
   }
-  EASY_END_BLOCK;
+  SVULKAN2_PROFILE_BLOCK_END;
 
-  EASY_BLOCK("Copy data to CPU");
+  SVULKAN2_PROFILE_BLOCK_BEGIN("Copy data to CPU");
   std::memcpy(data, stagingBuffer->map(), size);
   stagingBuffer->unmap();
-  EASY_END_BLOCK;
+  SVULKAN2_PROFILE_BLOCK_END;
 }
 
 void Image::download(void *data, size_t size, uint32_t arrayLayer) {

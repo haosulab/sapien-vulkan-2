@@ -1,6 +1,6 @@
 #include "svulkan2/scene/object.h"
 #include "svulkan2/scene/scene.h"
-#include <easy/profiler.h>
+#include "svulkan2/common/profiler.h"
 
 namespace svulkan2 {
 namespace scene {
@@ -11,17 +11,17 @@ Object::Object(std::shared_ptr<resource::SVModel> model, std::string const &name
 void Object::uploadToDevice(core::Buffer &objectBuffer, uint32_t offset,
                             StructDataLayout const &objectLayout) {
   // FIXME: this function is deprecated, remove it
-  EASY_BLOCK("allocate");
+  SVULKAN2_PROFILE_BLOCK("allocate");
   std::vector<char> buffer(objectLayout.size);
-  EASY_END_BLOCK;
+  SVULKAN2_PROFILE_BLOCK_END;
 
-  EASY_BLOCK("copy matrix");
+  SVULKAN2_PROFILE_BLOCK("copy matrix");
   std::memcpy(buffer.data() + objectLayout.elements.at("segmentation").offset, &mSegmentation[0],
               16);
 
-  EASY_END_BLOCK;
+  SVULKAN2_PROFILE_BLOCK_END;
 
-  EASY_BLOCK("check other data");
+  SVULKAN2_PROFILE_BLOCK("check other data");
   for (auto &[name, value] : mCustomData) {
     if (objectLayout.elements.find(name) != objectLayout.elements.end()) {
       auto &elem = objectLayout.elements.at(name);
@@ -50,7 +50,7 @@ void Object::uploadToDevice(core::Buffer &objectBuffer, uint32_t offset,
     int shadeFlat = mShadeFlat;
     std::memcpy(buffer.data() + elem.offset, &shadeFlat, 4);
   }
-  EASY_END_BLOCK;
+  SVULKAN2_PROFILE_BLOCK_END;
   objectBuffer.upload(buffer.data(), objectLayout.size, offset);
 }
 

@@ -1,12 +1,12 @@
 #include "svulkan2/renderer/renderer.h"
 #include "../common/logger.h"
+#include "svulkan2/common/profiler.h"
 #include "svulkan2/core/command_pool.h"
 #include "svulkan2/shader/deferred.h"
 #include "svulkan2/shader/gbuffer.h"
 #include "svulkan2/shader/primitive.h"
 #include "svulkan2/shader/primitive_shadow.h"
 #include "svulkan2/shader/shadow.h"
-#include <easy/profiler.h>
 
 namespace svulkan2 {
 namespace renderer {
@@ -599,7 +599,7 @@ void Renderer::recordShadows() {
 }
 
 void Renderer::prepareObjects() {
-  EASY_BLOCK("Prepare objects");
+  SVULKAN2_PROFILE_BLOCK_BEGIN("Prepare objects");
   auto objects = mScene->getObjects();
   auto lineObjects = mScene->getLineObjects();
   auto pointObjects = mScene->getPointObjects();
@@ -616,11 +616,11 @@ void Renderer::prepareObjects() {
 
   prepareObjectBuffers(size);
 
-  EASY_END_BLOCK;
+  SVULKAN2_PROFILE_BLOCK_END;
 
   // load objects to CPU, if not already loaded
   {
-    EASY_BLOCK("Load objects to CPU");
+    SVULKAN2_PROFILE_BLOCK("Load objects to CPU");
     std::vector<std::future<void>> futures;
     for (auto obj : objects) {
       futures.push_back(obj->getModel()->loadAsync());
@@ -631,7 +631,7 @@ void Renderer::prepareObjects() {
   }
 
   {
-    EASY_BLOCK("Upload objects to GPU");
+    SVULKAN2_PROFILE_BLOCK("Upload objects to GPU");
     // upload objects to GPU, if not up-to-date
     for (auto obj : objects) {
       for (auto shape : obj->getModel()->getShapes()) {
@@ -801,7 +801,7 @@ void Renderer::recordRenderPasses() {
   uint32_t pointIndex = 0;
   auto passes = mShaderPack->getNonShadowPasses();
   for (uint32_t pass_index = 0; pass_index < passes.size(); ++pass_index) {
-    EASY_BLOCK("Record render pass" + std::to_string(pass_index));
+    SVULKAN2_PROFILE_BLOCK("Record render pass" + std::to_string(pass_index));
 
     auto pass = passes[pass_index];
 
@@ -1019,7 +1019,7 @@ void Renderer::prepareRender(scene::Camera &camera) {
   }
 
   if (mRequiresRebuild || mSpecializationConstantsChanged) {
-    EASY_BLOCK("Rebuilding Pipeline");
+    SVULKAN2_PROFILE_BLOCK("Rebuilding Pipeline");
     mRequiresRecord = true;
 
     preparePipelines();
@@ -1053,11 +1053,11 @@ void Renderer::prepareRender(scene::Camera &camera) {
     recordUpload();
 
     {
-      EASY_BLOCK("Record shadow draw calls");
+      SVULKAN2_PROFILE_BLOCK("Record shadow draw calls");
       recordShadows();
     }
     {
-      EASY_BLOCK("Record render draw calls");
+      SVULKAN2_PROFILE_BLOCK("Record render draw calls");
       recordRenderPasses();
     }
 
@@ -1081,7 +1081,7 @@ void Renderer::prepareRender(scene::Camera &camera) {
 
 void Renderer::uploadGpuResources(scene::Camera &camera) {
   {
-    EASY_BLOCK("Update camera & scene");
+    SVULKAN2_PROFILE_BLOCK("Update camera & scene");
     // update camera
     camera.uploadToDevice(*mCameraBufferCpu,
                           *mShaderPack->getShaderInputLayouts()->cameraBufferLayout);
@@ -1097,7 +1097,7 @@ void Renderer::uploadGpuResources(scene::Camera &camera) {
   }
 
   {
-    EASY_BLOCK("Update objects");
+    SVULKAN2_PROFILE_BLOCK("Update objects");
     auto bufferSize = mShaderPack->getShaderInputLayouts()->objectDataBufferLayout->getAlignedSize(
         mContext->getPhysicalDeviceLimits().minUniformBufferOffsetAlignment);
 
@@ -1188,7 +1188,7 @@ void Renderer::render(scene::Camera &camera, std::vector<vk::Semaphore> const &w
   if (!mScene) {
     throw std::runtime_error("setScene must be called before rendering");
   }
-  EASY_BLOCK("Record & Submit");
+  SVULKAN2_PROFILE_BLOCK("Record & Submit");
   prepareRender(camera);
 
   if (mAutoUpload) {
@@ -1211,7 +1211,7 @@ void Renderer::render(
   if (!mScene) {
     throw std::runtime_error("setScene must be called before rendering");
   }
-  EASY_BLOCK("Record & Submit");
+  SVULKAN2_PROFILE_BLOCK("Record & Submit");
   prepareRender(camera);
 
   if (mAutoUpload) {

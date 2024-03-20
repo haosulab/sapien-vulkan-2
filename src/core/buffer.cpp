@@ -4,7 +4,7 @@
 #include "svulkan2/core/context.h"
 #include "svulkan2/core/device.h"
 #include "svulkan2/core/physical_device.h"
-#include <easy/profiler.h>
+#include "svulkan2/common/profiler.h"
 
 #ifdef SVULKAN2_CUDA_INTEROP
 #include "../common/cuda_helper.h"

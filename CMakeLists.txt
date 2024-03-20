@@ -3,7 +3,7 @@ project(sapienvulkan2 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20)
 
 option(SVULKAN2_SHARED "Force svulkan2 to be shared" ON)
-option(SVULKAN2_PROFILE "Build with easy_profiler" OFF)
+option(SVULKAN2_PROFILE "Build with profiler" OFF)
 option(SVULKAN2_BUILD_TEST "Build with unit test" OFF)
 option(SVULKAN2_CUDA_INTEROP "Allow CUDA to use Vulkan buffer" ON)
 
@@ -29,7 +29,6 @@ include(vulkan)
 include(glslang)
 include(spirv-cross)
 include(imgui)
-include(easy_profiler)
 include(openexr)
 include(openvr)
 
@@ -58,7 +57,7 @@ target_include_directories(svulkan2 PRIVATE
 target_link_libraries(svulkan2 PUBLIC Vulkan::Headers glm)
 
 find_package(Threads REQUIRED)
-target_link_libraries(svulkan2 PRIVATE assimp::assimp glslang SPIRV spirv-cross-cpp glfw spdlog::spdlog easy_profiler ktx imgui ${CMAKE_DL_LIBS} Threads::Threads OpenEXR)
+target_link_libraries(svulkan2 PRIVATE assimp::assimp glslang SPIRV spirv-cross-cpp glfw spdlog::spdlog ktx imgui ${CMAKE_DL_LIBS} Threads::Threads OpenEXR)
 if (MSVC)
     target_link_libraries(svulkan2 PRIVATE openvr_api64)
 else()
@@ -67,6 +66,8 @@ endif()
 
 if (${SVULKAN2_PROFILE})
     target_compile_definitions(svulkan2 PUBLIC SVULKAN2_PROFILE)
+else()
+    target_compile_definitions(svulkan2 PRIVATE NVTX_DISABLE=1)
 endif()
 
 

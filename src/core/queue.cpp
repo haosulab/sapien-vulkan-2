@@ -1,6 +1,6 @@
 #include "svulkan2/core/queue.h"
 #include "svulkan2/core/device.h"
-#include <easy/profiler.h>
+#include "svulkan2/common/profiler.h"
 
 namespace svulkan2 {
 namespace core {

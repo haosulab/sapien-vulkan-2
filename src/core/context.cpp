@@ -8,7 +8,7 @@
 #include "svulkan2/core/physical_device.h"
 #include "svulkan2/shader/glsl_compiler.h"
 #include <GLFW/glfw3.h>
-#include <easy/profiler.h>
+#include "svulkan2/common/profiler.h"
 #include <iomanip>
 
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
@@ -48,10 +48,6 @@ Context::Context(uint32_t maxNumMaterials, uint32_t maxNumTextures, uint32_t def
                  bool doNotLoadTexture, std::string device)
     : mMaxNumMaterials(maxNumMaterials), mMaxNumTextures(maxNumTextures),
       mDefaultMipLevels(defaultMipLevels), mDoNotLoadTexture(doNotLoadTexture) {
-
-#ifdef SVULKAN2_PROFILE
-  profiler::startListen();
-#endif
 
   mInstance =
       Instance::Get(VK_MAKE_VERSION(0, 0, 1), VK_MAKE_VERSION(0, 0, 1), VK_API_VERSION_1_2);
@@ -125,7 +121,7 @@ void Context::createDescriptorPool() {
 }
 
 std::unique_ptr<CommandPool> Context::createCommandPool() const {
-  EASY_FUNCTION();
+  SVULKAN2_PROFILE_FUNCTION;
   return mDevice->createCommandPool();
 }
 
