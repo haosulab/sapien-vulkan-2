@@ -66,8 +66,9 @@ Device::Device(std::shared_ptr<PhysicalDevice> physicalDevice) : mPhysicalDevice
   descriptorFeatures.setPNext(&timelineSemaphoreFeatures);
 
   features.features.setIndependentBlend(true);
-  features.features.setWideLines(true);
-  features.features.setGeometryShader(true);
+  features.features.setWideLines(physicalDevice->getPickedDeviceInfo().features.wideLines);
+  features.features.setGeometryShader(
+      physicalDevice->getPickedDeviceInfo().features.geometryShader);
   descriptorFeatures.setDescriptorBindingPartiallyBound(true);
   timelineSemaphoreFeatures.setTimelineSemaphore(true);
   descriptorFeatures.setPNext(&timelineSemaphoreFeatures);
@@ -85,6 +86,10 @@ Device::Device(std::shared_ptr<PhysicalDevice> physicalDevice) : mPhysicalDevice
   vk::PhysicalDeviceShaderClockFeaturesKHR clockFeature;
   clockFeature.setShaderDeviceClock(true);
   clockFeature.setShaderSubgroupClock(true);
+
+#ifdef VK_VALIDATION
+  deviceExtensions.push_back(VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME);
+#endif
 
   if (mPhysicalDevice->getPickedDeviceInfo().rayTracing) {
     deviceExtensions.push_back(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
@@ -149,10 +154,7 @@ std::unique_ptr<CommandPool> Device::createCommandPool() {
   return std::make_unique<CommandPool>(shared_from_this());
 }
 
-Device::~Device(){
-  mDevice->waitIdle();
-}
-
+Device::~Device() { mDevice->waitIdle(); }
 
 } // namespace core
 } // namespace svulkan2

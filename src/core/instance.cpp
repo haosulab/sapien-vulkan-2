@@ -9,6 +9,13 @@
 namespace svulkan2 {
 namespace core {
 
+VkBool32 myDebugCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType,
+                         uint64_t object, size_t location, int32_t messageCode,
+                         const char *pLayerPrefix, const char *pMessage, void *pUserData) {
+  printf("%s", pMessage);
+  return false;
+}
+
 static std::weak_ptr<Instance> gInstance;
 
 static void glfwErrorCallback(int error_code, const char *description) {
@@ -140,6 +147,10 @@ Instance::Instance(uint32_t appVersion, uint32_t engineVersion, uint32_t apiVers
                     " is not available and skipped.");
     }
   }
+
+  vk::ValidationFeatureEnableEXT enable = vk::ValidationFeatureEnableEXT::eDebugPrintf;
+  vk::ValidationFeaturesEXT validationFeatures(enable);
+
 #endif
 
   // ========== set up extensions ========== //
@@ -203,9 +214,24 @@ Instance::Instance(uint32_t appVersion, uint32_t engineVersion, uint32_t apiVers
     }
   }
 
+#ifdef VK_VALIDATION
+  extensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
+#endif
+
   try {
-    mInstance = vk::createInstanceUnique(vk::InstanceCreateInfo({}, &appInfo, layers, extensions));
+    auto info = vk::InstanceCreateInfo({}, &appInfo, layers, extensions);
+#ifdef VK_VALIDATION
+    info.setPNext(&validationFeatures);
+#endif
+
+    mInstance = vk::createInstanceUnique(info);
     VULKAN_HPP_DEFAULT_DISPATCHER.init(mInstance.get());
+
+#ifdef VK_VALIDATION
+    vk::DebugReportCallbackCreateInfoEXT ci(vk::DebugReportFlagBitsEXT::eInformation, myDebugCallback);
+    mDebugCallbackHandle = mInstance->createDebugReportCallbackEXT(ci, nullptr);
+#endif
+
   } catch (vk::OutOfHostMemoryError const &err) {
     logger::error("Failed to initialize renderer: out of host memory.");
     throw err;
@@ -301,8 +327,7 @@ std::vector<PhysicalDeviceInfo> Instance::summarizePhysicalDevices() const {
 
     // check features
     device.getFeatures2(&features);
-    if (features.features.independentBlend && features.features.wideLines &&
-        features.features.geometryShader && descriptorFeatures.descriptorBindingPartiallyBound &&
+    if (features.features.independentBlend && descriptorFeatures.descriptorBindingPartiallyBound &&
         timelineSemaphoreFeatures.timelineSemaphore) {
       required_features = true;
     }
@@ -369,17 +394,20 @@ std::vector<PhysicalDeviceInfo> Instance::summarizePhysicalDevices() const {
        << std::setw(15) << rayTracing << std::setw(10) << discrete << std::setw(15) << subgroupSize
        << std::endl;
 
-    devices.push_back(PhysicalDeviceInfo{.name = std::string(name.c_str()),
-                                         .device = device,
-                                         .present = present,
-                                         .supported = supported,
-                                         .cudaId = cudaId,
-                                         .pci = pci,
-                                         .queueIndex = queueIdx,
-                                         .rayTracing = rayTracing,
-                                         .cudaComputeMode = computeMode,
-                                         .deviceType = deviceType,
-                                         .subgroupSize = subgroupSize});
+    devices.push_back(
+        PhysicalDeviceInfo{.name = std::string(name.c_str()),
+                           .device = device,
+                           .present = present,
+                           .supported = supported,
+                           .cudaId = cudaId,
+                           .pci = pci,
+                           .queueIndex = queueIdx,
+                           .rayTracing = rayTracing,
+                           .cudaComputeMode = computeMode,
+                           .deviceType = deviceType,
+                           .subgroupSize = subgroupSize,
+                           .features{.wideLines = (bool)features.features.wideLines,
+                                     .geometryShader = (bool)features.features.geometryShader}});
   }
   logger::info(ss.str());
 
@@ -531,9 +559,7 @@ void Instance::shutdownVR() const {
   }
 }
 
-Instance::~Instance() {
-  glfwTerminate();
-}
+Instance::~Instance() { glfwTerminate(); }
 
 } // namespace core
 } // namespace svulkan2

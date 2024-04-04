@@ -106,6 +106,10 @@ Allocator::Allocator(Device &device) {
   {
     VmaPoolCreateInfo poolInfo{};
     poolInfo.memoryTypeIndex = static_cast<uint32_t>(index);
+    // auto limits = physicalDevice->getInternal().getProperties().limits;
+    // poolInfo.minAllocationAlignment = std::max(
+    //     std::max(limits.minStorageBufferOffsetAlignment, limits.minTexelBufferOffsetAlignment),
+    //     limits.minUniformBufferOffsetAlignment);
     mExternalAllocInfo =
         vk::ExportMemoryAllocateInfo(vk::ExternalMemoryHandleTypeFlagBits::eOpaqueFd);
     poolInfo.pMemoryAllocateNext = &mExternalAllocInfo;

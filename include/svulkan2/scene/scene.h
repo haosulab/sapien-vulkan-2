@@ -142,6 +142,7 @@ public:
   void registerAccessFence(vk::Fence fence);
   void unregisterAccessFence(vk::Fence fence);
 
+  size_t getGpuTransformBufferSize();
   void prepareObjectTransformBuffer();
   std::shared_ptr<core::Buffer> getObjectTransformBuffer();
   virtual void uploadObjectTransforms();
@@ -178,6 +179,7 @@ protected:
   core::CommandPool &getCommandPool();
 
   // transform buffers
+  size_t mGpuTransformBufferSize{0l};
   uint64_t mTransformBufferVersion{0l};
   uint64_t mTransformBufferRenderVersion{0l};
   std::shared_ptr<core::Buffer> mTransformBufferCpu;

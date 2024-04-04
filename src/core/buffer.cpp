@@ -97,67 +97,6 @@ Buffer::Buffer(std::shared_ptr<Device> device, vk::DeviceSize size,
   mHostCoherent = (memFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0;
 }
 
-// Buffer::Buffer(vk::DeviceSize size, vk::BufferUsageFlags usageFlags, VmaMemoryUsage memoryUsage,
-//                VmaAllocationCreateFlags allocationFlags, bool external)
-//     : mSize(size), mExternal(external) {
-//   mContext = Context::Get();
-//   if (size == 0) {
-//     throw std::runtime_error("failed to create buffer: buffer size must not be 0.");
-//   }
-//   vk::BufferCreateInfo bufferInfo({}, size, usageFlags);
-//   vk::ExternalMemoryBufferCreateInfo externalMemoryBufferInfo(
-//       vk::ExternalMemoryHandleTypeFlagBits::eOpaqueFd);
-
-//   VmaAllocationCreateInfo memoryInfo{};
-//   memoryInfo.usage = memoryUsage;
-//   memoryInfo.flags = allocationFlags;
-
-//   if (external) {
-//     bufferInfo.setPNext(&externalMemoryBufferInfo);
-
-//     if (memoryUsage != VMA_MEMORY_USAGE_GPU_ONLY) {
-//       throw std::runtime_error("external buffer can only be device local");
-//     }
-//     memoryInfo.pool = mContext->getAllocator().getExternalPool();
-//   }
-
-//   if (vmaCreateBuffer(mContext->getAllocator().getVmaAllocator(),
-//                       reinterpret_cast<VkBufferCreateInfo *>(&bufferInfo), &memoryInfo,
-//                       reinterpret_cast<VkBuffer *>(&mBuffer), &mAllocation,
-//                       &mAllocationInfo) != VK_SUCCESS) {
-//     throw std::runtime_error("cannot create buffer");
-//   }
-
-//   VkMemoryPropertyFlags memFlags;
-//   vmaGetMemoryTypeProperties(mContext->getAllocator().getVmaAllocator(),
-//                              mAllocationInfo.memoryType, &memFlags);
-//   mHostVisible = (memFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0;
-//   mHostCoherent = (memFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0;
-// }
-
-// Buffer::Buffer(vk::DeviceSize size, vk::BufferUsageFlags usageFlags, VmaMemoryUsage memoryUsage,
-//                VmaAllocationCreateFlags allocationFlags, VmaPool pool)
-//     : mSize(size) {
-//   mContext = Context::Get();
-//   vk::BufferCreateInfo bufferInfo({}, size, usageFlags);
-//   VmaAllocationCreateInfo memoryInfo{};
-//   memoryInfo.usage = memoryUsage;
-//   memoryInfo.flags = allocationFlags;
-//   memoryInfo.pool = pool;
-//   if (vmaCreateBuffer(mContext->getAllocator().getVmaAllocator(),
-//                       reinterpret_cast<VkBufferCreateInfo *>(&bufferInfo), &memoryInfo,
-//                       reinterpret_cast<VkBuffer *>(&mBuffer), &mAllocation,
-//                       &mAllocationInfo) != VK_SUCCESS) {
-//     throw std::runtime_error("cannot create buffer");
-//   }
-
-//   VkMemoryPropertyFlags memFlags;
-//   vmaGetMemoryTypeProperties(mContext->getAllocator().getVmaAllocator(),
-//                              mAllocationInfo.memoryType, &memFlags);
-//   mHostVisible = (memFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0;
-//   mHostCoherent = (memFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0;
-// }
-
 Buffer::~Buffer() {
 #ifdef SVULKAN2_CUDA_INTEROP
   if (mCudaPtr) {

@@ -1487,7 +1487,7 @@ void Renderer::prepareObjectBuffers(uint32_t numObjects) {
 
   mObjectTransformBuffer = transformBuffer;
 
-  constexpr uint32_t transformSize = 64;
+  size_t transformSize = mScene->getGpuTransformBufferSize();
 
   uint32_t newSize = mObjectTransformBuffer->getSize() / transformSize;
   assert(newSize >= numObjects);
@@ -1511,7 +1511,6 @@ void Renderer::prepareObjectBuffers(uint32_t numObjects) {
 
   for (uint32_t i = 0; i < mObjectSet.size(); ++i) {
     auto buffer = mObjectDataBuffer->getVulkanBuffer();
-    // TODO: debug here
     bufferInfos[i] = {vk::DescriptorBufferInfo(transformBuffer->getVulkanBuffer(),
                                                transformSize * i, transformSize),
                       vk::DescriptorBufferInfo(buffer, bufferSize * i, bufferSize)};

@@ -19,6 +19,11 @@ struct PhysicalDeviceInfo {
   int cudaComputeMode{-1};
   vk::PhysicalDeviceType deviceType{};
   uint32_t subgroupSize{0};
+
+  struct Features {
+    bool wideLines{false};
+    bool geometryShader{false};
+  } features;
 };
 
 class Instance : public std::enable_shared_from_this<Instance> {
@@ -53,6 +58,11 @@ private:
   bool mGLFWSupported{};
   bool mVRSupported{};
   std::vector<PhysicalDeviceInfo> mPhysicalDeviceInfo;
+
+#ifdef VK_VALIDATION
+    vk::DebugReportCallbackEXT mDebugCallbackHandle;
+#endif
+
 };
 
 } // namespace core

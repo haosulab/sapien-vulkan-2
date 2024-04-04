@@ -622,6 +622,8 @@ void Scene::updateVersion() {
 void Scene::updateRenderVersion() { mRenderVersion++; }
 
 void Scene::prepareObjectTransformBuffer() {
+  size_t gpuTransformBufferSize = getGpuTransformBufferSize();
+
   // transform buffer is up-to-date
   if (mTransformBufferVersion == mVersion) {
     return;
@@ -646,7 +648,7 @@ void Scene::prepareObjectTransformBuffer() {
   }
 
   // no need to create buffer if it is large enough
-  if (mTransformBuffer && mTransformBuffer->getSize() >= sizeof(glm::mat4) * count) {
+  if (mTransformBuffer && mTransformBuffer->getSize() >= gpuTransformBufferSize * count) {
     return;
   }
 
@@ -654,10 +656,20 @@ void Scene::prepareObjectTransformBuffer() {
 
   count = std::max(count, 1u);
 
-  mTransformBufferCpu = core::Buffer::Create(
-      sizeof(glm::mat4) * count, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_ONLY);
-  mTransformBuffer = core::Buffer::CreateUniform(sizeof(glm::mat4) * count, true, true);
+  mTransformBufferCpu =
+      core::Buffer::Create(gpuTransformBufferSize * count, vk::BufferUsageFlagBits::eTransferSrc,
+                           VMA_MEMORY_USAGE_CPU_ONLY);
+  mTransformBuffer = core::Buffer::CreateUniform(gpuTransformBufferSize * count, true, true);
   mTransformBufferVersion = mVersion;
+}
+
+size_t Scene::getGpuTransformBufferSize() {
+  if (!mGpuTransformBufferSize) {
+    mGpuTransformBufferSize =
+        std::max(sizeof(glm::mat4),
+                 core::Context::Get()->getPhysicalDeviceLimits().minUniformBufferOffsetAlignment);
+  }
+  return mGpuTransformBufferSize;
 }
 
 void Scene::uploadObjectTransforms() {
@@ -671,25 +683,31 @@ void Scene::uploadObjectTransforms() {
   auto objects = getObjects();
   auto lineObjects = getLineObjects();
   auto pointObjects = getPointObjects();
-  std::vector<glm::mat4> data;
-  data.reserve(objects.size() + lineObjects.size() + pointObjects.size());
+
+  size_t totalSize{0};
+  uint8_t *buffer = reinterpret_cast<uint8_t *>(mTransformBufferCpu->map());
+  size_t step = getGpuTransformBufferSize();
   for (auto obj : objects) {
-    data.push_back(obj->getTransform().worldModelMatrix);
+    auto mat = obj->getTransform().worldModelMatrix;
+    std::memcpy(buffer + totalSize, &mat, sizeof(glm::mat4));
+    totalSize += step;
   }
   for (auto obj : lineObjects) {
-    data.push_back(obj->getTransform().worldModelMatrix);
+    auto mat = obj->getTransform().worldModelMatrix;
+    std::memcpy(buffer + totalSize, &mat, sizeof(glm::mat4));
+    totalSize += step;
   }
   for (auto obj : pointObjects) {
-    data.push_back(obj->getTransform().worldModelMatrix);
+    auto mat = obj->getTransform().worldModelMatrix;
+    std::memcpy(buffer + totalSize, &mat, sizeof(glm::mat4));
+    totalSize += step;
   }
+  mTransformBufferCpu->unmap();
 
   // rendering empty scene
-  if (data.empty()) {
+  if (totalSize == 0) {
     return;
   }
-
-  // put data on CPU
-  mTransformBufferCpu->upload(data);
 
   if (!mTransformUpdateCommandBuffer) {
     mTransformUpdateCommandBuffer = getCommandPool().allocateCommandBuffer();
@@ -717,7 +735,7 @@ void Scene::uploadObjectTransforms() {
         vk::PipelineStageFlagBits::eTransfer, {}, {}, barrier, {});
   }
 
-  vk::BufferCopy region(0, 0, data.size() * sizeof(glm::mat4));
+  vk::BufferCopy region(0, 0, totalSize);
   mTransformUpdateCommandBuffer->copyBuffer(mTransformBufferCpu->getVulkanBuffer(),
                                             mTransformBuffer->getVulkanBuffer(), region);
   {

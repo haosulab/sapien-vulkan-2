@@ -117,12 +117,15 @@ void SVImage::uploadToDevice(bool generateMipmaps) {
 
     cb = pool->allocateCommandBuffer();
     cb->begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+
+    vk::PipelineStageFlags dstStage = vk::PipelineStageFlagBits::eFragmentShader;
+    if (core::Context::Get()->isRayTracingAvailable()) {
+      dstStage |= vk::PipelineStageFlagBits::eRayTracingShaderKHR;
+    }
     mImage->transitionLayout(cb.get(), vk::ImageLayout::eTransferDstOptimal,
                              vk::ImageLayout::eShaderReadOnlyOptimal,
                              vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eShaderRead,
-                             vk::PipelineStageFlagBits::eTransfer,
-                             vk::PipelineStageFlagBits::eFragmentShader |
-                                 vk::PipelineStageFlagBits::eRayTracingShaderKHR);
+                             vk::PipelineStageFlagBits::eTransfer, dstStage);
     cb->end();
     context->getQueue().submitAndWait(cb.get());
   } else {
