@@ -883,7 +883,7 @@ void Renderer::recordRenderPasses() {
                                                 std::vector<vk::DeviceSize>(1, 0));
         mRenderCommandBuffer->bindIndexBuffer(shape->mesh->getIndexBuffer().getVulkanBuffer(), 0,
                                               vk::IndexType::eUint32);
-        mRenderCommandBuffer->setCullMode(objects[objectIndex]->getCullMode());
+        mRenderCommandBuffer->setCullMode(shape->material->getCullMode());
         mRenderCommandBuffer->drawIndexed(shape->mesh->getTriangleCount() * 3, 1, 0, 0, 0);
       }
       gbufferIndex++;

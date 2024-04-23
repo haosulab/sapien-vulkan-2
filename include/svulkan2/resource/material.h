@@ -25,10 +25,15 @@ public:
 
   virtual ~SVMaterial() = default;
 
+  void setCullMode(vk::CullModeFlagBits cullMode) { mCullMode = cullMode; }
+  vk::CullModeFlagBits getCullMode() const { return mCullMode; }
+
 protected:
   std::shared_ptr<core::Context> mContext; // keep alive for descriptor set
   bool mRequiresBufferUpload{true};
   bool mRequiresTextureUpload{true};
+
+  vk::CullModeFlagBits mCullMode{vk::CullModeFlagBits::eBack};
 
   vk::UniqueDescriptorSet mDescriptorSet;
 };

@@ -250,6 +250,7 @@ std::future<void> SVModel::loadAsync() {
         newMat->setMetallicTextureTransform(mat->getMetallicTextureTransform());
         newMat->setEmissionTextureTransform(mat->getEmissionTextureTransform());
         newMat->setTransmissionTextureTransform(mat->getTransmissionTextureTransform());
+        newMat->setCullMode(mat->getCullMode());
 
         newShape->mesh = s->mesh;
         newShape->material = newMat;
@@ -292,6 +293,7 @@ std::future<void> SVModel::loadAsync() {
 
     for (uint32_t mat_idx = 0; mat_idx < scene->mNumMaterials; ++mat_idx) {
       auto *m = scene->mMaterials[mat_idx];
+      int twoSided{0};
       aiColor3D emission{0, 0, 0};
       float emissionStrength = 1.f;
 
@@ -304,6 +306,8 @@ std::future<void> SVModel::loadAsync() {
       float ior = 1.01f;
 
       float roughness = 1.f;
+
+      m->Get(AI_MATKEY_TWOSIDED, twoSided);
 
       if (m->Get(AI_MATKEY_OPACITY, alpha) == AI_SUCCESS) {
         if (alpha < 1e-5) {
@@ -598,6 +602,10 @@ std::future<void> SVModel::loadAsync() {
           glm::vec4{emission.r, emission.g, emission.b, emissionStrength},
           glm::vec4{diffuse.r, diffuse.g, diffuse.b, alpha}, specular, roughness, metallic,
           transmission, ior);
+      if (twoSided) {
+        material->setCullMode(vk::CullModeFlagBits::eNone);
+      }
+
       material->setTextures(baseColorTexture, roughnessTexture, normalTexture, metallicTexture,
                             emissionTexture, transmissionTexture);
       material->setDiffuseTextureTransform(baseColorTransform);

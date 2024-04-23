@@ -38,7 +38,7 @@ class Object : public Node {
   bool mCastShadow{true};
   bool mShadeFlat{false};
 
-  vk::CullModeFlagBits mCullMode{vk::CullModeFlagBits::eBack};
+  vk::FrontFace mFrontFace{vk::FrontFace::eCounterClockwise};
 
   // used to index the transform array
   int mGpuIndex{-1};
@@ -77,8 +77,8 @@ public:
   inline void setShadingMode(int mode) { mShadingMode = mode; }
   inline int getShadingMode() const { return mShadingMode; }
 
-  inline void setCullMode(vk::CullModeFlagBits cull) { mCullMode = cull; }
-  inline vk::CullModeFlagBits getCullMode() const { return mCullMode; }
+  inline void setFrontFace(vk::FrontFace frontFace) { mFrontFace = frontFace; }
+  inline vk::FrontFace getFrontFace() const { return mFrontFace; }
 
   void setTransparency(float transparency);
   inline float getTransparency() const { return mTransparency; }
