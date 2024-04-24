@@ -208,7 +208,7 @@ std::unique_ptr<core::Image> latlongToCube(core::Image &latlong, int mipLevels) 
   auto device = context->getDevice();
 
   auto cubemap = std::make_unique<core::Image>(
-      vk::ImageType::e2D, vk::Extent3D{height, height, 1}, vk::Format::eR16G16B16A16Sfloat,
+      vk::ImageType::e2D, vk::Extent3D{height, height, 1}, latlong.getFormat(),
       vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst |
           vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage,
       VMA_MEMORY_USAGE_GPU_ONLY, vk::SampleCountFlagBits::e1, mipLevels, 6,

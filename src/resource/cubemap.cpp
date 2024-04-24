@@ -213,6 +213,10 @@ void SVCubemap::exportKTX(std::string const &filename) {
   auto img = mImage->getDeviceImage();
   auto extent = img->getExtent();
 
+  if (img->getFormat() != vk::Format::eR8G8B8A8Unorm) {
+    throw std::runtime_error("exporting to ktx only supports R8G8B8A8Unorm texture for now");
+  }
+
   ktxTexture2 *texture;
   ktxTextureCreateInfo createInfo;
 
