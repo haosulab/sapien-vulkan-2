@@ -241,10 +241,10 @@ std::future<void> SVModel::loadAsync() {
         auto newMat = std::make_shared<SVMetallicMaterial>(
             mat->getEmission(), mat->getBaseColor(), mat->getFresnel(), mat->getRoughness(),
             mat->getMetallic(), mat->getTransmission(), mat->getIor());
-        newMat->setTextures(mat->getDiffuseTexture(), mat->getRoughnessTexture(),
+        newMat->setTextures(mat->getBaseColorTexture(), mat->getRoughnessTexture(),
                             mat->getNormalTexture(), mat->getMetallicTexture(),
                             mat->getEmissionTexture(), mat->getTransmissionTexture());
-        newMat->setDiffuseTextureTransform(mat->getDiffuseTextureTransform());
+        newMat->setBaseColorTextureTransform(mat->getBaseColorTextureTransform());
         newMat->setRoughnessTextureTransform(mat->getRoughnessTextureTransform());
         newMat->setNormalTextureTransform(mat->getNormalTextureTransform());
         newMat->setMetallicTextureTransform(mat->getMetallicTextureTransform());
@@ -608,7 +608,7 @@ std::future<void> SVModel::loadAsync() {
 
       material->setTextures(baseColorTexture, roughnessTexture, normalTexture, metallicTexture,
                             emissionTexture, transmissionTexture);
-      material->setDiffuseTextureTransform(baseColorTransform);
+      material->setBaseColorTextureTransform(baseColorTransform);
       material->setNormalTextureTransform(normalTransform);
       material->setRoughnessTextureTransform(roughnessTransform);
       material->setMetallicTextureTransform(metallicTransform);

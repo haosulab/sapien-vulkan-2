@@ -914,7 +914,7 @@ void Scene::createRTStorageBuffers(StructDataLayout const &materialBufferLayout,
         auto mat = std::static_pointer_cast<resource::SVMetallicMaterial>(shape->material);
         materials.push_back(mat);
 
-        std::array matTextures{mat->getEmissionTexture(),  mat->getDiffuseTexture(),
+        std::array matTextures{mat->getEmissionTexture(),  mat->getBaseColorTexture(),
                                mat->getNormalTexture(),    mat->getMetallicTexture(),
                                mat->getRoughnessTexture(), mat->getTransmissionTexture()};
         for (auto tex : matTextures) {
@@ -947,7 +947,7 @@ void Scene::createRTStorageBuffers(StructDataLayout const &materialBufferLayout,
   uint32_t materialIndex{0};
   for (auto mat : materials) {
     auto emissionTex = mat->getEmissionTexture();
-    auto diffuseTex = mat->getDiffuseTexture();
+    auto diffuseTex = mat->getBaseColorTexture();
     auto normalTex = mat->getNormalTexture();
     auto metallicTex = mat->getMetallicTexture();
     auto roughnessTex = mat->getRoughnessTexture();

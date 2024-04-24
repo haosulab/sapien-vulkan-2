@@ -138,7 +138,7 @@ float SVMetallicMaterial::getTransmissionRoughness() const {
   return mBuffer.transmissionRoughness;
 }
 
-std::shared_ptr<SVTexture> SVMetallicMaterial::getDiffuseTexture() const {
+std::shared_ptr<SVTexture> SVMetallicMaterial::getBaseColorTexture() const {
   if (getBit(mBuffer.textureMask, TextureBit::eBaseColor) == 0) {
     return nullptr;
   }
@@ -180,7 +180,7 @@ std::shared_ptr<SVTexture> SVMetallicMaterial::getTransmissionTexture() const {
   return mTransmissionTexture;
 }
 
-void SVMetallicMaterial::setDiffuseTexture(std::shared_ptr<SVTexture> texture) {
+void SVMetallicMaterial::setBaseColorTexture(std::shared_ptr<SVTexture> texture) {
   mRequiresTextureUpload = true;
   mBaseColorTexture = texture;
   if (mBaseColorTexture) {
@@ -257,7 +257,7 @@ void SVMetallicMaterial::setTransmissionTexture(std::shared_ptr<SVTexture> textu
   }
 }
 
-void SVMetallicMaterial::setDiffuseTextureTransform(glm::vec4 const &transform) {
+void SVMetallicMaterial::setBaseColorTextureTransform(glm::vec4 const &transform) {
   mRequiresBufferUpload = true;
   mBuffer.textureTransform[TextureBit::eBaseColor] = transform;
   if (mDeviceBuffer) {
@@ -300,7 +300,7 @@ void SVMetallicMaterial::setTransmissionTextureTransform(glm::vec4 const &transf
   }
 }
 
-glm::vec4 SVMetallicMaterial::getDiffuseTextureTransform() const {
+glm::vec4 SVMetallicMaterial::getBaseColorTextureTransform() const {
   return mBuffer.textureTransform[TextureBit::eBaseColor];
 }
 glm::vec4 SVMetallicMaterial::getRoughnessTextureTransform() const {

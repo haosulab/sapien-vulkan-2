@@ -518,7 +518,7 @@ std::shared_ptr<Scene> LoadScene(std::string const &path) {
         transmission, ior);
     material->setTextures(baseColorTexture, roughnessTexture, normalTexture, metallicTexture,
                           emissionTexture, transmissionTexture);
-    material->setDiffuseTextureTransform(baseColorTransform);
+    material->setBaseColorTextureTransform(baseColorTransform);
     material->setNormalTextureTransform(normalTransform);
     material->setRoughnessTextureTransform(roughnessTransform);
     material->setMetallicTextureTransform(metallicTransform);
