@@ -1,4 +1,5 @@
 #include "svulkan2/renderer/vr.h"
+#include "../common/logger.h"
 #include "svulkan2/core/context.h"
 #include <openvr.h>
 
@@ -9,6 +10,11 @@ static vr::IVRSystem *gSystem;
 static std::array<vr::TrackedDevicePose_t, vr::k_unMaxTrackedDeviceCount> gTrackedDevicePose{};
 static std::array<glm::mat4, vr::k_unMaxTrackedDeviceCount> gDevicePoses{};
 static std::array<vr::VRControllerState_t, vr::k_unMaxTrackedDeviceCount> gDeviceState{};
+
+static std::string gActionManifestPath{};
+void VRDisplay::setActionManifestPath(std::string const &path) { gActionManifestPath = path; }
+
+std::string VRDisplay::getActionManifestPath() { return gActionManifestPath; }
 
 VRDisplay::VRDisplay() {
   if (!gSystem) {
@@ -35,6 +41,32 @@ void VRDisplay::initDevices() {
   }
   if (hmd != 0) {
     throw std::runtime_error("Failed to find HMD");
+  }
+
+  if (gActionManifestPath.length()) {
+    logger::info("using action manifest {}", gActionManifestPath);
+    auto res = vr::VRInput()->SetActionManifestPath(gActionManifestPath.c_str());
+    if (res != vr::EVRInputError::VRInputError_None) {
+      logger::error("failed to read action manifest {}", res);
+    }
+  }
+
+  static_assert(std::is_same<uint64_t, vr::VRActionSetHandle_t>::value);
+  static_assert(std::is_same<uint64_t, vr::VRActionHandle_t>::value);
+  if (vr::VRInput()->GetActionSetHandle("/actions/global", &mActionSetHandle) !=
+      vr::EVRInputError::VRInputError_None) {
+    mActionSetHandle = 0;
+    logger::error("failed to get action set handle");
+  }
+  if (vr::VRInput()->GetActionHandle("/actions/global/in/HandSkeletonLeft", &mLeftHandHandle) !=
+      vr::EVRInputError::VRInputError_None) {
+    mLeftHandHandle = 0;
+    logger::error("failed to get action handle");
+  }
+  if (vr::VRInput()->GetActionHandle("/actions/global/in/HandSkeletonRight", &mRightHandHandle) !=
+      vr::EVRInputError::VRInputError_None) {
+    mRightHandHandle = 0;
+    logger::error("failed to get action handle");
   }
 }
 
@@ -97,6 +129,102 @@ glm::mat4 VRDisplay::getControllerPose(vr::TrackedDeviceIndex_t id) const {
 
 glm::mat4 VRDisplay::getHMDPose() const { return gDevicePoses.at(0); }
 
+glm::mat4 VRDisplay::getSkeletalRootPoseLeft() {
+  vr::InputPoseActionData_t poseData{};
+  vr::VRInput()->GetPoseActionDataForNextFrame(
+      mLeftHandHandle, vr::ETrackingUniverseOrigin::TrackingUniverseRawAndUncalibrated, &poseData,
+      sizeof(poseData), 0);
+  auto &pose = poseData.pose.mDeviceToAbsoluteTracking;
+
+  // clang-format off
+  return glm::mat4(pose.m[0][0], pose.m[1][0], pose.m[2][0], 0.0,
+                   pose.m[0][1], pose.m[1][1], pose.m[2][1], 0.0,
+                   pose.m[0][2], pose.m[1][2], pose.m[2][2], 0.0,
+                   pose.m[0][3], pose.m[1][3], pose.m[2][3], 1.0f);
+  // clang-format on
+}
+
+glm::mat4 VRDisplay::getSkeletalRootPoseRight() {
+  vr::InputPoseActionData_t poseData{};
+  vr::VRInput()->GetPoseActionDataForNextFrame(
+      mRightHandHandle, vr::ETrackingUniverseOrigin::TrackingUniverseRawAndUncalibrated, &poseData,
+      sizeof(poseData), 0);
+  auto &pose = poseData.pose.mDeviceToAbsoluteTracking;
+
+  // clang-format off
+  return glm::mat4(pose.m[0][0], pose.m[1][0], pose.m[2][0], 0.0,
+                   pose.m[0][1], pose.m[1][1], pose.m[2][1], 0.0,
+                   pose.m[0][2], pose.m[1][2], pose.m[2][2], 0.0,
+                   pose.m[0][3], pose.m[1][3], pose.m[2][3], 1.0f);
+  // clang-format on
+}
+
+std::vector<std::array<float, 8>> VRDisplay::getSkeletalDataLeft() {
+  if (!mLeftHandHandle) {
+    throw std::runtime_error("failed to get skeletal data.");
+  }
+
+  static std::vector<vr::VRBoneTransform_t> transforms;
+  vr::InputSkeletalActionData_t data{};
+  auto res = vr::VRInput()->GetSkeletalActionData(mLeftHandHandle, &data, sizeof(data));
+  if (res != vr::EVRInputError::VRInputError_None) {
+    logger::error("failed to get skeletal data {}", res);
+  }
+  if (data.bActive) {
+    uint32_t boneCount{};
+    vr::VRInput()->GetBoneCount(mLeftHandHandle, &boneCount);
+    transforms.resize(boneCount);
+    auto res = vr::VRInput()->GetSkeletalBoneData(
+        mLeftHandHandle, vr::EVRSkeletalTransformSpace::VRSkeletalTransformSpace_Model,
+        vr::EVRSkeletalMotionRange::VRSkeletalMotionRange_WithoutController, transforms.data(),
+        transforms.size());
+    if (res != vr::EVRInputError::VRInputError_None) {
+      logger::error("get skeletal bone data failed");
+    }
+    std::vector<std::array<float, 8>> poses;
+    poses.reserve(transforms.size());
+    for (auto &t : transforms) {
+      poses.push_back({t.orientation.w, t.orientation.x, t.orientation.y, t.orientation.z,
+                       t.position.v[0], t.position.v[1], t.position.v[2], t.position.v[3]});
+    }
+    return poses;
+  }
+  return {};
+}
+
+std::vector<std::array<float, 8>> VRDisplay::getSkeletalDataRight() {
+  if (!mRightHandHandle) {
+    throw std::runtime_error("failed to get skeletal data.");
+  }
+
+  static std::vector<vr::VRBoneTransform_t> transforms;
+  vr::InputSkeletalActionData_t data{};
+  auto res = vr::VRInput()->GetSkeletalActionData(mRightHandHandle, &data, sizeof(data));
+  if (res != vr::EVRInputError::VRInputError_None) {
+    logger::error("failed to get skeletal data {}", res);
+  }
+  if (data.bActive) {
+    uint32_t boneCount{};
+    vr::VRInput()->GetBoneCount(mRightHandHandle, &boneCount);
+    transforms.resize(boneCount);
+    auto res = vr::VRInput()->GetSkeletalBoneData(
+        mRightHandHandle, vr::EVRSkeletalTransformSpace::VRSkeletalTransformSpace_Model,
+        vr::EVRSkeletalMotionRange::VRSkeletalMotionRange_WithoutController, transforms.data(),
+        transforms.size());
+    if (res != vr::EVRInputError::VRInputError_None) {
+      logger::error("get skeletal bone data failed");
+    }
+    std::vector<std::array<float, 8>> poses;
+    poses.reserve(transforms.size());
+    for (auto &t : transforms) {
+      poses.push_back({t.orientation.w, t.orientation.x, t.orientation.y, t.orientation.z,
+                       t.position.v[0], t.position.v[1], t.position.v[2], t.position.v[3]});
+    }
+    return poses;
+  }
+  return {};
+}
+
 static glm::mat4 VRPoseToMat4(vr::HmdMatrix34_t const &pose) {
   // clang-format off
   return glm::mat4(pose.m[0][0], pose.m[1][0], pose.m[2][0], 0.0,
@@ -133,6 +261,19 @@ std::array<float, 2> VRDisplay::getControllerAxis(vr::TrackedDeviceIndex_t id, u
 }
 
 void VRDisplay::updatePoses() {
+
+  if (mActionSetHandle) {
+    vr::VRActiveActionSet_t actionSet;
+    actionSet.ulActionSet = mActionSetHandle;
+    actionSet.ulRestrictedToDevice = vr::k_ulInvalidInputValueHandle;
+    actionSet.ulSecondaryActionSet = vr::k_ulInvalidActionSetHandle;
+    actionSet.nPriority = 0;
+    auto res = vr::VRInput()->UpdateActionState(&actionSet, sizeof(actionSet), 1);
+    if (res != vr::EVRInputError::VRInputError_None) {
+      logger::error("failed to update action state {}", res);
+    }
+  }
+
   vr::VRCompositor()->WaitGetPoses(gTrackedDevicePose.data(), vr::k_unMaxTrackedDeviceCount, NULL,
                                    0);
   for (int nDevice = 0; nDevice < vr::k_unMaxTrackedDeviceCount; ++nDevice) {

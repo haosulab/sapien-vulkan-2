@@ -13,6 +13,10 @@ namespace renderer {
 
 class VRDisplay {
 public:
+  static void setActionManifestPath(std::string const &path);
+  static std::string getActionManifestPath();
+
+public:
   VRDisplay();
   void initDevices();
 
@@ -32,6 +36,10 @@ public:
   std::vector<uint32_t> getControllers();
   glm::mat4 getControllerPose(uint32_t id) const;
   glm::mat4 getHMDPose() const;
+  glm::mat4 getSkeletalRootPoseLeft();
+  glm::mat4 getSkeletalRootPoseRight();
+  std::vector<std::array<float, 8>> getSkeletalDataLeft();
+  std::vector<std::array<float, 8>> getSkeletalDataRight();
 
   uint64_t getControllerButtonPressed(uint32_t id);
   uint64_t getControllerButtonTouched(uint32_t id);
@@ -45,6 +53,10 @@ public:
 
 private:
   std::shared_ptr<core::Context> mContext;
+
+  uint64_t mActionSetHandle{};
+  uint64_t mLeftHandHandle{};
+  uint64_t mRightHandHandle{};
 };
 
 } // namespace renderer

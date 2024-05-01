@@ -77,13 +77,15 @@ void SceneGroup::uploadObjectTransforms() {
   mTransformUpdateCommandBuffer->copyBuffer(mTransformBufferCpu->getVulkanBuffer(),
                                             mTransformBuffer->getVulkanBuffer(), region);
 
-  vk::BufferMemoryBarrier barrier(
-      vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eShaderRead, VK_QUEUE_FAMILY_IGNORED,
-      VK_QUEUE_FAMILY_IGNORED, mTransformBuffer->getVulkanBuffer(), 0, VK_WHOLE_SIZE);
+  vk::MemoryBarrier barrier(vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eShaderRead);
+  // vk::BufferMemoryBarrier barrier(
+  //     vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eShaderRead,
+  //     VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, mTransformBuffer->getVulkanBuffer(), 0,
+  //     VK_WHOLE_SIZE);
   mTransformUpdateCommandBuffer->pipelineBarrier(vk::PipelineStageFlagBits::eTransfer,
                                                  vk::PipelineStageFlagBits::eVertexShader |
                                                      vk::PipelineStageFlagBits::eFragmentShader,
-                                                 {}, {}, barrier, {});
+                                                 {}, barrier, {}, {});
 
   mTransformUpdateCommandBuffer->end();
 

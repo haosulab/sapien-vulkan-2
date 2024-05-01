@@ -100,7 +100,7 @@ int main() {
 
   svulkan2::logger::setLogLevel("info");
 
-  auto context = svulkan2::core::Context::Create(true, 5000, 5000, 4);
+  auto context = svulkan2::core::Context::Create(5000, 5000, 4);
   auto manager = context->createResourceManager();
   auto config = std::make_shared<RendererConfig>();
 
@@ -185,7 +185,6 @@ int main() {
                       ->append(filechooser);
 
   scene->updateModelMatrices();
-
 
   int count = 0;
   while (!window->isClosed()) {

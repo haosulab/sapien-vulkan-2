@@ -432,13 +432,11 @@ void Renderer::recordUpload() {
   mUploadCommandBuffer->copyBuffer(mCameraBufferCpu->getVulkanBuffer(),
                                    mCameraBuffer->getVulkanBuffer(), region);
 
-  vk::BufferMemoryBarrier barrier(
-      vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eShaderRead, VK_QUEUE_FAMILY_IGNORED,
-      VK_QUEUE_FAMILY_IGNORED, mCameraBuffer->getVulkanBuffer(), 0, VK_WHOLE_SIZE);
+  vk::MemoryBarrier barrier(vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eShaderRead);
   mUploadCommandBuffer->pipelineBarrier(vk::PipelineStageFlagBits::eTransfer,
                                         vk::PipelineStageFlagBits::eVertexShader |
                                             vk::PipelineStageFlagBits::eFragmentShader,
-                                        {}, {}, barrier, {});
+                                        {}, barrier, {}, {});
 
   mUploadCommandBuffer->end();
 }

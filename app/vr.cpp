@@ -24,8 +24,6 @@
 
 using namespace svulkan2;
 
-static bool gClosed = false;
-
 static fs::path assetDir;
 
 static void setupSphereArray(svulkan2::scene::Scene &scene) {
@@ -74,6 +72,8 @@ void handleSIGINT(int signal) {
 }
 
 int main() {
+  // renderer::VRDisplay::setActionManifestPath("/home/fx/.sapien/steamvr_actions.json");
+
   assetDir = fs::path(__FILE__).parent_path() / "assets";
 
   svulkan2::logger::setLogLevel("info");
@@ -192,14 +192,14 @@ int main() {
     glm::vec4 pers;
 
     glm::decompose(vr.getHMDPose(), scale, quat, pos, skew, pers);
-    printf("hmd pos: %f %f %f\n", pos.x, pos.y, pos.z);
-    printf("hmd rot: %f %f %f %f\n", quat.w, quat.x, quat.y, quat.z);
 
     glm::decompose(vr.getHMDPose() * leftCamPose, scale, quat, pos, skew, pers);
     cameraLeftNode.setTransform({.position = pos, .rotation = quat});
 
     glm::decompose(vr.getHMDPose() * rightCamPose, scale, quat, pos, skew, pers);
     cameraRightNode.setTransform({.position = pos, .rotation = quat});
+
+    vr.getSkeletalDataLeft();
 
     scene->updateModelMatrices();
     {
