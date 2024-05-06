@@ -28,10 +28,11 @@ struct PhysicalDeviceInfo {
 
 class Instance : public std::enable_shared_from_this<Instance> {
 public:
-  static std::shared_ptr<Instance> Get(uint32_t appVersion, uint32_t engineVersion,
-                                       uint32_t apiVersion = VK_API_VERSION_1_2);
+  // static std::shared_ptr<Instance> Get(uint32_t appVersion, uint32_t engineVersion,
+  //                                      uint32_t apiVersion = VK_API_VERSION_1_2);
 
-  Instance(uint32_t appVersion, uint32_t engineVersion, uint32_t apiVersion);
+  Instance(uint32_t appVersion, uint32_t engineVersion, uint32_t apiVersion,
+           bool enableVR = false);
   ~Instance();
 
   inline bool isGLFWEnabled() const { return mGLFWSupported; }
@@ -60,9 +61,8 @@ private:
   std::vector<PhysicalDeviceInfo> mPhysicalDeviceInfo;
 
 #ifdef VK_VALIDATION
-    vk::DebugReportCallbackEXT mDebugCallbackHandle;
+  vk::DebugReportCallbackEXT mDebugCallbackHandle;
 #endif
-
 };
 
 } // namespace core

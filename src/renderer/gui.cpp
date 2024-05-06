@@ -180,6 +180,17 @@ static void applyStyle(float scale) {
   ImGui::GetStyle() = style;
 }
 
+void GuiWindow::setContentScale(float scale) {
+  mContentScale = scale;
+  if (ImGui::GetCurrentContext()) {
+    applyStyle(mContentScale);
+    auto &io = ImGui::GetIO();
+    if (io.FontDefault) {
+      io.FontDefault->Scale = scale / 2.f;
+    }
+  }
+}
+
 void GuiWindow::initImgui() {
   auto device = mContext->getDevice();
 
@@ -222,25 +233,28 @@ void GuiWindow::initImgui() {
   {
     int monitorCount = 0;
     auto monitors = glfwGetMonitors(&monitorCount);
-    for (int i = 0; i < monitorCount; ++i) {
-      float xscale = 0.f;
-      float yscale = 0.f;
-      glfwGetMonitorContentScale(monitors[i], &xscale, &yscale);
-      logger::info("Monitor {} scale: {}", i, xscale);
-      assert(xscale == yscale); // this should always be true
-      mContentScale = std::max(yscale, std::max(xscale, mContentScale));
-    }
-    if (mContentScale < 0.1f) {
-      mContentScale = 1.f;
-    }
-    logger::info("Largest monitor DPI scale: {}", mContentScale);
 
-    applyStyle(mContentScale);
-    auto font = io.Fonts->AddFontFromMemoryCompressedBase85TTF(roboto_compressed_data_base85,
-                                                               std::round(14.f * mContentScale));
+    if (mContentScale == 0.f) {
+      for (int i = 0; i < monitorCount; ++i) {
+        float xscale = 0.f;
+        float yscale = 0.f;
+        glfwGetMonitorContentScale(monitors[i], &xscale, &yscale);
+        logger::info("Monitor {} scale: {}", i, xscale);
+        assert(xscale == yscale); // this should always be true
+        mContentScale = std::max(yscale, std::max(xscale, mContentScale));
+      }
+      if (mContentScale < 0.1f) {
+        mContentScale = 1.f;
+      }
+      logger::info("Largest monitor DPI scale: {}", mContentScale);
+    }
+
+    auto font =
+        io.Fonts->AddFontFromMemoryCompressedBase85TTF(roboto_compressed_data_base85, 28.f);
     if (font != nullptr) {
       io.FontDefault = font;
     }
+    setContentScale(mContentScale);
   }
 
   io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;

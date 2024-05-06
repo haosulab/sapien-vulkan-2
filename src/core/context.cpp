@@ -2,13 +2,13 @@
 #include "../common/cuda_helper.h"
 #include "../common/logger.h"
 #include "svulkan2/common/launch_policy.h"
+#include "svulkan2/common/profiler.h"
 #include "svulkan2/core/allocator.h"
 #include "svulkan2/core/device.h"
 #include "svulkan2/core/instance.h"
 #include "svulkan2/core/physical_device.h"
 #include "svulkan2/shader/glsl_compiler.h"
 #include <GLFW/glfw3.h>
-#include "svulkan2/common/profiler.h"
 #include <iomanip>
 
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
@@ -28,7 +28,7 @@ std::shared_ptr<Context> Context::Get() {
 
 std::shared_ptr<Context> Context::Create(uint32_t maxNumMaterials, uint32_t maxNumTextures,
                                          uint32_t defaultMipLevels, bool doNotLoadTexture,
-                                         std::string device) {
+                                         std::string device, bool enableVR) {
   if (auto context = gContext.lock()) {
     if (context->mDefaultMipLevels != defaultMipLevels &&
         context->mDoNotLoadTexture != doNotLoadTexture) {
@@ -38,19 +38,21 @@ std::shared_ptr<Context> Context::Create(uint32_t maxNumMaterials, uint32_t maxN
     context->mDoNotLoadTexture = doNotLoadTexture;
     return context;
   }
-  auto context = std::shared_ptr<Context>(
-      new Context(maxNumMaterials, maxNumTextures, defaultMipLevels, doNotLoadTexture, device));
+  auto context = std::shared_ptr<Context>(new Context(
+      maxNumMaterials, maxNumTextures, defaultMipLevels, doNotLoadTexture, device, enableVR));
   gContext = context;
   return context;
 }
 
 Context::Context(uint32_t maxNumMaterials, uint32_t maxNumTextures, uint32_t defaultMipLevels,
-                 bool doNotLoadTexture, std::string device)
+                 bool doNotLoadTexture, std::string device, bool enableVR)
     : mMaxNumMaterials(maxNumMaterials), mMaxNumTextures(maxNumTextures),
       mDefaultMipLevels(defaultMipLevels), mDoNotLoadTexture(doNotLoadTexture) {
 
-  mInstance =
-      Instance::Get(VK_MAKE_VERSION(0, 0, 1), VK_MAKE_VERSION(0, 0, 1), VK_API_VERSION_1_2);
+  mInstance = std::make_shared<Instance>(VK_MAKE_VERSION(0, 0, 1), VK_MAKE_VERSION(0, 0, 1),
+                                         VK_API_VERSION_1_2, enableVR);
+  // mInstance =
+  //     Instance::Get(VK_MAKE_VERSION(0, 0, 1), VK_MAKE_VERSION(0, 0, 1), VK_API_VERSION_1_2);
   if (!mInstance) {
     return;
   }
@@ -227,7 +229,6 @@ vk::PhysicalDevice Context::getPhysicalDevice() const {
   }
   return mPhysicalDevice->getPickedDeviceInfo().device;
 }
-std::shared_ptr<PhysicalDevice> Context::getPhysicalDevice2() const { return mPhysicalDevice; }
 
 vk::PhysicalDeviceLimits const &Context::getPhysicalDeviceLimits() const {
   if (!mPhysicalDevice) {

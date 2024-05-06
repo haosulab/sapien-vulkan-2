@@ -29,7 +29,8 @@ public:
   static std::shared_ptr<Context> Create(uint32_t maxNumMaterials = 5000,
                                          uint32_t maxNumTextures = 5000,
                                          uint32_t defaultMipLevels = 1,
-                                         bool doNotLoadTexture = false, std::string device = "");
+                                         bool doNotLoadTexture = false, std::string device = "",
+                                         bool enableVR = false);
   std::shared_ptr<resource::SVResourceManager> createResourceManager();
 
   ~Context();
@@ -45,13 +46,14 @@ public:
 
   uint32_t getGraphicsQueueFamilyIndex() const;
 
-  inline std::shared_ptr<Device> getDevice2() const { return mDevice; };
-
   vk::Instance getInstance() const;
   vk::Device getDevice() const;
-
   vk::PhysicalDevice getPhysicalDevice() const;
-  std::shared_ptr<PhysicalDevice> getPhysicalDevice2() const;
+
+  std::shared_ptr<Device> getDevice2() const { return mDevice; };
+  std::shared_ptr<Instance> getInstance2() const { return mInstance; }
+  std::shared_ptr<PhysicalDevice> getPhysicalDevice2() const { return mPhysicalDevice; }
+
   vk::PhysicalDeviceLimits const &getPhysicalDeviceLimits() const;
 
   inline std::mutex &getGlobalLock() { return mGlobalLock; }
@@ -95,7 +97,8 @@ private:
   vk::UniqueDescriptorSetLayout mMetallicDescriptorSetLayout;
 
   Context(uint32_t maxNumMaterials = 5000, uint32_t maxNumTextures = 5000,
-          uint32_t defaultMipLevels = 1, bool doNotLoadTexture = false, std::string device = "");
+          uint32_t defaultMipLevels = 1, bool doNotLoadTexture = false, std::string device = "",
+          bool enableVR = false);
 
   void createDescriptorPool();
 

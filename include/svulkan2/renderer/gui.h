@@ -75,6 +75,8 @@ public:
   [[nodiscard]] inline uint32_t getFrameIndex() const { return mFrameIndex; }
   [[nodiscard]] inline float getContentScale() const { return mContentScale; }
 
+  void setContentScale(float scale);
+
   void dropCallback(int count, const char **paths);
   void setDropCallback(std::function<void(std::vector<std::string>)> callback);
   void unsetDropCallback();

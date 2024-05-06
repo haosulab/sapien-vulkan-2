@@ -16,29 +16,12 @@ VkBool32 myDebugCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT
   return false;
 }
 
-static std::weak_ptr<Instance> gInstance;
+// static std::weak_ptr<Instance> gInstance;
 
 static void glfwErrorCallback(int error_code, const char *description) {
   logger::error("GLFW error: {}. You may suppress this message by unsetting environment variable "
                 "DISPLAY so SAPIEN will not attempt to test on-screen rendering",
                 description);
-}
-
-std::shared_ptr<Instance> Instance::Get(uint32_t appVersion, uint32_t engineVersion,
-                                        uint32_t apiVersion) {
-  std::shared_ptr<Instance> instance = gInstance.lock();
-  if (instance) {
-    return instance;
-  }
-
-  try {
-    gInstance = instance = std::make_shared<Instance>(
-        VK_MAKE_VERSION(0, 0, 1), VK_MAKE_VERSION(0, 0, 1), VK_API_VERSION_1_2);
-    return instance;
-  } catch (std::runtime_error &e) {
-    logger::error("Failed to create renderer with error: {}", e.what());
-  }
-  return nullptr;
 }
 
 // https://github.com/ValveSoftware/openvr/blob/f51d87ecf8f7903e859b0aa4d617ff1e5f33db5a/samples/hellovr_vulkan/hellovr_vulkan_main.cpp#L673
@@ -77,7 +60,7 @@ static bool GetVRInstanceExtensionsRequired(std::vector<std::string> &outInstanc
   return true;
 }
 
-Instance::Instance(uint32_t appVersion, uint32_t engineVersion, uint32_t apiVersion)
+Instance::Instance(uint32_t appVersion, uint32_t engineVersion, uint32_t apiVersion, bool enableVR)
     : mApiVersion(apiVersion) {
 
   bool glfw = false;
@@ -191,7 +174,7 @@ Instance::Instance(uint32_t appVersion, uint32_t engineVersion, uint32_t apiVers
   }
 
   // vr
-  if (vr::VR_IsHmdPresent()) {
+  if (enableVR && vr::VR_IsHmdPresent()) {
     vr::EVRInitError err = vr::VRInitError_None;
     vr::VR_Init(&err, vr::VRApplication_Scene);
     if (err == vr::VRInitError_None) {
@@ -228,7 +211,8 @@ Instance::Instance(uint32_t appVersion, uint32_t engineVersion, uint32_t apiVers
     VULKAN_HPP_DEFAULT_DISPATCHER.init(mInstance.get());
 
 #ifdef VK_VALIDATION
-    vk::DebugReportCallbackCreateInfoEXT ci(vk::DebugReportFlagBitsEXT::eInformation, myDebugCallback);
+    vk::DebugReportCallbackCreateInfoEXT ci(vk::DebugReportFlagBitsEXT::eInformation,
+                                            myDebugCallback);
     mDebugCallbackHandle = mInstance->createDebugReportCallbackEXT(ci, nullptr);
 #endif
 
