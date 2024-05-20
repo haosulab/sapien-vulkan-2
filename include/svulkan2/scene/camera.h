@@ -25,25 +25,27 @@ private:
   float mSkew{0};
 
   // used by orthographic
-  float mScaling{1};
+  float mLeft{0};
+  float mRight{0};
+  float mTop{0};
+  float mBottom{0};
 
   Camera::Type mType{eUndefined};
 
 public:
   Camera(std::string const &name = "");
 
-  void setPerspectiveParameters(float near, float far, float fovy, float width,
-                                float height);
+  void setPerspectiveParameters(float near, float far, float fovy, float width, float height);
 
-  void setPerspectiveParameters(float near, float far, float fx, float fy,
-                                float cx, float cy, float width, float height,
-                                float skew);
+  void setPerspectiveParameters(float near, float far, float fx, float fy, float cx, float cy,
+                                float width, float height, float skew);
 
-  void setIntrinsicMatrix(glm::mat3 const &intrinsic, float near, float far,
-                          float width, float height);
+  void setIntrinsicMatrix(glm::mat3 const &intrinsic, float near, float far, float width,
+                          float height);
 
-  void setOrthographicParameters(float near, float far, float scaling,
-                                 float width, float height);
+  void setOrthographicParameters(float near, float far, float scaling, float width, float height);
+  void setOrthographicParameters(float near, float far, float left, float right, float bottom,
+                                 float top, float width, float height);
 
   void setWidth(float width);
   void setHeight(float height);
@@ -54,7 +56,11 @@ public:
   float getFar() const;
   float getFovx() const;
   float getFovy() const;
-  float getOrthographicScaling() const;
+
+  float getOrthographicLeft() const;
+  float getOrthographicRight() const;
+  float getOrthographicBottom() const;
+  float getOrthographicTop() const;
 
   float getFx() const;
   float getFy() const;
@@ -64,8 +70,7 @@ public:
 
   Camera::Type getCameraType() const { return mType; };
 
-  void uploadToDevice(core::Buffer &cameraBuffer,
-                      StructDataLayout const &cameraLayout);
+  void uploadToDevice(core::Buffer &cameraBuffer, StructDataLayout const &cameraLayout);
 
   inline glm::mat4 getProjectionMatrix() const { return mProjectionMatrix; }
 };

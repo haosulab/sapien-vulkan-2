@@ -6,9 +6,8 @@ namespace scene {
 
 Camera::Camera(std::string const &name) : Node(name) {}
 
-void Camera::setPerspectiveParameters(float near, float far, float fx, float fy,
-                                      float cx, float cy, float width,
-                                      float height, float skew) {
+void Camera::setPerspectiveParameters(float near, float far, float fx, float fy, float cx,
+                                      float cy, float width, float height, float skew) {
   mType = Camera::Type::ePerspective;
 
   mWidth = width;
@@ -22,58 +21,58 @@ void Camera::setPerspectiveParameters(float near, float far, float fx, float fy,
   mCy = cy;
   mSkew = skew;
 
-  mProjectionMatrix =
-      math::fullPerspective(near, far, fx, fy, cx, cy, width, height, skew);
+  mProjectionMatrix = math::fullPerspective(near, far, fx, fy, cx, cy, width, height, skew);
 }
 
-void Camera::setIntrinsicMatrix(glm::mat3 const &intrinsic, float near,
-                                float far, float width, float height) {
-  setPerspectiveParameters(near, far, intrinsic[0][0], intrinsic[1][1],
-                           intrinsic[2][0], intrinsic[2][1], width, height,
-                           intrinsic[1][0]);
+void Camera::setIntrinsicMatrix(glm::mat3 const &intrinsic, float near, float far, float width,
+                                float height) {
+  setPerspectiveParameters(near, far, intrinsic[0][0], intrinsic[1][1], intrinsic[2][0],
+                           intrinsic[2][1], width, height, intrinsic[1][0]);
 }
 
-void Camera::setPerspectiveParameters(float near, float far, float fovy,
-                                      float width, float height) {
+void Camera::setPerspectiveParameters(float near, float far, float fovy, float width,
+                                      float height) {
   mType = Camera::Type::ePerspective;
   float f = math::fov2focal(fovy, height);
-  setPerspectiveParameters(near, far, f, f, width / 2, height / 2, width,
-                           height, 0);
+  setPerspectiveParameters(near, far, f, f, width / 2, height / 2, width, height, 0);
 }
 
-void Camera::setOrthographicParameters(float near, float far, float scaling,
-                                       float width, float height) {
-  mType = Camera::Type::eOrthographic;
+void Camera::setOrthographicParameters(float near, float far, float scaling, float width,
+                                       float height) {
+  float aspect = width / height;
+  setOrthographicParameters(near, far, -scaling * aspect, scaling * aspect, -scaling, scaling,
+                            width, height);
+}
 
+void Camera::setOrthographicParameters(float near, float far, float left, float right,
+                                       float bottom, float top, float width, float height) {
+  mType = Camera::Type::eOrthographic;
   mNear = near;
   mFar = far;
 
-  float aspect = width / height;
+  mLeft = left;
+  mRight = right;
+  mBottom = bottom;
+  mTop = top;
 
-  mScaling = scaling;
-  mProjectionMatrix = math::ortho(-scaling * aspect, scaling * aspect, -scaling,
-                                  scaling, near, far);
+  mProjectionMatrix = math::ortho(left, right, bottom, top, near, far);
 }
 
 void Camera::setWidth(float width) { mWidth = width; }
 void Camera::setHeight(float height) { mHeight = height; }
 
-void Camera::uploadToDevice(core::Buffer &cameraBuffer,
-                            StructDataLayout const &cameraLayout) {
+void Camera::uploadToDevice(core::Buffer &cameraBuffer, StructDataLayout const &cameraLayout) {
   std::vector<char> buffer(cameraLayout.size);
 
   auto viewMatrix = glm::affineInverse(mTransform.worldModelMatrix);
   auto projInv = glm::inverse(mProjectionMatrix);
-  std::memcpy(buffer.data() + cameraLayout.elements.at("viewMatrix").offset,
-              &viewMatrix[0][0], 64);
-  std::memcpy(buffer.data() +
-                  cameraLayout.elements.at("viewMatrixInverse").offset,
+  std::memcpy(buffer.data() + cameraLayout.elements.at("viewMatrix").offset, &viewMatrix[0][0],
+              64);
+  std::memcpy(buffer.data() + cameraLayout.elements.at("viewMatrixInverse").offset,
               &mTransform.worldModelMatrix[0][0], 64);
-  std::memcpy(buffer.data() +
-                  cameraLayout.elements.at("projectionMatrix").offset,
+  std::memcpy(buffer.data() + cameraLayout.elements.at("projectionMatrix").offset,
               &mProjectionMatrix[0][0], 64);
-  std::memcpy(buffer.data() +
-                  cameraLayout.elements.at("projectionMatrixInverse").offset,
+  std::memcpy(buffer.data() + cameraLayout.elements.at("projectionMatrixInverse").offset,
               &projInv[0][0], 64);
 
   auto it = cameraLayout.elements.find("prevViewMatrix");
@@ -84,23 +83,21 @@ void Camera::uploadToDevice(core::Buffer &cameraBuffer,
 
   it = cameraLayout.elements.find("prevViewMatrixInverse");
   if (it != cameraLayout.elements.end()) {
-    std::memcpy(buffer.data() +
-                    cameraLayout.elements.at("prevViewMatrixInverse").offset,
+    std::memcpy(buffer.data() + cameraLayout.elements.at("prevViewMatrixInverse").offset,
                 &mTransform.prevWorldModelMatrix[0][0], 64);
   }
 
   it = cameraLayout.elements.find("width");
   if (it != cameraLayout.elements.end()) {
     float fwidth = static_cast<float>(mWidth);
-    std::memcpy(buffer.data() + cameraLayout.elements.at("width").offset,
-                &fwidth, sizeof(float));
+    std::memcpy(buffer.data() + cameraLayout.elements.at("width").offset, &fwidth, sizeof(float));
   }
 
   it = cameraLayout.elements.find("height");
   if (it != cameraLayout.elements.end()) {
     float fheight = static_cast<float>(mHeight);
-    std::memcpy(buffer.data() + cameraLayout.elements.at("height").offset,
-                &fheight, sizeof(float));
+    std::memcpy(buffer.data() + cameraLayout.elements.at("height").offset, &fheight,
+                sizeof(float));
   }
 
   cameraBuffer.upload<char>(buffer);
@@ -174,14 +171,41 @@ float Camera::getFovy() const {
   return math::focal2fov(mFy, mHeight);
 }
 
-float Camera::getOrthographicScaling() const {
+float Camera::getOrthographicLeft() const {
   if (mType == Camera::Type::eUndefined) {
     throw std::runtime_error("Camera is not initialized with parameters.");
   }
   if (mType != eOrthographic) {
     throw std::runtime_error("Only orthographic camera has this property.");
   }
-  return mScaling;
+  return mLeft;
+}
+float Camera::getOrthographicRight() const {
+  if (mType == Camera::Type::eUndefined) {
+    throw std::runtime_error("Camera is not initialized with parameters.");
+  }
+  if (mType != eOrthographic) {
+    throw std::runtime_error("Only orthographic camera has this property.");
+  }
+  return mRight;
+}
+float Camera::getOrthographicBottom() const {
+  if (mType == Camera::Type::eUndefined) {
+    throw std::runtime_error("Camera is not initialized with parameters.");
+  }
+  if (mType != eOrthographic) {
+    throw std::runtime_error("Only orthographic camera has this property.");
+  }
+  return mBottom;
+}
+float Camera::getOrthographicTop() const {
+  if (mType == Camera::Type::eUndefined) {
+    throw std::runtime_error("Camera is not initialized with parameters.");
+  }
+  if (mType != eOrthographic) {
+    throw std::runtime_error("Only orthographic camera has this property.");
+  }
+  return mTop;
 }
 
 float Camera::getFx() const {
