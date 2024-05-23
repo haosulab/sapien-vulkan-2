@@ -489,7 +489,7 @@ static inline uint32_t computeDevicePriority(PhysicalDeviceInfo const &info,
     } catch (std::runtime_error const &) {
     }
 
-    throw std::runtime_error("invalid PCI string");
+    return 0;
   }
 
   // no device hint
