@@ -65,16 +65,19 @@ Buffer::Buffer(std::shared_ptr<Device> device, vk::DeviceSize size,
   }
 
   vk::BufferCreateInfo bufferInfo({}, size, usageFlags);
+#if !defined(VK_USE_PLATFORM_MACOS_MVK)
   vk::ExternalMemoryBufferCreateInfo externalMemoryBufferInfo(
       vk::ExternalMemoryHandleTypeFlagBits::eOpaqueFd);
+#endif
 
   VmaAllocationCreateInfo memoryInfo{};
   memoryInfo.usage = memoryUsage;
   memoryInfo.flags = allocationFlags;
 
   if (external) {
+#if !defined(VK_USE_PLATFORM_MACOS_MVK)
     bufferInfo.setPNext(&externalMemoryBufferInfo);
-
+#endif
     if (memoryUsage != VMA_MEMORY_USAGE_GPU_ONLY) {
       throw std::runtime_error("external buffer can only be device local");
     }

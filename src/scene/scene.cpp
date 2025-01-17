@@ -666,8 +666,8 @@ void Scene::prepareObjectTransformBuffer() {
 size_t Scene::getGpuTransformBufferSize() {
   if (!mGpuTransformBufferSize) {
     mGpuTransformBufferSize =
-        std::max(sizeof(glm::mat4),
-                 core::Context::Get()->getPhysicalDeviceLimits().minUniformBufferOffsetAlignment);
+        std::max((uint64_t)sizeof(glm::mat4),
+                 (uint64_t)core::Context::Get()->getPhysicalDeviceLimits().minUniformBufferOffsetAlignment);
   }
   return mGpuTransformBufferSize;
 }

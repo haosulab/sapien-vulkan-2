@@ -1,0 +1,37 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index fb4c785..21c6cd7 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -60,7 +60,7 @@ elseif(APPLE)
+     set(PLATFORM_NAME "osx")
+     add_definitions(-DOSX -DPOSIX)
+     if(BUILD_UNIVERSAL)
+-      set(CMAKE_OSX_ARCHITECTURES "i386;x86_64")
++      set(CMAKE_OSX_ARCHITECTURES "i386;x86_64;arm64")
+     endif()
+     if(BUILD_OSX_I386)
+       set(PROCESSOR_ARCH "32")
+diff --git a/src/vrcore/pathtools_public.cpp b/src/vrcore/pathtools_public.cpp
+index 161522b..0885879 100644
+--- a/src/vrcore/pathtools_public.cpp
++++ b/src/vrcore/pathtools_public.cpp
+@@ -21,7 +21,6 @@
+ 
+ #if defined OSX
+ #include <Foundation/Foundation.h>
+-#include <AppKit/AppKit.h>
+ #include <mach-o/dyld.h>
+ #define _S_IFDIR S_IFDIR     // really from tier0/platform.h which we dont have yet
+ #endif
+diff --git a/src/vrcore/vrpathregistry_public.cpp b/src/vrcore/vrpathregistry_public.cpp
+index 0fbff25..822374e 100644
+--- a/src/vrcore/vrpathregistry_public.cpp
++++ b/src/vrcore/vrpathregistry_public.cpp
+@@ -14,7 +14,6 @@
+ #undef GetEnvironmentVariable
+ #elif defined OSX
+ #include <Foundation/Foundation.h>
+-#include <AppKit/AppKit.h>
+ #elif defined(LINUX)
+ #include <dlfcn.h>
+ #include <stdio.h>
