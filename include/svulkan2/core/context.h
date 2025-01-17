@@ -17,7 +17,21 @@ std::string getLogLevel();
 }; // namespace logger
 
 namespace core {
-
+#ifdef SAPIEN_MACOS
+struct VkSamplerCreateInfoCompare {
+  bool operator()(const vk::SamplerCreateInfo& lhs, const vk::SamplerCreateInfo& rhs) const {
+    return std::tie(
+      lhs.sType, lhs.pNext, lhs.flags, lhs.magFilter, lhs.minFilter, lhs.mipmapMode,
+      lhs.addressModeU, lhs.addressModeV, lhs.addressModeW, lhs.mipLodBias, lhs.anisotropyEnable,
+      lhs.maxAnisotropy, lhs.compareEnable, lhs.compareOp, lhs.minLod, lhs.maxLod, lhs.borderColor,
+      lhs.unnormalizedCoordinates) <
+      std::tie(rhs.sType, rhs.pNext, rhs.flags, rhs.magFilter, rhs.minFilter, rhs.mipmapMode,
+      rhs.addressModeU, rhs.addressModeV, rhs.addressModeW, rhs.mipLodBias, rhs.anisotropyEnable,
+      rhs.maxAnisotropy, rhs.compareEnable, rhs.compareOp, rhs.minLod, rhs.maxLod, rhs.borderColor,
+      rhs.unnormalizedCoordinates);
+  }
+};
+#endif
 class Instance;
 class PhysicalDevice;
 class Device;
@@ -103,7 +117,11 @@ private:
   void createDescriptorPool();
 
   std::mutex mSamplerLock{};
+#ifdef SAPIEN_MACOS
+  std::map<vk::SamplerCreateInfo, vk::UniqueSampler, VkSamplerCreateInfoCompare> mSamplerRegistry;
+#else
   std::map<vk::SamplerCreateInfo, vk::UniqueSampler> mSamplerRegistry;
+#endif
 };
 
 } // namespace core

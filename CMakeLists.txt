@@ -45,6 +45,15 @@ set_target_properties(svulkan2 PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 target_compile_definitions(imgui PRIVATE VK_NO_PROTOTYPES)
 target_compile_definitions(svulkan2 PUBLIC VK_NO_PROTOTYPES)
 
+if (${SAPIEN_MACOS})
+    target_compile_definitions(svulkan2 PUBLIC SAPIEN_MACOS)
+    target_compile_definitions(svulkan2 PUBLIC VK_USE_PLATFORM_MACOS_MVK)
+    target_compile_definitions(svulkan2 PUBLIC VK_ENABLE_BETA_EXTENSIONS)
+endif()
+if (${VK_VALIDATION})
+    target_compile_definitions(svulkan2 PUBLIC VK_VALIDATION)
+endif()
+
 target_include_directories(svulkan2 PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>

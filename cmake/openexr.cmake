@@ -15,4 +15,7 @@ set(BUILD_WEBSITE OFF CACHE BOOL "" FORCE)
 set(OPENEXR_BUILD_PYTHON OFF CACHE BOOL "" FORCE)
 set(OPENEXR_FORCE_INTERNAL_IMATH ON CACHE BOOL "" FORCE)
 
+if(APPLE)
+    set(OPENEXR_FORCE_INTERNAL_DEFLATE ON CACHE BOOL "Force using an internal libdeflate")
+endif()
 FetchContent_MakeAvailable(openexr)

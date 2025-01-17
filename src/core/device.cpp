@@ -107,6 +107,10 @@ Device::Device(std::shared_ptr<PhysicalDevice> physicalDevice) : mPhysicalDevice
     features.features.setShaderInt64(true);
   }
 
+#ifdef VK_USE_PLATFORM_MACOS_MVK
+  deviceExtensions.push_back(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME);
+#endif
+
   deviceExtensions.push_back(VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME);
 
   if (mPhysicalDevice->getPickedDeviceInfo().cudaId >= 0) {

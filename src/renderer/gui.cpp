@@ -202,6 +202,21 @@ void GuiWindow::initImgui() {
       &instance);
 
   // create a pool for allocating descriptor sets
+#ifdef VK_USE_PLATFORM_MACOS_MVK
+  vk::DescriptorPoolSize pool_sizes[] = {{vk::DescriptorType::eSampler, 100},
+                                         {vk::DescriptorType::eCombinedImageSampler, 100},
+                                         {vk::DescriptorType::eSampledImage, 100},
+                                         {vk::DescriptorType::eStorageImage, 100},
+                                         {vk::DescriptorType::eUniformTexelBuffer, 100},
+                                         {vk::DescriptorType::eStorageTexelBuffer, 100},
+                                         {vk::DescriptorType::eUniformBuffer, 100},
+                                         {vk::DescriptorType::eStorageBuffer, 100},
+                                         {vk::DescriptorType::eUniformBufferDynamic, 100},
+                                         {vk::DescriptorType::eStorageBufferDynamic, 100},
+                                         {vk::DescriptorType::eInputAttachment, 100}};
+  auto info = vk::DescriptorPoolCreateInfo(vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
+                                           100 * 11, 11, pool_sizes);
+#else
   vk::DescriptorPoolSize pool_sizes[] = {{vk::DescriptorType::eSampler, 1000},
                                          {vk::DescriptorType::eCombinedImageSampler, 1000},
                                          {vk::DescriptorType::eSampledImage, 1000},
@@ -215,6 +230,7 @@ void GuiWindow::initImgui() {
                                          {vk::DescriptorType::eInputAttachment, 1000}};
   auto info = vk::DescriptorPoolCreateInfo(vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
                                            1000 * 11, 11, pool_sizes);
+#endif
   mDescriptorPool = device.createDescriptorPoolUnique(info);
 
   mImguiRenderPass = createImguiRenderPass(device, mSurfaceFormat.format);
