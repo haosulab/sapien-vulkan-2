@@ -1,3 +1,19 @@
+/*
+ * Copyright 2025 Hillbot Inc.
+ * Copyright 2020-2024 UCSD SU Lab
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at:
+ * 
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 // File: 'Roboto-Medium.ttf' (162588 bytes)
 // Exported using binary_to_compressed_c.cpp
 static const char roboto_compressed_data_base85[144680+1] =
@@ -1035,4 +1051,3 @@ static const char roboto_compressed_data_base85[144680+1] =
     "ko[V6-Wpf13&mc2E=bY5_uxL,tXRS%S2`c)P5@D*TMw%+T/DG)P;^X%Kn-s-c6N>GgN/vGkgfVH]Ni>$cX=;.J`L;H@0wV%VvY@9(^Ow93FWwB_h[wBhe5^#VI`u&<<(@'`'(,))5###"
     "JNlQW#kJe$00k-$)kpw'BlUf:';YY#tV_lJfu72h#JGxI+L>gLx.VB#E*r*5?ke%#bV?(#g/:/#$q)`#;&<`#?2N`#=JwA-Vlw8=qUR$95qBT.K^''#`.tT#'=0U#+IBU#/UTU#3bgU#"
     "EkJa#QoSa#UuxA$V>dD-%EWm.Xqn%#1vtg0lbub#r?D0$7J9Y$>o8B;W####";
-
