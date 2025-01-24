@@ -15,11 +15,11 @@ static void
 updateArrayDescriptorSets(vk::Device device, vk::DescriptorSet descriptorSet,
                           std::vector<std::tuple<vk::ImageView, vk::Sampler>> textureData,
                           uint32_t binding) {
-
   std::vector<vk::WriteDescriptorSet> writeDescriptorSets;
   writeDescriptorSets.reserve(textureData.size());
 
   std::vector<vk::DescriptorImageInfo> imageInfos;
+  imageInfos.reserve(textureData.size());
   for (auto const &tex : textureData) {
     imageInfos.push_back(vk::DescriptorImageInfo(std::get<1>(tex), std::get<0>(tex),
                                                  vk::ImageLayout::eShaderReadOnlyOptimal));
@@ -32,34 +32,30 @@ updateArrayDescriptorSets(vk::Device device, vk::DescriptorSet descriptorSet,
   device.updateDescriptorSets(writeDescriptorSets, nullptr);
 }
 
-static void updateDescriptorSets(
-    vk::Device device, vk::DescriptorSet descriptorSet,
-    std::vector<std::tuple<vk::DescriptorType, vk::Buffer, vk::BufferView>> const &bufferData,
-    std::vector<std::tuple<vk::ImageView, vk::Sampler>> textureData, uint32_t bindingOffset) {
+static void updateDescriptorSets(vk::Device device,
+                                 vk::DescriptorSet descriptorSet,
+                                 std::vector<std::tuple<vk::DescriptorType, vk::Buffer, vk::BufferView>> const &bufferData,
+                                 std::vector<std::tuple<vk::ImageView, vk::Sampler>> textureData,
+                                 uint32_t bindingOffset) {
+  std::vector<vk::WriteDescriptorSet> writeDescriptorSets;
+  writeDescriptorSets.reserve(bufferData.size() + textureData.size());
 
   std::vector<vk::DescriptorBufferInfo> bufferInfos;
   bufferInfos.reserve(bufferData.size());
-
-  std::vector<vk::WriteDescriptorSet> writeDescriptorSets;
-  writeDescriptorSets.reserve(bufferData.size() + textureData.size() ? 1 : 0);
-
-  uint32_t dstBinding = bindingOffset;
   for (auto const &bd : bufferData) {
     bufferInfos.push_back(vk::DescriptorBufferInfo(std::get<1>(bd), 0, VK_WHOLE_SIZE));
     writeDescriptorSets.push_back(
-        vk::WriteDescriptorSet(descriptorSet, dstBinding++, 0, 1, std::get<0>(bd), nullptr,
+        vk::WriteDescriptorSet(descriptorSet, bindingOffset++, 0, 1, std::get<0>(bd), nullptr,
                                &bufferInfos.back(), std::get<2>(bd) ? &std::get<2>(bd) : nullptr));
   }
-
   std::vector<vk::DescriptorImageInfo> imageInfos;
+  imageInfos.reserve(textureData.size());
   for (auto const &tex : textureData) {
     imageInfos.push_back(vk::DescriptorImageInfo(std::get<1>(tex), std::get<0>(tex),
                                                  vk::ImageLayout::eShaderReadOnlyOptimal));
-  }
-  if (imageInfos.size()) {
     writeDescriptorSets.push_back(
-        vk::WriteDescriptorSet(descriptorSet, dstBinding, 0, imageInfos.size(),
-                               vk::DescriptorType::eCombinedImageSampler, imageInfos.data()));
+        vk::WriteDescriptorSet(descriptorSet, bindingOffset++, 0, 1,
+                               vk::DescriptorType::eCombinedImageSampler, &imageInfos.back()));
   }
   device.updateDescriptorSets(writeDescriptorSets, nullptr);
 }
