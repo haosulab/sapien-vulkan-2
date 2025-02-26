@@ -3,7 +3,7 @@ include(FetchContent)
 FetchContent_Declare(
     ktx
     GIT_REPOSITORY https://github.com/KhronosGroup/KTX-Software.git
-    GIT_TAG        v4.1.0
+    GIT_TAG        v4.3.2
     GIT_SHALLOW TRUE
     GIT_PROGRESS TRUE
 )
