@@ -81,7 +81,7 @@ endif()
 
 
 if (${SVULKAN2_CUDA_INTEROP})
-    find_package(CUDA REQUIRED)
+    find_package(CUDAToolkit REQUIRED)
     target_compile_definitions(svulkan2 PUBLIC SVULKAN2_CUDA_INTEROP)
     target_include_directories(svulkan2 PRIVATE "$ENV{CUDA_PATH}/include")
     if (MSVC)
