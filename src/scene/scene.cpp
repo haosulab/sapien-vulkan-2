@@ -1,13 +1,13 @@
 /*
  * Copyright 2025 Hillbot Inc.
  * Copyright 2020-2024 UCSD SU Lab
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at:
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -46,6 +46,16 @@ struct LightBufferData {
   glm::mat4 projectionMatrixInverse;
   int width;
   int height;
+};
+
+struct ShadowBufferData {
+  glm::mat4 viewMatrix;
+  glm::mat4 viewMatrixInverse;
+  glm::mat4 projectionMatrix;
+  glm::mat4 projectionMatrixInverse;
+  int width;
+  int height;
+  int padding[2];
 };
 
 Scene::Scene() {
@@ -497,7 +507,7 @@ void Scene::uploadShadowToDevice(core::Buffer &shadowBuffer,
 
   uint32_t lightBufferIndex = 0;
   {
-    std::vector<LightBufferData> directionalLightShadowData;
+    std::vector<ShadowBufferData> directionalLightShadowData;
     uint32_t numDirectionalLightShadows = 0;
     for (auto &l : getDirectionalLights()) {
       if (l->isShadowEnabled()) {
@@ -523,12 +533,12 @@ void Scene::uploadShadowToDevice(core::Buffer &shadowBuffer,
       }
     }
     shadowBuffer.upload(directionalLightShadowData.data(),
-                        directionalLightShadowData.size() * sizeof(LightBufferData),
+                        directionalLightShadowData.size() * sizeof(ShadowBufferData),
                         shadowLayout.elements.at("directionalLightBuffers").offset);
   }
 
   {
-    std::vector<LightBufferData> pointLightShadowData;
+    std::vector<ShadowBufferData> pointLightShadowData;
     uint32_t numPointLightShadows = 0;
     for (auto &l : getPointLights()) {
       if (l->isShadowEnabled()) {
@@ -559,12 +569,12 @@ void Scene::uploadShadowToDevice(core::Buffer &shadowBuffer,
       }
     }
     shadowBuffer.upload(pointLightShadowData.data(),
-                        pointLightShadowData.size() * sizeof(LightBufferData),
+                        pointLightShadowData.size() * sizeof(ShadowBufferData),
                         shadowLayout.elements.at("pointLightBuffers").offset);
   }
 
   {
-    std::vector<LightBufferData> spotLightShadowData;
+    std::vector<ShadowBufferData> spotLightShadowData;
     uint32_t numSpotLightShadows = 0;
     for (auto &l : getSpotLights()) {
       if (l->isShadowEnabled()) {
@@ -590,12 +600,12 @@ void Scene::uploadShadowToDevice(core::Buffer &shadowBuffer,
       }
     }
     shadowBuffer.upload(spotLightShadowData.data(),
-                        spotLightShadowData.size() * sizeof(LightBufferData),
+                        spotLightShadowData.size() * sizeof(ShadowBufferData),
                         shadowLayout.elements.at("spotLightBuffers").offset);
   }
 
   {
-    std::vector<LightBufferData> texturedLightShadowData;
+    std::vector<ShadowBufferData> texturedLightShadowData;
     uint32_t numTexturedLightShadows = 0;
     for (auto l : getTexturedLights()) {
       if (numTexturedLightShadows >= maxNumTexturedLightShadows) {
@@ -615,7 +625,7 @@ void Scene::uploadShadowToDevice(core::Buffer &shadowBuffer,
                                                sizeof(LightBufferData));
     }
     shadowBuffer.upload(texturedLightShadowData.data(),
-                        texturedLightShadowData.size() * sizeof(LightBufferData),
+                        texturedLightShadowData.size() * sizeof(ShadowBufferData),
                         shadowLayout.elements.at("texturedLightBuffers").offset);
   }
 }
@@ -681,9 +691,9 @@ void Scene::prepareObjectTransformBuffer() {
 
 size_t Scene::getGpuTransformBufferSize() {
   if (!mGpuTransformBufferSize) {
-    mGpuTransformBufferSize =
-        std::max((uint64_t)sizeof(glm::mat4),
-                 (uint64_t)core::Context::Get()->getPhysicalDeviceLimits().minUniformBufferOffsetAlignment);
+    mGpuTransformBufferSize = std::max(
+        (uint64_t)sizeof(glm::mat4),
+        (uint64_t)core::Context::Get()->getPhysicalDeviceLimits().minUniformBufferOffsetAlignment);
   }
   return mGpuTransformBufferSize;
 }
