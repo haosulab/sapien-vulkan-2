@@ -1,8 +1,8 @@
 include(FetchContent)
 FetchContent_Declare(
     oidn
-    URL https://github.com/OpenImageDenoise/oidn/releases/download/v2.0.1/oidn-2.0.1.src.tar.gz
-    URL_HASH MD5=9e13ff3d9eb640e923b699bea1c8d419
+    URL https://github.com/RenderKit/oidn/releases/download/v2.4.1/oidn-2.4.1.src.tar.gz
+    URL_HASH MD5=83f2ae3e891595bba0e85a3ed6d6b653
 )
 
 set(OIDN_APPS OFF CACHE BOOL "" FORCE)
