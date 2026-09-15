@@ -559,7 +559,7 @@ static inline uint32_t computeDevicePriority(PhysicalDeviceInfo const &info,
   if (!info.supported) {
     return 0;
   }
-  uint32_t score = 0;
+  uint32_t score = 1;
   if (info.cudaId >= 0) {
     score += 1000;
   }
