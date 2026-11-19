@@ -378,7 +378,7 @@ std::future<void> SVModel::loadAsync() {
         float specularFactor = 0.f;
         aiColor4D specularColor;
         if (m->Get(AI_MATKEY_SPECULAR_FACTOR, specularFactor) == AI_SUCCESS &&
-            m->Get(AI_MATKEY_COLOR_SPECULAR, specularFactor) == AI_SUCCESS) {
+            m->Get(AI_MATKEY_COLOR_SPECULAR, specularColor) == AI_SUCCESS) {
           specular = (specularColor[0] * 0.2125f + specularColor[1] * 0.7154f +
                       specularColor[2] * 0.0721f);
           specular *= 0.5f;
